@@ -1,0 +1,3 @@
+[submodule "parlaylib"]
+	path = parlaylib
+	url = git@github.com:cmuparlay/parlaylib.git
