@@ -1,0 +1,23 @@
+# ********************
+# GENERIC MAKEFILE FOR MOST BENCHMARKS THAT #include <name>.h
+# USES FOLLOWING DEFINITIONS
+#    BENCH : the name of the benchmark
+#    REQUIRE : dependences
+#    CC : the compiler
+#    CFLAGS : compiler flags
+#    LFLAGS : compiler link flags
+# ********************
+
+TIME = ../bench/$(BENCH)Time.C
+INCLUDE = 
+
+all : $(BENCH) 
+
+$(BENCH) : $(TIME) $(BENCH).h $(REQUIRE)
+	$(CC) -DSTATS $(CFLAGS) $(INCLUDE) -include $(BENCH).h -o $(BENCH) $(TIME) $(LFLAGS)
+
+clean :
+	rm -f $(BENCH)
+
+cleanall : clean
+	rm -f testInputs*; cd ../bench; make -s clean

@@ -1,0 +1,29 @@
+ifeq (, $(shell which jemalloc-config))
+JEMALLOC =
+else
+JEMALLOCLD = $(shell jemalloc-config --libdir)
+JEMALLOC = -L$(JEMALLOCLD) -ljemalloc 
+endif
+
+CCFLAGS = -mcx16 -O3 -std=c++17 -march=native -DNDEBUG -I .
+CLFLAGS = -ldl $(JEMALLOC)
+
+OMPFLAGS = -DPARLAY_OPENMP -fopenmp
+CILKFLAGS = -DPARLAY_CILK -fcilkplus
+PBBFLAGS = -DHOMEGROWN -pthread
+
+ifdef OPENMP
+CC = g++
+CFLAGS = $(OMPFLAGS) $(CCFLAGS)
+LFLAGS = $(OMPFLAGS) $(CLFLAGS)
+
+else ifdef CILK
+CC = g++
+CFLAGS = $(CILKFLAGS) $(CCFLAGS)
+LFLAGS = $(CILKFLAGS) $(CLFLAGS)
+
+else
+CC = g++
+CFLAGS = $(PBBFLAGS) $(CCFLAGS)
+LFLAGS = $(PBBFLAGS) $(CLFLAGS)
+endif
