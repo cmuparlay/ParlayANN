@@ -32,6 +32,61 @@
 
 extern bool report_stats;
 
+struct DisjointSet{
+	parlay::sequence<int> parent;
+	parlay::sequence<int> rank;
+	size_t N; 
+
+	DisjointSet(size_t size){
+		N = size;
+		parent = parlay::sequence<int>(N);
+		rank = parlay::sequence<int>(N);
+		parlay::parallel_for(0, N, [&] (size_t i) {
+			parent[i]=i;
+			rank[i] = 0;
+		});		
+	}
+
+	void _union(int x, int y){
+		int xroot = parent[x];
+		int yroot = parent[y];
+		int xrank = rank[x];
+		int yrank = rank[y];
+		if(xroot == yroot)
+			return;
+		else if(xrank < yrank)
+			parent[xroot] = yroot;
+		else{
+			parent[yroot] = xroot;
+			if(xrank == yrank)
+				rank[xroot] = rank[xroot] + 1;
+		}
+	}
+
+	int find(int x){
+		if(parent[x] != x)
+			parent[x] = find(parent[x]);
+		return parent[x];
+	}
+
+	void flatten(){
+		for(int i=0; i<N; i++) find(i);
+	}
+
+	bool is_full(){
+		flatten();
+		parlay::sequence<bool> truthvals(N);
+		parlay::parallel_for(0, N, [&] (size_t i){
+			truthvals[i] = (parent[i]==parent[0]);
+		});
+		auto ff = [&] (bool a) {return not a;};
+		auto filtered = parlay::filter(truthvals, ff);
+		if(filtered.size()==0) return true;
+		return false;
+	}
+
+};
+
 template<typename T>
 struct hcnng_index{
 	int maxDeg;
@@ -45,7 +100,7 @@ struct hcnng_index{
 
 	hcnng_index(int md, unsigned dim, Distance* DD) : maxDeg(md), d(dim), D(DD) {}
 
-	void remove_edge_duplicates(tvec_point* p){
+	static void remove_edge_duplicates(tvec_point* p){
 		parlay::sequence<int> points;
 		for(int i=0; i<size_of(p->out_nbh); i++){
 			points.push_back(p->out_nbh[i]);
@@ -59,12 +114,111 @@ struct hcnng_index{
 			remove_edge_duplicates(v[i]);
 		});
 	}
+	
+	//inserts each edge after checking for duplicates
+	static void process_edges(parlay::sequence<tvec_point*> &v, parlay::sequence<edge> edges){
+		int maxDeg = v[1]->out_nbh.begin() - v[0]->out_nbh.begin();
+		auto grouped = parlay::group_by_key(edges);
+		for(auto pair : grouped){
+			auto [index, candidates] = pair;
+			for(auto c : candidates){
+				if(size_of(v[index]->out_nbh) < maxDeg){
+					add_nbh(c, v[index]);
+				}else{
+					remove_edge_duplicates(v[index]);
+					add_nbh(c, v[index]);
+				}
+			}
+		}
+	}
+
+	//parameters dim and K are just to interface with the cluster tree code
+	static void MSTk(parlay::sequence<tvec_point*> &v, parlay::sequence<size_t> &active_indices, 
+		cluster_params C){
+		//preprocessing for Kruskal's
+		int N = active_indices.size();
+		int dim = v[0]->coordinates.size();
+		DisjointSet *disjset = new DisjointSet(N);
+		size_t m = 10;
+		auto less = [&] (labelled_edge a, labelled_edge b) {return a.second < b.second;};
+		parlay::sequence<parlay::sequence<labelled_edge>> pre_labelled(N);
+		parlay::parallel_for(0, N, [&] (size_t i){
+			std::priority_queue<labelled_edge, std::vector<labelled_edge>, decltype(less)> Q(less);
+			for(int j=0; j<N; j++){
+				if(j!=i){
+					float dist_ij = C.D->distance(v[active_indices[i]]->coordinates.begin(), v[active_indices[j]]->coordinates.begin(), dim);
+					if(Q.size() >= m){
+						float topdist = Q.top().second;
+						if(dist_ij < topdist){
+							labelled_edge e;
+							if(i<j) e = std::make_pair(std::make_pair(i,j), dist_ij);
+							else e = std::make_pair(std::make_pair(j, i), dist_ij);
+							Q.pop();
+							Q.push(e);
+						}
+					}else{
+						labelled_edge e;
+						if(i<j) e = std::make_pair(std::make_pair(i,j), dist_ij);
+						else e = std::make_pair(std::make_pair(j, i), dist_ij);
+						Q.push(e);
+					}
+				}
+			}
+			parlay::sequence<labelled_edge> edges(m);
+			for(int j=0; j<m; j++){edges[j] = Q.top(); Q.pop();}
+			pre_labelled[i] = edges;
+		});
+		auto flat_edges = parlay::flatten(pre_labelled);
+		// std::cout << flat_edges.size() << std::endl;
+		auto less_dup = [&] (labelled_edge a, labelled_edge b){
+			auto dist_a = a.second;
+			auto dist_b = b.second;
+			if(dist_a == dist_b){
+				int i_a = a.first.first;
+				int j_a = a.first.second;
+				int i_b = b.first.first;
+				int j_b = b.first.second;
+				if((i_a==i_b) && (j_a==j_b)){
+					return true;
+				} else{
+					if(i_a != i_b) return i_a < i_b;
+					else return j_a < j_b;
+				}
+			}else return (dist_a < dist_b);
+		};
+		auto labelled_edges = parlay::remove_duplicates_ordered(flat_edges, less_dup);
+		// parlay::sort_inplace(labelled_edges, less);
+		auto degrees = parlay::tabulate(active_indices.size(), [&] (size_t i) {return 0;});
+		parlay::sequence<edge> MST_edges = parlay::sequence<edge>();
+		//modified Kruskal's algorithm
+		for(int i=0; i<labelled_edges.size(); i++){
+			labelled_edge e_l = labelled_edges[i];
+			edge e = e_l.first;
+			if((disjset->find(e.first) != disjset->find(e.second)) && (degrees[e.first]<C.MSTDeg) && (degrees[e.second]<C.MSTDeg)){
+				MST_edges.push_back(std::make_pair(active_indices[e.first], active_indices[e.second]));
+				MST_edges.push_back(std::make_pair(active_indices[e.second], active_indices[e.first]));
+				degrees[e.first] += 1;
+				degrees[e.second] += 1;
+				disjset->_union(e.first, e.second);
+			}
+			if(i%N==0){
+				if(disjset->is_full()){
+					break;
+				}
+			}
+		}
+		delete disjset;
+		process_edges(v, MST_edges);
+	}
 
 
 	void build_index(parlay::sequence<tvec_point*> &v, int cluster_rounds, size_t cluster_size){ 
 		clear(v); 
 		cluster<T> C(d, D);
-		C.multiple_clustertrees(v, cluster_size, cluster_rounds, d, maxDeg);
+		cluster_params P;
+		P.MSTDeg = 3;
+		P.D = D;
+		C.multiple_clustertrees(v, cluster_size, cluster_rounds, MSTk, P);
 		remove_all_duplicates(v);
 	}
 	
