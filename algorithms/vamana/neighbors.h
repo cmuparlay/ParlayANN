@@ -42,7 +42,6 @@ void ANN(parlay::sequence<Tvec_point<T>*> &v, int k, int maxDeg,
 	 parlay::sequence<ivec_point> groundTruth, char* res_file, bool graph_built, Distance* D) {
   parlay::internal::timer t("ANN",report_stats);
   unsigned d = (v[0]->coordinates).size();
-  std::cout << D->distance(v[0]->coordinates.begin(), v[1]->coordinates.begin(), d) << std::endl;
   using findex = knn_index<T>;
   findex I(maxDeg, beamSize, alpha, d, D);
   double idx_time;
@@ -84,7 +83,8 @@ void ANN(parlay::sequence<Tvec_point<T>*> v, int maxDeg, int beamSize, double al
       t.next("Built index");
     }
     if(report_stats){
-      graph_stats(v);
+      auto [avg_deg, max_deg] = graph_stats(v);
+      std::cout << "Index built with average degree " << avg_deg << " and max degree " << max_deg << std::endl;
       t.next("stats");
     }
   };

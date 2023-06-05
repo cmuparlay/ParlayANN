@@ -24,8 +24,6 @@
 #include <algorithm>
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
-// #include "common/geometry.h"
-// #include "common/geometryIO.h"
 #include "parse_command_line.h"
 #include "time_loop.h"
 #include "../utils/parse_files.h"
@@ -50,13 +48,13 @@ bool report_stats = true;
 
 template<typename T>
 void timeNeighbors(parlay::sequence<Tvec_point<T>> &pts,
-  int rounds, int R, int beamSize, double delta, double alpha, char* outFile, int maxDeg, bool graph_built, Distance* D)
+  int R, int beamSize, double delta, double alpha, char* outFile, int maxDeg, bool graph_built, Distance* D)
 {
   size_t n = pts.size();
   auto v = parlay::tabulate(n, [&] (size_t i) -> Tvec_point<T>* {
       return &pts[i];});
 
-  time_loop(rounds, 0,
+  time_loop(1, 0,
   [&] () {},
   [&] () {
     ANN<T>(v, R, beamSize, alpha, delta, graph_built, D);
@@ -64,9 +62,7 @@ void timeNeighbors(parlay::sequence<Tvec_point<T>> &pts,
   [&] () {});
 
   if(outFile != NULL) {
-    std::cout << "Writing graph..."; 
     write_graph(v, outFile, maxDeg); 
-    std::cout << " done" << std::endl;
   }
 
 
@@ -75,7 +71,7 @@ void timeNeighbors(parlay::sequence<Tvec_point<T>> &pts,
 template<typename T>
 void timeNeighbors(parlay::sequence<Tvec_point<T>> &pts,
 		   parlay::sequence<Tvec_point<T>> &qpoints,
-		   int k, int rounds, int R, int beamSize,
+		   int k, int R, int beamSize,
 		   int beamSizeQ, double delta, double alpha, char* outFile,
 		   parlay::sequence<ivec_point>& groundTruth, int maxDeg, char* res_file, bool graph_built, Distance* D)
 {
@@ -87,7 +83,7 @@ void timeNeighbors(parlay::sequence<Tvec_point<T>> &pts,
   auto qpts =  parlay::tabulate(q, [&] (size_t i) -> Tvec_point<T>* {
       return &qpoints[i];});
 
-    time_loop(rounds, 0,
+    time_loop(1, 0,
       [&] () {},
       [&] () {
         ANN<T>(v, k, R, beamSize, beamSizeQ, alpha, delta, qpts, groundTruth, res_file, graph_built, D);
@@ -95,42 +91,37 @@ void timeNeighbors(parlay::sequence<Tvec_point<T>> &pts,
       [&] () {});
 
     if(outFile != NULL) {
-      std::cout << "Writing graph..."; 
       write_graph(v, outFile, maxDeg); 
-      std::cout << " done" << std::endl;
     }
 
 
 }
 
-// Infile is a file in .fvecs format
 int main(int argc, char* argv[]) {
     commandLine P(argc,argv,
     "[-a <alpha>] [-d <delta>] [-R <deg>]"
-        "[-L <bm>] [-k <k> ] [-Q <bmq>] [-q <qF>]"
-        "[-g <gF>] [-o <oF>] [-res <rF>] [-r <rnds>] [-b <algoOpt>] [-f <ft>] [-t <tp>] [-D <df>] <inFile>");
+        "[-L <bm>] [-k <k> ] [-L_range <bmq>] [-gt_path <g>] [-query_path <qF>]"
+        "[-graph_path <gF>] [-graph_outfile <oF>] [-res_path <rF>]"
+        "[-memory_flag <algoOpt>] [-file_type <ft>] [-Q <q>]"
+        "[-data_type <tp>] [-dist_func <df>][-base_path <b>] <inFile>");
 
-  char* iFile = P.getArgument(0);
-  char* oFile = P.getOptionValue("-o");
-  char* gFile = P.getOptionValue("-g");
-  char* qFile = P.getOptionValue("-q");
-  char* cFile = P.getOptionValue("-c");
-  char* rFile = P.getOptionValue("-res");
-  char* filetype = P.getOptionValue("-f");
-  char* vectype = P.getOptionValue("-t");
+  char* iFile = P.getOptionValue("-base_path");
+  char* oFile = P.getOptionValue("-graph_outfile");
+  char* gFile = P.getOptionValue("-graph_path");
+  char* qFile = P.getOptionValue("-query_path");
+  char* cFile = P.getOptionValue("-gt_path");
+  char* rFile = P.getOptionValue("-res_path");
+  char* filetype = P.getOptionValue("-file_type");
+  char* vectype = P.getOptionValue("-data_type");
   int R = P.getOptionIntValue("-R", 5);
-  if (R < 1) P.badArgument();
   int L = P.getOptionIntValue("-L", 10);
-  if (L < 1) P.badArgument();
-  int Q = P.getOptionIntValue("-Q", L);
-  if (Q < 1) P.badArgument();
-  int rounds = P.getOptionIntValue("-r", 1);
+  int Q = P.getOptionIntValue("-Q", 10);
   int k = P.getOptionIntValue("-k", 1);
   if (k > 1000 || k < 1) P.badArgument();
   double alpha = P.getOptionDoubleValue("-a", 1.2);
   double delta = P.getOptionDoubleValue("-d", .01);
-  int algoOpt = P.getOptionIntValue("-b", 0);
-  char* dfc = P.getOptionValue("-D");
+  int algoOpt = P.getOptionIntValue("-memory_flag", 0);
+  char* dfc = P.getOptionValue("-dist_func");
 
   std::string df = std::string(dfc);
   Distance* D;
@@ -175,20 +166,20 @@ int main(int argc, char* argv[]) {
       maxDeg = md;
       if(qFile != NULL){
         auto [fd, qpoints] = parse_fvecs(qFile, NULL, 0);
-        timeNeighbors<float>(points, qpoints, k, rounds, R, L, Q,
+        timeNeighbors<float>(points, qpoints, k, R, L, Q,
           delta, alpha, oFile, groundTruth, maxDeg, rFile, graph_built, D);
       }
-      else timeNeighbors<float>(points, rounds, R, L, delta, alpha, oFile, maxDeg, graph_built, D);
+      else timeNeighbors<float>(points, R, L, delta, alpha, oFile, maxDeg, graph_built, D);
     }
     else if(tp == "uint8"){
       auto [md, points] = parse_bvecs(iFile, gFile, maxDeg);
       maxDeg = md;
       if(qFile != NULL){
         auto [fd, qpoints] = parse_bvecs(qFile, NULL, 0);
-        timeNeighbors<uint8_t>(points, qpoints, k, rounds, R, L, Q,
+        timeNeighbors<uint8_t>(points, qpoints, k, R, L, Q,
           delta, alpha, oFile, groundTruth, maxDeg, rFile, graph_built, D);
       }
-      else timeNeighbors<uint8_t>(points, rounds, R, L, delta, alpha, oFile, maxDeg, graph_built, D);
+      else timeNeighbors<uint8_t>(points, R, L, delta, alpha, oFile, maxDeg, graph_built, D);
     }
   }else if(ft == "bin"){
     if(cFile != NULL) groundTruth = parse_ibin(cFile);
@@ -197,28 +188,28 @@ int main(int argc, char* argv[]) {
       maxDeg = md;
       if(qFile != NULL){
         auto [fd, qpoints] = parse_fbin(qFile, NULL, 0);
-        timeNeighbors<float>(points, qpoints, k, rounds, R, L, Q,
+        timeNeighbors<float>(points, qpoints, k, R, L, Q,
           delta, alpha, oFile, groundTruth, maxDeg, rFile, graph_built, D);
       }
-      else timeNeighbors<float>(points, rounds, R, L, delta, alpha, oFile, maxDeg, graph_built, D);
+      else timeNeighbors<float>(points, R, L, delta, alpha, oFile, maxDeg, graph_built, D);
     } else if(tp == "uint8"){
       auto [md, points] = parse_uint8bin(iFile, gFile, maxDeg);
       maxDeg = md;
       if(qFile != NULL){
         auto [fd, qpoints] = parse_uint8bin(qFile, NULL, 0);
-        timeNeighbors<uint8_t>(points, qpoints, k, rounds, R, L, Q,
+        timeNeighbors<uint8_t>(points, qpoints, k, R, L, Q,
           delta, alpha, oFile, groundTruth, maxDeg, rFile, graph_built, D);
       }
-      else timeNeighbors<uint8_t>(points, rounds, R, L, delta, alpha, oFile, maxDeg, graph_built, D);
+      else timeNeighbors<uint8_t>(points, R, L, delta, alpha, oFile, maxDeg, graph_built, D);
     } else if(tp == "int8"){
       auto [md, points] = parse_int8bin(iFile, gFile, maxDeg);
       maxDeg = md;
       if(qFile != NULL){
         auto [fd, qpoints] = parse_int8bin(qFile, NULL, 0);
-        timeNeighbors<int8_t>(points, qpoints, k, rounds, R, L, Q,
+        timeNeighbors<int8_t>(points, qpoints, k, R, L, Q,
           delta, alpha, oFile, groundTruth, maxDeg, rFile, graph_built, D);
       }
-      else timeNeighbors<int8_t>(points, rounds, R, L, delta, alpha, oFile, maxDeg, graph_built, D);
+      else timeNeighbors<int8_t>(points, R, L, delta, alpha, oFile, maxDeg, graph_built, D);
     }
   }
 }

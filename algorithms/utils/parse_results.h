@@ -129,6 +129,10 @@ struct nn_result{
   }
 
   void print(){
+    std::cout << "For recall = " << recall << ", QPS = " << QPS << std::endl;
+  }
+
+  void print_verbose(){
     std::cout << "Over " << num_queries << " queries" << std::endl;
     std::cout << "k = " << k << ", Q = " << beamQ << ", cut = " << cut 
 	    << ", throughput = " << QPS << "/second" << std::endl;
@@ -185,12 +189,9 @@ auto parse_result(parlay::sequence<res> results, parlay::sequence<float> buckets
     if(candidates.size() != 0){
       auto less = [&] (res R, res S) {return R.QPS < S.QPS;};
       res M = *(parlay::max_element(candidates, less));
-      std::cout << "For recall above: " << b << std::endl;
       M.print();
       retval.push_back(M);
       ret_buckets.push_back(b);
-      std::cout << std::endl;
-      std::cout << std::endl;
     }
   }
   return std::make_pair(retval, ret_buckets);

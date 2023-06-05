@@ -145,7 +145,7 @@ auto parse_uint8bin(const char* filename, const char* gFile, int maxDeg){
         else{add_null_graph(points, maxDeg);}
     }
 
-    return std::make_pair(maxDeg, points);
+    return std::make_pair(maxDeg, std::move(points));
 }
 
 auto parse_int8bin(const char* filename, const char* gFile, int maxDeg){
