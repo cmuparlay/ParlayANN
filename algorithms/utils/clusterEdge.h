@@ -231,7 +231,6 @@ struct cluster{
   		std::uniform_int_distribution<int> uni(0,v.size()); 
     	parlay::random rnd(uni(rng));
     	auto active_indices = parlay::tabulate(v.size(), [&] (size_t i) { return i; });
-		// f(v, active_indices, P);
     	random_clustering(v, active_indices, rnd, cluster_size, f, P);
 	}
 
@@ -240,7 +239,7 @@ struct cluster{
 		F f, cluster_params P){
 		for(int i=0; i<num_clusters; i++){
 			random_clustering_wrapper(v, cluster_size, f, P);
+			std::cout << "Built cluster " << i << " of " << num_clusters << std::endl;
 		}
-		// f(P);
 	}
 };

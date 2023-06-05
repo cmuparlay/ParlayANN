@@ -57,7 +57,8 @@ nn_result checkRecall(
     query_time = t.next_time();
   }
   float recall = 0.0;
-  bool dists_present = (groundTruth[0].distances.size() != 0);
+  // bool dists_present = (groundTruth[0].distances.size() != 0);
+  bool dists_present=false;
   if (groundTruth.size() > 0 && !dists_present) {
     size_t n = q.size();
     int numCorrect = 0;
@@ -132,16 +133,29 @@ void search_and_parse(Graph G, parlay::sequence<Tvec_point<T>*> &v, parlay::sequ
     unsigned d = v[0]->coordinates.size();
 
     parlay::sequence<nn_result> results;
-    std::vector<int> beams = {15, 20, 30, 50, 75, 100, 125, 250, 500};
-    std::vector<int> allk = {10, 15, 20, 30, 50, 100};
-    std::vector<float> cuts = {1.1, 1.125, 1.15, 1.175, 1.2, 1.25};
+    std::vector<int> beams;
+    std::vector<int> allk;
+    std::vector<float> cuts;
+    if(v.size() <= 200000){
+      beams = {15, 20, 30, 50, 75, 100};
+      allk = {10, 15, 20, 50};
+      cuts = {1.1, 1.15, 1.2, 1.25};
+    }else{
+      beams = {15, 20, 30, 50, 75, 100, 125, 250, 500};
+      allk = {10, 15, 20, 30, 50, 100};
+      cuts = {1.1, 1.125, 1.15, 1.175, 1.2, 1.25};
+    }
+    
     for (float cut : cuts)
       for (float Q : beams) 
         results.push_back(checkRecall(v, q, groundTruth, 10, Q, cut, d, random, -1, start_point, D));
 
-    for (float cut : cuts)
-      for (int kk : allk)
-        results.push_back(checkRecall(v, q, groundTruth, kk, 500, cut, d, random, -1, start_point, D));
+    if(v.size() >= 200000){
+      for (float cut : cuts)
+        for (int kk : allk)
+          results.push_back(checkRecall(v, q, groundTruth, kk, 500, cut, d, random, -1, start_point, D));
+    }
+    
 
     // check "limited accuracy"
     parlay::sequence<int> limits = calculate_limits(results[0].avg_visited);
@@ -150,7 +164,8 @@ void search_and_parse(Graph G, parlay::sequence<Tvec_point<T>*> &v, parlay::sequ
     }
 
     // check "best accuracy"
-    results.push_back(checkRecall(v, q, groundTruth, 100, 1000, 10.0, d, random, -1, start_point, D));
+    if(v.size() <= 200000) results.push_back(checkRecall(v, q, groundTruth, 15, 500, 10.0, d, random, -1, start_point, D));
+    else results.push_back(checkRecall(v, q, groundTruth, 100, 1000, 10.0, d, random, -1, start_point, D));
 
     parlay::sequence<float> buckets = {.1, .15, .2, .25, .3, .35, .4, .45, .5, .55, .6, .65, .7, .73, .75, .77, .8, .83, .85, .87, .9, .93, .95, .97, .99, .995, .999};
     auto [res, ret_buckets] = parse_result(results, buckets);

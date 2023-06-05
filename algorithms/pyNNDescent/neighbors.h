@@ -47,9 +47,6 @@ void ANN(parlay::sequence<Tvec_point<T>*> &v, int k, int K, int cluster_size, in
     double idx_time;
     if(!graph_built){
       findex I(K, d, .05, D);
-      std::cout << "Degree bound K " << K << std::endl;
-      std::cout << "Cluster size " << cluster_size << std::endl;
-      std::cout << "Number of clusters " << num_clusters << std::endl;
       I.build_index(v, cluster_size, (int) num_clusters, alpha);
       idx_time = t.next_time();
     }else {idx_time=0;}
