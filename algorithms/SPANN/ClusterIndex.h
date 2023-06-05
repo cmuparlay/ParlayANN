@@ -1,6 +1,8 @@
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
-#include "utils/indexTools.h"
+#include "../utils/indexTools.h"
+#include "../utils/types.h"
+#include "../utils/beamSearch.h"
 #include "parlay/random.h"
 #include "parlay/sequence.h"
 
@@ -22,7 +24,15 @@
 
     The constructor does not have arguments for the index's `build_index` for the sake of generality, so I recommend a wrapper struct, default values, or overloading `build_index` to provide the parameters.
 
-    `index_type` here would be like `hcnng_index<T>`. Would be nice if this included a search method but they don't seem to by default.
+    @tparam T: type of vector elements
+    @tparam index_type: type of index used to search within the shard. Should be like `hcnng_index<T>`. Ideally would have a search method that returns a sequence of tuples of the form (distance to query, pointer to vector). 
+
+    @param data: pointer to the data sequence for the whole index
+    @param indices: indices of vectors in the shard
+    @param centroid_index: index of the representative vector for the shard
+    @param D: distance function
+    @param dim: dimension of the vectors
+    @param max_deg: maximum degree of the index
  */
 template <typename T, typename index_type>
 struct shard {
@@ -39,12 +49,13 @@ struct shard {
 
         auto data_slice = parlay::map(indices, [&] (size_t i) {
             return &((*data)[i]);
-        }
+        });
 
         this->index.build_index(data_slice, index_alpha, index_beta);
     }
 
     // TODO: implement a method to search within the shard, because at least hcnng_index does not have a search method. Said method is currently expected to return a sequence of tuples of the form (distance to query, pointer to vector).
+
 };
 
 
