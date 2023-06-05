@@ -19,7 +19,7 @@ wget ftp://ftp.irisa.fr/local/texmex/corpus/sift.tar.gz
 tar -xf sift.tar.gz
 ```
 
-Next, calculate its ground truth up to $$k=100$$. See the README in the data_tools folder for an explanation of each parameter.
+Next, calculate its ground truth up to $k=100$. See the README in the data_tools folder for an explanation of each parameter.
 
 ```bash
 cd ../data_tools
