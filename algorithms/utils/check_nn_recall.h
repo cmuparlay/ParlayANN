@@ -126,6 +126,19 @@ parlay::sequence<int> calculate_limits(size_t avg_visited){
   return limits;
 }    
 
+/* 
+  Runs recall experiments for a given graph and query set, and writes the metrics to a csv file.
+
+  @param G: the graph to be queried
+  @param v: the set of pointers to Tvec_point<T> points in the graph
+  @param q: the set of pointers to Tvec_point<T> points to be queried
+  @param groundTruth: the set of ground truth nearest neighbors for each query point, provided as a 
+    sequence of ivec_points
+  @param res_file: the name of the csv file to write the results to
+  @param D: the distance function to be used
+  @param random: whether the starting point for beam search should be chosen randomly
+  @param start_point: the index of the starting point for beam search, if random is false
+ */
 template<typename T>
 void search_and_parse(Graph G, parlay::sequence<Tvec_point<T>*> &v, parlay::sequence<Tvec_point<T>*> &q, 
     parlay::sequence<ivec_point> groundTruth, char* res_file, Distance* D, bool random=true, int start_point=0){
