@@ -2,7 +2,7 @@
 
 ParlayANN is a library of approximate nearest neighbor search algorithms, along with a set of useful tools for designing such algorithms. It is written in C++ and uses parallel primitives from [ParlayLib](https://cmuparlay.github.io/parlaylib/). Currently it includes implementations of the ANNS algorithms [DiskANN](https://github.com/microsoft/DiskANN), [HCNNG](https://github.com/jalvarm/hcnng), and [pyNNDescent](https://pynndescent.readthedocs.io/en/latest/).
 
-To install, git clone and then initiate the ParlayLib submodule:
+To install, [clone the repo](https://github.com/magdalendobson/ParlayANN/tree/main) and then initiate the ParlayLib submodule:
 
 ```bash
 git submodule init
