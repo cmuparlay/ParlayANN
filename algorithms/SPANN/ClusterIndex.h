@@ -154,7 +154,7 @@ struct ClusterIndex {
 
         // should be parlay::sequence<parlay::sequence<pair<double, Tvec_point<T>*>>> for a sequence of (distance, pointer to vector) pairs
         auto search_results = parlay::map(to_search, [&] (size_t i) {
-            return this->shards[i].index.search(query, k);
+            return this->shards[i].index.search(query, k); // might be preferable to have a search method of the shard struct
         });
 
         parlay::sort_inplace(search_results, [&] (auto a, auto b) {

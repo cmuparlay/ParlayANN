@@ -221,5 +221,16 @@ struct hcnng_index{
 		C.multiple_clustertrees(v, cluster_size, cluster_rounds, MSTk, P);
 		remove_all_duplicates(v);
 	}
+
+	// void build_index(parlay::sequence<tvec_point*> &v, int cluster_rounds, size_t cluster_size){ 
+	// 	clear(v); 
+	// 	cluster<T> C(d, D);
+	// 	cluster_params P;
+	// 	P.MSTDeg = 3;
+	// 	P.D = D;
+	// 	std::cout << "Building sliding HCNNG" << std::endl;
+	// 	C.multiple_sliding_clustertrees(v, cluster_size, cluster_rounds, MSTk, P);
+	// 	remove_all_duplicates(v);
+	// }
 	
 };

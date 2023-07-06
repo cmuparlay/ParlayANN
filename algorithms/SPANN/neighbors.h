@@ -34,14 +34,32 @@
 #include "../utils/check_nn_recall.h"
 #include "hcnng_index.h"
 
+/* 
+  Towards integrating IVF into the ParlayANN benchmark framework:
+  - If adapting the `Graph` struct, could report stats on the index connecting the centroids, indices within each cell, aggregate stats as if it were a single graph, etc.
+  - Incorporating the 'nn_result` struct includes recall (relevant and straightforward), distance conparisons (less relevant but still needed), and visited nodes (would probably be just the number of posting lists evaluated or sum of their sizes)
+  - What should a `search` method return?
+  - need a `ANN` or `index` virtual class that can be implemented by different searchable index structures
+
+ */
+
+
+class Index {
+
+}
+
 extern bool report_stats;
+
+/* 
+  The ANN function used by the benchmarking code in `neighborsTime.C`
+ */
 template<typename T>
 void ANN(parlay::sequence<Tvec_point<T>*> &v, int k, int mstDeg,
 	 int num_clusters, int beamSizeQ, double cluster_size, double dummy,
 	 parlay::sequence<Tvec_point<T>*> &q, parlay::sequence<ivec_point> groundTruth, char* res_file, bool graph_built, Distance* D) {
 
   parlay::internal::timer t("ANN",report_stats); 
-  using findex = hcnng_index<T>;
+  using findex = ClusterIndex<T, >;
   unsigned d = (v[0]->coordinates).size();
   double idx_time;
   if(!graph_built){
@@ -53,10 +71,10 @@ void ANN(parlay::sequence<Tvec_point<T>*> &v, int k, int mstDeg,
   } else{idx_time=0;}
   std::string name = "HCNNG";
   std::string params = "Trees = " + std::to_string(num_clusters);
-  auto [avg_deg, max_deg] = graph_stats(v);
-  Graph G(name, params, v.size(), avg_deg, max_deg, idx_time);
-  G.print();
-  search_and_parse_searchable(G, v, q, groundTruth, res_file, D);
+  // auto [avg_deg, max_deg] = graph_stats(v);
+  // Graph G(name, params, v.size(), avg_deg, max_deg, idx_time);
+  // G.print();
+  search_and_parse(G, v, q, groundTruth, res_file, D);
 
 }
 

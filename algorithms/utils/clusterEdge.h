@@ -236,10 +236,49 @@ struct cluster{
 	}
 
 	template<typename F>
+	void random_sliding_clustering_wrapper(parlay::sequence<tvec_point*> &v, size_t cluster_size, 
+		F f, cluster_params P, int split_index){
+		std::random_device rd;    
+  		std::mt19937 rng(rd());   
+  		std::uniform_int_distribution<int> uni(0,v.size()); 
+    	parlay::random rnd(uni(rng));
+    	auto active_indices = parlay::tabulate(v.size(), [&] (size_t i) { return i; });
+		// auto active_indices_h1 = parlay::tabulate(v.size() / 2, [&] (size_t i) { return (i + split_index) % v.size(); });
+		// split_index = (split_index + v.size() / 2) % v.size();
+		// auto active_indices_h2 = parlay::tabulate(v.size() / 2, [&] (size_t i) { return (i + split_index) % v.size(); });
+		auto active_indices_q1 = parlay::tabulate(v.size() / 4, [&] (size_t i) { return (i + split_index) % v.size(); });
+		split_index = (split_index + v.size() / 4) % v.size();
+		auto active_indices_q2 = parlay::tabulate(v.size() / 4, [&] (size_t i) { return (i + split_index) % v.size(); });
+		split_index = (split_index + v.size() / 4) % v.size();
+		auto active_indices_q3 = parlay::tabulate(v.size() / 4, [&] (size_t i) { return (i + split_index) % v.size(); });
+		split_index = (split_index + v.size() / 4) % v.size();
+		auto active_indices_q4 = parlay::tabulate(v.size() / 4, [&] (size_t i) { return (i + split_index) % v.size(); });
+
+		// f(v, active_indices, P);
+    	random_clustering(v, active_indices, rnd, cluster_size, f, P);
+		// random_clustering(v, active_indices_h1, rnd, cluster_size, f, P);
+		// random_clustering(v, active_indices_h2, rnd, cluster_size, f, P);
+		random_clustering(v, active_indices_q1, rnd, cluster_size, f, P);
+		random_clustering(v, active_indices_q2, rnd, cluster_size, f, P);
+		random_clustering(v, active_indices_q3, rnd, cluster_size, f, P);
+		random_clustering(v, active_indices_q4, rnd, cluster_size, f, P);
+	}
+
+	template<typename F>
 	void multiple_clustertrees(parlay::sequence<tvec_point*> &v, size_t cluster_size, int num_clusters,
 		F f, cluster_params P){
 		for(int i=0; i<num_clusters; i++){
 			random_clustering_wrapper(v, cluster_size, f, P);
+		}
+		// f(P);
+	}
+
+	template<typename F>
+	void multiple_sliding_clustertrees(parlay::sequence<tvec_point*> &v, size_t cluster_size, int num_clusters,
+		F f, cluster_params P){
+		for(int i=0; i<(num_clusters / 2); i++){
+			auto split_index = i * (v.size() * 2 / num_clusters);
+			random_sliding_clustering_wrapper(v, cluster_size, f, P, split_index);
 		}
 		// f(P);
 	}

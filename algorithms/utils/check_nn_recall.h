@@ -100,6 +100,86 @@ nn_result checkRecall(
   return N;
 }
 
+// using search_function = void (*)(parlay::sequence<Tvec_point<T>*> &q);
+
+/* 
+  Exactly the same as the above function but takes a pointer to a search function and replaces beam search with that function.
+
+  Beam search arguments should be provided to the search function via lambda function.
+ */
+template<typename T>
+nn_result checkRecallSearchable(
+        std::function<void(parlay::sequence<Tvec_point<T>*>)> search,
+        // parlay::sequence<Tvec_point<T>*> &v,
+        parlay::sequence<Tvec_point<T>*> &q,
+        parlay::sequence<ivec_point> groundTruth,
+        int k,
+        int beamQ,
+        float cut) {
+  parlay::internal::timer t;
+  int r = 10;
+  float query_time;
+
+  *search(q);
+  t.next_time();
+  *search(q);
+  query_time = t.next_time();
+
+  // if(random){
+  //   beamSearchRandom(q, v, beamQ, k, d, D, cut, limit);
+  //   t.next_time();
+  //   beamSearchRandom(q, v, beamQ, k, d, D, cut, limit);
+  //   query_time = t.next_time();
+  // }else{
+  //   searchAll(q, v, beamQ, k, d, v[start_point], D, cut, limit);
+  //   t.next_time();
+  //   searchAll(q, v, beamQ, k, d, v[start_point], D, cut, limit);
+  //   query_time = t.next_time();
+  // }
+  float recall = 0.0;
+  bool dists_present = (groundTruth[0].distances.size() != 0);
+  if (groundTruth.size() > 0 && !dists_present) {
+    size_t n = q.size();
+    int numCorrect = 0;
+    for(int i=0; i<n; i++){
+      std::set<int> reported_nbhs;
+      for(int l=0; l<r; l++) reported_nbhs.insert((q[i]->ngh)[l]);
+      for(int l=0; l<r; l++){
+	      if (reported_nbhs.find((groundTruth[i].coordinates)[l]) != reported_nbhs.end()){
+          numCorrect += 1;
+      }
+      }
+    }
+    recall = static_cast<float>(numCorrect)/static_cast<float>(r*n);
+  }else if(groundTruth.size() > 0 && dists_present){
+    size_t n = q.size();
+    int numCorrect = 0;
+    for(int i=0; i<n; i++){
+      parlay::sequence<int> results_with_ties;
+      for(int l=0; l<r; l++) results_with_ties.push_back(groundTruth[i].coordinates[l]);
+      float last_dist = groundTruth[i].distances[r-1];
+      for(int l=r; l<groundTruth[i].coordinates.size(); l++){
+        if(groundTruth[i].distances[l] == last_dist){ 
+          results_with_ties.push_back(groundTruth[i].coordinates[l]);
+        }
+      }
+      std::set<int> reported_nbhs;
+      for(int l=0; l<r; l++) reported_nbhs.insert((q[i]->ngh)[l]);
+
+      for(int l=0; l<results_with_ties.size(); l++){
+	      if (reported_nbhs.find(results_with_ties[l]) != reported_nbhs.end()){
+          numCorrect += 1;
+      }
+      }
+    }
+    recall = static_cast<float>(numCorrect)/static_cast<float>(r*n);
+  }
+  float QPS = q.size()/query_time;
+  auto stats = query_stats(q);
+  nn_result N(recall, stats, QPS, k, beamQ, cut, q.size());
+  return N;
+}
+
 void write_to_csv(std::string csv_filename, parlay::sequence<float> buckets, 
   parlay::sequence<nn_result> results, Graph G){
   csvfile csv(csv_filename);
@@ -170,3 +250,60 @@ void search_and_parse(Graph G, parlay::sequence<Tvec_point<T>*> &v, parlay::sequ
     if(res_file != NULL) write_to_csv(std::string(res_file), ret_buckets, res, G);
 }
 
+/* 
+  Runs recall experiments for a given graph and query set, and writes the metrics to a csv file.
+
+  Exactly the same as above function, but uses checkRecallSearchable instead of checkRecall.
+
+  @param G: the graph to be queried
+  @param v: the set of pointers to Tvec_point<T> points in the graph
+  @param q: the set of pointers to Tvec_point<T> points to be queried
+  @param groundTruth: the set of ground truth nearest neighbors for each query point, provided as a 
+    sequence of ivec_points
+  @param res_file: the name of the csv file to write the results to
+  @param D: the distance function to be used
+  @param random: whether the starting point for beam search should be chosen randomly
+  @param start_point: the index of the starting point for beam search, if random is false
+ */
+template<typename T>
+void search_and_parse_searchable(Graph G, parlay::sequence<Tvec_point<T>*> &v, parlay::sequence<Tvec_point<T>*> &q, 
+    parlay::sequence<ivec_point> groundTruth, char* res_file, Distance* D, bool random=true, int start_point=0){
+    unsigned d = v[0]->coordinates.size();
+
+    parlay::sequence<nn_result> results;
+    std::vector<int> beams = {15, 20, 30, 50, 75, 100, 125, 250, 500};
+    std::vector<int> allk = {10, 15, 20, 30, 50, 100};
+    std::vector<float> cuts = {1.1, 1.125, 1.15, 1.175, 1.2, 1.25};
+    for (float cut : cuts) 
+      for (float Q : beams) {
+        // results.push_back(checkRecall(v, q, groundTruth, 10, Q, cut, d, random, -1, start_point, D))
+        if (random) {
+          results.push_back(checkRecallSearchable([&v, Q, d, &D, cut](parlay::sequence<Tvec_point<T>*> query){beamSearchRandom(query, v, Q, 10, d, D, cut, -1);}, q, groundTruth, 10, Q, cut));
+        } else {
+          results.push_back(checkRecallSearchable([&v, Q, d, start_point, &D, cut](parlay::sequence<Tvec_point<T>*> query){searchAll(query, v, Q, 10, d, v[start_point], D, cut, -1);}, q, groundTruth, 10, Q, cut));
+        }
+      };
+
+    for (float cut : cuts)
+      for (int kk : allk){
+        // results.push_back(checkRecall(v, q, groundTruth, kk, 500, cut, d, random, -1, start_point, D));
+        if (random) {
+          results.push_back(checkRecallSearchable([&v, kk, d, &D, cut](parlay::sequence<Tvec_point<T>*> query){beamSearchRandom(query, v, 500, kk, d, D, cut, -1);}, q, groundTruth, kk, 500, cut));
+        } else {
+          results.push_back(checkRecallSearchable([&v, kk, d, start_point, &D, cut](parlay::sequence<Tvec_point<T>*> query){searchAll(query, v, 500, kk, d, v[start_point], D, cut, -1);}, q, groundTruth, kk, 500, cut));
+        }
+      };
+
+    // check "limited accuracy"
+    parlay::sequence<int> limits = calculate_limits(results[0].avg_visited);
+    for(int l : limits){
+      results.push_back(checkRecall(v, q, groundTruth, 10, 15, 1.14, d, random, l, start_point, D));
+    }
+
+    // check "best accuracy"
+    results.push_back(checkRecall(v, q, groundTruth, 100, 1000, 10.0, d, random, -1, start_point, D));
+
+    parlay::sequence<float> buckets = {.1, .15, .2, .25, .3, .35, .4, .45, .5, .55, .6, .65, .7, .73, .75, .77, .8, .83, .85, .87, .9, .93, .95, .97, .99, .995, .999};
+    auto [res, ret_buckets] = parse_result(results, buckets);
+    if(res_file != NULL) write_to_csv(std::string(res_file), ret_buckets, res, G);
+}

@@ -28,13 +28,14 @@
 #include "parlay/primitives.h"
 
 
-//for a file in .fvecs or .bvecs format, but extendible to other types
+//for a file in .fvecs or .bvecs format, but extensible to other types
 template<typename T>
 struct Tvec_point {
   int id;
   size_t visited;
   size_t dist_calls;  
   int rounds;
+  parlay::sequence<int> flags;
   parlay::slice<T*, T*> coordinates;
   parlay::slice<int*, int*> out_nbh; 
   parlay::slice<int*, int*> new_nbh; 
