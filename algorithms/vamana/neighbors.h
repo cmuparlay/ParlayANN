@@ -84,7 +84,8 @@ void ANN(parlay::sequence<Tvec_point<T>*> &v, int maxDeg, int beamSize, double a
     }
 
     if(report_stats){
-      graph_stats(v);
+      auto [avg_deg, max_deg] = graph_stats(v);
+      std::cout << "Index built with average degree " << avg_deg << " and max degree " << max_deg << std::endl;
       t.next("stats");
     }
   };

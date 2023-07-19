@@ -65,7 +65,6 @@ struct pyNN_index{
     parlay::sequence<int> nn_descent(parlay::sequence<tvec_point*> &v, parlay::sequence<int> &changed){
         auto new_changed = parlay::sequence<int>(v.size(), 0);
         auto rev = reverse_graph();
-        std::cout << "generated reverse graph" << std::endl;
         parlay::random_generator gen;
         size_t n=v.size();
         std::uniform_int_distribution<int> dis(0, n-1);
@@ -181,13 +180,15 @@ struct pyNN_index{
         int max_rounds = std::max(10, (int) log2(d));
         if(d==256) max_rounds=20; //hack for ssnpp
 		while(parlay::reduce(changed) >= delta*n && rounds < max_rounds){
-			std::cout << "Round " << rounds << std::endl; 
 			auto new_changed = nn_descent(v, changed);
 			changed = new_changed;
 			rounds++;
-			std::cout << parlay::reduce(changed) << " elements changed" << std::endl; 
+			std::cout << "Round " << rounds << " of " <<  max_rounds << " completed" << std::endl; 
 		}
-		std::cout << "descent converged in " << rounds << " rounds" << std::endl; 
+
+		std::cout << "descent converged in " << rounds << " rounds";
+        if(rounds < max_rounds) std::cout << " (Early termination)";
+        std::cout << std::endl;
 		return rounds;
 	}
 
@@ -200,9 +201,7 @@ struct pyNN_index{
             }
             return e; 
         });
-        std::cout << "collected edges" << std::endl;
         auto undirected_graph = parlay::group_by_key_ordered(parlay::flatten(to_group));
-        std::cout << "flattened and grouped" << std::endl;
         parlay::parallel_for(0, undirected_graph.size(), [&] (size_t i){
             int index = undirected_graph[i].first;
             auto filtered = parlay::remove_duplicates(undirected_graph[i].second);
@@ -215,7 +214,6 @@ struct pyNN_index{
             auto merged_pids = seq_union(old_neighbors[index], undirected_pids);
             old_neighbors[index] = merged_pids;
         });
-        std::cout << "merged and sorted" << std::endl;
         parlay::parallel_for(0, v.size(), [&] (size_t i){
             parlay::sequence<int> new_out = parlay::sequence<int>();
 			for(const pid& j : old_neighbors[i]){
@@ -233,7 +231,6 @@ struct pyNN_index{
 			}
 			add_out_nbh(new_out, v[i]);
         });
-        std::cout << "assigned edges" << std::endl;
     }
 
     void assign_edges(parlay::sequence<tvec_point*> &v){

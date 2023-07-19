@@ -163,6 +163,7 @@ struct cluster{
 		for(int i=0; i<num_clusters; i++){
 			std::cout << "Cluster " << i << std::endl;
 			random_clustering_wrapper(v, cluster_size, f, P);
+			std::cout << "Built cluster " << i << " of " << num_clusters << std::endl;
 		}
 	}
 };

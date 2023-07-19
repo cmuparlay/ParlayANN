@@ -172,15 +172,11 @@ struct knn_index{
     return robustPrune(p, std::move(cc), v, alpha, add);
 	}
 
-	void build_index(parlay::sequence<Tvec_point<T>*> &v, parlay::sequence<int> inserts, bool two_pass=false){
+	void build_index(parlay::sequence<Tvec_point<T>*> &v, parlay::sequence<int> inserts){
 		clear(v);
+		std::cout << "Building graph..." << std::endl;
 		find_approx_medoid(v);
-		if(two_pass){
-		  std::cout << "Starting first pass" << std::endl; 
-		  batch_insert(inserts, v, true, 1.0, 2, .02, two_pass);
-		  std::cout << "Finished first pass" << std::endl;
-		} 
-		batch_insert(inserts, v, true, r2_alpha, 2, .02,  two_pass);
+		batch_insert(inserts, v, true, r2_alpha, 2, .02);
 	}
 
 	void lazy_delete(parlay::sequence<int> deletes, parlay::sequence<Tvec_point<T>*> &v){
@@ -256,22 +252,20 @@ struct knn_index{
 	}
 
 	void batch_insert(parlay::sequence<int> &inserts, parlay::sequence<Tvec_point<T>*> &v, bool random_order = false, double alpha = 1.2, double base = 2,
-		double max_fraction = .02, bool two_pass = false){
-		std::cout << "alpha " << alpha << std::endl; 
-		if(two_pass == false){
-			for(int p : inserts){
-				if(p < 0 || p > (int) v.size() || (v[p]->out_nbh[0] != -1 && v[p]->id != medoid->id)){
-					std::cout << "ERROR: invalid or already inserted point " << p << " given to batch_insert" << std::endl;
-					abort();
-				}
+		double max_fraction = .02, bool print=true){
+		for(int p : inserts){
+			if(p < 0 || p > (int) v.size() || (v[p]->out_nbh[0] != -1 && v[p]->id != medoid->id)){
+				std::cout << "ERROR: invalid or already inserted point " << p << " given to batch_insert" << std::endl;
+				abort();
 			}
 		}
 		size_t n = v.size();
 		size_t m = inserts.size();
 		size_t inc = 0;
 		size_t count = 0;
-		size_t max_batch_size=10000;
-		// size_t max_batch_size = std::min(static_cast<size_t>(max_fraction*static_cast<float>(n)), 1000000ul);
+		float frac=0.0;
+		float progress_inc=.1;
+		size_t max_batch_size = std::min(static_cast<size_t>(max_fraction*static_cast<float>(n)), 1000000ul);
 		parlay::sequence<int> rperm;
 		if(random_order) rperm = parlay::random_permutation<int>(static_cast<int>(m));
 		else rperm = parlay::tabulate(m, [&] (int i) {return i;});
@@ -288,7 +282,13 @@ struct knn_index{
 				ceiling = std::min(count + static_cast<size_t>(max_batch_size), m);
 				count += static_cast<size_t>(max_batch_size);
 			}
-			// std::cout << "Inserting vertices " << floor << " through " << ceiling << std::endl;
+			if(print){
+				auto ind = frac*n;
+				if(floor <= ind && ceiling > ind){
+					frac += progress_inc;
+					std::cout << "Index build " << 100*frac << "% complete" << std::endl;
+				}
+			}
 			parlay::sequence<int> new_out = parlay::sequence<int>(maxDeg*(ceiling-floor), -1);
 			//search for each node starting from the medoid, then call
 			//robustPrune with the visited list as its candidate set

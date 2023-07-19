@@ -160,7 +160,6 @@ struct clusterPID{
         intermediate_edges = parlay::sequence<parlay::sequence<pid>>(v.size());
         // intermediate_sizes = parlay::sequence<size_t>(v.size(), 0);
 		for(int i=0; i<num_clusters; i++){
-			std::cout << "Cluster " << i << std::endl;
 			random_clustering_wrapper(v, cluster_size, dim, K);
 		}
         // std::cout << parlay::reduce(intermediate_sizes) << std::endl;
