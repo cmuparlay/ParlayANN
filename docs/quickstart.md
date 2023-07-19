@@ -51,7 +51,7 @@ To load and then query the index, use the following command:
 ```bash
 cd ../algorithms/vamana
 make
-./neighbors -R 32 -L 64 -a 1.2 -graph_path ../../data/sift/sift_learn_32_64 -query_path ../../data/sift/sift_query.fvecs -gt_path ../../data/sift/sift-100K -res_path ../../workflows/vamana_res.csv -data_type float -file_type vec -dist_func Euclidian -base_path ../../data/sift/sift_learn.fvecs
+./neighbors -R 32 -L 64 -a 1.2 -graph_path ../../data/sift/sift_learn_32_64 -query_path ../../data/sift/sift_query.fvecs -gt_path ../../data/sift/sift-100K -data_type float -file_type vec -dist_func Euclidian -base_path ../../data/sift/sift_learn.fvecs
 ```
 
 You should see an output similar to the following; timings were taken using a machine with 48 cores.

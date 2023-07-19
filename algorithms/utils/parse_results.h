@@ -116,11 +116,14 @@ struct nn_result{
   int k;
   int beamQ;
   float cut;
+  int limit;
+  int gtn;
 
   long num_queries;
 
-  nn_result(double r, parlay::sequence<size_t> stats, float qps, int K, int Q, float c, long q) : recall(r), 
-    QPS(qps), k(K), beamQ(Q), cut(c), num_queries(q) {
+  nn_result(double r, parlay::sequence<size_t> stats, float qps, int K, int Q,
+	    float c, long q, int limit, int gtn)
+    : recall(r), QPS(qps), k(K), beamQ(Q), cut(c), num_queries(q), limit(limit), gtn(gtn) {
 
     if(stats.size() != 4) abort();
 
@@ -129,7 +132,10 @@ struct nn_result{
   }
 
   void print(){
-    std::cout << "For recall = " << recall << ", QPS = " << QPS << std::endl;
+    std::cout << "For " << gtn << "@" << gtn << " recall = " << recall
+	      << ", QPS = " << QPS << ", Q = " << beamQ << ", cut = " << cut;
+    if (limit == -1) std::cout << ", limit = none" << std::endl;
+    else std::cout << ", limit = " << limit << std::endl;
   }
 
   void print_verbose(){
