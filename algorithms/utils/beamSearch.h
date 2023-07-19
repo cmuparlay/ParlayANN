@@ -89,29 +89,37 @@ std::pair<std::pair<parlay::sequence<pid>, parlay::sequence<pid>>, size_t> beam_
   size_t dist_cmps = 0;
   auto vvc = v[0]->coordinates.begin();
   long stride = v[1]->coordinates.begin() - v[0]->coordinates.begin();
+  // std::cout << "here1" << std::endl;
   std::vector<pid> visited;
   auto less = [&](pid a, pid b) {
       return a.second < b.second || (a.second == b.second && a.first < b.first); };
   auto make_pid = [&] (int q) {
-      return std::pair{q, D->distance(vvc + q*stride, p->coordinates.begin(), d)};
+      // TODO change back
+      auto cc =  std::pair{q, D->distance(vvc+q*stride, p->coordinates.begin(), d)};
+      // std::cout << "made" << std::endl;
+      return cc;
   };
+  // std::cout << "here2" << std::endl;
   int bits = std::ceil(std::log2(beamSize*beamSize))-2;
   parlay::sequence<int> hash_table(1 << bits, -1);
-
+  //  std::cout << "here2.5" << std::endl;
   auto pre_frontier = parlay::tabulate(starting_points.size(), [&] (size_t i) {
     return make_pid(starting_points[i]->id);
   });
 
+  //  std::cout << "here3" << std::endl;
+
   dist_cmps += starting_points.size();
 
   auto frontier = parlay::sort(pre_frontier, less);
-
+  //  std::cout << "here4" << std::endl;
   std::vector<pid> unvisited_frontier(beamSize);
   parlay::sequence<pid> new_frontier(beamSize + v[0]->out_nbh.size());
+  //  std::cout << "here5" << std::endl;
   unvisited_frontier[0] = frontier[0];
   int remain = 1;
   int num_visited = 0;
-
+  // std::cout << "initialized data structures" << std::endl;
   // terminate beam search when the entire frontier has been visited
   while (remain > 0 && num_visited<limit) {
     // the next node to visit is the unvisited frontier node that is closest to p
