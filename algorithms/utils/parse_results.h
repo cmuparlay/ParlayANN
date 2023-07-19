@@ -116,11 +116,14 @@ struct nn_result{
   int k;
   int beamQ;
   float cut;
+  int limit;
+  int gtn;
 
   long num_queries;
 
-  nn_result(double r, parlay::sequence<size_t> stats, float qps, int K, int Q, float c, long q) : recall(r), 
-    QPS(qps), k(K), beamQ(Q), cut(c), num_queries(q) {
+  nn_result(double r, parlay::sequence<size_t> stats, float qps, int K, int Q,
+	    float c, long q, int limit, int gtn)
+    : recall(r), QPS(qps), k(K), beamQ(Q), cut(c), num_queries(q), limit(limit), gtn(gtn) {
 
     if(stats.size() != 4) abort();
 
@@ -129,6 +132,13 @@ struct nn_result{
   }
 
   void print(){
+    std::cout << "For " << gtn << "@" << gtn << " recall = " << recall
+	      << ", QPS = " << QPS << ", Q = " << beamQ << ", cut = " << cut;
+    if (limit == -1) std::cout << ", limit = none" << std::endl;
+    else std::cout << ", limit = " << limit << std::endl;
+  }
+
+  void print_verbose(){
     std::cout << "Over " << num_queries << " queries" << std::endl;
     std::cout << "k = " << k << ", Q = " << beamQ << ", cut = " << cut 
 	    << ", throughput = " << QPS << "/second" << std::endl;
@@ -185,12 +195,9 @@ auto parse_result(parlay::sequence<res> results, parlay::sequence<float> buckets
     if(candidates.size() != 0){
       auto less = [&] (res R, res S) {return R.QPS < S.QPS;};
       res M = *(parlay::max_element(candidates, less));
-      std::cout << "For recall above: " << b << std::endl;
       M.print();
       retval.push_back(M);
       ret_buckets.push_back(b);
-      std::cout << std::endl;
-      std::cout << std::endl;
     }
   }
   return std::make_pair(retval, ret_buckets);
