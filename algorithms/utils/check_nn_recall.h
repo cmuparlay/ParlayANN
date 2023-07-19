@@ -85,7 +85,6 @@ nn_result checkRecall(
       }
       std::set<int> reported_nbhs;
       for(int l=0; l<r; l++) reported_nbhs.insert((q[i]->ngh)[l]);
-
       for(int l=0; l<results_with_ties.size(); l++){
 	      if (reported_nbhs.find(results_with_ties[l]) != reported_nbhs.end()){
           numCorrect += 1;

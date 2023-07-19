@@ -38,7 +38,7 @@ extern bool report_stats;
 template<typename T>
 void ANN(parlay::sequence<Tvec_point<T>*> &v, int k, int mstDeg,
 	 int num_clusters, int beamSizeQ, double cluster_size, double dummy,
-	 parlay::sequence<Tvec_point<T>*> &q, parlay::sequence<ivec_point> groundTruth, char* res_file, bool graph_built, Distance* D) {
+	 parlay::sequence<Tvec_point<T>*> &q, parlay::sequence<ivec_point>& groundTruth, char* res_file, bool graph_built, Distance* D) {
 
   parlay::internal::timer t("ANN",report_stats); 
   using findex = hcnng_index<T>;

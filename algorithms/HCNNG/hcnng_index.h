@@ -142,9 +142,13 @@ struct hcnng_index{
 		size_t m = 10;
 		auto less = [&] (labelled_edge a, labelled_edge b) {return a.second < b.second;};
 		parlay::sequence<parlay::sequence<labelled_edge>> pre_labelled(N);
+		parlay::random_generator gen;
+  		std::uniform_real_distribution<float> dis(0.0, 1.0);
 		parlay::parallel_for(0, N, [&] (size_t i){
 			std::priority_queue<labelled_edge, std::vector<labelled_edge>, decltype(less)> Q(less);
 			for(int j=0; j<N; j++){
+				// float ff = dis(gen);
+				// std::cout << ff << std::endl;
 				if(j!=i){
 					float dist_ij = C.D->distance(v[active_indices[i]]->coordinates.begin(), v[active_indices[j]]->coordinates.begin(), dim);
 					if(Q.size() >= m){
@@ -164,8 +168,10 @@ struct hcnng_index{
 					}
 				}
 			}
-			parlay::sequence<labelled_edge> edges(m);
-			for(int j=0; j<m; j++){edges[j] = Q.top(); Q.pop();}
+			// if(Q.size() < m) std::cout << "small queue" << std::endl;
+			int limit = std::min(Q.size(), m);
+			parlay::sequence<labelled_edge> edges(limit);
+			for(int j=0; j<limit; j++){edges[j] = Q.top(); Q.pop();}
 			pre_labelled[i] = edges;
 		});
 		auto flat_edges = parlay::flatten(pre_labelled);
@@ -211,6 +217,47 @@ struct hcnng_index{
 		process_edges(v, MST_edges);
 	}
 
+	//robustPrune routine as found in DiskANN paper, with the exception that the new candidate set
+	//is added to the field new_nbhs instead of directly replacing the out_nbh of p
+	void robustPrune(tvec_point* p, parlay::sequence<tvec_point*> &v, double alpha, int maxDeg) {
+    // add out neighbors of p to the candidate set.
+		parlay::sequence<pid> candidates;
+		for (size_t i=0; i<size_of(p->out_nbh); i++) {
+			candidates.push_back(std::make_pair(p->out_nbh[i],
+				D->distance(v[p->out_nbh[i]]->coordinates.begin(), p->coordinates.begin(), d)));
+		}
+		
+
+		// Sort the candidate set in reverse order according to distance from p.
+		auto less = [&] (pid a, pid b) {return a.second < b.second;};
+		parlay::sort_inplace(candidates, less);
+
+		parlay::sequence<int> new_nbhs = parlay::sequence<int>();
+
+		
+    	size_t candidate_idx = 0;
+		while (new_nbhs.size() < maxDeg && candidate_idx < candidates.size()) {
+			// Don't need to do modifications.
+			int p_star = candidates[candidate_idx].first;
+			candidate_idx++;
+			if (p_star == p->id || p_star == -1) continue;
+
+      		new_nbhs.push_back(p_star);
+
+			for (size_t i = candidate_idx; i < candidates.size(); i++) {
+				int p_prime = candidates[i].first;
+				if (p_prime != -1) {
+					float dist_starprime = D->distance(v[p_star]->coordinates.begin(), v[p_prime]->coordinates.begin(), d);
+					float dist_pprime = candidates[i].second;
+					if (alpha * dist_starprime <= dist_pprime) candidates[i].first = -1;
+				}
+			}
+		}
+		add_out_nbh(new_nbhs, p);
+	}
+
+
+
 
 	void build_index(parlay::sequence<tvec_point*> &v, int cluster_rounds, size_t cluster_size){ 
 		clear(v); 
@@ -218,8 +265,10 @@ struct hcnng_index{
 		cluster_params P;
 		P.MSTDeg = 3;
 		P.D = D;
+		int maxDeg = P.MSTDeg*cluster_rounds;
 		C.multiple_clustertrees(v, cluster_size, cluster_rounds, MSTk, P);
 		remove_all_duplicates(v);
+		// parlay::parallel_for(0, v.size(), [&] (size_t i){robustPrune(v[i], v, 1.1, maxDeg);});
 	}
 	
 };

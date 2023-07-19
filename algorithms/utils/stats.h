@@ -25,6 +25,7 @@
 #include "parlay/primitives.h"
 #include "indexTools.h"
 #include <set>
+#include <queue>
 
 template<typename T>
 std::pair<double, int> graph_stats(parlay::sequence<Tvec_point<T>*> &v){
@@ -107,5 +108,33 @@ void range_gt_stats(parlay::sequence<ivec_point> groundTruth){
   std::cout << "75th percentile: " << nonzero_sizes[.75*nonzero_sizes.size()] << std::endl;
   std::cout << "99th percentile: " << nonzero_sizes[.99*nonzero_sizes.size()] << std::endl;
   std::cout << "Max: " << nonzero_sizes[nonzero_sizes.size()-1] << std::endl;
+}
+
+template<typename T> 
+int connected_components(parlay::sequence<Tvec_point<T>*> &v){
+	parlay::sequence<bool> visited(v.size(), false);
+	int cc=0;
+	for(int i=0; i<v.size(); i++){
+		if(!visited[i]){ 
+			BFS(i, v, visited); 
+			cc++;
+		}
+	}
+	return cc;
+}
+
+template<typename T>
+void BFS(int start, parlay::sequence<Tvec_point<T>*> &v, parlay::sequence<bool> &visited){
+	std::queue<int> frontier;
+	frontier.push(start);
+	while(frontier.size() != 0){
+		int c = frontier.front();
+		frontier.pop();
+		visited[c] = true;
+		for(int l=0; l<size_of(v[c]->out_nbh); l++){
+			int j = v[c]->out_nbh[l];
+			if(!visited[j]) frontier.push(j);
+		}
+	}
 }
 

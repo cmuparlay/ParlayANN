@@ -43,6 +43,8 @@ std::pair<size_t, size_t> select_two_random(parlay::sequence<size_t>& active_ind
 
 struct cluster_params{
 	int MSTDeg;
+	int L;
+	double alpha;
 	Distance* D;
 	cluster_params(){}
 };
@@ -69,84 +71,6 @@ struct cluster{
 	int generate_index(int N, int i){
 		return (N*(N-1) - (N-i)*(N-i-1))/2;
 	}
-	
-	// //parameters dim and K are just to interface with the cluster tree code
-	// void MSTk(parlay::sequence<tvec_point*> &v, parlay::sequence<size_t> &active_indices, 
-	// 	unsigned dim, int K){
-	// 	//preprocessing for Kruskal's
-	// 	int N = active_indices.size();
-	// 	DisjointSet *disjset = new DisjointSet(N);
-	// 	size_t m = 10;
-	// 	auto less = [&] (labelled_edge a, labelled_edge b) {return a.second < b.second;};
-	// 	parlay::sequence<parlay::sequence<labelled_edge>> pre_labelled(N);
-	// 	parlay::parallel_for(0, N, [&] (size_t i){
-	// 		std::priority_queue<labelled_edge, std::vector<labelled_edge>, decltype(less)> Q(less);
-	// 		for(int j=0; j<N; j++){
-	// 			if(j!=i){
-	// 				float dist_ij = D->distance(v[active_indices[i]]->coordinates.begin(), v[active_indices[j]]->coordinates.begin(), dim);
-	// 				if(Q.size() >= m){
-	// 					float topdist = Q.top().second;
-	// 					if(dist_ij < topdist){
-	// 						labelled_edge e;
-	// 						if(i<j) e = std::make_pair(std::make_pair(i,j), dist_ij);
-	// 						else e = std::make_pair(std::make_pair(j, i), dist_ij);
-	// 						Q.pop();
-	// 						Q.push(e);
-	// 					}
-	// 				}else{
-	// 					labelled_edge e;
-	// 					if(i<j) e = std::make_pair(std::make_pair(i,j), dist_ij);
-	// 					else e = std::make_pair(std::make_pair(j, i), dist_ij);
-	// 					Q.push(e);
-	// 				}
-	// 			}
-	// 		}
-	// 		parlay::sequence<labelled_edge> edges(m);
-	// 		for(int j=0; j<m; j++){edges[j] = Q.top(); Q.pop();}
-	// 		pre_labelled[i] = edges;
-	// 	});
-	// 	auto flat_edges = parlay::flatten(pre_labelled);
-	// 	// std::cout << flat_edges.size() << std::endl;
-	// 	auto less_dup = [&] (labelled_edge a, labelled_edge b){
-	// 		auto dist_a = a.second;
-	// 		auto dist_b = b.second;
-	// 		if(dist_a == dist_b){
-	// 			int i_a = a.first.first;
-	// 			int j_a = a.first.second;
-	// 			int i_b = b.first.first;
-	// 			int j_b = b.first.second;
-	// 			if((i_a==i_b) && (j_a==j_b)){
-	// 				return true;
-	// 			} else{
-	// 				if(i_a != i_b) return i_a < i_b;
-	// 				else return j_a < j_b;
-	// 			}
-	// 		}else return (dist_a < dist_b);
-	// 	};
-	// 	auto labelled_edges = parlay::remove_duplicates_ordered(flat_edges, less_dup);
-	// 	// parlay::sort_inplace(labelled_edges, less);
-	// 	auto degrees = parlay::tabulate(active_indices.size(), [&] (size_t i) {return 0;});
-	// 	parlay::sequence<edge> MST_edges = parlay::sequence<edge>();
-	// 	//modified Kruskal's algorithm
-	// 	for(int i=0; i<labelled_edges.size(); i++){
-	// 		labelled_edge e_l = labelled_edges[i];
-	// 		edge e = e_l.first;
-	// 		if((disjset->find(e.first) != disjset->find(e.second)) && (degrees[e.first]<K) && (degrees[e.second]<K)){
-	// 			MST_edges.push_back(std::make_pair(active_indices[e.first], active_indices[e.second]));
-	// 			MST_edges.push_back(std::make_pair(active_indices[e.second], active_indices[e.first]));
-	// 			degrees[e.first] += 1;
-	// 			degrees[e.second] += 1;
-	// 			disjset->_union(e.first, e.second);
-	// 		}
-	// 		if(i%N==0){
-	// 			if(disjset->is_full()){
-	// 				break;
-	// 			}
-	// 		}
-	// 	}
-	// 	delete disjset;
-	// 	process_edges(v, MST_edges);
-	// }
 
 	bool tvec_equal(tvec_point* a, tvec_point* b, unsigned d){
 		for(int i=0; i<d; i++){
@@ -204,7 +128,6 @@ struct cluster{
     		tvec_point* second = v[s];
 			int dim = v[0]->coordinates.size();
 			if(tvec_equal(first, second, dim)){
-				// std::cout << "Equal points selected, splitting evenly" << std::endl;
 				parlay::sequence<size_t> closer_first;
 				parlay::sequence<size_t> closer_second;
 				for(int i=0; i<active_indices.size(); i++){
@@ -231,7 +154,6 @@ struct cluster{
   		std::uniform_int_distribution<int> uni(0,v.size()); 
     	parlay::random rnd(uni(rng));
     	auto active_indices = parlay::tabulate(v.size(), [&] (size_t i) { return i; });
-		// f(v, active_indices, P);
     	random_clustering(v, active_indices, rnd, cluster_size, f, P);
 	}
 
@@ -239,8 +161,8 @@ struct cluster{
 	void multiple_clustertrees(parlay::sequence<tvec_point*> &v, size_t cluster_size, int num_clusters,
 		F f, cluster_params P){
 		for(int i=0; i<num_clusters; i++){
+			std::cout << "Cluster " << i << std::endl;
 			random_clustering_wrapper(v, cluster_size, f, P);
 		}
-		// f(P);
 	}
 };
