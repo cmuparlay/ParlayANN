@@ -97,7 +97,7 @@ nn_result checkRecall(
   }
   float QPS = q.size()/query_time;
   auto stats = query_stats(q);
-  nn_result N(recall, stats, QPS, k, beamQ, cut, q.size());
+  nn_result N(recall, stats, QPS, k, beamQ, cut, q.size(), limit, r);
   return N;
 }
 
