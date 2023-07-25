@@ -52,43 +52,6 @@ beam_search(Tvec_point<T>* p, parlay::sequence<Tvec_point<T>*>& v,
 }
 
 template <typename T>
-<<<<<<< HEAD
-std::pair<std::pair<parlay::sequence<pid>, parlay::sequence<pid>>, size_t> beam_search(
-    Tvec_point<T>* p, parlay::sequence<Tvec_point<T>*>& v,
-    parlay::sequence<Tvec_point<T>*> starting_points, int beamSize, unsigned d, Distance* D, int k=0, float cut=1.14, int limit=-1) {
-  // initialize data structures
-  if(limit==-1) limit=v.size();
-  size_t dist_cmps = 0;
-  auto vvc = v[0]->coordinates.begin();
-  long stride = v[1]->coordinates.begin() - v[0]->coordinates.begin();
-  // std::cout << "here1" << std::endl;
-  std::vector<pid> visited;
-  auto less = [&](pid a, pid b) {
-      return a.second < b.second || (a.second == b.second && a.first < b.first); };
-  auto make_pid = [&] (int q) {
-      // TODO change back
-      auto cc =  std::pair{q, D->distance(vvc+q*stride, p->coordinates.begin(), d)};
-      // std::cout << "made" << std::endl;
-      return cc;
-  };
-  // std::cout << "here2" << std::endl;
-  int bits = std::ceil(std::log2(beamSize*beamSize))-2;
-  parlay::sequence<int> hash_table(1 << bits, -1);
-  //  std::cout << "here2.5" << std::endl;
-  auto pre_frontier = parlay::tabulate(starting_points.size(), [&] (size_t i) {
-    return make_pid(starting_points[i]->id);
-  });
-
-  //  std::cout << "here3" << std::endl;
-
-  dist_cmps += starting_points.size();
-
-  auto frontier = parlay::sort(pre_frontier, less);
-  //  std::cout << "here4" << std::endl;
-  std::vector<pid> unvisited_frontier(beamSize);
-  parlay::sequence<pid> new_frontier(beamSize + v[0]->out_nbh.size());
-  //  std::cout << "here5" << std::endl;
-=======
 std::pair<std::pair<parlay::sequence<id_dist>, parlay::sequence<id_dist>>, size_t>
 beam_search(Tvec_point<T>* p, parlay::sequence<Tvec_point<T>*>& v,
 	    parlay::sequence<Tvec_point<T>*> starting_points, int beamSize,
@@ -129,7 +92,6 @@ beam_search(Tvec_point<T>* p, parlay::sequence<Tvec_point<T>*>& v,
   // The subset of the frontier that has not been visited
   // Use the first of these to pick next vertex to visit.
   std::vector<id_dist> unvisited_frontier(beamSize);
->>>>>>> f4000245cc0d7e470771868790dc660ce529c1dd
   unvisited_frontier[0] = frontier[0];
     
   // maintains sorted set of visited vertices (id-distance pairs)
@@ -140,11 +102,6 @@ beam_search(Tvec_point<T>* p, parlay::sequence<Tvec_point<T>*>& v,
   size_t dist_cmps = starting_points.size();
   int remain = 1;
   int num_visited = 0;
-<<<<<<< HEAD
-  // std::cout << "initialized data structures" << std::endl;
-  // terminate beam search when the entire frontier has been visited
-  while (remain > 0 && num_visited<limit) {
-=======
 
   // used as temporaries in the loop
   std::vector<id_dist> new_frontier(beamSize + v[0]->out_nbh.size());
@@ -155,7 +112,6 @@ beam_search(Tvec_point<T>* p, parlay::sequence<Tvec_point<T>*>& v,
   // has been visited or have reached max_visit.
   while (remain > 0 && num_visited < max_visit) {
 
->>>>>>> f4000245cc0d7e470771868790dc660ce529c1dd
     // the next node to visit is the unvisited frontier node that is closest to p
     id_dist current = unvisited_frontier[0];
     // add to visited set
