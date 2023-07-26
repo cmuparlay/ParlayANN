@@ -69,14 +69,14 @@ beam_search(Tvec_point<T>* p, parlay::sequence<Tvec_point<T>*>& v,
   auto get_coords = [&] (vertex_id q) {
      auto coord_len = (v[1]->coordinates.begin() - v[0]->coordinates.begin());
      return v[0]->coordinates.begin() + q * coord_len;};
-
+  
   // calculate distance from q to p
   auto distance_from_p = [&] (vertex_id q) { 
       return D->distance(get_coords(q), p->coordinates.begin(), dims);};
 
   auto prefetch_distances = [&] (vertex_id q) { 
      auto q_ptr = get_coords(q);
-     int l = dims * sizeof(q_ptr[0])/64;
+     int l = (dims * sizeof(q_ptr[0]))/64;
      for (int i=0; i < l; i++)
        __builtin_prefetch((char*) q_ptr + i* 64);};
 
