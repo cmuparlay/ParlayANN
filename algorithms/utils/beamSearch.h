@@ -28,6 +28,7 @@
 #include <unordered_set>
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
+#include "parlay/io.h"
 #include "parlay/random.h"
 #include "types.h"
 #include "indexTools.h"
@@ -51,49 +52,12 @@ beam_search(Tvec_point<T>* p, parlay::sequence<Tvec_point<T>*>& v,
   return beam_search(p, v, start_points, beamSize, d, D, k, cut, limit);
 }
 
+// main beam search
 template <typename T>
-<<<<<<< HEAD
-std::pair<std::pair<parlay::sequence<pid>, parlay::sequence<pid>>, size_t> beam_search(
-    Tvec_point<T>* p, parlay::sequence<Tvec_point<T>*>& v,
-    parlay::sequence<Tvec_point<T>*> starting_points, int beamSize, unsigned d, Distance* D, int k=0, float cut=1.14, int limit=-1) {
-  // initialize data structures
-  if(limit==-1) limit=v.size();
-  size_t dist_cmps = 0;
-  auto vvc = v[0]->coordinates.begin();
-  long stride = v[1]->coordinates.begin() - v[0]->coordinates.begin();
-  // std::cout << "here1" << std::endl;
-  std::vector<pid> visited;
-  auto less = [&](pid a, pid b) {
-      return a.second < b.second || (a.second == b.second && a.first < b.first); };
-  auto make_pid = [&] (int q) {
-      // TODO change back
-      auto cc =  std::pair{q, D->distance(vvc+q*stride, p->coordinates.begin(), d)};
-      // std::cout << "made" << std::endl;
-      return cc;
-  };
-  // std::cout << "here2" << std::endl;
-  int bits = std::ceil(std::log2(beamSize*beamSize))-2;
-  parlay::sequence<int> hash_table(1 << bits, -1);
-  //  std::cout << "here2.5" << std::endl;
-  auto pre_frontier = parlay::tabulate(starting_points.size(), [&] (size_t i) {
-    return make_pid(starting_points[i]->id);
-  });
-
-  //  std::cout << "here3" << std::endl;
-
-  dist_cmps += starting_points.size();
-
-  auto frontier = parlay::sort(pre_frontier, less);
-  //  std::cout << "here4" << std::endl;
-  std::vector<pid> unvisited_frontier(beamSize);
-  parlay::sequence<pid> new_frontier(beamSize + v[0]->out_nbh.size());
-  //  std::cout << "here5" << std::endl;
-=======
 std::pair<std::pair<parlay::sequence<id_dist>, parlay::sequence<id_dist>>, size_t>
 beam_search(Tvec_point<T>* p, parlay::sequence<Tvec_point<T>*>& v,
-	    parlay::sequence<Tvec_point<T>*> starting_points, int beamSize,
-	    unsigned d, Distance* D, int k=0, float cut=1.14, int max_visit=-1)
-{
+	      parlay::sequence<Tvec_point<T>*> starting_points, int beamSize,
+	      unsigned dims, Distance* D, int k=0, float cut=1.14, int max_visit=-1) {
   if(max_visit == -1) max_visit = v.size();
   if (D->id() == "mips") cut = -cut;
 
@@ -101,15 +65,24 @@ beam_search(Tvec_point<T>* p, parlay::sequence<Tvec_point<T>*>& v,
   auto less = [&](id_dist a, id_dist b) {
       return a.second < b.second || (a.second == b.second && a.first < b.first); };
 
+  // pointer to q's coordinates
+  auto get_coords = [&] (vertex_id q) {
+     auto coord_len = (v[1]->coordinates.begin() - v[0]->coordinates.begin());
+     return v[0]->coordinates.begin() + q * coord_len;};
+
   // calculate distance from q to p
   auto distance_from_p = [&] (vertex_id q) { 
-     auto coord_len = (v[1]->coordinates.begin() - v[0]->coordinates.begin());
-     auto q_ptr = v[0]->coordinates.begin() + q * coord_len;
-     return D->distance(q_ptr, p->coordinates.begin(), d);};
+      return D->distance(get_coords(q), p->coordinates.begin(), dims);};
+
+  auto prefetch_distances = [&] (vertex_id q) { 
+     auto q_ptr = get_coords(q);
+     int l = dims * sizeof(q_ptr[0])/64;
+     for (int i=0; i < l; i++)
+       __builtin_prefetch((char*) q_ptr + i* 64);};
 
   // used as a hash filter (can give false negative -- i.e. can say
   // not in table when it is)
-  int bits = std::ceil(std::log2(beamSize*beamSize))-2;
+  int bits = std::max<int>(10, std::ceil(std::log2(beamSize*beamSize))-2);
   std::vector<int> hash_filter(1 << bits, -1);
   auto has_been_seen = [&] (vertex_id a) -> bool {
       int loc = parlay::hash64_2(a) & ((1 << bits) - 1);
@@ -129,7 +102,6 @@ beam_search(Tvec_point<T>* p, parlay::sequence<Tvec_point<T>*>& v,
   // The subset of the frontier that has not been visited
   // Use the first of these to pick next vertex to visit.
   std::vector<id_dist> unvisited_frontier(beamSize);
->>>>>>> f4000245cc0d7e470771868790dc660ce529c1dd
   unvisited_frontier[0] = frontier[0];
     
   // maintains sorted set of visited vertices (id-distance pairs)
@@ -140,24 +112,22 @@ beam_search(Tvec_point<T>* p, parlay::sequence<Tvec_point<T>*>& v,
   size_t dist_cmps = starting_points.size();
   int remain = 1;
   int num_visited = 0;
-<<<<<<< HEAD
-  // std::cout << "initialized data structures" << std::endl;
-  // terminate beam search when the entire frontier has been visited
-  while (remain > 0 && num_visited<limit) {
-=======
+  double total;
 
   // used as temporaries in the loop
   std::vector<id_dist> new_frontier(beamSize + v[0]->out_nbh.size());
   std::vector<id_dist> candidates;
   candidates.reserve(v[0]->out_nbh.size());
-
+  std::vector<vertex_id> keep;
+  keep.reserve(v[0]->out_nbh.size());
+ 
   // The main loop.  Terminate beam search when the entire frontier
   // has been visited or have reached max_visit.
   while (remain > 0 && num_visited < max_visit) {
 
->>>>>>> f4000245cc0d7e470771868790dc660ce529c1dd
     // the next node to visit is the unvisited frontier node that is closest to p
     id_dist current = unvisited_frontier[0];
+    __builtin_prefetch(v[current.first]->out_nbh.begin());
     // add to visited set
     visited.insert(std::upper_bound(visited.begin(), visited.end(), current, less), current);
     num_visited++;
@@ -168,13 +138,23 @@ beam_search(Tvec_point<T>* p, parlay::sequence<Tvec_point<T>*>& v,
     // Note that if a visited node is accidentally kept due to approximate hash
     // it will be removed below by the union or will not bump anyone else.
     candidates.clear();
+    keep.clear();
+    distance cutoff = ((frontier.size() < beamSize) ?
+		       (distance) std::numeric_limits<int>::max() :
+		       frontier[frontier.size()-1].second);
     for (auto a : v[current.first]->out_nbh) {
+      if (a == -1) break;
       if (a == p->id || has_been_seen(a)) continue; // skip if already seen
+      keep.push_back(a);
+      prefetch_distances(a);
+    }
+    
+    for (auto a : keep) {
       distance dist = distance_from_p(a);
-      distance cutoff = frontier[frontier.size()-1].second;
+      total += dist;
       dist_cmps++;
       // skip if frontier not full and distance too large
-      if (frontier.size() >= beamSize && dist >= cutoff) continue;
+      if (dist >= cutoff) continue;
       candidates.push_back(std::pair{a, dist});
     }
     
@@ -208,10 +188,95 @@ beam_search(Tvec_point<T>* p, parlay::sequence<Tvec_point<T>*>& v,
 				 visited.begin(), visited.end(),
 				 unvisited_frontier.begin(), less) - unvisited_frontier.begin();
   }
+  //if (p->id > 500000 && p->id < 500100)
+  //  std::cout << frontier[frontier.size()-1].second << " : " << total/dist_cmps << std::endl;
   return std::make_pair(std::make_pair(parlay::to_sequence(frontier),
 				       parlay::to_sequence(visited)), dist_cmps);
 }
 
+// has same functionality as above but written differently (taken from HNSW)
+// not quite as fast and does not prune based on cut.
+template <typename T>
+std::pair<std::pair<parlay::sequence<id_dist>, parlay::sequence<id_dist>>, size_t>
+beam_search_(Tvec_point<T>* p, parlay::sequence<Tvec_point<T>*>& v,
+	      parlay::sequence<Tvec_point<T>*> starting_points, int beamSize,
+	      unsigned dims, Distance* D, int k=0, float cut=1.14, int max_visit=-1) {
+  if(max_visit == -1) max_visit = v.size();
+
+  // used as a hash filter (can give false negative -- i.e. can say
+  // not in table when it is)
+  int bits = std::ceil(std::log2(beamSize*beamSize))-2;
+  std::vector<int> hash_filter(1 << bits, -1);
+  auto has_been_seen = [&] (vertex_id a) -> bool {
+      int loc = parlay::hash64_2(a) & ((1 << bits) - 1);
+      if (hash_filter[loc] == a) return true;
+      hash_filter[loc] = a;
+      return false;};
+
+  // calculate distance from q to p
+  auto distance_from_p = [&] (vertex_id q) { 
+     auto coord_len = (v[1]->coordinates.begin() - v[0]->coordinates.begin());
+     auto q_ptr = v[0]->coordinates.begin() + q * coord_len;
+     return D->distance(q_ptr, p->coordinates.begin(), dims);};
+
+  // compare two (node_id,distance) pairs, first by distance and then id if equal
+  struct less {
+    constexpr bool operator() (id_dist a, id_dist b) const {
+      return a.second < b.second || (a.second == b.second && a.first < b.first); };
+  };
+  
+  parlay::sequence<id_dist> W, visited;
+  W.reserve(beamSize);
+  std::make_heap(W.begin(), W.end(), less());
+
+  std::set<id_dist,less> C;
+  std::unordered_set<vertex_id> W_visited(10*beamSize);
+
+  int dist_cmps = 0;
+  int num_visited = 0;
+  
+  // initialize starting points
+  for (auto q : starting_points) {
+    vertex_id qid = q->id;
+    has_been_seen(qid);
+    const auto d = distance_from_p(qid);
+    dist_cmps++;
+    C.insert({qid, d});
+    W.push_back({qid, d});
+    W_visited.insert(qid);
+  }
+
+  while(C.size() > 0 && num_visited < max_visit) {
+    if(C.begin()->second > W[0].second) break;
+    id_dist current = *C.begin();
+    visited.push_back(current);
+    num_visited++;
+    C.erase(C.begin());
+    for (vertex_id q : v[current.first]->out_nbh) {
+      if (q == -1) break;
+      if (has_been_seen(q) || W_visited.count(q) > 0) continue;
+      distance d = distance_from_p(q);
+      dist_cmps++;
+      if (W.size() < beamSize || d < W[0].second) {
+	C.insert({q, d});
+	W.push_back({q, d});
+	W_visited.insert(q);
+	std::push_heap(W.begin(), W.end(), less());
+	if(W.size() > beamSize) {
+	  W_visited.erase(W[0].first);
+	  std::pop_heap(W.begin(), W.end(), less());
+	  W.pop_back();
+	}
+	if (C.size() > beamSize) C.erase(std::prev(C.end()));
+      }
+    }
+  }
+  std::sort(visited.begin(), visited.end(), less());
+  std::sort(W.begin(), W.end(), less());
+  return std::make_pair(std::make_pair(parlay::to_sequence(W),
+				       parlay::to_sequence(visited)), dist_cmps);
+}
+  
 // searches every element in q starting from a randomly selected point
 template <typename T>
 void beamSearchRandom(parlay::sequence<Tvec_point<T>*>& q,
