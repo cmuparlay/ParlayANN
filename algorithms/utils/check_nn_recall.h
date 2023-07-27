@@ -149,10 +149,10 @@ void search_and_parse(Graph G, parlay::sequence<Tvec_point<T>*> &v, parlay::sequ
       allr = {10, 20};
       cuts = {1.1, 1.15, 1.2, 1.25};
     }else{
-      beams = {15, 20, 30, 50, 75, 100, 125, 250, 500, 1000};
+      beams = {15, 20, 30, 50, 75, 100, 150, 200, 250, 375, 500, 1000};
       allk = {10, 15, 20, 30, 50, 100};
       allr = {10, 20};
-      cuts = {1.1, 1.125, 1.15, 1.175, 1.2, 1.25};
+      cuts = {1.15, 1.25, 1.35};
     }
 
     for (int r : allr) {
