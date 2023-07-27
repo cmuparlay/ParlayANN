@@ -133,22 +133,23 @@ beam_search(Tvec_point<T>* p, parlay::sequence<Tvec_point<T>*>& v,
     num_visited++;
 
     // keep neighbors that have not been visited (using approximate
-    // hash), and, if the frontier is full, also have a distance less than
-    // the largest distance in the frontier.
-    // Note that if a visited node is accidentally kept due to approximate hash
-    // it will be removed below by the union or will not bump anyone else.
+    // hash). Note that if a visited node is accidentally kept due to
+    // approximate hash it will be removed below by the union or will
+    // not bump anyone else.
     candidates.clear();
     keep.clear();
-    distance cutoff = ((frontier.size() < beamSize) ?
-		       (distance) std::numeric_limits<int>::max() :
-		       frontier[frontier.size()-1].second);
     for (auto a : v[current.first]->out_nbh) {
       if (a == -1) break;
       if (a == p->id || has_been_seen(a)) continue; // skip if already seen
       keep.push_back(a);
       prefetch_distances(a);
     }
-    
+
+    // Further filter on whether distance is greater than current
+    // furthest distance in current frontier (if full).
+    distance cutoff = ((frontier.size() < beamSize) ?
+		       (distance) std::numeric_limits<int>::max() :
+		       frontier[frontier.size()-1].second);
     for (auto a : keep) {
       distance dist = distance_from_p(a);
       total += dist;
