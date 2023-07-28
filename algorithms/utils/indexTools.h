@@ -28,6 +28,7 @@
 #include "parlay/primitives.h"
 #include "parlay/random.h"
 #include <random>
+#include "types.h"
 
 //special size function
 template<typename T>
