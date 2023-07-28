@@ -1,0 +1,75 @@
+# This is from Bazel's former travis setup, to avoid blowing up the RAM usage.
+startup --host_jvm_args=-Xmx2500m
+startup --host_jvm_args=-Xms2500m
+# test --ram_utilization_factor=10 # comment-out for github actions.
+
+# This is so we understand failures better
+build --verbose_failures
+
+# This is so we don't use sandboxed execution. Sandboxed execution
+# runs stuff in a container, and since Travis already runs its script
+# in a container (unless you require sudo in your .travis.yml) this
+# fails to run tests.
+build --spawn_strategy=standalone --genrule_strategy=standalone
+test --test_strategy=standalone
+
+# Below this line, .travis.yml will cat the default bazelrc.
+# This is needed so Bazel starts with the base workspace in its
+# package path.
+
+
+# By default build in C++17 mode using the Homegrown scheduler for parallelism.
+#build --repo_env=CC=clang++-12
+build --repo_env=CC=g++
+build --cxxopt=-std=c++17
+build --cxxopt=-mcx16        # 16 byte CAS
+build --cxxopt=-DHOMEGROWN   # use the homegrown scheduler
+build --cxxopt=-DLONG        # use 8 byte vertex identifiers
+build --cxxopt=-DAMORTIZEDPD # use amortized_bytepd encoding scheme for compressed graphs
+build --cxxopt=-DUSEMALLOC
+build --cxxopt=-DPARLAY_USE_STD_ALLOC
+build --cxxopt=-pthread      # necessary for homegrown scheduler
+build --cxxopt=-march=native
+build --cxxopt=-fvisibility=hidden
+build --cxxopt=-fvisibility-inlines-hidden
+build --cxxopt=-fsized-deallocation  # https://github.com/pybind/pybind11/issues/1604 (for clang)
+build -c opt
+
+# C++ warning flags.
+build --cxxopt=-Wall
+build --cxxopt=-Wextra
+build --cxxopt=-Wcast-qual
+build --cxxopt=-Wno-unused-parameter
+build --cxxopt=-Wpointer-arith
+# Turning on -Wshadow rather than just -Wshadow=local would be nice, but the
+# codebase currently contains lots of instances of global shadowing.
+#build --cxxopt=-Wshadow=local
+build --cxxopt=-Wvla
+
+# Build without parallelism.
+build:serial --cxxopt=-UHOMEGROWN
+build:serial --cxxopt=-DPARLAY_SEQUENTIAL
+
+# Build using CilkPlus for parallelism.
+build:cilk --cxxopt=-UHOMEGROWN
+build:cilk --cxxopt=-DCILK
+build:cilk --cxxopt=-fcilkplus
+build:cilk --linkopt=-lcilkrts
+
+# Build using OpenMP for parallelism.
+build:openmp --cxxopt=-UHOMEGROWN
+build:openmp --cxxopt=-DOPENMP
+build:openmp --cxxopt=-fopenmp
+build:openmp --linkopt=-fopenmp
+
+# Instruments the build with AddressSanitizer
+# (https://github.com/google/sanitizers/wiki/AddressSanitizer).
+# Invoke by adding the `--config=asan` flag, e.g.,
+#     bazel run --config=asan <build target>`
+build:asan --strip=never
+build:asan --cxxopt=-fsanitize=address
+build:asan --cxxopt=-O1
+build:asan --cxxopt=-g
+build:asan --cxxopt=-fno-omit-frame-pointer
+build:asan --cxxopt=-Wno-macro-redefined
+build:asan --linkopt=-fsanitize=address
