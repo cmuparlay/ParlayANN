@@ -126,15 +126,15 @@ void write_graph(parlay::sequence<Tvec_point<T>*> &v, char* outFile, int maxDeg)
 auto parse_uint8bin(const char* filename, const char* gFile, int maxDeg){
   //auto [fileptr, length] = mmapStringFromFile(filename);
   uint8_t* hold;
-  int num_vectors, d;
-  {
+  long num_vectors, d;
+  { // the following ensures first distance vector is 128byte aligned
     parlay::file_map fmap(filename);
     hold =  (uint8_t*) aligned_alloc(128,fmap.size()-8);
     num_vectors = *((int*) fmap.begin());
     d = *((int*) (fmap.begin()+4));
-    parlay::parallel_for(0, d*num_vectors, [&] (long i) { hold[i] = fmap.begin()[i+8];});
-    //std::memmove(hold, fmap.begin()+8, fmap.size()-8);
-  }
+    parlay::parallel_for(0, num_vectors, [&] (long i) {
+       std::memmove(hold+i*d, fmap.begin()+8+i*d, d);});
+  } // free fmap
 
     std::cout << "Detected " << num_vectors << " points with dimension " << d << std::endl;
     parlay::sequence<Tvec_point<uint8_t>> points(num_vectors);
