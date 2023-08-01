@@ -298,7 +298,7 @@ struct knn_index{
 				v[index]->new_nbh = parlay::make_slice(new_out.begin()+maxDeg*(i-floor), new_out.begin()+maxDeg*(i+1-floor));
 				parlay::sequence<pid> visited = (beam_search(v[index], v, medoid, beamSize, d, D)).first.second;
 				if(report_stats) v[index]->visited = visited.size();
-				robustPrune(v[index], visited, v, alpha);
+				robustPrune(v[index], std::move(visited), v, alpha);
 			});
 			//make each edge bidirectional by first adding each new edge
 			//(i,j) to a sequence, then semisorting the sequence by key values
