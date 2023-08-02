@@ -68,6 +68,7 @@ namespace efanna2e{
       _mm256_storeu_ps(unpack, sum);
       result = unpack[0] + unpack[1] + unpack[2] + unpack[3] + unpack[4] + unpack[5] + unpack[6] + unpack[7];
 
+      /*
 #else
 #ifdef __SSE2__
   #define SSE_L2SQR(addr1, addr2, dest, tmp1, tmp2) \
@@ -108,7 +109,7 @@ namespace efanna2e{
   }
   _mm_storeu_ps(unpack, sum);
   result += unpack[0] + unpack[1] + unpack[2] + unpack[3];
-
+*/
 //normal distance
 #else
 
@@ -131,7 +132,7 @@ namespace efanna2e{
           diff0 = *a++ - *b++;
           result += diff0 * diff0;
       }
-#endif
+//#endif
 #endif
 #endif
 
@@ -172,7 +173,7 @@ namespace efanna2e{
       }
       _mm256_storeu_ps(unpack, sum);
       result = unpack[0] + unpack[1] + unpack[2] + unpack[3] + unpack[4] + unpack[5] + unpack[6] + unpack[7];
-
+/*
 #else
 #ifdef __SSE2__
       #define SSE_DOT(addr1, addr2, dest, tmp1, tmp2) \
@@ -211,6 +212,7 @@ namespace efanna2e{
       }
       _mm_storeu_ps(unpack, sum);
       result += unpack[0] + unpack[1] + unpack[2] + unpack[3];
+*/
 #else
 
       float dot0, dot1, dot2, dot3;
@@ -231,7 +233,7 @@ namespace efanna2e{
       while (a < last) {
           result += *a++ * *b++;
       }
-#endif
+//#endif
 #endif
 #endif
       return result;
@@ -266,6 +268,7 @@ namespace efanna2e{
     }
     _mm256_storeu_ps(unpack, sum);
     result = unpack[0] + unpack[1] + unpack[2] + unpack[3] + unpack[4] + unpack[5] + unpack[6] + unpack[7];
+/*
 #else
 #ifdef __SSE2__
 #define SSE_L2NORM(addr, dest, tmp) \
@@ -301,6 +304,7 @@ namespace efanna2e{
     }
     _mm_storeu_ps(unpack, sum);
     result += unpack[0] + unpack[1] + unpack[2] + unpack[3];
+*/
 #else
     float dot0, dot1, dot2, dot3;
     const float* last = a + size;
@@ -320,7 +324,7 @@ namespace efanna2e{
         result += (*a) * (*a);
         a++;
     }
-#endif
+//#endif
 #endif
 #endif
       return result;
