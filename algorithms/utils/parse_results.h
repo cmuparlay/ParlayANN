@@ -1,3 +1,6 @@
+#ifndef ALGORITHMS_UTILS_PARSE_RESULTS_H_
+#define ALGORITHMS_UTILS_PARSE_RESULTS_H_
+
 // This code is part of the Problem Based Benchmark Suite (PBBS)
 // Copyright (c) 2011 Guy Blelloch and the PBBS team
 //
@@ -202,3 +205,5 @@ auto parse_result(parlay::sequence<res> results, parlay::sequence<float> buckets
   }
   return std::make_pair(retval, ret_buckets);
 }
+
+#endif  // ALGORITHMS_UTILS_PARSE_RESULTS_H_
