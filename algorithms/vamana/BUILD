@@ -5,6 +5,8 @@ cc_library(
     hdrs = ["index.h"],
     deps = [
         "@parlaylib//parlay:parallel",
+        "@parlaylib//parlay:primitives",
+        "@parlaylib//parlay:random",
         "//algorithms/utils:indexTools",
         "//algorithms/utils:NSGDist",
     ],
