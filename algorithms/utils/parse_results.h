@@ -123,7 +123,7 @@ struct nn_result{
 
   nn_result(double r, parlay::sequence<size_t> stats, float qps, int K, int Q,
 	    float c, long q, int limit, int gtn)
-    : recall(r), QPS(qps), k(K), beamQ(Q), cut(c), num_queries(q), limit(limit), gtn(gtn) {
+    : recall(r), QPS(qps), k(K), beamQ(Q), cut(c), limit(limit), gtn(gtn), num_queries(q) {
 
     if(stats.size() != 4) abort();
 
