@@ -74,6 +74,7 @@ cc_library(
         ":beamSearch",
         ":csvfile",
         ":indexTools",
+        ":parse_results",
         ":types",
     ],
 )
