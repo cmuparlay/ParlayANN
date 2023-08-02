@@ -31,6 +31,7 @@
 #include "parlay/random.h"
 #include "types.h"
 #include "indexTools.h"
+#include "NSGDist.h"
 #include <functional>
 #include <random>
 

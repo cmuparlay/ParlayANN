@@ -40,6 +40,7 @@ cc_library(
         "@parlaylib//parlay:random",
         ":indexTools",
         ":types",
+        ":NSGDist",
     ],
 )
 
