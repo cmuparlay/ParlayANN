@@ -74,12 +74,6 @@ beam_search(Tvec_point<T>* p, parlay::sequence<Tvec_point<T>*>& v,
   auto distance_from_p = [&] (vertex_id q) { 
       return D->distance(get_coords(q), p->coordinates.begin(), dims);};
 
-  auto prefetch_distances = [&] (vertex_id q) { 
-     auto q_ptr = get_coords(q);
-     int l = (dims * sizeof(q_ptr[0]))/64;
-     for (int i=0; i < l; i++)
-       __builtin_prefetch((char*) q_ptr + i* 64);};
-
   // used as a hash filter (can give false negative -- i.e. can say
   // not in table when it is)
   int bits = std::max<int>(10, std::ceil(std::log2(beamSize*beamSize))-2);
@@ -142,7 +136,7 @@ beam_search(Tvec_point<T>* p, parlay::sequence<Tvec_point<T>*>& v,
       if (a == -1) break;
       if (a == p->id || has_been_seen(a)) continue; // skip if already seen
       keep.push_back(a);
-      prefetch_distances(a);
+      D->prefetch(get_coords(a),dims);
     }
 
     // Further filter on whether distance is greater than current
