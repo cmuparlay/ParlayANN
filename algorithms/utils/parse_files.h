@@ -93,7 +93,7 @@ int add_saved_graph(parlay::sequence<Tvec_point<T>> &points, const char* gFile){
         std::cout << "ERROR: graph file and data file do not match" << std::endl;
         abort();
     }
-    parlay::parallel_for(0, points.size(), [&] (size_t i){
+    parlay::parallel_for(0, points.size(), [&, graphptr=graphptr] (size_t i){
         int* start_graph = (int*)(graphptr + 8 + 4*maxDeg*i);
         int* end_graph = start_graph + maxDeg;
         points[i].out_nbh = parlay::make_slice(start_graph, end_graph);
@@ -164,7 +164,7 @@ auto parse_int8bin(const char* filename, const char* gFile, int maxDeg){
     std::cout << "Detected " << num_vectors << " points with dimension " << d << std::endl;
     parlay::sequence<Tvec_point<int8_t>> points(num_vectors);
 
-    parlay::parallel_for(0, num_vectors, [&] (size_t i) {
+    parlay::parallel_for(0, num_vectors, [&, fileptr=fileptr] (size_t i) {
         points[i].id = i; 
 
         int8_t* start = (int8_t*)(fileptr + 8 + i*d); //8 bytes at the start for size + dimension
@@ -189,7 +189,7 @@ auto parse_fbin(const char* filename, const char* gFile, int maxDeg){
     std::cout << "Detected " << num_vectors << " points with dimension " << d << std::endl;
     parlay::sequence<Tvec_point<float>> points(num_vectors);
 
-    parlay::parallel_for(0, num_vectors, [&] (size_t i) {
+    parlay::parallel_for(0, num_vectors, [&, fileptr=fileptr] (size_t i) {
         points[i].id = i; 
 
         float* start = (float*)(fileptr + 8 + 4*i*d); //8 bytes at the start for size + dimension
@@ -214,7 +214,7 @@ auto parse_ibin(const char* filename){
     std::cout << "Detected " << num_vectors << " points with number of results " << d << std::endl;
     parlay::sequence<ivec_point> points(num_vectors);
 
-    parlay::parallel_for(0, num_vectors, [&] (size_t i) {
+    parlay::parallel_for(0, num_vectors, [&, fileptr=fileptr] (size_t i) {
         points[i].id = i; 
 
         int* start = (int*)(fileptr + 8 + 4*i*d); //8 bytes at the start for size + dimension
@@ -248,7 +248,7 @@ auto parse_fvecs(const char* filename, const char* gFile, int maxDeg) {
 
   parlay::sequence<Tvec_point<float>> points(num_vectors);
 
-  parlay::parallel_for(0, num_vectors, [&] (size_t i) {
+  parlay::parallel_for(0, num_vectors, [&, fileptr=fileptr] (size_t i) {
     size_t offset_in_bytes = vector_size * i + 4;  // skip dimension
     float* start = (float*)(fileptr + offset_in_bytes);
     float* end = start + d;
@@ -278,7 +278,7 @@ auto parse_bvecs(const char* filename, const char* gFile, int maxDeg) {
 
   parlay::sequence<Tvec_point<uint8_t>> points(num_vectors);
 
-  parlay::parallel_for(0, num_vectors, [&] (size_t i) {
+  parlay::parallel_for(0, num_vectors, [&, fileptr=fileptr] (size_t i) {
     size_t offset_in_bytes = vector_size * i + 4;  // skip dimension
     uint8_t* start = (uint8_t*)(fileptr + offset_in_bytes);
     uint8_t* end = start + d;
@@ -309,7 +309,7 @@ auto parse_ivecs(const char* filename) {
 
   parlay::sequence<ivec_point> points(num_vectors);
 
-  parlay::parallel_for(0, num_vectors, [&] (size_t i) {
+  parlay::parallel_for(0, num_vectors, [&, fileptr=fileptr] (size_t i) {
     size_t offset_in_bytes = vector_size * i + 4;  // skip dimension
     int* start = (int*)(fileptr + offset_in_bytes);
     int* end = start + d;
@@ -339,7 +339,7 @@ auto parse_rangeres(const char* filename){
 
     auto id_offset = 4*num_points+8;
     auto dist_offset = id_offset + 4*num_matches; 
-    parlay::parallel_for(0, num_points, [&] (size_t i) {
+    parlay::parallel_for(0, num_points, [&,fileptr=fileptr, offsets=offsets] (size_t i) {
         int* start = (int*)(fileptr + id_offset + 4*offsets[i]); 
         int* end = (int*)(fileptr + id_offset + 4*offsets[i+1]);
         points[i].id = i;
