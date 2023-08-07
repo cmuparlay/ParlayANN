@@ -35,6 +35,7 @@ cc_library(
     name = "beamSearch",
     hdrs = ["beamSearch.h"],
     deps = [
+        "@parlaylib//parlay:io",
         "@parlaylib//parlay:parallel",
         "@parlaylib//parlay:primitives",
         "@parlaylib//parlay:random",
