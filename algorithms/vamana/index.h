@@ -95,7 +95,6 @@ struct knn_index {
   //computes the centroid and then assigns the approx medoid as the point in v
   //closest to the centroid
   void find_approx_medoid(parlay::sequence<Tvec_point<T>*> &v){
-    size_t n = v.size();
     parlay::sequence<float> centroid = centroid_helper(parlay::make_slice(v));
     auto c = parlay::tabulate(centroid.size(), [&] (size_t i){
                return static_cast<T>(centroid[i]);});
