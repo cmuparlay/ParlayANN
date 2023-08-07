@@ -28,6 +28,7 @@
 #include "types.h"
 #include "beamSearch.h"
 #include "csvfile.h"
+#include "parse_results.h"
 
 template<typename T>
 nn_result checkRecall(

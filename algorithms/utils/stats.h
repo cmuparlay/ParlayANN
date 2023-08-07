@@ -32,7 +32,6 @@ std::pair<double, int> graph_stats(parlay::sequence<Tvec_point<T>*> &v){
 	auto od = parlay::delayed_seq<size_t>(v.size(), [&] (size_t i) {return size_of(v[i]->out_nbh);});
   	size_t j = parlay::max_element(od) - od.begin();
   	int maxDegree = od[j];
-  	size_t k = parlay::min_element(od) - od.begin();
   	size_t sum1 = parlay::reduce(od);
 	double avg_deg = sum1/((double) v.size());
   	return std::make_pair(avg_deg, maxDegree);
@@ -98,7 +97,7 @@ parlay::sequence<size_t> rounds_stats(parlay::sequence<Tvec_point<T>*> &q){
 void range_gt_stats(parlay::sequence<ivec_point> groundTruth){
   auto sizes = parlay::tabulate(groundTruth.size(), [&] (size_t i) {return groundTruth[i].coordinates.size();});
   parlay::sort_inplace(sizes);
-  size_t first_nonzero_index;
+  size_t first_nonzero_index = 0;
   for(size_t i=0; i<sizes.size(); i++){ if(sizes[i] != 0){first_nonzero_index = i; break;}}
   auto nonzero_sizes = (sizes).cut(first_nonzero_index, sizes.size());
   auto sizes_sum = parlay::reduce(nonzero_sizes);

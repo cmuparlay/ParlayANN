@@ -5,6 +5,8 @@ cc_library(
     hdrs = ["index.h"],
     deps = [
         "@parlaylib//parlay:parallel",
+        "@parlaylib//parlay:primitives",
+        "@parlaylib//parlay:random",
         "//algorithms/utils:indexTools",
         "//algorithms/utils:NSGDist",
     ],
@@ -31,6 +33,7 @@ cc_library(
         "//algorithms/utils:beamSearch",
         "//algorithms/utils:check_nn_recall",
         "//algorithms/utils:csvfile",
+        "//algorithms/utils:indexTools",
         "//algorithms/utils:NSGDist",
         "//algorithms/utils:parse_results",
         "//algorithms/utils:stats",

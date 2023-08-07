@@ -40,6 +40,7 @@ cc_library(
         "@parlaylib//parlay:random",
         ":indexTools",
         ":types",
+        ":NSGDist",
     ],
 )
 
@@ -73,6 +74,7 @@ cc_library(
         ":beamSearch",
         ":csvfile",
         ":indexTools",
+        ":parse_results",
         ":types",
     ],
 )
