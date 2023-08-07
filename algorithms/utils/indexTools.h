@@ -50,6 +50,17 @@ void add_nbh(int nbh, Tvec_point<T> *p){
 }
 
 template<typename T>
+void add_nbhs(parlay::sequence<int> nbhs, Tvec_point<T> *p){
+  int k = size_of(p->out_nbh);
+  if(k + nbhs.size() > p->out_nbh.size()){
+    std::cout << "error: tried to exceed degree bound " << p->out_nbh.size() << std::endl;
+    abort();
+  }
+  for (int i = 0; i < nbhs.size(); i++)
+    p->out_nbh[i+k] = nbhs[i];
+}
+
+template<typename T>
 void add_out_nbh(parlay::sequence<int> nbh, Tvec_point<T> *p){
   if (nbh.size() > p->out_nbh.size()) {
     std::cout << "oversize" << std::endl;
@@ -79,14 +90,17 @@ void add_new_nbh(parlay::sequence<int> nbh, Tvec_point<T> *p){
 
 template<typename T>
 void synchronize(Tvec_point<T> *p){
-	std::vector<int> container = std::vector<int>();
-	for(int j=0; j<p->new_nbh.size(); j++) {
-		container.push_back(p->new_nbh[j]); 
-	}
-	for(int j=0; j<p->new_nbh.size(); j++){
-		p->out_nbh[j] = container[j];
-	}
-	p->new_nbh = parlay::make_slice<int*, int*>(nullptr, nullptr);
+  //  std::vector<int> container = std::vector<int>();
+  for(int j=0; j<p->new_nbh.size(); j++) //{
+    p->out_nbh[j] = p->new_nbh[j];
+  //if (p->new_nbh.size() < p->out_nbh.size())
+  //  p->out_nbh[p->new_nbh.size()] = -1;
+  //container.push_back(p->new_nbh[j]); 
+  // }
+  // for(int j=0; j<p->new_nbh.size(); j++){
+  // 	p->out_nbh[j] = container[j];
+  // }
+  p->new_nbh = parlay::make_slice<int*, int*>(nullptr, nullptr);
 }
 
 //synchronization function
