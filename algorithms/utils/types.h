@@ -30,7 +30,7 @@
 
 //for a file in .fvecs or .bvecs format, but extendible to other types
 template<typename T>
-struct Tvec_point {
+struct alignas(64) Tvec_point {
   int id;
   size_t visited;
   size_t dist_calls;  
