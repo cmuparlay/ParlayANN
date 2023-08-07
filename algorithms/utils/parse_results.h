@@ -1,3 +1,6 @@
+#ifndef ALGORITHMS_UTILS_PARSE_RESULTS_H_
+#define ALGORITHMS_UTILS_PARSE_RESULTS_H_
+
 // This code is part of the Problem Based Benchmark Suite (PBBS)
 // Copyright (c) 2011 Guy Blelloch and the PBBS team
 //
@@ -123,7 +126,7 @@ struct nn_result{
 
   nn_result(double r, parlay::sequence<size_t> stats, float qps, int K, int Q,
 	    float c, long q, int limit, int gtn)
-    : recall(r), QPS(qps), k(K), beamQ(Q), cut(c), num_queries(q), limit(limit), gtn(gtn) {
+    : recall(r), QPS(qps), k(K), beamQ(Q), cut(c), limit(limit), gtn(gtn), num_queries(q) {
 
     if(stats.size() != 4) abort();
 
@@ -202,3 +205,5 @@ auto parse_result(parlay::sequence<res> results, parlay::sequence<float> buckets
   }
   return std::make_pair(retval, ret_buckets);
 }
+
+#endif  // ALGORITHMS_UTILS_PARSE_RESULTS_H_

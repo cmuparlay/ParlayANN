@@ -31,6 +31,7 @@
 #include "parlay/random.h"
 #include "types.h"
 #include "indexTools.h"
+#include "NSGDist.h"
 #include <functional>
 #include <random>
 
@@ -272,8 +273,6 @@ std::set<int> range_search(Tvec_point<T>* q, parlay::sequence<Tvec_point<T>*>& v
 			   int beamSize, unsigned d, Tvec_point<T>* start_point,
 			   double r, Distance* D, int k, float cut, double slack){
   
-  double max_rad = 0;
-
   std::set<int> nbh;
 
   auto [pairElts, dist_cmps] = beam_search(q, v, start_point, beamSize, d, D, k, cut);
