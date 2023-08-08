@@ -143,7 +143,6 @@ void search_and_parse(Graph G, parlay::sequence<Tvec_point<T>*> &v, parlay::sequ
     std::vector<int> allk;
     std::vector<int> allr;
     std::vector<float> cuts;
-    int r = 100;
     if(v.size() <= 200000){
       beams = {15, 20, 30, 50, 75, 100};
       allk = {10, 15, 20, 50};
