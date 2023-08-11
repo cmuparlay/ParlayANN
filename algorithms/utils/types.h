@@ -24,38 +24,36 @@
 #define TYPES
 
 #include <algorithm>
+
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 
-
-//for a file in .fvecs or .bvecs format, but extendible to other types
-template<typename T>
+// for a file in .fvecs or .bvecs format, but extendible to other types
+template <typename T>
 struct alignas(64) Tvec_point {
   int id;
   size_t visited;
-  size_t dist_calls;  
+  size_t dist_calls;
   int rounds;
   parlay::slice<T*, T*> coordinates;
-  parlay::slice<int*, int*> out_nbh; 
-  parlay::slice<int*, int*> new_nbh; 
-  Tvec_point() :
-    coordinates(parlay::make_slice<T*, T*>(nullptr, nullptr)),
-    out_nbh(parlay::make_slice<int*, int*>(nullptr, nullptr)),
-    new_nbh(parlay::make_slice<int*, int*>(nullptr, nullptr)) {}
+  parlay::slice<int*, int*> out_nbh;
+  parlay::slice<int*, int*> new_nbh;
+  Tvec_point()
+      : coordinates(parlay::make_slice<T*, T*>(nullptr, nullptr)),
+        out_nbh(parlay::make_slice<int*, int*>(nullptr, nullptr)),
+        new_nbh(parlay::make_slice<int*, int*>(nullptr, nullptr)) {}
   parlay::sequence<int> ngh = parlay::sequence<int>();
 };
 
-
-
-
-//for an ivec file, which contains the ground truth
-//only info needed is the coordinates of the nearest neighbors of each point
+// for an ivec file, which contains the ground truth
+// only info needed is the coordinates of the nearest neighbors of each point
 struct ivec_point {
   int id;
   parlay::slice<int*, int*> coordinates;
   parlay::slice<float*, float*> distances;
-  ivec_point() :
-    coordinates(parlay::make_slice<int*, int*>(nullptr, nullptr)), distances(parlay::make_slice<float*, float*>(nullptr, nullptr)) {}
+  ivec_point()
+      : coordinates(parlay::make_slice<int*, int*>(nullptr, nullptr)),
+        distances(parlay::make_slice<float*, float*>(nullptr, nullptr)) {}
 };
 
 #endif
