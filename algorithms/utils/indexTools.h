@@ -24,106 +24,108 @@
 #define INDEXTOOLS
 
 #include <algorithm>
+#include <random>
+
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 #include "parlay/random.h"
-#include <random>
 #include "types.h"
 
-//special size function
-template<typename T>
-int size_of(parlay::slice<T*, T*> nbh){
-	int size = 0;
-	int i=0;
-	while(i<nbh.size() && nbh[i] != -1) {size++; i++;}
-	return size;
+// special size function
+template <typename T>
+int size_of(parlay::slice<T *, T *> nbh) {
+  int size = 0;
+  int i = 0;
+  while (i < nbh.size() && nbh[i] != -1) {
+    size++;
+    i++;
+  }
+  return size;
 }
 
-//adding more neighbors
-template<typename T>
-void add_nbh(int nbh, Tvec_point<T> *p){
-	if(size_of(p->out_nbh) >= p->out_nbh.size()){
-		std::cout << "error: tried to exceed degree bound " << p->out_nbh.size() << std::endl;
-		abort();
-	}
-	p->out_nbh[size_of(p->out_nbh)] = nbh;
-}
-
-template<typename T>
-void add_nbhs(parlay::sequence<int> nbhs, Tvec_point<T> *p){
-  int k = size_of(p->out_nbh);
-  if(k + nbhs.size() > p->out_nbh.size()){
-    std::cout << "error: tried to exceed degree bound " << p->out_nbh.size() << std::endl;
+// adding more neighbors
+template <typename T>
+void add_nbh(int nbh, Tvec_point<T> *p) {
+  if (size_of(p->out_nbh) >= p->out_nbh.size()) {
+    std::cout << "error: tried to exceed degree bound " << p->out_nbh.size()
+              << std::endl;
     abort();
   }
-  for (int i = 0; i < nbhs.size(); i++)
-    p->out_nbh[i+k] = nbhs[i];
+  p->out_nbh[size_of(p->out_nbh)] = nbh;
 }
 
-template<typename T>
-void add_out_nbh(parlay::sequence<int> nbh, Tvec_point<T> *p){
+template <typename T>
+void add_nbhs(parlay::sequence<int> nbhs, Tvec_point<T> *p) {
+  int k = size_of(p->out_nbh);
+  if (k + nbhs.size() > p->out_nbh.size()) {
+    std::cout << "error: tried to exceed degree bound " << p->out_nbh.size()
+              << std::endl;
+    abort();
+  }
+  for (int i = 0; i < nbhs.size(); i++) p->out_nbh[i + k] = nbhs[i];
+}
+
+template <typename T>
+void add_out_nbh(parlay::sequence<int> nbh, Tvec_point<T> *p) {
   if (nbh.size() > p->out_nbh.size()) {
     std::cout << "oversize" << std::endl;
     abort();
   }
-	for(int i=0; i<p->out_nbh.size(); i++){
-		p->out_nbh[i] = -1;
-	}
-	for(int i=0; i<nbh.size(); i++){
-		p->out_nbh[i] = nbh[i];
-	}
+  for (int i = 0; i < p->out_nbh.size(); i++) {
+    p->out_nbh[i] = -1;
+  }
+  for (int i = 0; i < nbh.size(); i++) {
+    p->out_nbh[i] = nbh[i];
+  }
 }
 
-template<typename T>
-void add_new_nbh(parlay::sequence<int> nbh, Tvec_point<T> *p){
+template <typename T>
+void add_new_nbh(parlay::sequence<int> nbh, Tvec_point<T> *p) {
   if (nbh.size() > p->new_nbh.size()) {
     std::cout << "oversize" << std::endl;
     abort();
   }
-	for(int i=0; i<p->new_nbh.size(); i++){
-		p->new_nbh[i] = -1;
-	}
-	for(int i=0; i<nbh.size(); i++){
-		p->new_nbh[i] = nbh[i];
-	}
+  for (int i = 0; i < p->new_nbh.size(); i++) {
+    p->new_nbh[i] = -1;
+  }
+  for (int i = 0; i < nbh.size(); i++) {
+    p->new_nbh[i] = nbh[i];
+  }
 }
 
-template<typename T>
-void synchronize(Tvec_point<T> *p){
+template <typename T>
+void synchronize(Tvec_point<T> *p) {
   //  std::vector<int> container = std::vector<int>();
-  for(int j=0; j<p->new_nbh.size(); j++) //{
+  for (int j = 0; j < p->new_nbh.size(); j++)  //{
     p->out_nbh[j] = p->new_nbh[j];
-  //if (p->new_nbh.size() < p->out_nbh.size())
-  //  p->out_nbh[p->new_nbh.size()] = -1;
-  //container.push_back(p->new_nbh[j]); 
-  // }
-  // for(int j=0; j<p->new_nbh.size(); j++){
-  // 	p->out_nbh[j] = container[j];
-  // }
-  p->new_nbh = parlay::make_slice<int*, int*>(nullptr, nullptr);
+  // if (p->new_nbh.size() < p->out_nbh.size())
+  //   p->out_nbh[p->new_nbh.size()] = -1;
+  // container.push_back(p->new_nbh[j]);
+  //  }
+  //  for(int j=0; j<p->new_nbh.size(); j++){
+  //  	p->out_nbh[j] = container[j];
+  //  }
+  p->new_nbh = parlay::make_slice<int *, int *>(nullptr, nullptr);
 }
 
-//synchronization function
-template<typename T>
-void synchronize(parlay::sequence<Tvec_point<T>*> &v){
-	size_t n = v.size();
-	parlay::parallel_for(0, n, [&] (size_t i){
-		synchronize(v[i]);
-	});
+// synchronization function
+template <typename T>
+void synchronize(parlay::sequence<Tvec_point<T> *> &v) {
+  size_t n = v.size();
+  parlay::parallel_for(0, n, [&](size_t i) { synchronize(v[i]); });
 }
 
-template<typename T>
-void clear(Tvec_point<T>* p){
-	for(int j=0; j<p->out_nbh.size(); j++) p->out_nbh[j] = -1;
-} 
+template <typename T>
+void clear(Tvec_point<T> *p) {
+  for (int j = 0; j < p->out_nbh.size(); j++) p->out_nbh[j] = -1;
+}
 
-template<typename T>
-void clear(parlay::sequence<Tvec_point<T>*> &v){
-	size_t n = v.size();
-	parlay::parallel_for(0, n, [&] (size_t i){
-		for(int j=0; j<v[i]->out_nbh.size(); j++) v[i]->out_nbh[j] = -1;
-	});
-} 
+template <typename T>
+void clear(parlay::sequence<Tvec_point<T> *> &v) {
+  size_t n = v.size();
+  parlay::parallel_for(0, n, [&](size_t i) {
+    for (int j = 0; j < v[i]->out_nbh.size(); j++) v[i]->out_nbh[j] = -1;
+  });
+}
 
-#endif  
-
+#endif
