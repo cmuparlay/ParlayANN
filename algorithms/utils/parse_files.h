@@ -23,8 +23,8 @@
 #include <algorithm>
 #include <iostream>
 
-#include "third_party/parlay/include/parlay/parallel.h"
-#include "third_party/parlay/include/parlay/primitives.h"
+#include "parlay/parallel.h"
+#include "parlay/primitives.h"
 // #include "common/geometry.h"
 // #include "common/geometryIO.h"
 #include "../bench/parse_command_line.h"
