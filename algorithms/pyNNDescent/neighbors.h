@@ -36,7 +36,7 @@
 
 template<typename T>
 void ANN(parlay::sequence<Tvec_point<T>*> &v, int k, int K, int cluster_size, int beamSizeQ, double num_clusters, double alpha,
-  parlay::sequence<Tvec_point<T>*> &q, parlay::sequence<ivec_point> groundTruth, char* res_file, bool graph_built, Distance* D) {
+  parlay::sequence<Tvec_point<T>*> &q, parlay::sequence<ivec_point> groundTruth, char* res_file, bool graph_built, Distance* D, data_store<T> &Data) {
   parlay::internal::timer t("ANN"); 
   {
     

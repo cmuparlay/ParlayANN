@@ -27,6 +27,28 @@
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 
+template<typename T>
+struct data_store{
+  size_t size;
+  int d;
+  Distance* D;
+  parlay::slice<T*, T*> coordinates;
+  T* start;
+  double alpha;
+  double cut;
+
+  data_store(size_t n, int d, Distance* D, parlay::slice<T*, T*> coordinates, double alpha = 1.0, double cut = 1.35) : size(n), d(d), D(D), coordinates(coordinates),
+    alpha(alpha), cut(cut){
+      start = coordinates.begin();
+    }
+
+  T* get(int i){return start+i*d;}
+
+  float distance(int i, int j){return D->distance(start+i*d, start+j*d, d);}
+  float distance(int i, T* c){return D->distance(start*i+d, c, d);}
+  float distance(T* c, int i){return D->distance(start*i+d, c, d);}
+};
+
 
 //for a file in .fvecs or .bvecs format, but extendible to other types
 template<typename T>

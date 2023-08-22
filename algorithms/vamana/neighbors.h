@@ -41,7 +41,7 @@ template<typename T>
 void ANN(parlay::sequence<Tvec_point<T>*> &v, int k, int maxDeg,
 	 int beamSize, int beamSizeQ, double alpha, double dummy,
 	 parlay::sequence<Tvec_point<T>*> &q,
-	 parlay::sequence<ivec_point> &groundTruth, char* res_file, bool graph_built, Distance* D) {
+	 parlay::sequence<ivec_point> &groundTruth, char* res_file, bool graph_built, Distance* D, data_store<T> &Data) {
   parlay::internal::timer t("ANN");
   unsigned d = (v[0]->coordinates).size();
   using findex = knn_index<T>;
