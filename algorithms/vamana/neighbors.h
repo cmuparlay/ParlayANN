@@ -33,14 +33,16 @@
 #include "../utils/parse_results.h"
 #include "../utils/check_nn_recall.h"
 
-extern bool report_stats;
+// void ANN(Graph G, Data D, BuildParams B, Query_Data Q, groundTruth GT, char* res_file)
+
+
 
 template<typename T>
 void ANN(parlay::sequence<Tvec_point<T>*> &v, int k, int maxDeg,
 	 int beamSize, int beamSizeQ, double alpha, double dummy,
 	 parlay::sequence<Tvec_point<T>*> &q,
 	 parlay::sequence<ivec_point> &groundTruth, char* res_file, bool graph_built, Distance* D) {
-  parlay::internal::timer t("ANN",report_stats);
+  parlay::internal::timer t("ANN");
   unsigned d = (v[0]->coordinates).size();
   using findex = knn_index<T>;
   findex I(maxDeg, beamSize, alpha, d, D);
@@ -63,31 +65,8 @@ void ANN(parlay::sequence<Tvec_point<T>*> &v, int k, int maxDeg,
   std::cout << "Average visited: " << vv[0] << ", Tail visited: " << vv[1] << std::endl;
   Graph G(name, params, v.size(), avg_deg, max_deg, idx_time);
   G.print();
-  search_and_parse(G, v, q, groundTruth, res_file, D, false, medoid);
-  
+  if(q.size() != 0) search_and_parse(G, v, q, groundTruth, res_file, D, false, medoid);
 }
 
 
-template<typename T>
-void ANN(parlay::sequence<Tvec_point<T>*> &v, int maxDeg, int beamSize, double alpha, double dummy, bool graph_built, Distance* D) {
-  parlay::internal::timer t("ANN",report_stats);
-  {
-    unsigned d = (v[0]->coordinates).size();
-    using findex = knn_index<T>;
-    findex I(maxDeg, beamSize, alpha, d, D);
-    if(graph_built) I.find_approx_medoid(v);
-    else{
-      parlay::sequence<int> inserts = parlay::tabulate(v.size(), [&] (size_t i){
-					    return static_cast<int>(i);});
-      I.build_index(v, std::move(inserts));
-      t.next("Built index");
-    }
-
-    if(report_stats){
-      auto [avg_deg, max_deg] = graph_stats(v);
-      std::cout << "Index built with average degree " << avg_deg << " and max degree " << max_deg << std::endl;
-      t.next("stats");
-    }
-  };
-}
 

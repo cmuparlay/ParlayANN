@@ -32,7 +32,7 @@
 #include "../utils/clusterPynn.h"
 
 
-extern bool report_stats;
+
 template<typename T>
 struct pyNN_index{
 	int K;

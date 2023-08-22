@@ -30,7 +30,6 @@
 #include <set>
 #include <math.h>
 
-extern bool report_stats;
 
 template<typename T>
 struct knn_index {
@@ -315,7 +314,7 @@ struct knn_index {
         v[index]->new_nbh = parlay::make_slice(new_out.begin()+maxDeg*(i-floor),
                                                new_out.begin()+maxDeg*(i+1-floor));
         parlay::sequence<pid> visited = (beam_search(v[index], v, medoid, beamSize, d, D)).first.second;
-        if (report_stats) v[index]->visited = visited.size();
+        v[index]->visited = visited.size();
         robustPrune(v[index], visited, v, alpha); });
       t_beam.stop();
       //make each edge bidirectional by first adding each new edge
