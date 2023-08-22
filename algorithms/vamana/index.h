@@ -50,60 +50,6 @@ struct knn_index {
   knn_index(int md, int bs, double a, unsigned int dim, Distance* DD)
     : maxDeg(md), beamSize(bs), r2_alpha(a), d(dim), D(DD) {}
 
-  parlay::sequence<float> centroid_helper(slice_tvec a){
-    if(a.size() == 1){
-      parlay::sequence<float> centroid_coords = parlay::sequence<float>(d);
-      for(int i=0; i<d; i++) centroid_coords[i] = static_cast<float>((a[0]->coordinates)[i]);
-      return centroid_coords;
-    }
-    else{
-      size_t n = a.size();
-      parlay::sequence<float> c1;
-      parlay::sequence<float> c2;
-      parlay::par_do_if(n>1000,
-                        [&] () {c1 = centroid_helper(a.cut(0, n/2));},
-                        [&] () {c2 = centroid_helper(a.cut(n/2, n));}
-                        );
-      parlay::sequence<float> centroid_coords = parlay::sequence<float>(d);
-      for(int i=0; i<d; i++){
-        float result = (c1[i] + c2[i])/2;
-        centroid_coords[i] = result;
-      }
-      return centroid_coords;
-    }
-  }
-
-  tvec_point* medoid_helper(tvec_point* centroid, slice_tvec a){
-    if(a.size() == 1){
-      return a[0];
-    }
-    else{
-      size_t n = a.size();
-      tvec_point* a1;
-      tvec_point* a2;
-      parlay::par_do_if(n>1000,
-          [&] () {a1 = medoid_helper(centroid, a.cut(0, n/2));},
-          [&] () {a2 = medoid_helper(centroid, a.cut(n/2, n));} );
-      float d1 = D->distance(centroid->coordinates.begin(), a1->coordinates.begin(), d);
-      float d2 = D->distance(centroid->coordinates.begin(), a2->coordinates.begin(), d);
-      if(d1<d2) return a1;
-      else return a2;
-    }
-  }
-
-  //computes the centroid and then assigns the approx medoid as the point in v
-  //closest to the centroid
-  void find_approx_medoid(parlay::sequence<Tvec_point<T>*> &v){
-    size_t n = v.size();
-    parlay::sequence<float> centroid = centroid_helper(parlay::make_slice(v));
-    auto c = parlay::tabulate(centroid.size(), [&] (size_t i){
-               return static_cast<T>(centroid[i]);});
-    tvec_point centroidp = tvec_point();
-    centroidp.coordinates = parlay::make_slice(c);
-    medoid = medoid_helper(&centroidp, parlay::make_slice(v));
-    std::cout << "Medoid ID: " << medoid->id << std::endl;
-  }
-
   int get_medoid(){return medoid->id;}
 
   //robustPrune routine as found in DiskANN paper, with the exception
@@ -183,7 +129,7 @@ struct knn_index {
   void build_index(parlay::sequence<Tvec_point<T>*> &v, parlay::sequence<int> inserts){
     clear(v);
     std::cout << "Building graph..." << std::endl;
-    find_approx_medoid(v);
+    medoid = v[0];
     batch_insert(inserts, v, true, r2_alpha, 2, .02);
   }
 
