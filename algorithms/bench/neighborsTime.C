@@ -102,7 +102,7 @@ int main(int argc, char* argv[]) {
     "[-a <alpha>] [-d <delta>] [-R <deg>]"
         "[-L <bm>] [-k <k> ] [-L_range <bmq>] [-gt_path <g>] [-query_path <qF>]"
         "[-graph_path <gF>] [-graph_outfile <oF>] [-res_path <rF>]"
-        "[-memory_flag <algoOpt>] [-file_type <ft>] [-Q <q>]"
+        "[-memory_flag <algoOpt>] [-Q <q>]"
         "[-data_type <tp>] [-dist_func <df>][-base_path <b>] <inFile>");
 
   char* iFile = P.getOptionValue("-base_path");
@@ -111,7 +111,6 @@ int main(int argc, char* argv[]) {
   char* qFile = P.getOptionValue("-query_path");
   char* cFile = P.getOptionValue("-gt_path");
   char* rFile = P.getOptionValue("-res_path");
-  char* filetype = P.getOptionValue("-file_type");
   char* vectype = P.getOptionValue("-data_type");
   int R = P.getOptionIntValue("-R", 5);
   int L = P.getOptionIntValue("-L", 10);
@@ -132,21 +131,11 @@ int main(int argc, char* argv[]) {
     abort();
   }
 
-  std::string ft = std::string(filetype);
   std::string tp = std::string(vectype);
 
-  if((ft != "bin") && (ft != "vec")){
-    std::cout << "Error: file type not specified correctly, specify bin or vec" << std::endl;
-    abort();
-  }
 
   if((tp != "uint8") && (tp != "int8") && (tp != "float")){
     std::cout << "Error: vector type not specified correctly, specify int8, uint8, or float" << std::endl;
-    abort();
-  }
-
-  if((ft == "vec") && (tp == "int8")){
-    std::cout << "Error: incompatible file and vector types" << std::endl;
     abort();
   }
 
@@ -159,59 +148,37 @@ int main(int argc, char* argv[]) {
 
   bool graph_built = (gFile != NULL);
 
-  if(ft == "vec"){
-    if(cFile != NULL) groundTruth = parse_ivecs(cFile);
-    if(tp == "float"){
-      auto [md, points] = parse_fvecs(iFile, gFile, maxDeg);
-      maxDeg = md;
-      if(qFile != NULL){
-        auto [fd, qpoints] = parse_fvecs(qFile, NULL, 0);
-        timeNeighbors<float>(points, qpoints, k, R, L, Q,
-          delta, alpha, oFile, groundTruth, maxDeg, rFile, graph_built, D);
-      }
-      else timeNeighbors<float>(points, R, L, delta, alpha, oFile, maxDeg, graph_built, D);
+
+  if(cFile != NULL) groundTruth = parse_ibin(cFile);
+  if(tp == "float"){
+    auto [md, points] = parse_fbin(iFile, gFile, maxDeg);
+    maxDeg = md;
+    if(qFile != NULL){
+      auto [fd, qpoints] = parse_fbin(qFile, NULL, 0);
+      timeNeighbors<float>(points, qpoints, k, R, L, Q,
+        delta, alpha, oFile, groundTruth, maxDeg, rFile, graph_built, D);
     }
-    else if(tp == "uint8"){
-      auto [md, points] = parse_bvecs(iFile, gFile, maxDeg);
-      maxDeg = md;
-      if(qFile != NULL){
-        auto [fd, qpoints] = parse_bvecs(qFile, NULL, 0);
-        timeNeighbors<uint8_t>(points, qpoints, k, R, L, Q,
-          delta, alpha, oFile, groundTruth, maxDeg, rFile, graph_built, D);
-      }
-      else timeNeighbors<uint8_t>(points, R, L, delta, alpha, oFile, maxDeg, graph_built, D);
+    else timeNeighbors<float>(points, R, L, delta, alpha, oFile, maxDeg, graph_built, D);
+  } else if(tp == "uint8"){
+    auto [md, points] = parse_uint8bin(iFile, gFile, maxDeg);
+    maxDeg = md;
+    if(qFile != NULL){
+      auto [fd, qpoints] = parse_uint8bin(qFile, NULL, 0);
+      timeNeighbors<uint8_t>(points, qpoints, k, R, L, Q,
+        delta, alpha, oFile, groundTruth, maxDeg, rFile, graph_built, D);
     }
-  }else if(ft == "bin"){
-    if(cFile != NULL) groundTruth = parse_ibin(cFile);
-    if(tp == "float"){
-      auto [md, points] = parse_fbin(iFile, gFile, maxDeg);
-      maxDeg = md;
-      if(qFile != NULL){
-        auto [fd, qpoints] = parse_fbin(qFile, NULL, 0);
-        timeNeighbors<float>(points, qpoints, k, R, L, Q,
-          delta, alpha, oFile, groundTruth, maxDeg, rFile, graph_built, D);
-      }
-      else timeNeighbors<float>(points, R, L, delta, alpha, oFile, maxDeg, graph_built, D);
-    } else if(tp == "uint8"){
-      auto [md, points] = parse_uint8bin(iFile, gFile, maxDeg);
-      maxDeg = md;
-      if(qFile != NULL){
-        auto [fd, qpoints] = parse_uint8bin(qFile, NULL, 0);
-        timeNeighbors<uint8_t>(points, qpoints, k, R, L, Q,
-          delta, alpha, oFile, groundTruth, maxDeg, rFile, graph_built, D);
-      }
-      else timeNeighbors<uint8_t>(points, R, L, delta, alpha, oFile, maxDeg, graph_built, D);
-    } else if(tp == "int8"){
-      auto [md, points] = parse_int8bin(iFile, gFile, maxDeg);
-      maxDeg = md;
-      if(qFile != NULL){
-        auto [fd, qpoints] = parse_int8bin(qFile, NULL, 0);
-        timeNeighbors<int8_t>(points, qpoints, k, R, L, Q,
-          delta, alpha, oFile, groundTruth, maxDeg, rFile, graph_built, D);
-      }
-      else timeNeighbors<int8_t>(points, R, L, delta, alpha, oFile, maxDeg, graph_built, D);
+    else timeNeighbors<uint8_t>(points, R, L, delta, alpha, oFile, maxDeg, graph_built, D);
+  } else if(tp == "int8"){
+    auto [md, points] = parse_int8bin(iFile, gFile, maxDeg);
+    maxDeg = md;
+    if(qFile != NULL){
+      auto [fd, qpoints] = parse_int8bin(qFile, NULL, 0);
+      timeNeighbors<int8_t>(points, qpoints, k, R, L, Q,
+        delta, alpha, oFile, groundTruth, maxDeg, rFile, graph_built, D);
     }
+    else timeNeighbors<int8_t>(points, R, L, delta, alpha, oFile, maxDeg, graph_built, D);
   }
+  
 }
 
 
