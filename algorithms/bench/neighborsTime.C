@@ -50,7 +50,7 @@ void timeNeighbors(parlay::sequence<Tvec_point<T>> &pts,
 		   parlay::sequence<Tvec_point<T>> &qpoints,
 		   int k, int R, int beamSize,
 		   int beamSizeQ, double delta, double alpha, char* outFile,
-		   parlay::sequence<ivec_point>& groundTruth, int maxDeg, char* res_file, bool graph_built, Distance* D)
+		   parlay::sequence<ivec_point>& groundTruth, int maxDeg, char* res_file, bool graph_built, Distance* D, data_store<T> &Data)
 {
   size_t n = pts.size();
   auto v = parlay::tabulate(n, [&] (size_t i) -> Tvec_point<T>* {
@@ -63,7 +63,7 @@ void timeNeighbors(parlay::sequence<Tvec_point<T>> &pts,
     time_loop(1, 0,
       [&] () {},
       [&] () {
-        ANN<T>(v, k, R, beamSize, beamSizeQ, alpha, delta, qpts, groundTruth, res_file, graph_built, D);
+        ANN<T>(v, k, R, beamSize, beamSizeQ, alpha, delta, qpts, groundTruth, res_file, graph_built, D, Data);
       },
       [&] () {});
 
@@ -128,119 +128,29 @@ int main(int argc, char* argv[]) {
 
   if(cFile != NULL) groundTruth = parse_ibin(cFile);
   if(tp == "float"){
+    data_store<float> DS = store_fbin(iFile, D, alpha);
     auto [md, points] = parse_fbin(iFile, gFile, maxDeg);
     maxDeg = md;
     parlay::sequence<Tvec_point<float>> qpoints;
     if(qFile != NULL){qpoints = parse_fbin(qFile, NULL, 0).second;}
     timeNeighbors<float>(points, qpoints, k, R, L, Q,
-        delta, alpha, oFile, groundTruth, maxDeg, rFile, graph_built, D);
+        delta, alpha, oFile, groundTruth, maxDeg, rFile, graph_built, D, DS);
   } else if(tp == "uint8"){
+    data_store<uint8_t> DS = store_uint8bin(iFile, D, alpha);
     auto [md, points] = parse_uint8bin(iFile, gFile, maxDeg);
     maxDeg = md;
     parlay::sequence<Tvec_point<uint8_t>> qpoints;
     if(qFile != NULL){qpoints = parse_uint8bin(qFile, NULL, 0).second;}
     timeNeighbors<uint8_t>(points, qpoints, k, R, L, Q,
-        delta, alpha, oFile, groundTruth, maxDeg, rFile, graph_built, D);
+        delta, alpha, oFile, groundTruth, maxDeg, rFile, graph_built, D, DS);
   } else if(tp == "int8"){
+    data_store<int8_t> DS = store_int8bin(iFile, D, alpha);
     auto [md, points] = parse_int8bin(iFile, gFile, maxDeg);
     maxDeg = md;
     parlay::sequence<Tvec_point<int8_t>> qpoints;
     if(qFile != NULL){qpoints = parse_int8bin(qFile, NULL, 0).second;}
     timeNeighbors<int8_t>(points, qpoints, k, R, L, Q,
-        delta, alpha, oFile, groundTruth, maxDeg, rFile, graph_built, D);
+        delta, alpha, oFile, groundTruth, maxDeg, rFile, graph_built, D, DS);
   }
   
 }
-
-
-
-//REGULAR CORRECTNESS CHECK
-// if (outFile != NULL) {
-      // int m = q * (k+1);
-      // parlay::sequence<int> Pout(m);
-      // parlay::parallel_for (0, q, [&] (size_t i) {
-      //   Pout[(k+1)*i] = qpts[i]->id;
-      //   for (int j=0; j < k; j++)
-      //     Pout[(k+1)*i + j+1] = (qpts[i]->ngh)[j];
-      // });
-      // writeIntSeqToFile(Pout, outFile);
-    // }
-
-
-//DIRECTED DEGREES
-// if (outFile != NULL) {
-      // parlay::sequence<int> degrees(n);
-      // parlay::parallel_for(0, n, [&] (size_t i){
-      //   degrees[i] = v[i]->out_nbh.size();
-      // });
-      // writeIntSeqToFile(degrees, outFile);
-    // }
-
-//COORDINATES OF FILE
-// if (outFile != NULL) {
-      // int d = v[0]->coordinates.size();
-      // int m = n*d; //total number of ints in the file
-      // parlay::sequence<int> vals(m);
-      // parlay::parallel_for(0, n, [&] (size_t i){
-          // for(int j=0; j<d; j++){
-          //   vals[i*d+j] = (int) v[i]->coordinates[j];
-          // }
-      // });
-      // writeIntSeqToFile(vals, outFile);
-    // }
-
-//UNDIRECTED DEGREES (REALLY SLOW AND BAD)
- // if (outFile != NULL) {
- //      parlay::sequence<int> udegrees(n);
- //      parlay::sequence<parlay::sequence<index_pair>> to_flatten = parlay::sequence<parlay::sequence<index_pair>>(n);
- //      parlay::parallel_for(0, n, [&] (size_t i){
- //        size_t m = v[i]->out_nbh.size();
- //        parlay::sequence<index_pair> edges = parlay::sequence<index_pair>(2*m);
- //        for(int j=0; j<m; j++){
- //          edges[2*j] = std::make_pair(i, v[i]->out_nbh[j]);
- //          edges[2*j+1] = std::make_pair(v[i]->out_nbh[j], i);
- //        }
- //        to_flatten[i] = edges;
- //      });
- //      std::cout << "here1" << std::endl;
- //    auto edges_unsorted = parlay::flatten(to_flatten);
- //    std::cout << "here2" << std::endl;
- //    auto grouped_edges = parlay::group_by_key(edges_unsorted);
- //    std::cout << "here3" << std::endl;
- //    parlay::parallel_for(0, n, [&] (size_t i){
- //      int count = 0;
- //      // parlay::sequence<int> edge_ids = grouped_edges[i].second;
- //      std::cout << grouped_edges[i].second.size() << std::endl;
- //      for(int j=0; j<grouped_edges[i].second.size(); j++){
- //        count+=1;
-
- //        if(j<grouped_edges[i].second.size()-1){
- //          int current = grouped_edges[i].second[j];
- //          int next = grouped_edges[i].second[j+1];
- //          if(current == next) j+=1;
- //        }
-
- //      }
- //      udegrees[i] = count;
- //    });
- //    auto sortedDegrees = parlay::sort(udegrees);
- //    writeIntSeqToFile(sortedDegrees, outFile);
- //    }
-
-  //GRAPH FORMAT
-
-   // if (outFile != NULL) {
-   //    parlay::sequence<int> graph(n*(maxDeg+1));
-   //    parlay::parallel_for(0, n, [&] (size_t i){
-   //      graph[i*(maxDeg+1)] = (int) i;
-   //      int degree = v[i]->out_nbh.size();
-   //      for(int j=0; j<degree; j++) graph[i*(maxDeg+1)+1+j] = v[i]->out_nbh[j];
-   //      int rem = maxDeg - degree;
-   //      for(int j=0; j<rem; j++) graph[i*(maxDeg+1)+1+degree+j] = -1;
-   //    });
-   //    writeIntSeqToFile(graph, outFile);
-   //  }
-
-
-
-
