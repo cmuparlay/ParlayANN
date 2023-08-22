@@ -36,7 +36,6 @@
 #include <functional>
 #include <random>
 
-extern bool report_stats;
 
 using vertex_id = int;
 using distance = float;
@@ -307,7 +306,8 @@ void beamSearchRandom(parlay::sequence<Tvec_point<T>*>& q,
       neighbors[j] = beamElts[j].first;
     }
     q[i]->ngh = neighbors;
-    if (report_stats) {q[i]->visited = visitedElts.size(); q[i]->dist_calls = dist_cmps; }
+    q[i]->visited = visitedElts.size(); 
+    q[i]->dist_calls = dist_cmps; 
   });
 }
 

@@ -13,7 +13,6 @@
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 
-extern bool report_stats;
 
 namespace efanna2e{
 

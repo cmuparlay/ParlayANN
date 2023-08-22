@@ -30,7 +30,7 @@
 #include <math.h>
 #include <queue>
 
-extern bool report_stats;
+
 
 struct DisjointSet{
 	parlay::sequence<int> parent;

@@ -37,36 +37,13 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-// using namespace benchIO;
 
-bool report_stats = true;
 
 
 // *************************************************************
 //  TIMING
 // *************************************************************
 
-template<typename T>
-void timeNeighbors(parlay::sequence<Tvec_point<T>> &pts,
-  int R, int beamSize, double delta, double alpha, char* outFile, int maxDeg, bool graph_built, Distance* D)
-{
-  size_t n = pts.size();
-  auto v = parlay::tabulate(n, [&] (size_t i) -> Tvec_point<T>* {
-      return &pts[i];});
-
-  time_loop(1, 0,
-  [&] () {},
-  [&] () {
-    ANN<T>(v, R, beamSize, alpha, delta, graph_built, D);
-  },
-  [&] () {});
-
-  if(outFile != NULL) {
-    write_graph(v, outFile, maxDeg); 
-  }
-
-
-}
 
 template<typename T>
 void timeNeighbors(parlay::sequence<Tvec_point<T>> &pts,
@@ -153,30 +130,24 @@ int main(int argc, char* argv[]) {
   if(tp == "float"){
     auto [md, points] = parse_fbin(iFile, gFile, maxDeg);
     maxDeg = md;
-    if(qFile != NULL){
-      auto [fd, qpoints] = parse_fbin(qFile, NULL, 0);
-      timeNeighbors<float>(points, qpoints, k, R, L, Q,
+    parlay::sequence<Tvec_point<float>> qpoints;
+    if(qFile != NULL){qpoints = parse_fbin(qFile, NULL, 0).second;}
+    timeNeighbors<float>(points, qpoints, k, R, L, Q,
         delta, alpha, oFile, groundTruth, maxDeg, rFile, graph_built, D);
-    }
-    else timeNeighbors<float>(points, R, L, delta, alpha, oFile, maxDeg, graph_built, D);
   } else if(tp == "uint8"){
     auto [md, points] = parse_uint8bin(iFile, gFile, maxDeg);
     maxDeg = md;
-    if(qFile != NULL){
-      auto [fd, qpoints] = parse_uint8bin(qFile, NULL, 0);
-      timeNeighbors<uint8_t>(points, qpoints, k, R, L, Q,
+    parlay::sequence<Tvec_point<uint8_t>> qpoints;
+    if(qFile != NULL){qpoints = parse_uint8bin(qFile, NULL, 0).second;}
+    timeNeighbors<uint8_t>(points, qpoints, k, R, L, Q,
         delta, alpha, oFile, groundTruth, maxDeg, rFile, graph_built, D);
-    }
-    else timeNeighbors<uint8_t>(points, R, L, delta, alpha, oFile, maxDeg, graph_built, D);
   } else if(tp == "int8"){
     auto [md, points] = parse_int8bin(iFile, gFile, maxDeg);
     maxDeg = md;
-    if(qFile != NULL){
-      auto [fd, qpoints] = parse_int8bin(qFile, NULL, 0);
-      timeNeighbors<int8_t>(points, qpoints, k, R, L, Q,
+    parlay::sequence<Tvec_point<int8_t>> qpoints;
+    if(qFile != NULL){qpoints = parse_int8bin(qFile, NULL, 0).second;}
+    timeNeighbors<int8_t>(points, qpoints, k, R, L, Q,
         delta, alpha, oFile, groundTruth, maxDeg, rFile, graph_built, D);
-    }
-    else timeNeighbors<int8_t>(points, R, L, delta, alpha, oFile, maxDeg, graph_built, D);
   }
   
 }
