@@ -48,7 +48,6 @@ void ANN(parlay::sequence<Tvec_point<T>*> &v, int k, int maxDeg,
   findex I(maxDeg, beamSize, alpha, d, D);
   double idx_time;
   if(graph_built){
-    I.find_approx_medoid(v);
     idx_time = 0;
   } else{
     parlay::sequence<int> inserts = parlay::tabulate(v.size(), [&] (size_t i){
