@@ -45,14 +45,14 @@ void ANN(parlay::sequence<Tvec_point<T>*> &v, int k, int maxDeg,
   parlay::internal::timer t("ANN");
   unsigned d = (v[0]->coordinates).size();
   using findex = knn_index<T>;
-  findex I(maxDeg, beamSize, alpha, d, D);
+  findex I(maxDeg, beamSize);
   double idx_time;
   if(graph_built){
     idx_time = 0;
   } else{
     parlay::sequence<int> inserts = parlay::tabulate(v.size(), [&] (size_t i){
 					    return static_cast<int>(i);});
-    I.build_index(v, std::move(inserts));
+    I.build_index(v, std::move(inserts), Data);
     idx_time = t.next_time();
   }
 
@@ -64,7 +64,7 @@ void ANN(parlay::sequence<Tvec_point<T>*> &v, int k, int maxDeg,
   std::cout << "Average visited: " << vv[0] << ", Tail visited: " << vv[1] << std::endl;
   Graph G(name, params, v.size(), avg_deg, max_deg, idx_time);
   G.print();
-  if(q.size() != 0) search_and_parse(G, v, q, groundTruth, res_file, D, false, medoid);
+  if(q.size() != 0) search_and_parse(G, v, Data, q, groundTruth, res_file, false, medoid);
 }
 
 
