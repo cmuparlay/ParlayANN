@@ -351,14 +351,15 @@ class Distance {
   virtual float distance(int8_t *p, int8_t *q, unsigned d) { return 0; }
   virtual float distance(float *p, float *q, unsigned d) { return 0; }
   virtual ~Distance() = default;
-
-class Distance{
-public:
-  virtual std::string id(){return "generic";}
-  virtual float distance(uint8_t *p, uint8_t *q, unsigned d){return 0;}
-  virtual float distance(int8_t *p, int8_t *q, unsigned d){return 0;}
-  virtual float distance(float *p, float *q, unsigned d){return 0;}
 };
+
+// class Distance{
+// public:
+//   virtual std::string id(){return "generic";}
+//   virtual float distance(uint8_t *p, uint8_t *q, unsigned d){return 0;}
+//   virtual float distance(int8_t *p, int8_t *q, unsigned d){return 0;}
+//   virtual float distance(float *p, float *q, unsigned d){return 0;}
+// };
 
 struct Mips_Distance : public Distance {
   std::string id() { return "mips"; }
