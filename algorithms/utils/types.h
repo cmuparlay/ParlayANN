@@ -28,43 +28,43 @@
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 
-template<typename T>
-struct store{
-public:  
-  size_t size;
-  unsigned int d;
-  parlay::slice<T*, T*> coordinates;
-  T* start;
+// template<typename T>
+// struct store{
+// public:  
+//   size_t size;
+//   unsigned int d;
+//   parlay::slice<T*, T*> coordinates;
+//   T* start;
 
-  store(size_t n, unsigned int d, parlay::slice<T*, T*> coordinates) : size(n), d(d), coordinates(coordinates){
-    start = coordinates.begin();
-  }
+//   store(size_t n, unsigned int d, parlay::slice<T*, T*> coordinates) : size(n), d(d), coordinates(coordinates){
+//     start = coordinates.begin();
+//   }
 
-  T* get(int i){
-    return start + d*i; 
-  }
+//   T* get(int i){
+//     return start + d*i; 
+//   }
 
-  void prefetch(T* p) {
-    int l = (d * sizeof(T))/64;
-    for (int i=0; i < l; i++)
-      __builtin_prefetch((char*) p + i* 64);
-  }
+//   void prefetch(T* p) {
+//     int l = (d * sizeof(T))/64;
+//     for (int i=0; i < l; i++)
+//       __builtin_prefetch((char*) p + i* 64);
+//   }
 
-};
+// };
 
-template<typename T>
-struct exp_store : public store<T> {
-  public: 
-    Distance* D;
-    double alpha;
+// template<typename T>
+// struct exp_store : public store<T> {
+//   public: 
+//     Distance* D;
+//     double alpha;
 
-    exp_store(size_t n, unsigned int d, Distance* D, parlay::slice<T*, T*> coordinates, double alpha = 1.0) : store<T>(n, d, coordinates), D(D), alpha(alpha) { }
+//     exp_store(size_t n, unsigned int d, Distance* D, parlay::slice<T*, T*> coordinates, double alpha = 1.0) : store<T>(n, d, coordinates), D(D), alpha(alpha) { }
 
-    float distance(int i, int j){return D->distance(start+i*d, start+j*d, d);}
-    float distance(int i, T* c){return D->distance(start+i*d, c, d);}
-    float distance(T* c, int i){return D->distance(start+i*d, c, d);}
-    float distance(T* a, T* b){return D->distance(a, b, d);}
-};
+//     float distance(int i, int j){return D->distance(start+i*d, start+j*d, d);}
+//     float distance(int i, T* c){return D->distance(start+i*d, c, d);}
+//     float distance(T* c, int i){return D->distance(start+i*d, c, d);}
+//     float distance(T* a, T* b){return D->distance(a, b, d);}
+// };
 
 template<typename T>
 struct data_store{
