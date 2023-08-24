@@ -21,28 +21,31 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <algorithm>
+
+#include "../utils/NSGDist.h"
+#include "../utils/beamSearch.h"
+#include "../utils/check_nn_recall.h"
+#include "../utils/indexTools.h"
+#include "../utils/parse_results.h"
+#include "../utils/stats.h"
+#include "../utils/types.h"
+#include "index.h"
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 #include "parlay/random.h"
-#include "../utils/NSGDist.h"
-#include "../utils/types.h"
-#include "index.h"
-#include "../utils/beamSearch.h"
-#include "../utils/indexTools.h"
-#include "../utils/stats.h"
-#include "../utils/parse_results.h"
-#include "../utils/check_nn_recall.h"
 
 // void ANN(Graph G, Data D, BuildParams B, Query_Data Q, groundTruth GT, char* res_file)
 
 
 
-template<typename T>
-void ANN(parlay::sequence<Tvec_point<T>*> &v, int k, int maxDeg,
-	 int beamSize, int beamSizeQ, double alpha, double dummy,
-	 parlay::sequence<Tvec_point<T>*> &q,
-	 parlay::sequence<ivec_point> &groundTruth, char* res_file, bool graph_built, Distance* D, data_store<T> &Data) {
-  parlay::internal::timer t("ANN");
+
+template <typename T>
+void ANN(parlay::sequence<Tvec_point<T> *> &v, int k, int maxDeg, int beamSize,
+         int beamSizeQ, double alpha, double dummy,
+         parlay::sequence<Tvec_point<T> *> &q,
+         parlay::sequence<ivec_point> &groundTruth, char *res_file,
+         bool graph_built, Distance *D, data_store<T> &Data) {
+  parlay::internal::timer t("ANN", report_stats);
   unsigned d = (v[0]->coordinates).size();
   using findex = knn_index<T>;
   findex I(maxDeg, beamSize);
@@ -58,10 +61,12 @@ void ANN(parlay::sequence<Tvec_point<T>*> &v, int k, int maxDeg,
 
   int medoid = I.get_medoid();
   std::string name = "Vamana";
-  std::string params = "R = " + std::to_string(maxDeg) + ", L = " + std::to_string(beamSize);
+  std::string params =
+      "R = " + std::to_string(maxDeg) + ", L = " + std::to_string(beamSize);
   auto [avg_deg, max_deg] = graph_stats(v);
   auto vv = visited_stats(v);
-  std::cout << "Average visited: " << vv[0] << ", Tail visited: " << vv[1] << std::endl;
+  std::cout << "Average visited: " << vv[0] << ", Tail visited: " << vv[1]
+            << std::endl;
   Graph G(name, params, v.size(), avg_deg, max_deg, idx_time);
   G.print();
   if(q.size() != 0) search_and_parse(G, v, Data, q, groundTruth, res_file, false, medoid);

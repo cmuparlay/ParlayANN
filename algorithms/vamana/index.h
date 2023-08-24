@@ -20,34 +20,36 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#include <math.h>
+
 #include <algorithm>
+#include <random>
+#include <set>
+
+#include "../utils/NSGDist.h"
+#include "../utils/indexTools.h"
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 #include "parlay/random.h"
-#include "../utils/indexTools.h"
-#include "../utils/NSGDist.h"
-#include <random>
-#include <set>
-#include <math.h>
 
 
-template<typename T>
+template <typename T>
 struct knn_index {
   int maxDeg;
   int beamSize;
   std::set<int> delete_set; 
   using tvec_point = Tvec_point<T>;
   using fvec_point = Tvec_point<float>;
-  tvec_point* medoid;
+  tvec_point *medoid;
   using pid = std::pair<int, float>;
-  using slice_tvec = decltype(make_slice(parlay::sequence<tvec_point*>()));
+  using slice_tvec = decltype(make_slice(parlay::sequence<tvec_point *>()));
   using index_pair = std::pair<int, int>;
   using slice_idx = decltype(make_slice(parlay::sequence<index_pair>()));
 
   knn_index(int md, int bs)
     : maxDeg(md), beamSize(bs) {}
 
-  int get_medoid(){return medoid->id;}
+  int get_medoid() { return medoid->id; }
 
   //robustPrune routine as found in DiskANN paper, with the exception
   //that the new candidate set is added to the field new_nbhs instead
@@ -66,9 +68,9 @@ struct knn_index {
         candidates.push_back(std::make_pair(v[p]->out_nbh[i], Data.distance(v[p]->out_nbh[i], p)));
       }
     }
-    
+
     // Sort the candidate set in reverse order according to distance from p.
-    auto less = [&] (pid a, pid b) {return a.second < b.second;};
+    auto less = [&](pid a, pid b) { return a.second < b.second; };
     std::sort(candidates.begin(), candidates.end(), less);
 
     std::vector<int> new_nbhs;
@@ -94,7 +96,7 @@ struct knn_index {
           if (Data.alpha * dist_starprime <= dist_pprime) {
             candidates[i].first = -1;
           }
-        } 
+        }
       }
     }
     add_new_nbh(parlay::to_sequence(new_nbhs), v[p]);
@@ -122,26 +124,31 @@ struct knn_index {
     batch_insert(inserts, v, Data, true, 2, .02);
   }
 
-  void lazy_delete(parlay::sequence<int> deletes, parlay::sequence<Tvec_point<T>*> &v){
-    for(int p : deletes){
-      if(p < 0 || p > (int) v.size() ){
-        std::cout << "ERROR: invalid point " << p << " given to lazy_delete" << std::endl; 
+  void lazy_delete(parlay::sequence<int> deletes,
+                   parlay::sequence<Tvec_point<T> *> &v) {
+    for (int p : deletes) {
+      if (p < 0 || p > (int)v.size()) {
+        std::cout << "ERROR: invalid point " << p << " given to lazy_delete"
+                  << std::endl;
         abort();
       }
-      if(p != medoid->id) delete_set.insert(p);
-      else std::cout << "Deleting medoid not permitted; continuing" << std::endl; 
-    } 
+      if (p != medoid->id)
+        delete_set.insert(p);
+      else
+        std::cout << "Deleting medoid not permitted; continuing" << std::endl;
+    }
   }
 
-  void lazy_delete(int p, parlay::sequence<Tvec_point<T>*> &v){
-    if(p < 0 || p > (int) v.size()){
-      std::cout << "ERROR: invalid point " << p << " given to lazy_delete" << std::endl; 
+  void lazy_delete(int p, parlay::sequence<Tvec_point<T> *> &v) {
+    if (p < 0 || p > (int)v.size()) {
+      std::cout << "ERROR: invalid point " << p << " given to lazy_delete"
+                << std::endl;
       abort();
     }
-    if(p == medoid->id){
-      std::cout << "Deleting medoid not permitted; continuing" << std::endl; 
+    if (p == medoid->id) {
+      std::cout << "Deleting medoid not permitted; continuing" << std::endl;
       return;
-    } 
+    }
     delete_set.insert(p);
   }
 
@@ -207,80 +214,92 @@ struct knn_index {
     size_t m = inserts.size();
     size_t inc = 0;
     size_t count = 0;
-    float frac=0.0;
-    float progress_inc=.1;
-    size_t max_batch_size = std::min(static_cast<size_t>(max_fraction*static_cast<float>(n)),
-                                     1000000ul);
+    float frac = 0.0;
+    float progress_inc = .1;
+    size_t max_batch_size = std::min(
+        static_cast<size_t>(max_fraction * static_cast<float>(n)), 1000000ul);
     parlay::sequence<int> rperm;
-    if(random_order) rperm = parlay::random_permutation<int>(static_cast<int>(m));
-    else rperm = parlay::tabulate(m, [&] (int i) {return i;});
-    auto shuffled_inserts = parlay::tabulate(m, [&] (size_t i) {return inserts[rperm[i]];});
+    if (random_order)
+      rperm = parlay::random_permutation<int>(static_cast<int>(m));
+    else
+      rperm = parlay::tabulate(m, [&](int i) { return i; });
+    auto shuffled_inserts =
+        parlay::tabulate(m, [&](size_t i) { return inserts[rperm[i]]; });
     parlay::internal::timer t_beam("beam search time");
     parlay::internal::timer t_bidirect("bidirect time");
     parlay::internal::timer t_prune("prune time");
     t_beam.stop();
     t_bidirect.stop();
     t_prune.stop();
-    while(count < m){
+    while (count < m) {
       size_t floor;
       size_t ceiling;
-      if(pow(base,inc) <= max_batch_size){
-        floor = static_cast<size_t>(pow(base, inc))-1;
-        ceiling = std::min(static_cast<size_t>(pow(base, inc+1)), m)-1;
-        count = std::min(static_cast<size_t>(pow(base, inc+1)), m)-1;
-      } else{
+      if (pow(base, inc) <= max_batch_size) {
+        floor = static_cast<size_t>(pow(base, inc)) - 1;
+        ceiling = std::min(static_cast<size_t>(pow(base, inc + 1)), m) - 1;
+        count = std::min(static_cast<size_t>(pow(base, inc + 1)), m) - 1;
+      } else {
         floor = count;
         ceiling = std::min(count + static_cast<size_t>(max_batch_size), m);
         count += static_cast<size_t>(max_batch_size);
       }
-      if(print){
-        auto ind = frac*n;
-        if(floor <= ind && ceiling > ind){
+      if (print) {
+        auto ind = frac * n;
+        if (floor <= ind && ceiling > ind) {
           frac += progress_inc;
-          std::cout << "Index build " << 100*frac << "% complete" << std::endl;
+          std::cout << "Index build " << 100 * frac << "% complete"
+                    << std::endl;
         }
       }
-      parlay::sequence<int> new_out = parlay::sequence<int>(maxDeg*(ceiling-floor), -1);
-      //search for each node starting from the medoid, then call
-      //robustPrune with the visited list as its candidate set
+      parlay::sequence<int> new_out =
+          parlay::sequence<int>(maxDeg * (ceiling - floor), -1);
+      // search for each node starting from the medoid, then call
+      // robustPrune with the visited list as its candidate set
       t_beam.start();
-      parlay::parallel_for(floor, ceiling, [&] (size_t i){
+      parlay::parallel_for(floor, ceiling, [&](size_t i) {
         size_t index = shuffled_inserts[i];
         v[index]->new_nbh = parlay::make_slice(new_out.begin()+maxDeg*(i-floor),
                                                new_out.begin()+maxDeg*(i+1-floor));
-        parlay::sequence<pid> visited = (beam_search(v[index], v, Data, medoid, beamSize)).first.second;
+        parlay::sequence<pid> visited = 
+          (beam_search(v[index], v, Data, medoid, beamSize)).first.second;
         v[index]->visited = visited.size();
         robustPrune(index, visited, v, Data); });
       t_beam.stop();
-      //make each edge bidirectional by first adding each new edge
+      // make each edge bidirectional by first adding each new edge
       //(i,j) to a sequence, then semisorting the sequence by key values
       t_bidirect.start();
-      auto to_flatten = parlay::tabulate(ceiling-floor, [&] (size_t i){
-                          int index = shuffled_inserts[i+floor];
-                          auto edges = parlay::tabulate(size_of(v[index]->new_nbh), [&] (size_t j){
-                            return std::make_pair((v[index]->new_nbh)[j], index); });
-                          return edges; });
+      auto to_flatten = parlay::tabulate(ceiling - floor, [&](size_t i) {
+        int index = shuffled_inserts[i + floor];
+        auto edges =
+            parlay::tabulate(size_of(v[index]->new_nbh), [&](size_t j) {
+              return std::make_pair((v[index]->new_nbh)[j], index);
+            });
+        return edges;
+      });
 
-      parlay::parallel_for(floor, ceiling, [&] (size_t i) {
-         synchronize(v[shuffled_inserts[i]]);} );
+      parlay::parallel_for(floor, ceiling, [&](size_t i) {
+        synchronize(v[shuffled_inserts[i]]);
+      });
       auto grouped_by = parlay::group_by_key(parlay::flatten(to_flatten));
       t_bidirect.stop();
 
       t_prune.start();
-      //finally, add the bidirectional edges; if they do not make
-      //the vertex exceed the degree bound, just add them to out_nbhs;
-      //otherwise, use robustPrune on the vertex with user-specified alpha
-      parlay::parallel_for(0, grouped_by.size(), [&] (size_t j){
-        auto& [index, candidates] = grouped_by[j];
+      // finally, add the bidirectional edges; if they do not make
+      // the vertex exceed the degree bound, just add them to out_nbhs;
+      // otherwise, use robustPrune on the vertex with user-specified alpha
+      parlay::parallel_for(0, grouped_by.size(), [&](size_t j) {
+        auto &[index, candidates] = grouped_by[j];
         int newsize = candidates.size() + size_of(v[index]->out_nbh);
         if (newsize <= maxDeg) {
           add_nbhs(candidates, v[index]);
-        } else{
+        } else {
           parlay::sequence<int> new_out_2(maxDeg, -1);
-          v[index]->new_nbh=parlay::make_slice(new_out_2.begin(), new_out_2.begin()+maxDeg);
+          v[index]->new_nbh = 
+            parlay::make_slice(new_out_2.begin(), new_out_2.begin()+maxDeg);
           robustPrune(index, std::move(candidates), v, Data);  
           synchronize(v[index]);
-        } });
+        }
+      });
       t_prune.stop();
       inc += 1;
     }
@@ -289,7 +308,7 @@ struct knn_index {
     t_prune.total();
   }
 
-  void batch_insert(int p, parlay::sequence<Tvec_point<T>*> &v){
+  void batch_insert(int p, parlay::sequence<Tvec_point<T> *> &v) {
     parlay::sequence<int> inserts;
     inserts.push_back(p);
     batch_insert(inserts, v, true);
