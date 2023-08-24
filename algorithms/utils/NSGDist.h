@@ -343,12 +343,6 @@ public:
   virtual float distance(uint8_t *p, uint8_t *q, unsigned d){return 0;}
   virtual float distance(int8_t *p, int8_t *q, unsigned d){return 0;}
   virtual float distance(float *p, float *q, unsigned d){return 0;}
-  template <typename T>
-  void prefetch(T* p, unsigned d) {
-     int l = (d * sizeof(T))/64;
-     for (int i=0; i < l; i++)
-       __builtin_prefetch((char*) p + i* 64);
-  }
 };
 
 struct Mips_Distance : public Distance{

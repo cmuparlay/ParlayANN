@@ -28,25 +28,70 @@
 #include "parlay/primitives.h"
 
 template<typename T>
-struct data_store{
+struct store{
+public:  
   size_t size;
-  int d;
-  Distance* D;
+  unsigned int d;
   parlay::slice<T*, T*> coordinates;
   T* start;
-  double alpha;
-  double cut;
 
-  data_store(size_t n, int d, Distance* D, parlay::slice<T*, T*> coordinates, double alpha = 1.0, double cut = 1.35) : size(n), d(d), D(D), coordinates(coordinates),
-    alpha(alpha), cut(cut){
+  store(size_t n, unsigned int d, parlay::slice<T*, T*> coordinates) : size(n), d(d), coordinates(coordinates){
+    start = coordinates.begin();
+  }
+
+  T* get(int i){
+    return start + d*i; 
+  }
+
+  void prefetch(T* p) {
+    int l = (d * sizeof(T))/64;
+    for (int i=0; i < l; i++)
+      __builtin_prefetch((char*) p + i* 64);
+  }
+
+};
+
+template<typename T>
+struct exp_store : public store<T> {
+  public: 
+    Distance* D;
+    double alpha;
+
+    exp_store(size_t n, unsigned int d, Distance* D, parlay::slice<T*, T*> coordinates, double alpha = 1.0) : store<T>(n, d, coordinates), D(D), alpha(alpha) { }
+
+    float distance(int i, int j){return D->distance(start+i*d, start+j*d, d);}
+    float distance(int i, T* c){return D->distance(start+i*d, c, d);}
+    float distance(T* c, int i){return D->distance(start+i*d, c, d);}
+    float distance(T* a, T* b){return D->distance(a, b, d);}
+};
+
+template<typename T>
+struct data_store{
+    Distance* D;
+    double alpha;
+    size_t size;
+    unsigned int d;
+    parlay::slice<T*, T*> coordinates;
+    T* start;
+
+    data_store(size_t n, unsigned int d, Distance* D, parlay::slice<T*, T*> coordinates, double alpha = 1.0) : size(n), d(d), coordinates(coordinates), D(D), alpha(alpha) {
       start = coordinates.begin();
     }
 
-  T* get(int i){return start+i*d;}
+    T* get(int i){
+      return start + d*i; 
+    }
 
-  float distance(int i, int j){return D->distance(start+i*d, start+j*d, d);}
-  float distance(int i, T* c){return D->distance(start*i+d, c, d);}
-  float distance(T* c, int i){return D->distance(start*i+d, c, d);}
+    void prefetch(T* p) {
+      int l = (d * sizeof(T))/64;
+      for (int i=0; i < l; i++)
+        __builtin_prefetch((char*) p + i* 64);
+    }
+
+    float distance(int i, int j){return D->distance(start+i*d, start+j*d, d);}
+    float distance(int i, T* c){return D->distance(start+i*d, c, d);}
+    float distance(T* c, int i){return D->distance(start+i*d, c, d);}
+    float distance(T* a, T* b){return D->distance(a, b, d);}
 };
 
 

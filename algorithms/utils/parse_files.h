@@ -123,7 +123,7 @@ void write_graph(parlay::sequence<Tvec_point<T>*> &v, char* outFile, int maxDeg)
 //  BINARY TOOLS: uint8, int8, float32, int32
 // *************************************************************
 
-data_store<uint8_t> store_uint8bin(const char* filename, Distance* D, double alpha=1.0, double cut=1.35){
+data_store<uint8_t> store_uint8bin(const char* filename, Distance* D, double alpha=1.0){
   //auto [fileptr, length] = mmapStringFromFile(filename);
   uint8_t* hold;
   long num_vectors, d;
@@ -142,7 +142,7 @@ data_store<uint8_t> store_uint8bin(const char* filename, Distance* D, double alp
     parlay::slice<uint8_t*,uint8_t*> coords = parlay::make_slice(start, end);
 
     std::cout << "Detected " << num_vectors << " points with dimension " << d << std::endl;
-    data_store<uint8_t>* store = new data_store<uint8_t>(num_vectors, d, D, coords, alpha, cut);
+    data_store<uint8_t>* store = new data_store<uint8_t>(num_vectors, d, D, coords, alpha);
     return *(store); 
     
 }
@@ -179,7 +179,7 @@ auto parse_uint8bin(const char* filename, const char* gFile, int maxDeg){
     return std::make_pair(maxDeg, std::move(points));
 }
 
-data_store<int8_t> store_int8bin(const char* filename, Distance* D, double alpha=1.0, double cut=1.35){
+data_store<int8_t> store_int8bin(const char* filename, Distance* D, double alpha=1.0){
     auto [fileptr, length] = mmapStringFromFile(filename);
 
     int num_vectors = *((int*) fileptr);
@@ -190,7 +190,7 @@ data_store<int8_t> store_int8bin(const char* filename, Distance* D, double alpha
     int8_t* start = (int8_t*)(fileptr+8);
     int8_t* end = start + d*num_vectors;
     parlay::slice<int8_t*, int8_t*> coords = parlay::make_slice(start, end);
-    data_store<int8_t>* store = new data_store<int8_t>(num_vectors, d, D, coords, alpha, cut);
+    data_store<int8_t>* store = new data_store<int8_t>(num_vectors, d, D, coords, alpha);
     return *(store); 
 
 }
@@ -220,7 +220,7 @@ auto parse_int8bin(const char* filename, const char* gFile, int maxDeg){
     return std::make_pair(maxDeg, std::move(points));
 }
 
-data_store<float> store_fbin(const char* filename, Distance* D, double alpha=1.0, double cut=1.35){
+data_store<float> store_fbin(const char* filename, Distance* D, double alpha=1.0){
     auto [fileptr, length] = mmapStringFromFile(filename);
 
     int num_vectors = *((int*) fileptr);
@@ -231,7 +231,7 @@ data_store<float> store_fbin(const char* filename, Distance* D, double alpha=1.0
     float* start = (float*)(fileptr+8);
     float* end = start + d*4*num_vectors;
     parlay::slice<float*, float*> coords = parlay::make_slice(start, end);
-    data_store<float>* store = new data_store<float>(num_vectors, d, D, coords, alpha, cut);
+    data_store<float>* store = new data_store<float>(num_vectors, d, D, coords, alpha);
     return *(store); 
 }
 

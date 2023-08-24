@@ -43,36 +43,42 @@ using id_dist = std::pair<vertex_id, distance>;
 
 template <typename T>
 std::pair<std::pair<parlay::sequence<id_dist>, parlay::sequence<id_dist>>, int>
-beam_search(Tvec_point<T>* p, parlay::sequence<Tvec_point<T>*>& v,
+beam_search(Tvec_point<T>* p, parlay::sequence<Tvec_point<T>*>& v, data_store<T> &Data,
 	    Tvec_point<T>* starting_point, int beamSize,
-	    unsigned d, Distance* D, int k=0, float cut=1.14, int limit=-1) {
+	    int k=0, float cut=1.14, int limit=-1) {
   
   parlay::sequence<Tvec_point<T>*> start_points;
   start_points.push_back(starting_point);
-  return beam_search(p, v, start_points, beamSize, d, D, k, cut, limit);
+  return beam_search(p, v, Data, start_points, beamSize, k, cut, limit);
 }
 
 // main beam search
 template <typename T>
 std::pair<std::pair<parlay::sequence<id_dist>, parlay::sequence<id_dist>>, size_t>
-beam_search(Tvec_point<T>* p, parlay::sequence<Tvec_point<T>*>& v,
+beam_search(Tvec_point<T>* p, parlay::sequence<Tvec_point<T>*>& v, data_store<T> &Data,
 	      parlay::sequence<Tvec_point<T>*> starting_points, int beamSize,
-	      unsigned dims, Distance* D, int k=0, float cut=1.14, int max_visit=-1) {
+	      int k=0, float cut=1.14, int max_visit=-1) {
   if(max_visit == -1) max_visit = v.size();
-  if (D->id() == "mips") cut = -cut;
+  // if (D->id() == "mips") cut = -cut;
 
   // compare two (node_id,distance) pairs, first by distance and then id if equal
   auto less = [&](id_dist a, id_dist b) {
       return a.second < b.second || (a.second == b.second && a.first < b.first); };
 
-  // pointer to q's coordinates
-  auto get_coords = [&] (vertex_id q) {
-     auto coord_len = (v[1]->coordinates.begin() - v[0]->coordinates.begin());
-     return v[0]->coordinates.begin() + q * coord_len;};
+  // // pointer to q's coordinates
+  // auto get_coords = [&] (vertex_id q) {
+  //    auto coord_len = (v[1]->coordinates.begin() - v[0]->coordinates.begin());
+  //    return v[0]->coordinates.begin() + q * coord_len;};
+
+  T* p_coords = p->coordinates.begin();
   
   // calculate distance from q to p
   auto distance_from_p = [&] (vertex_id q) { 
-      return D->distance(get_coords(q), p->coordinates.begin(), dims);};
+      return Data.distance(Data.get(q), p_coords);};
+
+  // auto distance_from_p = [&] (vertex_id q) { 
+  //     return D->distance(get_coords(q), p_coords, dims);};
+  
 
   // used as a hash filter (can give false negative -- i.e. can say
   // not in table when it is)
@@ -136,7 +142,8 @@ beam_search(Tvec_point<T>* p, parlay::sequence<Tvec_point<T>*>& v,
       if (a == -1) break;
       if (a == p->id || has_been_seen(a)) continue; // skip if already seen
       keep.push_back(a);
-      D->prefetch(get_coords(a),dims);
+      // D->prefetch(get_coords(a),dims);
+      Data.prefetch(Data.get(a));
     }
 
     // Further filter on whether distance is greater than current
@@ -193,9 +200,9 @@ beam_search(Tvec_point<T>* p, parlay::sequence<Tvec_point<T>*>& v,
 // not quite as fast and does not prune based on cut.
 template <typename T>
 std::pair<std::pair<parlay::sequence<id_dist>, parlay::sequence<id_dist>>, size_t>
-beam_search_(Tvec_point<T>* p, parlay::sequence<Tvec_point<T>*>& v,
+beam_search_(Tvec_point<T>* p, parlay::sequence<Tvec_point<T>*>& v, data_store<T> &Data,
 	      parlay::sequence<Tvec_point<T>*> starting_points, int beamSize,
-	      unsigned dims, Distance* D, int k=0, float cut=1.14, int max_visit=-1) {
+	      int k=0, float cut=1.14, int max_visit=-1) {
   if(max_visit == -1) max_visit = v.size();
 
   // used as a hash filter (can give false negative -- i.e. can say
@@ -210,9 +217,9 @@ beam_search_(Tvec_point<T>* p, parlay::sequence<Tvec_point<T>*>& v,
 
   // calculate distance from q to p
   auto distance_from_p = [&] (vertex_id q) { 
-     auto coord_len = (v[1]->coordinates.begin() - v[0]->coordinates.begin());
-     auto q_ptr = v[0]->coordinates.begin() + q * coord_len;
-     return D->distance(q_ptr, p->coordinates.begin(), dims);};
+    //  auto coord_len = (v[1]->coordinates.begin() - v[0]->coordinates.begin());
+    //  auto q_ptr = v[0]->coordinates.begin() + q * coord_len;
+     return Data.distance(q, p->coordinates.begin());};
 
   // compare two (node_id,distance) pairs, first by distance and then id if equal
   struct less {
@@ -275,8 +282,8 @@ beam_search_(Tvec_point<T>* p, parlay::sequence<Tvec_point<T>*>& v,
 // searches every element in q starting from a randomly selected point
 template <typename T>
 void beamSearchRandom(parlay::sequence<Tvec_point<T>*>& q,
-                      parlay::sequence<Tvec_point<T>*>& v, int beamSizeQ, int k,
-                      unsigned d, Distance* D, double cut = 1.14, int max_visit=-1) {
+                      parlay::sequence<Tvec_point<T>*>& v, data_store<T> &Data, int beamSizeQ, int k,
+                      double cut = 1.14, int max_visit=-1) {
   if ((k + 1) > beamSizeQ) {
     std::cout << "Error: beam search parameter Q = " << beamSizeQ
               << " same size or smaller than k = " << k << std::endl;
@@ -299,7 +306,7 @@ void beamSearchRandom(parlay::sequence<Tvec_point<T>*>& q,
     Tvec_point<T>* start = v[index];
     parlay::sequence<id_dist> beamElts;
     parlay::sequence<id_dist> visitedElts;
-    auto [pairElts, dist_cmps] = beam_search(q[i], v, start, beamSizeQ, d, D, k, cut, max_visit);
+    auto [pairElts, dist_cmps] = beam_search(q[i], v, Data, start, beamSizeQ, k, cut, max_visit);
     beamElts = pairElts.first;
     visitedElts = pairElts.second;
     for (int j = 0; j < k; j++) {
@@ -313,18 +320,18 @@ void beamSearchRandom(parlay::sequence<Tvec_point<T>*>& q,
 
 template <typename T>
 void searchAll(parlay::sequence<Tvec_point<T>*>& q,
-	       parlay::sequence<Tvec_point<T>*>& v, int beamSizeQ, int k,
-	       unsigned d, Tvec_point<T>* starting_point, Distance* D, float cut, int max_visit) {
+	       parlay::sequence<Tvec_point<T>*>& v, data_store<T> &Base_Data, int beamSizeQ, int k,
+	      Tvec_point<T>* starting_point, float cut, int max_visit) {
     parlay::sequence<Tvec_point<T>*> start_points;
     start_points.push_back(starting_point);
-    searchAll(q, v, beamSizeQ, k, d, start_points, D, cut, max_visit);
+    searchAll(q, v, Base_Data, beamSizeQ, k, start_points, cut, max_visit);
 }
 
 template <typename T>
 void searchAll(parlay::sequence<Tvec_point<T>*>& q,
-	       parlay::sequence<Tvec_point<T>*>& v, int beamSizeQ, int k,
-	       unsigned d, parlay::sequence<Tvec_point<T>*> starting_points,
-	       Distance* D, float cut, int max_visit) {
+	       parlay::sequence<Tvec_point<T>*>& v, data_store<T> &Base_Data, int beamSizeQ, int k,
+	       parlay::sequence<Tvec_point<T>*> starting_points,
+	       float cut, int max_visit) {
   if ((k + 1) > beamSizeQ) {
     std::cout << "Error: beam search parameter Q = " << beamSizeQ
               << " same size or smaller than k = " << k << std::endl;
@@ -332,8 +339,8 @@ void searchAll(parlay::sequence<Tvec_point<T>*>& q,
   }
   parlay::parallel_for(0, q.size(), [&](size_t i) {
     parlay::sequence<int> neighbors = parlay::sequence<int>(k);
-    auto [pairElts, dist_cmps] = beam_search(q[i], v, starting_points,
-					     beamSizeQ, d, D, k, cut, max_visit);
+    auto [pairElts, dist_cmps] = beam_search(q[i], v, Base_Data, starting_points,
+					     beamSizeQ, k, cut, max_visit);
     auto [beamElts, visitedElts] = pairElts;
       for (int j = 0; j < k; j++) {
         neighbors[j] = beamElts[j].first;
@@ -346,11 +353,11 @@ void searchAll(parlay::sequence<Tvec_point<T>*>& q,
 }
 
 template<typename T>
-void rangeSearchAll(parlay::sequence<Tvec_point<T>*> q, parlay::sequence<Tvec_point<T>*>& v, 
-		    int beamSize, unsigned d, Tvec_point<T>* start_point,
+void rangeSearchAll(parlay::sequence<Tvec_point<T>*> q, parlay::sequence<Tvec_point<T>*>& v, data_store<T> &Base_Data,
+		    int beamSize, Tvec_point<T>* start_point,
 		    double r, int k, double cut, double slack){
     parlay::parallel_for(0, q.size(), [&] (size_t i){
-      auto in_range = range_search(q[i], v, beamSize, d, start_point, r, k, cut, slack);
+      auto in_range = range_search(q[i], v, Base_Data, beamSize, start_point, r, k, cut, slack);
       parlay::sequence<int> nbh;
       for(auto j : in_range) nbh.push_back(j);
       q[i]->ngh = nbh;
@@ -358,13 +365,13 @@ void rangeSearchAll(parlay::sequence<Tvec_point<T>*> q, parlay::sequence<Tvec_po
 }
 
 template<typename T>
-void rangeSearchRandom(parlay::sequence<Tvec_point<T>*> q, parlay::sequence<Tvec_point<T>*>& v, 
-		       int beamSize, unsigned d, double r, int k,
+void rangeSearchRandom(parlay::sequence<Tvec_point<T>*> q, parlay::sequence<Tvec_point<T>*>& v, data_store<T> &Base_Data,
+		       int beamSize, double r, int k,
 		       double cut = 1.14, double slack = 1.0){
     size_t n = v.size();
     auto indices = parlay::random_permutation<int>(static_cast<int>(n), time(NULL));
     parlay::parallel_for(0, q.size(), [&] (size_t i){
-      auto in_range = range_search(q[i], v, beamSize, d, v[indices[i]], r, k, cut, slack);
+      auto in_range = range_search(q[i], v, Base_Data, beamSize, v[indices[i]], r, k, cut, slack);
       parlay::sequence<int> nbh;
       for(auto j : in_range) nbh.push_back(j);
       q[i]->ngh = nbh;
@@ -373,13 +380,13 @@ void rangeSearchRandom(parlay::sequence<Tvec_point<T>*> q, parlay::sequence<Tvec
 }
 
 template<typename T>   
-std::set<int> range_search(Tvec_point<T>* q, parlay::sequence<Tvec_point<T>*>& v, 
-			   int beamSize, unsigned d, Tvec_point<T>* start_point,
-			   double r, Distance* D, int k, float cut, double slack){
+std::set<int> range_search(Tvec_point<T>* q, parlay::sequence<Tvec_point<T>*>& v, data_store<T> &Base_Data,
+			   int beamSize, Tvec_point<T>* start_point,
+			   double r, int k, float cut, double slack){
   
   std::set<int> nbh;
 
-  auto [pairElts, dist_cmps] = beam_search(q, v, start_point, beamSize, d, D, k, cut);
+  auto [pairElts, dist_cmps] = beam_search(q, v, Base_Data, start_point, beamSize, k, cut);
   auto [neighbors, visited] = pairElts;
 
   q->visited = visited.size();
