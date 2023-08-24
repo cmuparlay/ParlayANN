@@ -20,8 +20,9 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include <iostream>
 #include <algorithm>
+#include <iostream>
+
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 // #include "common/geometry.h"
@@ -75,47 +76,53 @@ std::pair<char*, size_t> mmapStringFromFile(const char* filename) {
 //  GRAPH TOOLS
 // *************************************************************
 
-template<typename T>
-void add_null_graph(parlay::sequence<Tvec_point<T>> &points, int maxDeg){
-    parlay::sequence<int> &out_nbh = *new parlay::sequence<int>(maxDeg*points.size());
-    parlay::parallel_for(0, maxDeg*points.size(), [&] (size_t i){out_nbh[i] = -1; });
-    parlay::parallel_for(0, points.size(), [&] (size_t i){
-        points[i].out_nbh = parlay::make_slice(out_nbh.begin()+maxDeg*i, out_nbh.begin()+maxDeg*(i+1));
-    });
+template <typename T>
+void add_null_graph(parlay::sequence<Tvec_point<T>>& points, int maxDeg) {
+  parlay::sequence<int>& out_nbh =
+      *new parlay::sequence<int>(maxDeg * points.size());
+  parlay::parallel_for(0, maxDeg * points.size(),
+                       [&](size_t i) { out_nbh[i] = -1; });
+  parlay::parallel_for(0, points.size(), [&](size_t i) {
+    points[i].out_nbh = parlay::make_slice(out_nbh.begin() + maxDeg * i,
+                                           out_nbh.begin() + maxDeg * (i + 1));
+  });
 }
 
-template<typename T>
-int add_saved_graph(parlay::sequence<Tvec_point<T>> &points, const char* gFile){
-    auto [graphptr, graphlength] = mmapStringFromFile(gFile);
-    int maxDeg = *((int*)(graphptr+4));
-    int num_points = *((int*)graphptr);
-    if(num_points != points.size()){
-        std::cout << "ERROR: graph file and data file do not match" << std::endl;
-        abort();
-    }
-    parlay::parallel_for(0, points.size(), [&] (size_t i){
-        int* start_graph = (int*)(graphptr + 8 + 4*maxDeg*i);
-        int* end_graph = start_graph + maxDeg;
-        points[i].out_nbh = parlay::make_slice(start_graph, end_graph);
-    });
-    return maxDeg;
+template <typename T>
+int add_saved_graph(parlay::sequence<Tvec_point<T>>& points,
+                    const char* gFile) {
+  auto [graphptr, graphlength] = mmapStringFromFile(gFile);
+  int maxDeg = *((int*)(graphptr + 4));
+  int num_points = *((int*)graphptr);
+  if (num_points != points.size()) {
+    std::cout << "ERROR: graph file and data file do not match" << std::endl;
+    abort();
+  }
+  parlay::parallel_for(0, points.size(), [&](size_t i) {
+    int* start_graph = (int*)(graphptr + 8 + 4 * maxDeg * i);
+    int* end_graph = start_graph + maxDeg;
+    points[i].out_nbh = parlay::make_slice(start_graph, end_graph);
+  });
+  return maxDeg;
 }
 
-//graph file format begins with number of points N, then max degree
-//then N+1 offsets indicating beginning and end of each vector
-//then the IDs in the vector
-//assumes user correctly matches data file and graph file
-template<typename T>
-void write_graph(parlay::sequence<Tvec_point<T>*> &v, char* outFile, int maxDeg){
+// graph file format begins with number of points N, then max degree
+// then N+1 offsets indicating beginning and end of each vector
+// then the IDs in the vector
+// assumes user correctly matches data file and graph file
+template <typename T>
+void write_graph(parlay::sequence<Tvec_point<T>*>& v, char* outFile,
+                 int maxDeg) {
   int n = static_cast<int>(v.size());
-  std::cout << "Writing graph with " << n << " points and max degree " << maxDeg << std::endl;
+  std::cout << "Writing graph with " << n << " points and max degree " << maxDeg
+            << std::endl;
   parlay::sequence<int> preamble = {n, maxDeg};
   int* preamble_data = preamble.begin();
   int* graph_data = v[0]->out_nbh.begin();
   std::ofstream writer;
   writer.open(outFile, std::ios::binary | std::ios::out);
-  writer.write((char *) preamble_data, 2*sizeof(int));
-  writer.write((char *) graph_data, v.size()*maxDeg*sizeof(int));
+  writer.write((char*)preamble_data, 2 * sizeof(int));
+  writer.write((char*)graph_data, v.size() * maxDeg * sizeof(int));
   writer.close();
 }
 
@@ -151,32 +158,39 @@ auto parse_uint8bin(const char* filename, const char* gFile, int maxDeg){
   //auto [fileptr, length] = mmapStringFromFile(filename);
   uint8_t* hold;
   long num_vectors, d;
-  { // the following ensures first distance vector is 128byte aligned
+  {  // the following ensures first distance vector is 128byte aligned
     parlay::file_map fmap(filename);
-    hold =  (uint8_t*) aligned_alloc(128,fmap.size()-8);
-    num_vectors = *((int*) fmap.begin());
-    d = *((int*) (fmap.begin()+4));
-    parlay::parallel_for(0, num_vectors, [&] (long i) {
-       std::memmove(hold+i*d, fmap.begin()+8+i*d, d);});
-  } // free fmap
-
-    std::cout << "Detected " << num_vectors << " points with dimension " << d << std::endl;
-    parlay::sequence<Tvec_point<uint8_t>> points(num_vectors);
-
-    parlay::parallel_for(0, num_vectors, [&] (size_t i) {
-        points[i].id = i; 
-
-        uint8_t* start = (uint8_t*)(hold + i*d); //8 bytes at the start for size + dimension
-        uint8_t* end = start + d;
-        points[i].coordinates = parlay::make_slice(start, end);
+    hold = (uint8_t*)aligned_alloc(128, fmap.size() - 8);
+    num_vectors = *((int*)fmap.begin());
+    d = *((int*)(fmap.begin() + 4));
+    parlay::parallel_for(0, num_vectors, [&](long i) {
+      std::memmove(hold + i * d, fmap.begin() + 8 + i * d, d);
     });
+  }  // free fmap
 
-    if(maxDeg != 0){
-        if(gFile != NULL){int md = add_saved_graph(points, gFile); maxDeg = md;}
-        else{add_null_graph(points, maxDeg);}
+  std::cout << "Detected " << num_vectors << " points with dimension " << d
+            << std::endl;
+  parlay::sequence<Tvec_point<uint8_t>> points(num_vectors);
+
+  parlay::parallel_for(0, num_vectors, [&](size_t i) {
+    points[i].id = i;
+
+    uint8_t* start =
+        (uint8_t*)(hold + i * d);  // 8 bytes at the start for size + dimension
+    uint8_t* end = start + d;
+    points[i].coordinates = parlay::make_slice(start, end);
+  });
+
+  if (maxDeg != 0) {
+    if (gFile != NULL) {
+      int md = add_saved_graph(points, gFile);
+      maxDeg = md;
+    } else {
+      add_null_graph(points, maxDeg);
     }
+  }
 
-    return std::make_pair(maxDeg, std::move(points));
+  return std::make_pair(maxDeg, std::move(points));
 }
 
 data_store<int8_t> store_int8bin(const char* filename, Distance* D, double alpha=1.0){
@@ -198,26 +212,33 @@ data_store<int8_t> store_int8bin(const char* filename, Distance* D, double alpha
 auto parse_int8bin(const char* filename, const char* gFile, int maxDeg){
     auto [fileptr, length] = mmapStringFromFile(filename);
 
-    int num_vectors = *((int*) fileptr);
-    int d = *((int*) (fileptr+4));
+  int num_vectors = *((int*)fileptr);
+  int d = *((int*)(fileptr + 4));
 
-    std::cout << "Detected " << num_vectors << " points with dimension " << d << std::endl;
-    parlay::sequence<Tvec_point<int8_t>> points(num_vectors);
+  std::cout << "Detected " << num_vectors << " points with dimension " << d
+            << std::endl;
+  parlay::sequence<Tvec_point<int8_t>> points(num_vectors);
 
-    parlay::parallel_for(0, num_vectors, [&] (size_t i) {
-        points[i].id = i; 
+  parlay::parallel_for(0, num_vectors, [&](size_t i) {
+    points[i].id = i;
 
-        int8_t* start = (int8_t*)(fileptr + 8 + i*d); //8 bytes at the start for size + dimension
-        int8_t* end = start + d;
-        points[i].coordinates = parlay::make_slice(start, end);
-    });
+    int8_t* start =
+        (int8_t*)(fileptr + 8 +
+                  i * d);  // 8 bytes at the start for size + dimension
+    int8_t* end = start + d;
+    points[i].coordinates = parlay::make_slice(start, end);
+  });
 
-    if(maxDeg != 0){
-        if(gFile != NULL){int md = add_saved_graph(points, gFile); maxDeg = md;}
-        else{add_null_graph(points, maxDeg);}
+  if (maxDeg != 0) {
+    if (gFile != NULL) {
+      int md = add_saved_graph(points, gFile);
+      maxDeg = md;
+    } else {
+      add_null_graph(points, maxDeg);
     }
+  }
 
-    return std::make_pair(maxDeg, std::move(points));
+  return std::make_pair(maxDeg, std::move(points));
 }
 
 data_store<float> store_fbin(const char* filename, Distance* D, double alpha=1.0){
@@ -238,75 +259,86 @@ data_store<float> store_fbin(const char* filename, Distance* D, double alpha=1.0
 auto parse_fbin(const char* filename, const char* gFile, int maxDeg){
     auto [fileptr, length] = mmapStringFromFile(filename);
 
-    int num_vectors = *((int*) fileptr);
-    int d = *((int*) (fileptr+4));
+  int num_vectors = *((int*)fileptr);
+  int d = *((int*)(fileptr + 4));
 
-    std::cout << "Detected " << num_vectors << " points with dimension " << d << std::endl;
-    parlay::sequence<Tvec_point<float>> points(num_vectors);
+  std::cout << "Detected " << num_vectors << " points with dimension " << d
+            << std::endl;
+  parlay::sequence<Tvec_point<float>> points(num_vectors);
 
-    parlay::parallel_for(0, num_vectors, [&] (size_t i) {
-        points[i].id = i; 
+  parlay::parallel_for(0, num_vectors, [&](size_t i) {
+    points[i].id = i;
 
-        float* start = (float*)(fileptr + 8 + 4*i*d); //8 bytes at the start for size + dimension
-        float* end = start + d;
-        points[i].coordinates = parlay::make_slice(start, end);
-    });
+    float* start =
+        (float*)(fileptr + 8 +
+                 4 * i * d);  // 8 bytes at the start for size + dimension
+    float* end = start + d;
+    points[i].coordinates = parlay::make_slice(start, end);
+  });
 
-    if(maxDeg != 0){
-        if(gFile != NULL){int md = add_saved_graph(points, gFile); maxDeg = md;}
-        else{add_null_graph(points, maxDeg);}
+  if (maxDeg != 0) {
+    if (gFile != NULL) {
+      int md = add_saved_graph(points, gFile);
+      maxDeg = md;
+    } else {
+      add_null_graph(points, maxDeg);
     }
+  }
 
-    return std::make_pair(maxDeg, std::move(points));
+  return std::make_pair(maxDeg, std::move(points));
 }
 
-auto parse_ibin(const char* filename){
-    auto [fileptr, length] = mmapStringFromFile(filename);
+auto parse_ibin(const char* filename) {
+  auto [fileptr, length] = mmapStringFromFile(filename);
 
-    int num_vectors = *((int*) fileptr);
-    int d = *((int*) (fileptr+4));
+  int num_vectors = *((int*)fileptr);
+  int d = *((int*)(fileptr + 4));
 
-    std::cout << "Detected " << num_vectors << " points with number of results " << d << std::endl;
-    parlay::sequence<ivec_point> points(num_vectors);
+  std::cout << "Detected " << num_vectors << " points with number of results "
+            << d << std::endl;
+  parlay::sequence<ivec_point> points(num_vectors);
 
-    parlay::parallel_for(0, num_vectors, [&] (size_t i) {
-        points[i].id = i; 
+  parlay::parallel_for(0, num_vectors, [&](size_t i) {
+    points[i].id = i;
 
-        int* start = (int*)(fileptr + 8 + 4*i*d); //8 bytes at the start for size + dimension
-        int* end = start + d;
-        float* dist_start = (float*)(fileptr+ 8 + num_vectors*4*d + 4*i*d);
-        float* dist_end = dist_start+d; 
-        points[i].coordinates = parlay::make_slice(start, end);
-        points[i].distances = parlay::make_slice(dist_start, dist_end);
-    });
+    int* start =
+        (int*)(fileptr + 8 +
+               4 * i * d);  // 8 bytes at the start for size + dimension
+    int* end = start + d;
+    float* dist_start = (float*)(fileptr + 8 + num_vectors * 4 * d + 4 * i * d);
+    float* dist_end = dist_start + d;
+    points[i].coordinates = parlay::make_slice(start, end);
+    points[i].distances = parlay::make_slice(dist_start, dist_end);
+  });
 
-    return std::move(points);
+  return std::move(points);
 }
 
 // *************************************************************
 //  RANGERES TOOLS: int32
 // *************************************************************
 
-auto parse_rangeres(const char* filename){
-    auto [fileptr, length] = mmapStringFromFile(filename);
-    int num_points = *((int*) fileptr);
-    int num_matches = *((int*) (fileptr+4));
-    
-    std::cout << "Detected " << num_points << " query points with " << num_matches << " unique matches" << std::endl;
-    int* start = (int*)(fileptr+8);
-    int* end = start + num_points;
-    parlay::slice<int*, int*> num_results = parlay::make_slice(start, end);
-    auto [offsets, total] = parlay::scan(num_results);
-    offsets.push_back(total);
-    parlay::sequence<ivec_point> points(num_points);
+auto parse_rangeres(const char* filename) {
+  auto [fileptr, length] = mmapStringFromFile(filename);
+  int num_points = *((int*)fileptr);
+  int num_matches = *((int*)(fileptr + 4));
 
-    auto id_offset = 4*num_points+8;
-    auto dist_offset = id_offset + 4*num_matches; 
-    parlay::parallel_for(0, num_points, [&] (size_t i) {
-        int* start = (int*)(fileptr + id_offset + 4*offsets[i]); 
-        int* end = (int*)(fileptr + id_offset + 4*offsets[i+1]);
-        points[i].id = i;
-        points[i].coordinates = parlay::make_slice(start, end);
-    });
-    return std::move(points);
+  std::cout << "Detected " << num_points << " query points with " << num_matches
+            << " unique matches" << std::endl;
+  int* start = (int*)(fileptr + 8);
+  int* end = start + num_points;
+  parlay::slice<int*, int*> num_results = parlay::make_slice(start, end);
+  auto [offsets, total] = parlay::scan(num_results);
+  offsets.push_back(total);
+  parlay::sequence<ivec_point> points(num_points);
+
+  auto id_offset = 4 * num_points + 8;
+  auto dist_offset = id_offset + 4 * num_matches;
+  parlay::parallel_for(0, num_points, [&](size_t i) {
+    int* start = (int*)(fileptr + id_offset + 4 * offsets[i]);
+    int* end = (int*)(fileptr + id_offset + 4 * offsets[i + 1]);
+    points[i].id = i;
+    points[i].coordinates = parlay::make_slice(start, end);
+  });
+  return std::move(points);
 }
