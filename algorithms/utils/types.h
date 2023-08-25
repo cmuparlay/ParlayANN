@@ -95,6 +95,27 @@ struct data_store{
     float distance(T* a, T* b){return D->distance(a, b, d);}
 };
 
+template<typename T>
+struct Test{
+    parlay::slice<T*, T*> coords;
+
+    Test(parlay::slice<T*, T*> coords) : coords(coords) {}
+};
+
+struct BuildParams{
+  long L; //vamana
+  long R; //vamana and pynnDescent
+  double alpha; //vamana and pyNNDescent
+
+  long num_clusters; // HCNNG and pyNNDescent
+  long cluster_size; //HCNNG and pyNNDescent
+  long MST_deg; //HCNNG
+
+  double delta; //pyNNDescent
+
+  BuildParams(long R, long L, double a, long nc, long cs, long mst, double de) : R(R), L(L), alpha(a), num_clusters(nc), cluster_size(cs), MST_deg(mst), delta(de) {}
+};
+
 
 //for a file in .fvecs or .bvecs format, but extendible to other types
 template<typename T>

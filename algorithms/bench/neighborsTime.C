@@ -28,6 +28,7 @@
 #include "time_loop.h"
 #include "../utils/parse_files.h"
 #include "../utils/NSGDist.h"
+#include "../utils/euclidian_point.h"
 
 
 
@@ -45,25 +46,24 @@
 // *************************************************************
 
 
-template<typename T>
-void timeNeighbors(parlay::sequence<Tvec_point<T>> &pts,
-		   parlay::sequence<Tvec_point<T>> &qpoints,
-		   int k, int R, int beamSize,
-		   int beamSizeQ, double delta, double alpha, char* outFile,
-		   parlay::sequence<ivec_point>& groundTruth, int maxDeg, char* res_file, bool graph_built, Distance* D, data_store<T> &Data)
+template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
+void timeNeighbors(parlay::sequence<Tvec_point<T>> &pts, 
+		   PointRange<T, Point> &Query_Points, int k,
+		   BuildParams &BP, char* outFile,
+		   parlay::sequence<ivec_point>& groundTruth, int maxDeg, char* res_file, bool graph_built, PointRange<T, Point> &Points)
 {
   size_t n = pts.size();
   auto v = parlay::tabulate(n, [&] (size_t i) -> Tvec_point<T>* {
       return &pts[i];});
 
-  size_t q = qpoints.size();
-  auto qpts =  parlay::tabulate(q, [&] (size_t i) -> Tvec_point<T>* {
-      return &qpoints[i];});
+  // size_t q = qpoints.size();
+  // auto qpts =  parlay::tabulate(q, [&] (size_t i) -> Tvec_point<T>* {
+  //     return &qpoints[i];});
 
     time_loop(1, 0,
       [&] () {},
       [&] () {
-        ANN<T>(v, k, R, beamSize, beamSizeQ, alpha, delta, qpts, groundTruth, res_file, graph_built, D, Data);
+        ANN<T>(v, k, BP, Query_Points, groundTruth, res_file, graph_built, Points);
       },
       [&] () {});
 
@@ -77,9 +77,9 @@ void timeNeighbors(parlay::sequence<Tvec_point<T>> &pts,
 int main(int argc, char* argv[]) {
     commandLine P(argc,argv,
     "[-a <alpha>] [-d <delta>] [-R <deg>]"
-        "[-L <bm>] [-k <k> ] [-L_range <bmq>] [-gt_path <g>] [-query_path <qF>]"
+        "[-L <bm>] [-k <k> ]  [-gt_path <g>] [-query_path <qF>]"
         "[-graph_path <gF>] [-graph_outfile <oF>] [-res_path <rF>]"
-        "[-memory_flag <algoOpt>] [-Q <q>]"
+        "[-memory_flag <algoOpt>] [-mst_deg <q>] [num_clusters <nc>] [cluster_size <cs>]"
         "[-data_type <tp>] [-dist_func <df>][-base_path <b>] <inFile>");
 
   char* iFile = P.getOptionValue("-base_path");
@@ -89,17 +89,35 @@ int main(int argc, char* argv[]) {
   char* cFile = P.getOptionValue("-gt_path");
   char* rFile = P.getOptionValue("-res_path");
   char* vectype = P.getOptionValue("-data_type");
-  int R = P.getOptionIntValue("-R", 5);
-  int L = P.getOptionIntValue("-L", 10);
-  int Q = P.getOptionIntValue("-Q", 10);
-  int k = P.getOptionIntValue("-k", 1);
+  long R = P.getOptionIntValue("-R", 0);
+  long L = P.getOptionIntValue("-L", 0);
+  long MST_deg = P.getOptionIntValue("-mst_deg", 0);
+  long num_clusters = P.getOptionIntValue("-num_clusters", 0);
+  long cluster_size = P.getOptionIntValue("-cluster_size", 0);
+  long k = P.getOptionIntValue("-k", 1);
   if (k > 1000 || k < 1) P.badArgument();
-  double alpha = P.getOptionDoubleValue("-a", 1.2);
-  double delta = P.getOptionDoubleValue("-d", .01);
+  double alpha = P.getOptionDoubleValue("-a", 0);
+  double delta = P.getOptionDoubleValue("-d", 0);
   int algoOpt = P.getOptionIntValue("-memory_flag", 0);
   char* dfc = P.getOptionValue("-dist_func");
+  int Q = 0;
 
   std::string df = std::string(dfc);
+  std::string tp = std::string(vectype);
+
+  BuildParams BP = BuildParams(R, L, alpha, num_clusters, cluster_size, MST_deg, delta);
+
+
+  if((tp != "uint8") && (tp != "int8") && (tp != "float")){
+    std::cout << "Error: vector type not specified correctly, specify int8, uint8, or float" << std::endl;
+    abort();
+  }
+
+  if(df != "Euclidian" && df != "mips"){
+    std::cout << "Error: specify distance type Euclidian or mips" << std::endl;
+    abort();
+  }
+
   Distance* D;
   if(df == "Euclidian") D = new Euclidian_Distance();
   else if(df == "mips") D = new Mips_Distance();
@@ -108,13 +126,6 @@ int main(int argc, char* argv[]) {
     abort();
   }
 
-  std::string tp = std::string(vectype);
-
-
-  if((tp != "uint8") && (tp != "int8") && (tp != "float")){
-    std::cout << "Error: vector type not specified correctly, specify int8, uint8, or float" << std::endl;
-    abort();
-  }
 
   parlay::sequence<ivec_point> groundTruth;
 
@@ -126,31 +137,69 @@ int main(int argc, char* argv[]) {
   bool graph_built = (gFile != NULL);
 
 
+
   if(cFile != NULL) groundTruth = parse_ibin(cFile);
   if(tp == "float"){
-    data_store<float> DS = store_fbin(iFile, D, alpha);
     auto [md, points] = parse_fbin(iFile, gFile, maxDeg);
     maxDeg = md;
-    parlay::sequence<Tvec_point<float>> qpoints;
-    if(qFile != NULL){qpoints = parse_fbin(qFile, NULL, 0).second;}
-    timeNeighbors<float>(points, qpoints, k, R, L, Q,
-        delta, alpha, oFile, groundTruth, maxDeg, rFile, graph_built, D, DS);
+    parlay::sequence<float> temp = {0};
+    parlay::slice<float*, float*> dummy = parlay::make_slice(temp);
+    if(df == "Euclidian"){
+      PointRange<float, Euclidian_Point> Points = PointRange<float, Euclidian_Point>(iFile, dummy);
+      PointRange<float, Euclidian_Point> *Query_Points;
+      if(qFile != NULL){
+        Query_Points = new PointRange<float, Euclidian_Point>(qFile, dummy);
+      }else{
+        Query_Points = new PointRange<float, Euclidian_Point>(dummy);
+      }
+      timeNeighbors<float, Euclidian_Point, PointRange>(points, *Query_Points, k, BP, 
+        oFile, groundTruth, maxDeg, rFile, graph_built, Points);
+    } else if(df == "mips"){
+      abort();
+      // timeNeighbors<float>(points, qpoints, k, R, L, Q,
+      //   delta, alpha, oFile, groundTruth, maxDeg, rFile, graph_built, DS);
+    }
+    
   } else if(tp == "uint8"){
-    data_store<uint8_t> DS = store_uint8bin(iFile, D, alpha);
     auto [md, points] = parse_uint8bin(iFile, gFile, maxDeg);
     maxDeg = md;
-    parlay::sequence<Tvec_point<uint8_t>> qpoints;
-    if(qFile != NULL){qpoints = parse_uint8bin(qFile, NULL, 0).second;}
-    timeNeighbors<uint8_t>(points, qpoints, k, R, L, Q,
-        delta, alpha, oFile, groundTruth, maxDeg, rFile, graph_built, D, DS);
+    parlay::sequence<uint8_t> temp = {0};
+    parlay::slice<uint8_t*, uint8_t*> dummy = parlay::make_slice(temp);
+    if(df == "Euclidian"){
+      PointRange<uint8_t, Euclidian_Point> Points = PointRange<uint8_t, Euclidian_Point>(iFile, dummy);
+      PointRange<uint8_t, Euclidian_Point> *Query_Points;
+      if(qFile != NULL){
+        Query_Points = new PointRange<uint8_t, Euclidian_Point>(qFile, dummy);
+      }else{
+        Query_Points = new PointRange<uint8_t, Euclidian_Point>(dummy);
+      }
+      timeNeighbors<uint8_t, Euclidian_Point, PointRange>(points, *Query_Points, k, BP, 
+        oFile, groundTruth, maxDeg, rFile, graph_built, Points);
+    } else if(df == "mips"){
+      abort();
+      // timeNeighbors<float>(points, qpoints, k, R, L, Q,
+      //   delta, alpha, oFile, groundTruth, maxDeg, rFile, graph_built, DS);
+    }
   } else if(tp == "int8"){
-    data_store<int8_t> DS = store_int8bin(iFile, D, alpha);
     auto [md, points] = parse_int8bin(iFile, gFile, maxDeg);
     maxDeg = md;
-    parlay::sequence<Tvec_point<int8_t>> qpoints;
-    if(qFile != NULL){qpoints = parse_int8bin(qFile, NULL, 0).second;}
-    timeNeighbors<int8_t>(points, qpoints, k, R, L, Q,
-        delta, alpha, oFile, groundTruth, maxDeg, rFile, graph_built, D, DS);
+    parlay::sequence<int8_t> temp = {0};
+    parlay::slice<int8_t*, int8_t*> dummy = parlay::make_slice(temp);
+    if(df == "Euclidian"){
+      PointRange<int8_t, Euclidian_Point> Points = PointRange<int8_t, Euclidian_Point>(iFile, dummy);
+      PointRange<int8_t, Euclidian_Point> *Query_Points;
+      if(qFile != NULL){
+        Query_Points = new PointRange<int8_t, Euclidian_Point>(qFile, dummy);
+      }else{
+        Query_Points = new PointRange<int8_t, Euclidian_Point>(dummy);
+      }
+      timeNeighbors<int8_t, Euclidian_Point, PointRange>(points, *Query_Points, k, BP,
+        oFile, groundTruth, maxDeg, rFile, graph_built, Points);
+    } else if(df == "mips"){
+      abort();
+      // timeNeighbors<float>(points, qpoints, k, R, L, Q,
+      //   delta, alpha, oFile, groundTruth, maxDeg, rFile, graph_built, DS);
+    }
   }
   
 }

@@ -31,11 +31,11 @@
 #include "parlay/primitives.h"
 #include "types.h"
 
-template<typename T>
+template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
 nn_result checkRecall(
         parlay::sequence<Tvec_point<T>*> &v,
-        data_store<T> &Data,
-        parlay::sequence<Tvec_point<T>*> &q,
+        PointRange<T, Point> &Base_Points,
+        PointRange<T, Point> &Query_Points,
         parlay::sequence<ivec_point> groundTruth,
         int k, int beamQ, float cut, bool random,
         int limit, int start_point, int r) {
@@ -44,29 +44,33 @@ nn_result checkRecall(
               << groundTruth[0].distances.size() << std::endl;
     abort();
   }
+  // std::cout << limit << std::endl;
+
+  parlay::sequence<parlay::sequence<int>> all_ngh;
 
   parlay::internal::timer t;
   float query_time;
   if(random){
-    beamSearchRandom(q, v, Data, beamQ, k, cut, limit);
+    all_ngh = beamSearchRandom(Query_Points, v, Base_Points, beamQ, k, cut, limit);
     t.next_time();
-    beamSearchRandom(q, v, Data, beamQ, k, cut, limit);
+    all_ngh = beamSearchRandom(Query_Points, v, Base_Points, beamQ, k, cut, limit);
     query_time = t.next_time();
   }else{
-    searchAll(q, v, Data, beamQ, k, v[start_point], cut, limit);
+    all_ngh = searchAll(Query_Points, v, Base_Points, beamQ, k, v[start_point], cut, limit);
     t.next_time();
-    searchAll(q, v, Data, beamQ, k, v[start_point], cut, limit);
+    all_ngh = searchAll(Query_Points, v, Base_Points, beamQ, k, v[start_point], cut, limit);
     query_time = t.next_time();
   }
+
   float recall = 0.0;
   // bool dists_present = (groundTruth[0].distances.size() != 0);
   bool dists_present = false;
   if (groundTruth.size() > 0 && !dists_present) {
-    size_t n = q.size();
+    size_t n = Query_Points.size();
     int numCorrect = 0;
     for (int i = 0; i < n; i++) {
       std::set<int> reported_nbhs;
-      for (int l = 0; l < r; l++) reported_nbhs.insert((q[i]->ngh)[l]);
+      for (int l = 0; l < r; l++) reported_nbhs.insert((all_ngh[i])[l]);
       for (int l = 0; l < r; l++) {
         if (reported_nbhs.find((groundTruth[i].coordinates)[l]) !=
             reported_nbhs.end()) {
@@ -76,7 +80,7 @@ nn_result checkRecall(
     }
     recall = static_cast<float>(numCorrect) / static_cast<float>(r * n);
   } else if (groundTruth.size() > 0 && dists_present) {
-    size_t n = q.size();
+    size_t n = Query_Points.size();
     int numCorrect = 0;
     for (int i = 0; i < n; i++) {
       parlay::sequence<int> results_with_ties;
@@ -89,7 +93,7 @@ nn_result checkRecall(
         }
       }
       std::set<int> reported_nbhs;
-      for (int l = 0; l < r; l++) reported_nbhs.insert((q[i]->ngh)[l]);
+      for (int l = 0; l < r; l++) reported_nbhs.insert((all_ngh[i])[l]);
       for (int l = 0; l < results_with_ties.size(); l++) {
         if (reported_nbhs.find(results_with_ties[l]) != reported_nbhs.end()) {
           numCorrect += 1;
@@ -98,9 +102,11 @@ nn_result checkRecall(
     }
     recall = static_cast<float>(numCorrect) / static_cast<float>(r * n);
   }
-  float QPS = q.size() / query_time;
-  auto stats = query_stats(q);
-  nn_result N(recall, stats, QPS, k, beamQ, cut, q.size(), limit, r);
+  float QPS = Query_Points.size() / query_time;
+  //TODO add back stats
+  // auto stats = query_stats(q);
+  parlay::sequence<size_t> stats = {0,0,0,0};
+  nn_result N(recall, stats, QPS, k, beamQ, cut, Query_Points.size(), limit, r);
   return N;
 }
 
@@ -146,9 +152,9 @@ parlay::sequence<int> calculate_limits(size_t avg_visited) {
   return limits;
 }
 
-template<typename T>
-void search_and_parse(Graph G, parlay::sequence<Tvec_point<T>*> &v, 
-  data_store<T> &Data, parlay::sequence<Tvec_point<T>*> &q, 
+template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
+void search_and_parse(Graph G, parlay::sequence<Tvec_point<T>*> &v, PointRange<T, Point> &Base_Points,
+   PointRange<T, Point> &Query_Points, 
   parlay::sequence<ivec_point> groundTruth, char* res_file, 
   bool random=true, int start_point=0){
 
@@ -174,16 +180,17 @@ void search_and_parse(Graph G, parlay::sequence<Tvec_point<T>*> &v,
       for (float cut : cuts)
 	for (float Q : beams)
 	  if (Q > r)
-	    results.push_back(checkRecall(v, Data, q, groundTruth, r, Q, cut, random, -1, start_point, r));
+	    results.push_back(checkRecall(v, Base_Points, Query_Points, groundTruth, r, Q, cut, random, -1, start_point, r));
 
       // check "limited accuracy"
+      // TODO re-instate this after adding stats counters
       parlay::sequence<int> limits = calculate_limits(results[0].avg_visited);
       for(int l : limits)
-	results.push_back(checkRecall(v, Data, q, groundTruth, r, r+5, 1.15, random, l, start_point, r));
+	results.push_back(checkRecall(v, Base_Points, Query_Points, groundTruth, r, r+5, 1.15, random, l, start_point, r));
 
       // check "best accuracy"
-      if(v.size() <= 200000) results.push_back(checkRecall(v, Data, q, groundTruth, r, 500, 10.0, random, -1, start_point, r));
-      else results.push_back(checkRecall(v, Data, q, groundTruth, 100, 1000, 10.0, random, -1, start_point, r));
+      if(v.size() <= 200000) results.push_back(checkRecall(v, Base_Points, Query_Points, groundTruth, r, 500, 10.0, random, -1, start_point, r));
+      else results.push_back(checkRecall(v, Base_Points, Query_Points, groundTruth, 100, 1000, 10.0, random, -1, start_point, r));
 
     parlay::sequence<float> buckets = {
         .1, .15, .2,  .25, .3,  .35,  .4,   .45,   .5,   .55,

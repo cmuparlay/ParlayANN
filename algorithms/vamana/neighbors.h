@@ -39,37 +39,36 @@
 
 
 
-template <typename T>
-void ANN(parlay::sequence<Tvec_point<T> *> &v, int k, int maxDeg, int beamSize,
-         int beamSizeQ, double alpha, double dummy,
-         parlay::sequence<Tvec_point<T> *> &q,
+template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
+void ANN(parlay::sequence<Tvec_point<T> *> &v, int k, BuildParams &BP,
+         PointRange<T, Point> &Query_Points,
          parlay::sequence<ivec_point> &groundTruth, char *res_file,
-         bool graph_built, Distance *D, data_store<T> &Data) {
+         bool graph_built, PointRange<T, Point> &Points) {
   parlay::internal::timer t("ANN");
   unsigned d = (v[0]->coordinates).size();
-  using findex = knn_index<T>;
-  findex I(maxDeg, beamSize);
+  using findex = knn_index<T, Point, PointRange>;
+  findex I(BP);
   double idx_time;
   if(graph_built){
     idx_time = 0;
   } else{
     parlay::sequence<int> inserts = parlay::tabulate(v.size(), [&] (size_t i){
 					    return static_cast<int>(i);});
-    I.build_index(v, std::move(inserts), Data);
+    I.build_index(v, std::move(inserts), Points);
     idx_time = t.next_time();
   }
 
   int medoid = I.get_medoid();
   std::string name = "Vamana";
   std::string params =
-      "R = " + std::to_string(maxDeg) + ", L = " + std::to_string(beamSize);
+      "R = " + std::to_string(BP.R) + ", L = " + std::to_string(BP.L);
   auto [avg_deg, max_deg] = graph_stats(v);
   auto vv = visited_stats(v);
   std::cout << "Average visited: " << vv[0] << ", Tail visited: " << vv[1]
             << std::endl;
   Graph G(name, params, v.size(), avg_deg, max_deg, idx_time);
   G.print();
-  if(q.size() != 0) search_and_parse(G, v, Data, q, groundTruth, res_file, false, medoid);
+  if(Query_Points.size() != 0) search_and_parse(G, v, Points, Query_Points, groundTruth, res_file, false, medoid);
 }
 
 
