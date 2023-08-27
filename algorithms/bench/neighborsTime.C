@@ -121,7 +121,6 @@ int main(int argc, char* argv[]) {
 
   int maxDeg;
   if(algoOpt == 1) maxDeg = L*R;
-  else if(algoOpt == 2) maxDeg = 2*R;
   else maxDeg = R;
 
   bool graph_built = (gFile != NULL);
