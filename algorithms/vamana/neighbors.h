@@ -42,7 +42,7 @@
 template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
 void ANN(parlay::sequence<Tvec_point<T> *> &v, int k, BuildParams &BP,
          PointRange<T, Point> &Query_Points,
-         parlay::sequence<ivec_point> &groundTruth, char *res_file,
+         groundTruth<int> GT, char *res_file,
          bool graph_built, PointRange<T, Point> &Points) {
   parlay::internal::timer t("ANN");
   unsigned d = (v[0]->coordinates).size();
@@ -68,7 +68,7 @@ void ANN(parlay::sequence<Tvec_point<T> *> &v, int k, BuildParams &BP,
             << std::endl;
   Graph G(name, params, v.size(), avg_deg, max_deg, idx_time);
   G.print();
-  if(Query_Points.size() != 0) search_and_parse(G, v, Points, Query_Points, groundTruth, res_file, false, medoid);
+  if(Query_Points.size() != 0) search_and_parse(G, v, Points, Query_Points, GT, res_file, false, medoid);
 }
 
 

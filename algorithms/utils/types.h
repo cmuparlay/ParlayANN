@@ -27,80 +27,52 @@
 
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
-
-// template<typename T>
-// struct store{
-// public:  
-//   size_t size;
-//   unsigned int d;
-//   parlay::slice<T*, T*> coordinates;
-//   T* start;
-
-//   store(size_t n, unsigned int d, parlay::slice<T*, T*> coordinates) : size(n), d(d), coordinates(coordinates){
-//     start = coordinates.begin();
-//   }
-
-//   T* get(int i){
-//     return start + d*i; 
-//   }
-
-//   void prefetch(T* p) {
-//     int l = (d * sizeof(T))/64;
-//     for (int i=0; i < l; i++)
-//       __builtin_prefetch((char*) p + i* 64);
-//   }
-
-// };
-
-// template<typename T>
-// struct exp_store : public store<T> {
-//   public: 
-//     Distance* D;
-//     double alpha;
-
-//     exp_store(size_t n, unsigned int d, Distance* D, parlay::slice<T*, T*> coordinates, double alpha = 1.0) : store<T>(n, d, coordinates), D(D), alpha(alpha) { }
-
-//     float distance(int i, int j){return D->distance(start+i*d, start+j*d, d);}
-//     float distance(int i, T* c){return D->distance(start+i*d, c, d);}
-//     float distance(T* c, int i){return D->distance(start+i*d, c, d);}
-//     float distance(T* a, T* b){return D->distance(a, b, d);}
-// };
+#include "mmap.h"
 
 template<typename T>
-struct data_store{
-    Distance* D;
-    double alpha;
-    size_t size;
-    unsigned int d;
-    parlay::slice<T*, T*> coordinates;
-    T* start;
+struct groundTruth{
+  parlay::slice<T*, T*> coords;
+  parlay::slice<float*, float*> dists;
+  long dim;
+  size_t n;
 
-    data_store(size_t n, unsigned int d, Distance* D, parlay::slice<T*, T*> coordinates, double alpha = 1.0) : size(n), d(d), coordinates(coordinates), D(D), alpha(alpha) {
-      start = coordinates.begin();
-    }
+  groundTruth(char* gtFile) : coords(parlay::make_slice<T*, T*>(nullptr, nullptr)),
+    dists(parlay::make_slice<float*, float*>(nullptr, nullptr)){
+      if(gtFile == NULL){
+        this->n = 0;
+        this->dim = 0;
+      } else{
+        auto [fileptr, length] = mmapStringFromFile(gtFile);
 
-    T* get(int i){
-      return start + d*i; 
-    }
+        int num_vectors = *((T*) fileptr);
+        int d = *((T*) (fileptr+4));
 
-    void prefetch(T* p) {
-      int l = (d * sizeof(T))/64;
-      for (int i=0; i < l; i++)
-        __builtin_prefetch((char*) p + i* 64);
-    }
+        std::cout << "Detected " << num_vectors << " points with num results " << d << std::endl;
 
-    float distance(int i, int j){return D->distance(start+i*d, start+j*d, d);}
-    float distance(int i, T* c){return D->distance(start+i*d, c, d);}
-    float distance(T* c, int i){return D->distance(start+i*d, c, d);}
-    float distance(T* a, T* b){return D->distance(a, b, d);}
+        T* start_coords = (T*)(fileptr+8);
+        T* end_coords = start_coords + d*num_vectors;
+
+        float* start_dists = (float*)(end_coords);
+        float* end_dists = start_dists + d*num_vectors;
+
+        this->n = num_vectors;
+        this->dim = d;
+        this->coords = parlay::make_slice(start_coords, end_coords);
+        this->dists = parlay::make_slice(start_dists, end_dists);
+      }
+
+  }
+
+  T coordinates(long i, long j){return *(coords.begin() + i*dim + j);}
+
+  float distances(long i, long j){return *(dists.begin() + i*dim + j);}
+
+  size_t size(){return n;}
+
+  long dimension(){return dim;}
+
 };
 
-template<typename T>
-struct Test{
-    parlay::slice<T*, T*> coords;
-
-    Test(parlay::slice<T*, T*> coords) : coords(coords) {}
-};
 
 struct BuildParams{
   long L; //vamana
