@@ -50,7 +50,7 @@ template<typename T, template<typename C> class Point, template<typename E, temp
 void timeNeighbors(parlay::sequence<Tvec_point<T>> &pts, 
 		   PointRange<T, Point> &Query_Points, int k,
 		   BuildParams &BP, char* outFile,
-		   parlay::sequence<ivec_point>& groundTruth, int maxDeg, char* res_file, bool graph_built, PointRange<T, Point> &Points)
+		   groundTruth<int> GT, int maxDeg, char* res_file, bool graph_built, PointRange<T, Point> &Points)
 {
   size_t n = pts.size();
   auto v = parlay::tabulate(n, [&] (size_t i) -> Tvec_point<T>* {
@@ -63,7 +63,7 @@ void timeNeighbors(parlay::sequence<Tvec_point<T>> &pts,
     time_loop(1, 0,
       [&] () {},
       [&] () {
-        ANN<T>(v, k, BP, Query_Points, groundTruth, res_file, graph_built, Points);
+        ANN<T>(v, k, BP, Query_Points, GT, res_file, graph_built, Points);
       },
       [&] () {});
 
@@ -118,16 +118,6 @@ int main(int argc, char* argv[]) {
     abort();
   }
 
-  Distance* D;
-  if(df == "Euclidian") D = new Euclidian_Distance();
-  else if(df == "mips") D = new Mips_Distance();
-  else{
-    std::cout << "Error: invalid distance type" << std::endl;
-    abort();
-  }
-
-
-  parlay::sequence<ivec_point> groundTruth;
 
   int maxDeg;
   if(algoOpt == 1) maxDeg = L*R;
@@ -137,23 +127,17 @@ int main(int argc, char* argv[]) {
   bool graph_built = (gFile != NULL);
 
 
+  groundTruth<int> GT = groundTruth<int>(cFile);
 
-  if(cFile != NULL) groundTruth = parse_ibin(cFile);
+
   if(tp == "float"){
     auto [md, points] = parse_fbin(iFile, gFile, maxDeg);
     maxDeg = md;
-    parlay::sequence<float> temp = {0};
-    parlay::slice<float*, float*> dummy = parlay::make_slice(temp);
     if(df == "Euclidian"){
-      PointRange<float, Euclidian_Point> Points = PointRange<float, Euclidian_Point>(iFile, dummy);
-      PointRange<float, Euclidian_Point> *Query_Points;
-      if(qFile != NULL){
-        Query_Points = new PointRange<float, Euclidian_Point>(qFile, dummy);
-      }else{
-        Query_Points = new PointRange<float, Euclidian_Point>(dummy);
-      }
-      timeNeighbors<float, Euclidian_Point, PointRange>(points, *Query_Points, k, BP, 
-        oFile, groundTruth, maxDeg, rFile, graph_built, Points);
+      PointRange<float, Euclidian_Point> Points = PointRange<float, Euclidian_Point>(iFile);
+      PointRange<float, Euclidian_Point> Query_Points = PointRange<float, Euclidian_Point>(qFile);
+      timeNeighbors<float, Euclidian_Point, PointRange>(points, Query_Points, k, BP, 
+        oFile, GT, maxDeg, rFile, graph_built, Points);
     } else if(df == "mips"){
       abort();
       // timeNeighbors<float>(points, qpoints, k, R, L, Q,
@@ -163,18 +147,11 @@ int main(int argc, char* argv[]) {
   } else if(tp == "uint8"){
     auto [md, points] = parse_uint8bin(iFile, gFile, maxDeg);
     maxDeg = md;
-    parlay::sequence<uint8_t> temp = {0};
-    parlay::slice<uint8_t*, uint8_t*> dummy = parlay::make_slice(temp);
     if(df == "Euclidian"){
-      PointRange<uint8_t, Euclidian_Point> Points = PointRange<uint8_t, Euclidian_Point>(iFile, dummy);
-      PointRange<uint8_t, Euclidian_Point> *Query_Points;
-      if(qFile != NULL){
-        Query_Points = new PointRange<uint8_t, Euclidian_Point>(qFile, dummy);
-      }else{
-        Query_Points = new PointRange<uint8_t, Euclidian_Point>(dummy);
-      }
-      timeNeighbors<uint8_t, Euclidian_Point, PointRange>(points, *Query_Points, k, BP, 
-        oFile, groundTruth, maxDeg, rFile, graph_built, Points);
+      PointRange<uint8_t, Euclidian_Point> Points = PointRange<uint8_t, Euclidian_Point>(iFile);
+      PointRange<uint8_t, Euclidian_Point> Query_Points = PointRange<uint8_t, Euclidian_Point>(qFile);
+      timeNeighbors<uint8_t, Euclidian_Point, PointRange>(points, Query_Points, k, BP, 
+        oFile, GT, maxDeg, rFile, graph_built, Points);
     } else if(df == "mips"){
       abort();
       // timeNeighbors<float>(points, qpoints, k, R, L, Q,
@@ -183,18 +160,12 @@ int main(int argc, char* argv[]) {
   } else if(tp == "int8"){
     auto [md, points] = parse_int8bin(iFile, gFile, maxDeg);
     maxDeg = md;
-    parlay::sequence<int8_t> temp = {0};
-    parlay::slice<int8_t*, int8_t*> dummy = parlay::make_slice(temp);
     if(df == "Euclidian"){
-      PointRange<int8_t, Euclidian_Point> Points = PointRange<int8_t, Euclidian_Point>(iFile, dummy);
-      PointRange<int8_t, Euclidian_Point> *Query_Points;
-      if(qFile != NULL){
-        Query_Points = new PointRange<int8_t, Euclidian_Point>(qFile, dummy);
-      }else{
-        Query_Points = new PointRange<int8_t, Euclidian_Point>(dummy);
-      }
-      timeNeighbors<int8_t, Euclidian_Point, PointRange>(points, *Query_Points, k, BP,
-        oFile, groundTruth, maxDeg, rFile, graph_built, Points);
+      PointRange<int8_t, Euclidian_Point> Points = PointRange<int8_t, Euclidian_Point>(iFile);
+      PointRange<int8_t, Euclidian_Point> Query_Points = PointRange<int8_t, Euclidian_Point>(qFile);
+
+      timeNeighbors<int8_t, Euclidian_Point, PointRange>(points, Query_Points, k, BP,
+        oFile, GT, maxDeg, rFile, graph_built, Points);
     } else if(df == "mips"){
       abort();
       // timeNeighbors<float>(points, qpoints, k, R, L, Q,
