@@ -120,6 +120,11 @@ struct knn_index {
     std::cout << "Building graph..." << std::endl;
     medoid = v[0];
     batch_insert(inserts, v, Points, true, 2, .02);
+    parlay::parallel_for (0, v.size(), [&] (long i) {
+      auto less = [&] (long j, long k) {
+		    return Points[i].distance(Points[j]) < Points[i].distance(Points[k]);};
+      int n = size_of(v[i]->out_nbh);
+      std::sort(v[i]->out_nbh.begin(), v[i]->out_nbh.begin() + n, less);});
   }
 
   void lazy_delete(parlay::sequence<int> deletes,
