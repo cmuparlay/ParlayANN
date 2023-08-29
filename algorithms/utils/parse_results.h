@@ -30,7 +30,7 @@
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 
-struct Graph {
+struct Graph_ {
   std::string name;
   std::string params;
   long size;
@@ -38,7 +38,7 @@ struct Graph {
   int max_deg;
   double time;
 
-  Graph(std::string n, std::string p, long s, double ad, int md, double t)
+  Graph_(std::string n, std::string p, long s, double ad, int md, double t)
       : name(n), params(p), size(s), avg_deg(ad), max_deg(md), time(t) {}
 
   void print() {

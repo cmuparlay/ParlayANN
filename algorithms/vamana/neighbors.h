@@ -29,6 +29,7 @@
 #include "../utils/parse_results.h"
 #include "../utils/stats.h"
 #include "../utils/types.h"
+#include "../utils/graph.h"
 #include "index.h"
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
@@ -40,7 +41,7 @@
 
 
 template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
-void ANN(parlay::sequence<Tvec_point<T> *> &v, int k, BuildParams &BP,
+void ANN(parlay::sequence<Tvec_point<T> *> &v, Graph<unsigned int> &G, int k, BuildParams &BP,
          PointRange<T, Point> &Query_Points,
          groundTruth<int> GT, char *res_file,
          bool graph_built, PointRange<T, Point> &Points) {
@@ -54,7 +55,7 @@ void ANN(parlay::sequence<Tvec_point<T> *> &v, int k, BuildParams &BP,
   } else{
     parlay::sequence<int> inserts = parlay::tabulate(v.size(), [&] (size_t i){
 					    return static_cast<int>(i);});
-    I.build_index(v, std::move(inserts), Points);
+    I.build_index(v, G, std::move(inserts), Points);
     idx_time = t.next_time();
   }
 
@@ -63,12 +64,14 @@ void ANN(parlay::sequence<Tvec_point<T> *> &v, int k, BuildParams &BP,
   std::string params =
       "R = " + std::to_string(BP.R) + ", L = " + std::to_string(BP.L);
   auto [avg_deg, max_deg] = graph_stats(v);
+  auto [avg_deg1, max_deg1] = graph_stats_(G);
+  std::cout << avg_deg1 << " " << max_deg1 << std::endl;
   auto vv = visited_stats(v);
   std::cout << "Average visited: " << vv[0] << ", Tail visited: " << vv[1]
             << std::endl;
-  Graph G(name, params, v.size(), avg_deg, max_deg, idx_time);
-  G.print();
-  if(Query_Points.size() != 0) search_and_parse(G, v, Points, Query_Points, GT, res_file, false, medoid);
+  Graph_ G_(name, params, v.size(), avg_deg, max_deg, idx_time);
+  G_.print();
+  if(Query_Points.size() != 0) search_and_parse(G_, v, G, Points, Query_Points, GT, res_file, false, medoid);
 }
 
 
