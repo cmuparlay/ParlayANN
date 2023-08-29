@@ -39,6 +39,18 @@ std::pair<double, int> graph_stats(parlay::sequence<Tvec_point<T> *> &v) {
   return std::make_pair(avg_deg, maxDegree);
 }
 
+std::pair<double, int> graph_stats_(Graph<unsigned int> &G) {
+  auto od = parlay::delayed_seq<size_t>(
+      G.size(), [&](size_t i) { return G[i].size(); });
+  size_t j = parlay::max_element(od) - od.begin();
+  int maxDegree = od[j];
+  size_t sum1 = parlay::reduce(od);
+  double avg_deg = sum1 / ((double)G.size());
+  return std::make_pair(avg_deg, maxDegree);
+}
+
+
+
 template <typename T>
 auto query_stats(parlay::sequence<Tvec_point<T> *> &q) {
   parlay::sequence<size_t> vs = visited_stats(q);

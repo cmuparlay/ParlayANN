@@ -34,6 +34,7 @@
 template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
 nn_result checkRecall(
         parlay::sequence<Tvec_point<T>*> &v,
+        Graph<unsigned int> &G,
         PointRange<T, Point> &Base_Points,
         PointRange<T, Point> &Query_Points,
         groundTruth<int> GT,
@@ -51,14 +52,14 @@ nn_result checkRecall(
   parlay::internal::timer t;
   float query_time;
   if(random){
-    all_ngh = beamSearchRandom(Query_Points, v, Base_Points, beamQ, k, cut, limit);
+    all_ngh = beamSearchRandom(Query_Points, v, G, Base_Points, beamQ, k, cut, limit);
     t.next_time();
-    all_ngh = beamSearchRandom(Query_Points, v, Base_Points, beamQ, k, cut, limit);
+    all_ngh = beamSearchRandom(Query_Points, v, G, Base_Points, beamQ, k, cut, limit);
     query_time = t.next_time();
   }else{
-    all_ngh = searchAll(Query_Points, v, Base_Points, beamQ, k, v[start_point], cut, limit);
+    all_ngh = searchAll(Query_Points, v, G, Base_Points, beamQ, k, v[start_point], cut, limit);
     t.next_time();
-    all_ngh = searchAll(Query_Points, v, Base_Points, beamQ, k, v[start_point], cut, limit);
+    all_ngh = searchAll(Query_Points, v, G, Base_Points, beamQ, k, v[start_point], cut, limit);
     query_time = t.next_time();
   }
 
@@ -117,7 +118,7 @@ nn_result checkRecall(
 }
 
 void write_to_csv(std::string csv_filename, parlay::sequence<float> buckets,
-                  parlay::sequence<nn_result> results, Graph G) {
+                  parlay::sequence<nn_result> results, Graph_ G) {
   csvfile csv(csv_filename);
   csv << "GRAPH"
       << "Parameters"
@@ -159,7 +160,7 @@ parlay::sequence<int> calculate_limits(size_t avg_visited) {
 }
 
 template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
-void search_and_parse(Graph G, parlay::sequence<Tvec_point<T>*> &v, PointRange<T, Point> &Base_Points,
+void search_and_parse(Graph_ G_, parlay::sequence<Tvec_point<T>*> &v, Graph<unsigned int> &G, PointRange<T, Point> &Base_Points,
    PointRange<T, Point> &Query_Points, 
   groundTruth<int> GT, char* res_file, 
   bool random=true, int start_point=0){
@@ -186,17 +187,17 @@ void search_and_parse(Graph G, parlay::sequence<Tvec_point<T>*> &v, PointRange<T
       for (float cut : cuts)
 	for (float Q : beams)
 	  if (Q > r)
-	    results.push_back(checkRecall(v, Base_Points, Query_Points, GT, r, Q, cut, random, -1, start_point, r));
+	    results.push_back(checkRecall(v, G, Base_Points, Query_Points, GT, r, Q, cut, random, -1, start_point, r));
 
       // check "limited accuracy"
       // TODO re-instate this after adding stats counters
       parlay::sequence<int> limits = calculate_limits(results[0].avg_visited);
       for(int l : limits)
-	results.push_back(checkRecall(v, Base_Points, Query_Points, GT, r, r+5, 1.15, random, l, start_point, r));
+	results.push_back(checkRecall(v, G, Base_Points, Query_Points, GT, r, r+5, 1.15, random, l, start_point, r));
 
       // check "best accuracy"
-      if(v.size() <= 200000) results.push_back(checkRecall(v, Base_Points, Query_Points, GT, r, 500, 10.0, random, -1, start_point, r));
-      else results.push_back(checkRecall(v, Base_Points, Query_Points, GT, 100, 1000, 10.0, random, -1, start_point, r));
+      if(v.size() <= 200000) results.push_back(checkRecall(v, G, Base_Points, Query_Points, GT, r, 500, 10.0, random, -1, start_point, r));
+      else results.push_back(checkRecall(v, G, Base_Points, Query_Points, GT, 100, 1000, 10.0, random, -1, start_point, r));
 
     parlay::sequence<float> buckets = {
         .1, .15, .2,  .25, .3,  .35,  .4,   .45,   .5,   .55,
@@ -205,6 +206,6 @@ void search_and_parse(Graph G, parlay::sequence<Tvec_point<T>*> &v, PointRange<T
     auto [res, ret_buckets] = parse_result(results, buckets);
     std::cout << std::endl;
     if (res_file != NULL)
-      write_to_csv(std::string(res_file), ret_buckets, res, G);
+      write_to_csv(std::string(res_file), ret_buckets, res, G_);
   }
 }
