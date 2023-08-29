@@ -142,7 +142,6 @@ beam_search(Point<T> p, parlay::sequence<Tvec_point<T>*>& v, PointRange<T, Point
       if (a == -1) break;
       if (a == p.id() || has_been_seen(a)) continue;  // skip if already seen
       keep.push_back(a);
-      // Data.prefetch(Data.get(a));
       Points[a].prefetch();
     }
 
