@@ -26,7 +26,6 @@
 #include <algorithm>
 #include <set>
 
-#include "indexTools.h"
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 

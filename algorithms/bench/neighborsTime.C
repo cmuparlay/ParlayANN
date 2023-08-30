@@ -26,7 +26,6 @@
 #include "parlay/primitives.h"
 #include "parse_command_line.h"
 #include "time_loop.h"
-#include "../utils/parse_files.h"
 #include "../utils/NSGDist.h"
 #include "../utils/euclidian_point.h"
 #include "../utils/graph.h"
@@ -48,28 +47,23 @@
 
 
 template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
-void timeNeighbors(parlay::sequence<Tvec_point<T>> &pts, Graph<unsigned int> &G,
+void timeNeighbors(Graph<unsigned int> &G,
 		   PointRange<T, Point> &Query_Points, int k,
 		   BuildParams &BP, char* outFile,
 		   groundTruth<int> GT, int maxDeg, char* res_file, bool graph_built, PointRange<T, Point> &Points)
 {
-  size_t n = pts.size();
-  auto v = parlay::tabulate(n, [&] (size_t i) -> Tvec_point<T>* {
-      return &pts[i];});
 
-  // size_t q = qpoints.size();
-  // auto qpts =  parlay::tabulate(q, [&] (size_t i) -> Tvec_point<T>* {
-  //     return &qpoints[i];});
 
     time_loop(1, 0,
       [&] () {},
       [&] () {
-        ANN<T>(v, G, k, BP, Query_Points, GT, res_file, graph_built, Points);
+        ANN<T>(G, k, BP, Query_Points, GT, res_file, graph_built, Points);
       },
       [&] () {});
 
     if(outFile != NULL) {
-      write_graph(v, outFile, maxDeg); 
+      // write_graph(v, outFile, maxDeg); 
+      //TODO implement writer
     }
 
 
@@ -132,13 +126,11 @@ int main(int argc, char* argv[]) {
 
 
   if(tp == "float"){
-    auto [md, points] = parse_fbin(iFile, gFile, maxDeg);
-    maxDeg = md;
     if(df == "Euclidian"){
       PointRange<float, Euclidian_Point> Points = PointRange<float, Euclidian_Point>(iFile);
       PointRange<float, Euclidian_Point> Query_Points = PointRange<float, Euclidian_Point>(qFile);
       Graph<unsigned int> G = Graph<unsigned int>(maxDeg, Points.size());
-      timeNeighbors<float, Euclidian_Point, PointRange>(points, G, Query_Points, k, BP, 
+      timeNeighbors<float, Euclidian_Point, PointRange>(G, Query_Points, k, BP, 
         oFile, GT, maxDeg, rFile, graph_built, Points);
     } else if(df == "mips"){
       abort();
@@ -147,15 +139,11 @@ int main(int argc, char* argv[]) {
     }
     
   } else if(tp == "uint8"){
-    auto [md, points] = parse_uint8bin(iFile, gFile, maxDeg);
-    maxDeg = md;
     if(df == "Euclidian"){
       PointRange<uint8_t, Euclidian_Point> Points = PointRange<uint8_t, Euclidian_Point>(iFile);
       PointRange<uint8_t, Euclidian_Point> Query_Points = PointRange<uint8_t, Euclidian_Point>(qFile);
       Graph<unsigned int> G = Graph<unsigned int>(maxDeg, Points.size());
-      std::cout << G.max_degree() << std::endl;
-      std::cout << G.size() << std::endl;
-      timeNeighbors<uint8_t, Euclidian_Point, PointRange>(points, G, Query_Points, k, BP, 
+      timeNeighbors<uint8_t, Euclidian_Point, PointRange>(G, Query_Points, k, BP, 
         oFile, GT, maxDeg, rFile, graph_built, Points);
     } else if(df == "mips"){
       abort();
@@ -163,14 +151,11 @@ int main(int argc, char* argv[]) {
       //   delta, alpha, oFile, groundTruth, maxDeg, rFile, graph_built, DS);
     }
   } else if(tp == "int8"){
-    auto [md, points] = parse_int8bin(iFile, gFile, maxDeg);
-    maxDeg = md;
-    
     if(df == "Euclidian"){
       PointRange<int8_t, Euclidian_Point> Points = PointRange<int8_t, Euclidian_Point>(iFile);
       PointRange<int8_t, Euclidian_Point> Query_Points = PointRange<int8_t, Euclidian_Point>(qFile);
       Graph<unsigned int> G = Graph<unsigned int>(maxDeg, Points.size());
-      timeNeighbors<int8_t, Euclidian_Point, PointRange>(points, G, Query_Points, k, BP,
+      timeNeighbors<int8_t, Euclidian_Point, PointRange>(G, Query_Points, k, BP,
         oFile, GT, maxDeg, rFile, graph_built, Points);
     } else if(df == "mips"){
       abort();

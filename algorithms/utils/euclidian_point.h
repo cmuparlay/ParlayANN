@@ -40,90 +40,84 @@
 #include <unistd.h>
 
 float euclidian_distance(uint8_t *p, uint8_t *q, unsigned d) {
-    int result = 0;
-    for (int i = 0; i < d; i++) {
-      result += ((int32_t)((int16_t)q[i] - (int16_t)p[i])) *
-                ((int32_t)((int16_t)q[i] - (int16_t)p[i]));
-    }
-    return (float)result;
+  int result = 0;
+  for (int i = 0; i < d; i++) {
+    result += ((int32_t)((int16_t)q[i] - (int16_t)p[i])) *
+      ((int32_t)((int16_t)q[i] - (int16_t)p[i]));
   }
+  return (float)result;
+}
 
 float euclidian_distance(int8_t *p, int8_t *q, unsigned d) {
-    int result = 0;
-    for (int i = 0; i < d; i++) {
-      result += ((int32_t)((int16_t)q[i] - (int16_t)p[i])) *
-                ((int32_t)((int16_t)q[i] - (int16_t)p[i]));
-    }
-    return (float)result;
+  int result = 0;
+  for (int i = 0; i < d; i++) {
+    result += ((int32_t)((int16_t)q[i] - (int16_t)p[i])) *
+      ((int32_t)((int16_t)q[i] - (int16_t)p[i]));
+  }
+  return (float)result;
 }
 
 float euclidian_distance(float *p, float *q, unsigned d) {
-    efanna2e::DistanceL2 distfunc;
-    return distfunc.compare(p, q, d);
+  efanna2e::DistanceL2 distfunc;
+  return distfunc.compare(p, q, d);
 }
 
 template<typename T>
-struct Euclidian_Point{
-    static bool is_metric(){return true;}
+struct Euclidian_Point {
+  static bool is_metric() {return true;}
 
-    float distance(Euclidian_Point<T> x){
-        return euclidian_distance(this->values, x.values, d);
-        // return 0;
-    }
+  float distance(Euclidian_Point<T> x) {
+    return euclidian_distance(this->values, x.values, d);
+  }
 
-    void prefetch(){
-        int l = (d * sizeof(T))/64;
-        for (int i=0; i < l; i++)
-            __builtin_prefetch((char*) values + i* 64);
-    }
+  void prefetch() {
+    int l = (d * sizeof(T))/64;
+    for (int i=0; i < l; i++)
+      __builtin_prefetch((char*) values + i* 64);
+  }
 
-    long id(){return id_;}
+  long id() {return id_;}
 
-    Euclidian_Point(T* values, unsigned int d, long id): values(values), d(d), id_(id) {}
+  Euclidian_Point(T* values, unsigned int d, long id)
+    : values(values), d(d), id_(id) {}
 
-    private:
-        T* values;
-        unsigned int d;
-        long id_;
-        
+private:
+  T* values;
+  unsigned int d;
+  long id_;
 };
 
 template<typename T, template<typename C> class Point>
 struct PointRange{
-    using slice_t = parlay::slice<T*, T*>;
+
+  long dimension(){return dims;}
     
-    PointRange(char* filename) : values(parlay::make_slice<T*, T*>(nullptr, nullptr)){
-        if(filename == NULL){
-            this->n = 0;
-            this->dims = 0;
-            return;
-        }
-        auto [fileptr, length] = mmapStringFromFile(filename);
-
-        int num_vectors = *((int*) fileptr);
-        int d = *((int*) (fileptr+4));
-
-        std::cout << "Detected " << num_vectors << " points with dimension " << d << std::endl;
-
-        T* start = (T*)(fileptr+8);
-        T* end = start + d*num_vectors;
-
-        this->n = num_vectors;
-        this->dims = d;
-        auto vals = parlay::make_slice(start, end);
-        this->values = vals;
+  PointRange(char* filename) {
+    if(filename == NULL) {
+      n = 0;
+      dims = 0;
+      return;
     }
+    parlay::file_map fmap(filename);
+    values = (T*) aligned_alloc(128, fmap.size() - 8);
+    n = *((int*) fmap.begin());
+    dims = *((int*) (fmap.begin() + 4));
+    int bytes = dims * sizeof(T);
+    parlay::parallel_for(0, n, [&](long i) {
+      std::memmove(values + i * bytes,
+		   fmap.begin() + 8 + i * bytes, bytes);});
+    std::cout << "Detected " << n
+	      << " points with dimension " << dims << std::endl;
+  }
 
-    size_t size(){return n;}
+  size_t size() { return n; }
+  
+  Point<T> operator [] (long i) {
+    return Point<T>(values+i*dims, dims, i);
+  }
 
-    Point<T> operator [] (long i){
-        return Point<T>(values.begin()+i*dims, dims, i);
-    }
-
-    private:
-        slice_t values;
-        unsigned int dims;
-        size_t n;
-
+private:
+  T* values;
+  unsigned int dims;
+  size_t n;
 };
-
