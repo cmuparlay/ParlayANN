@@ -58,11 +58,10 @@ void ANN(Graph<unsigned int> &G, int k, BuildParams &BP,
     idx_time = t.next_time();
   }
 
-  int medoid = I.get_medoid();
+  uint medoid = 0; 
   std::string name = "Vamana";
   std::string params =
       "R = " + std::to_string(BP.R) + ", L = " + std::to_string(BP.L);
-  // auto [avg_deg, max_deg] = graph_stats(v);
   auto [avg_deg, max_deg] = graph_stats_(G);
   std::cout << avg_deg << " " << max_deg << std::endl;
   //TODO add back visited stats

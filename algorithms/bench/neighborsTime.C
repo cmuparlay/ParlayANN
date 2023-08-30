@@ -62,8 +62,7 @@ void timeNeighbors(Graph<unsigned int> &G,
       [&] () {});
 
     if(outFile != NULL) {
-      // write_graph(v, outFile, maxDeg); 
-      //TODO implement writer
+      G.save(outFile);
     }
 
 
@@ -129,7 +128,9 @@ int main(int argc, char* argv[]) {
     if(df == "Euclidian"){
       PointRange<float, Euclidian_Point> Points = PointRange<float, Euclidian_Point>(iFile);
       PointRange<float, Euclidian_Point> Query_Points = PointRange<float, Euclidian_Point>(qFile);
-      Graph<unsigned int> G = Graph<unsigned int>(maxDeg, Points.size());
+      Graph<unsigned int> G; 
+      if(gFile == NULL) G = Graph<unsigned int>(maxDeg, Points.size());
+      else G = Graph<unsigned int>(gFile);
       timeNeighbors<float, Euclidian_Point, PointRange>(G, Query_Points, k, BP, 
         oFile, GT, maxDeg, rFile, graph_built, Points);
     } else if(df == "mips"){
@@ -142,7 +143,9 @@ int main(int argc, char* argv[]) {
     if(df == "Euclidian"){
       PointRange<uint8_t, Euclidian_Point> Points = PointRange<uint8_t, Euclidian_Point>(iFile);
       PointRange<uint8_t, Euclidian_Point> Query_Points = PointRange<uint8_t, Euclidian_Point>(qFile);
-      Graph<unsigned int> G = Graph<unsigned int>(maxDeg, Points.size());
+      Graph<unsigned int> G; 
+      if(gFile == NULL) G = Graph<unsigned int>(maxDeg, Points.size());
+      else G = Graph<unsigned int>(gFile);
       timeNeighbors<uint8_t, Euclidian_Point, PointRange>(G, Query_Points, k, BP, 
         oFile, GT, maxDeg, rFile, graph_built, Points);
     } else if(df == "mips"){
@@ -154,7 +157,9 @@ int main(int argc, char* argv[]) {
     if(df == "Euclidian"){
       PointRange<int8_t, Euclidian_Point> Points = PointRange<int8_t, Euclidian_Point>(iFile);
       PointRange<int8_t, Euclidian_Point> Query_Points = PointRange<int8_t, Euclidian_Point>(qFile);
-      Graph<unsigned int> G = Graph<unsigned int>(maxDeg, Points.size());
+      Graph<unsigned int> G; 
+      if(gFile == NULL) G = Graph<unsigned int>(maxDeg, Points.size());
+      else G = Graph<unsigned int>(gFile);
       timeNeighbors<int8_t, Euclidian_Point, PointRange>(G, Query_Points, k, BP,
         oFile, GT, maxDeg, rFile, graph_built, Points);
     } else if(df == "mips"){
