@@ -55,10 +55,10 @@ struct groundTruth{
         float* start_dists = (float*)(end_coords);
         float* end_dists = start_dists + d*num_vectors;
 
-        this->n = num_vectors;
-        this->dim = d;
-        this->coords = parlay::make_slice(start_coords, end_coords);
-        this->dists = parlay::make_slice(start_dists, end_dists);
+        n = num_vectors;
+        dim = d;
+        coords = parlay::make_slice(start_coords, end_coords);
+        dists = parlay::make_slice(start_dists, end_dists);
       }
 
   }
@@ -86,35 +86,6 @@ struct BuildParams{
   double delta; //pyNNDescent
 
   BuildParams(long R, long L, double a, long nc, long cs, long mst, double de) : R(R), L(L), alpha(a), num_clusters(nc), cluster_size(cs), MST_deg(mst), delta(de) {}
-};
-
-
-//for a file in .fvecs or .bvecs format, but extendible to other types
-template<typename T>
-struct alignas(64) Tvec_point {
-  int id;
-  size_t visited;
-  size_t dist_calls;
-  int rounds;
-  parlay::slice<T*, T*> coordinates;
-  parlay::slice<int*, int*> out_nbh;
-  parlay::slice<int*, int*> new_nbh;
-  Tvec_point()
-      : coordinates(parlay::make_slice<T*, T*>(nullptr, nullptr)),
-        out_nbh(parlay::make_slice<int*, int*>(nullptr, nullptr)),
-        new_nbh(parlay::make_slice<int*, int*>(nullptr, nullptr)) {}
-  parlay::sequence<int> ngh = parlay::sequence<int>();
-};
-
-// for an ivec file, which contains the ground truth
-// only info needed is the coordinates of the nearest neighbors of each point
-struct ivec_point {
-  int id;
-  parlay::slice<int*, int*> coordinates;
-  parlay::slice<float*, float*> distances;
-  ivec_point()
-      : coordinates(parlay::make_slice<int*, int*>(nullptr, nullptr)),
-        distances(parlay::make_slice<float*, float*>(nullptr, nullptr)) {}
 };
 
 #endif

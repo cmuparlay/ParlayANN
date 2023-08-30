@@ -29,8 +29,6 @@
 #include <set>
 #include <unordered_set>
 
-#include "NSGDist.h"
-#include "indexTools.h"
 #include "parlay/io.h"
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
@@ -46,22 +44,21 @@ using GraphI = Graph<unsigned int>;
 
 template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
 std::pair<std::pair<parlay::sequence<id_dist>, parlay::sequence<id_dist>>, int>
-beam_search(Point<T> p, parlay::sequence<Tvec_point<T>*>& v, GraphI &G, PointRange<T, Point> &Points,
-	    Tvec_point<T>* starting_point, int beamSize,
+beam_search(Point<T> p, GraphI &G, PointRange<T, Point> &Points,
+	    uint starting_point, int beamSize,
 	    int k=0, float cut=1.14, int limit=-1) {
   
-  parlay::sequence<Tvec_point<T>*> start_points;
-  start_points.push_back(starting_point);
-  return beam_search(p, v, G, Points, start_points, beamSize, k, cut, limit);
+  parlay::sequence<uint> start_points = {starting_point};
+  return beam_search(p, G, Points, start_points, beamSize, k, cut, limit);
 }
 
 // main beam search
 template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
 std::pair<std::pair<parlay::sequence<id_dist>, parlay::sequence<id_dist>>, size_t>
-beam_search(Point<T> p, parlay::sequence<Tvec_point<T>*>& v, GraphI &G, PointRange<T, Point> &Points,
-	      parlay::sequence<Tvec_point<T>*> starting_points, int beamSize,
+beam_search(Point<T> p, GraphI &G, PointRange<T, Point> &Points,
+	      parlay::sequence<uint> starting_points, int beamSize,
 	      int k=0, float cut=1.14, int max_visit=-1) {
-  if(max_visit == -1) max_visit = v.size();
+  if(max_visit == -1) max_visit = G.size();
   // if (D->id() == "mips") cut = -cut;
 
   // compare two (node_id,distance) pairs, first by distance and then id if
@@ -96,7 +93,7 @@ beam_search(Point<T> p, parlay::sequence<Tvec_point<T>*>& v, GraphI &G, PointRan
   std::vector<id_dist> frontier;
   frontier.reserve(beamSize);
   for (auto q : starting_points)
-    frontier.push_back(id_dist(q->id, distance_from_p(q->id)));
+    frontier.push_back(id_dist(q, distance_from_p(q)));
   std::sort(frontier.begin(), frontier.end(), less);
 
   // The subset of the frontier that has not been visited
@@ -115,11 +112,11 @@ beam_search(Point<T> p, parlay::sequence<Tvec_point<T>*>& v, GraphI &G, PointRan
   double total;
 
   // used as temporaries in the loop
-  std::vector<id_dist> new_frontier(beamSize + v[0]->out_nbh.size());
+  std::vector<id_dist> new_frontier(beamSize + G.max_degree());
   std::vector<id_dist> candidates;
-  candidates.reserve(v[0]->out_nbh.size());
+  candidates.reserve(G.max_degree());
   std::vector<vertex_id> keep;
-  keep.reserve(v[0]->out_nbh.size());
+  keep.reserve(G.max_degree());
 
   // The main loop.  Terminate beam search when the entire frontier
   // has been visited or have reached max_visit.
@@ -127,7 +124,7 @@ beam_search(Point<T> p, parlay::sequence<Tvec_point<T>*>& v, GraphI &G, PointRan
     // the next node to visit is the unvisited frontier node that is closest to
     // p
     id_dist current = unvisited_frontier[0];
-    __builtin_prefetch(v[current.first]->out_nbh.begin());
+    G[current.first].prefetch();
     // add to visited set
     visited.insert(
         std::upper_bound(visited.begin(), visited.end(), current, less),
@@ -140,11 +137,10 @@ beam_search(Point<T> p, parlay::sequence<Tvec_point<T>*>& v, GraphI &G, PointRan
     // not bump anyone else.
     candidates.clear();
     keep.clear();
-    for (auto a : v[current.first]->out_nbh) {
-      if (a == -1) break;
+    for (int i=0; i<G[current.first].size(); i++) {
+      auto a = G[current.first][i];
       if (a == p.id() || has_been_seen(a)) continue;  // skip if already seen
       keep.push_back(a);
-      // Data.prefetch(Data.get(a));
       Points[a].prefetch();
     }
 
@@ -291,7 +287,7 @@ beam_search(Point<T> p, parlay::sequence<Tvec_point<T>*>& v, GraphI &G, PointRan
 // searches every element in q starting from a randomly selected point
 template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
 parlay::sequence<parlay::sequence<int>> beamSearchRandom(PointRange<T, Point>& Query_Points,
-                                        parlay::sequence<Tvec_point<T>*>& v, GraphI &G, PointRange<T, Point> &Base_Points, int beamSizeQ, 
+                                         GraphI &G, PointRange<T, Point> &Base_Points, int beamSizeQ, 
                                         int k, double cut = 1.14, int max_visit=-1) {
   if ((k + 1) > beamSizeQ) {
     std::cout << "Error: beam search parameter Q = " << beamSizeQ
@@ -299,9 +295,7 @@ parlay::sequence<parlay::sequence<int>> beamSearchRandom(PointRange<T, Point>& Q
     abort();
   }
   // use a random shuffle to generate random starting points for each query
-  size_t n = v.size();
-  // auto indices = parlay::random_permutation<int>(static_cast<int>(n),
-  // time(NULL));
+  size_t n = G.size();
 
   parlay::sequence<parlay::sequence<int>> all_neighbors(Query_Points.size());
 
@@ -314,12 +308,11 @@ parlay::sequence<parlay::sequence<int>> beamSearchRandom(PointRange<T, Point>& Q
 
   parlay::parallel_for(0, Query_Points.size(), [&](size_t i) {
     parlay::sequence<int> neighbors = parlay::sequence<int>(k);
-    size_t index = indices[i];
-    Tvec_point<T>* start = v[index];
+    uint start = indices[i];
     parlay::sequence<id_dist> beamElts;
     parlay::sequence<id_dist> visitedElts;
     auto [pairElts, dist_cmps] = 
-        beam_search(Query_Points[i], v, G, Base_Points, start, beamSizeQ, k, cut, max_visit);
+        beam_search(Query_Points[i], G, Base_Points, start, beamSizeQ, k, cut, max_visit);
     beamElts = pairElts.first;
     visitedElts = pairElts.second;
     for (int j = 0; j < k; j++) {
@@ -335,18 +328,17 @@ parlay::sequence<parlay::sequence<int>> beamSearchRandom(PointRange<T, Point>& Q
 
 template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
 parlay::sequence<parlay::sequence<int>> searchAll(PointRange<T, Point>& Query_Points,
-	                                      parlay::sequence<Tvec_point<T>*>& v, GraphI &G, PointRange<T, Point> &Base_Points, 
+	                                       GraphI &G, PointRange<T, Point> &Base_Points, 
                                         int beamSizeQ, int k,
-	                                      Tvec_point<T>* starting_point, float cut, int max_visit) {
-    parlay::sequence<Tvec_point<T>*> start_points;
-    start_points.push_back(starting_point);
-    return searchAll(Query_Points, v, G, Base_Points, beamSizeQ, k, start_points, cut, max_visit);
+	                                      uint starting_point, float cut, int max_visit) {
+    parlay::sequence<uint> start_points = {starting_point};
+    return searchAll(Query_Points, G, Base_Points, beamSizeQ, k, start_points, cut, max_visit);
 }
 
 template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
 parlay::sequence<parlay::sequence<int>> searchAll(PointRange<T, Point> &Query_Points,
-	                                      parlay::sequence<Tvec_point<T>*>& v, GraphI &G, PointRange<T, Point> &Base_Points, int beamSizeQ, 
-                                        int k, parlay::sequence<Tvec_point<T>*> starting_points,
+	                                       GraphI &G, PointRange<T, Point> &Base_Points, int beamSizeQ, 
+                                        int k, parlay::sequence<uint> starting_points,
 	                                      float cut, int max_visit) {
   if ((k + 1) > beamSizeQ) {
     std::cout << "Error: beam search parameter Q = " << beamSizeQ
@@ -356,7 +348,7 @@ parlay::sequence<parlay::sequence<int>> searchAll(PointRange<T, Point> &Query_Po
   parlay::sequence<parlay::sequence<int>> all_neighbors(Query_Points.size());
   parlay::parallel_for(0, Query_Points.size(), [&](size_t i) {
     parlay::sequence<int> neighbors = parlay::sequence<int>(k);
-    auto [pairElts, dist_cmps] = beam_search(Query_Points[i], v, G, Base_Points, starting_points,
+    auto [pairElts, dist_cmps] = beam_search(Query_Points[i], G, Base_Points, starting_points,
 					     beamSizeQ, k, cut, max_visit);
     auto [beamElts, visitedElts] = pairElts;
     for (int j = 0; j < k; j++) {
