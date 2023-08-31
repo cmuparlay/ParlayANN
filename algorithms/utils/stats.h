@@ -20,6 +20,8 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#pragma once
+
 #include <algorithm>
 #include <queue>
 #include <set>
@@ -47,6 +49,43 @@ std::pair<double, int> graph_stats_(Graph<unsigned int> &G) {
   double avg_deg = sum1 / ((double)G.size());
   return std::make_pair(avg_deg, maxDegree);
 }
+
+template<typename indexType>
+struct stats{
+
+  stats() {}
+  
+  stats(size_t n){
+    visited = parlay::sequence<indexType>(n, 0);
+    distances = parlay::sequence<indexType>(n, 0);
+  }
+
+  parlay::sequence<indexType> visited;
+  parlay::sequence<indexType> distances;
+
+  void increment_dist(indexType i, indexType j){distances[i]+=j;}
+  void increment_visited(indexType i, indexType j){visited[i]+=j;}
+
+  parlay::sequence<indexType> visited_stats(){return statistics(this->visited);}
+  parlay::sequence<indexType> dist_stats(){return statistics(this->distances);}
+
+  void clear(){
+    size_t n = visited.size();
+    visited = parlay::sequence<indexType>(n, 0);
+    distances = parlay::sequence<indexType>(n, 0);
+  }
+
+  parlay::sequence<indexType> statistics(parlay::sequence<indexType> s){
+    parlay::sequence<indexType> stats = parlay::tabulate(s.size(), [&](size_t i) { return s[i];});
+    parlay::sort_inplace(stats);
+    indexType avg= (int)parlay::reduce(stats) / ((double)s.size());
+    indexType tail_index = .99 * ((float)s.size());
+    indexType tail = stats[tail_index];
+    auto result = {avg, tail};
+    return result;
+  }
+
+};
 
 
 

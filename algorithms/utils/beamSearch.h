@@ -35,6 +35,7 @@
 #include "parlay/random.h"
 #include "types.h"
 #include "graph.h"
+#include "stats.h"
 
 
 using vertex_id = int;
@@ -287,7 +288,7 @@ beam_search(Point<T> p, GraphI &G, PointRange<T, Point> &Points,
 // searches every element in q starting from a randomly selected point
 template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
 parlay::sequence<parlay::sequence<int>> beamSearchRandom(PointRange<T, Point>& Query_Points,
-                                         GraphI &G, PointRange<T, Point> &Base_Points, int beamSizeQ, 
+                                         GraphI &G, PointRange<T, Point> &Base_Points, stats<uint> &QueryStats, int beamSizeQ, 
                                         int k, double cut = 1.14, int max_visit=-1) {
   if ((k + 1) > beamSizeQ) {
     std::cout << "Error: beam search parameter Q = " << beamSizeQ
@@ -320,6 +321,8 @@ parlay::sequence<parlay::sequence<int>> beamSearchRandom(PointRange<T, Point>& Q
     }
     all_neighbors[i] = neighbors;
     //TODO replace with stats object
+    QueryStats.increment_visited(i, visitedElts.size());
+    QueryStats.increment_dist(i, dist_cmps);
     // q[i]->visited = visitedElts.size(); 
     // q[i]->dist_calls = dist_cmps; 
   });
@@ -328,16 +331,16 @@ parlay::sequence<parlay::sequence<int>> beamSearchRandom(PointRange<T, Point>& Q
 
 template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
 parlay::sequence<parlay::sequence<int>> searchAll(PointRange<T, Point>& Query_Points,
-	                                       GraphI &G, PointRange<T, Point> &Base_Points, 
+	                                       GraphI &G, PointRange<T, Point> &Base_Points, stats<uint> &QueryStats,
                                         int beamSizeQ, int k,
 	                                      uint starting_point, float cut, int max_visit) {
     parlay::sequence<uint> start_points = {starting_point};
-    return searchAll(Query_Points, G, Base_Points, beamSizeQ, k, start_points, cut, max_visit);
+    return searchAll(Query_Points, G, Base_Points, QueryStats, beamSizeQ, k, start_points, cut, max_visit);
 }
 
 template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
 parlay::sequence<parlay::sequence<int>> searchAll(PointRange<T, Point> &Query_Points,
-	                                       GraphI &G, PointRange<T, Point> &Base_Points, int beamSizeQ, 
+	                                       GraphI &G, PointRange<T, Point> &Base_Points, stats<uint> &QueryStats, int beamSizeQ, 
                                         int k, parlay::sequence<uint> starting_points,
 	                                      float cut, int max_visit) {
   if ((k + 1) > beamSizeQ) {
@@ -356,6 +359,8 @@ parlay::sequence<parlay::sequence<int>> searchAll(PointRange<T, Point> &Query_Po
     }
     all_neighbors[i] = neighbors;
     //TODO replace with stats object later
+    QueryStats.increment_visited(i, visitedElts.size());
+    QueryStats.increment_dist(i, dist_cmps);
     // q[i]->visited = visitedElts.size();
     // q[i]->dist_calls = dist_cmps;
   });

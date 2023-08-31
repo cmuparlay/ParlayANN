@@ -115,10 +115,10 @@ struct knn_index {
     return robustPrune(p, cc, G, Points, new_neighbors, add);
   }
 
-  void build_index(GraphI &G, parlay::sequence<int> inserts, PR &Points){
+  void build_index(GraphI &G, parlay::sequence<int> inserts, PR &Points, stats<uint> &BuildStats){
     std::cout << "Building graph..." << std::endl;
     medoid = 0;
-    batch_insert(inserts, G, Points, true, 2, .02);
+    batch_insert(inserts, G, Points, BuildStats, true, 2, .02);
     parlay::parallel_for (0, G.size(), [&] (long i) {
       auto less = [&] (long j, long k) {
 		    return Points[i].distance(Points[j]) < Points[i].distance(Points[k]);};
@@ -200,7 +200,7 @@ struct knn_index {
   // }
 
   void batch_insert(parlay::sequence<int> &inserts,
-                     GraphI &G, PR &Points, 
+                     GraphI &G, PR &Points, stats<uint> &BuildStats,
                     bool random_order = false, double base = 2,
                     double max_fraction = .02, bool print=true) {
     for(int p : inserts){
@@ -259,7 +259,7 @@ struct knn_index {
         size_t index = shuffled_inserts[i];
         parlay::sequence<pid> visited = 
           (beam_search(Points[index], G, Points, medoid, BP.L)).first.second;
-        //TODO add visited counter
+        BuildStats.increment_visited(index, visited.size());
         parlay::sequence<uint> temp;
         new_out_[i-floor] = robustPrune(index, visited, G, Points, temp); });
       t_beam.stop();

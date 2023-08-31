@@ -29,6 +29,7 @@
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 #include "types.h"
+#include "stats.h"
 
 template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
 nn_result checkRecall(
@@ -43,28 +44,29 @@ nn_result checkRecall(
               << GT.dimension() << std::endl;
     abort();
   }
-  // std::cout << "here" << std::endl;
 
   parlay::sequence<parlay::sequence<int>> all_ngh;
 
   parlay::internal::timer t;
   float query_time;
+  stats<uint> QueryStats(Query_Points.size());
   if(random){
-    all_ngh = beamSearchRandom(Query_Points, G, Base_Points, beamQ, k, cut, limit);
+    all_ngh = beamSearchRandom(Query_Points, G, Base_Points, QueryStats, beamQ, k, cut, limit);
     t.next_time();
-    all_ngh = beamSearchRandom(Query_Points, G, Base_Points, beamQ, k, cut, limit);
+    QueryStats.clear();
+    all_ngh = beamSearchRandom(Query_Points, G, Base_Points, QueryStats, beamQ, k, cut, limit);
     query_time = t.next_time();
   }else{
-    all_ngh = searchAll(Query_Points, G, Base_Points, beamQ, k, start_point, cut, limit);
+    all_ngh = searchAll(Query_Points, G, Base_Points, QueryStats, beamQ, k, start_point, cut, limit);
     t.next_time();
-    all_ngh = searchAll(Query_Points, G, Base_Points, beamQ, k, start_point, cut, limit);
+    QueryStats.clear();
+    all_ngh = searchAll(Query_Points, G, Base_Points, QueryStats, beamQ, k, start_point, cut, limit);
     query_time = t.next_time();
   }
 
   float recall = 0.0;
   //TODO deprecate this after further testing
   bool dists_present = true;
-  // bool dists_present = false;
   if (GT.size() > 0 && !dists_present) {
     size_t n = Query_Points.size();
     int numCorrect = 0;
@@ -84,19 +86,15 @@ nn_result checkRecall(
     
     int numCorrect = 0;
     for (int i = 0; i < n; i++) {
-      // std::cout << (GT.size() == Query_Points.size()) << std::endl;
-      // std::cout << i << std::endl;
       parlay::sequence<int> results_with_ties;
       for (int l = 0; l < r; l++)
         results_with_ties.push_back(GT.coordinates(i,l));
-      // std::cout << "here1" << std::endl;
       float last_dist = GT.distances(i, r-1);
       for (int l = r; l < GT.dimension(); l++) {
         if (GT.distances(i,l) == last_dist) {
           results_with_ties.push_back(GT.coordinates(i,l));
         }
       }
-      // std::cout << "here2" << std::endl;
       std::set<int> reported_nbhs;
       for (int l = 0; l < r; l++) reported_nbhs.insert((all_ngh[i])[l]);
       for (int l = 0; l < results_with_ties.size(); l++) {
@@ -108,9 +106,8 @@ nn_result checkRecall(
     recall = static_cast<float>(numCorrect) / static_cast<float>(r * n);
   }
   float QPS = Query_Points.size() / query_time;
-  //TODO add back stats
-  // auto stats = query_stats(q);
-  parlay::sequence<size_t> stats = {0,0,0,0};
+  auto stats_ = {QueryStats.dist_stats(), QueryStats.visited_stats()};
+  parlay::sequence<uint> stats = parlay::flatten(stats_);
   nn_result N(recall, stats, QPS, k, beamQ, cut, Query_Points.size(), limit, r);
   return N;
 }
@@ -174,21 +171,20 @@ void search_and_parse(Graph_ G_, Graph<unsigned int> &G, PointRange<T, Point> &B
     allr = {10, 20};
     cuts = {1.1, 1.15, 1.2, 1.25};
   } else {
-    beams = {15, 20, 30, 50, 75, 100, 150, 200, 250, 375, 500, 1000};
+    beams = {15, 20, 25, 30, 35, 40, 45, 50, 60, 75, 85,  100, 125, 150, 175, 200, 250, 300, 375, 450, 500, 750, 1000};
     allk = {10, 15, 20, 30, 50, 100};
     allr = {10};  // {10, 20, 100};
-    cuts = {1.15, 1.25, 1.35};
+    cuts = {1.35};
   }
 
     for (int r : allr) {
       results.clear();
       for (float cut : cuts)
-	for (float Q : beams)
-	  if (Q > r)
-	    results.push_back(checkRecall(G, Base_Points, Query_Points, GT, r, Q, cut, random, -1, start_point, r));
-
+        for (float Q : beams)
+          if (Q > r){
+            results.push_back(checkRecall(G, Base_Points, Query_Points, GT, r, Q, cut, random, -1, start_point, r));
+          }
       // check "limited accuracy"
-      // TODO re-instate this after adding stats counters
       parlay::sequence<int> limits = calculate_limits(results[0].avg_visited);
       for(int l : limits)
 	results.push_back(checkRecall(G, Base_Points, Query_Points, GT, r, r+5, 1.15, random, l, start_point, r));
