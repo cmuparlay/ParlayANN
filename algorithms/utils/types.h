@@ -88,4 +88,6 @@ struct BuildParams{
   BuildParams(long R, long L, double a, long nc, long cs, long mst, double de) : R(R), L(L), alpha(a), num_clusters(nc), cluster_size(cs), MST_deg(mst), delta(de) {}
 };
 
+
+
 #endif

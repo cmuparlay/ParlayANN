@@ -124,11 +124,11 @@ struct range_result {
 struct nn_result {
   double recall;
 
-  size_t avg_cmps;
-  size_t tail_cmps;
+  uint avg_cmps;
+  uint tail_cmps;
 
-  size_t avg_visited;
-  size_t tail_visited;
+  uint avg_visited;
+  uint tail_visited;
 
   float QPS;
 
@@ -140,7 +140,7 @@ struct nn_result {
 
   long num_queries;
 
-  nn_result(double r, parlay::sequence<size_t> stats, float qps, int K, int Q,
+  nn_result(double r, parlay::sequence<uint> stats, float qps, int K, int Q,
             float c, long q, int limit, int gtn)
       : recall(r),
         QPS(qps),
@@ -162,9 +162,10 @@ struct nn_result {
     std::cout << "For " << gtn << "@" << gtn << " recall = " << recall
               << ", QPS = " << QPS << ", Q = " << beamQ << ", cut = " << cut;
     if (limit == -1)
-      std::cout << ", limit = none" << std::endl;
+      std::cout << ", limit = none";
     else
-      std::cout << ", limit = " << limit << std::endl;
+      std::cout << ", limit = " << limit;
+    std::cout << ", average visited = " << avg_visited << ", average cmps = " << avg_cmps << std::endl;
   }
 
   void print_verbose() {
