@@ -29,26 +29,23 @@
 #include <set>
 
 #include "clusterEdge.h"
-#include "indexTools.h"
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 #include "parlay/random.h"
 #include "union.h"
 
-template <typename T>
+template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
 struct clusterPID {
-  unsigned d;
-  Distance* D;
-  using tvec_point = Tvec_point<T>;
+	using PR = PointRange<T, Point>;
   using edge = std::pair<int, int>;
   using pid = std::pair<int, float>;
 
-  clusterPID(unsigned dim, Distance* m) : d(dim), D(m) {}
+  clusterPID() {}
 
   parlay::sequence<parlay::sequence<pid>> intermediate_edges;
 
-  void naive_neighbors(parlay::sequence<tvec_point*>& v,
-                       parlay::sequence<size_t>& active_indices, unsigned dim,
+  void naive_neighbors(PR &Points,
+                       parlay::sequence<size_t>& active_indices,
                        int maxK) {
     size_t n = active_indices.size();
     parlay::parallel_for(0, n, [&](size_t i) {
@@ -58,9 +55,10 @@ struct clusterPID {
       // tabulate all-pairs distances between the elements in the leaf
       for (int j = 0; j < n; j++) {
         if (j != i) {
-          float dist =
-              D->distance(v[index]->coordinates.begin(),
-                          v[active_indices[j]]->coordinates.begin(), dim);
+          // float dist =
+          //     D->distance(v[index]->coordinates.begin(),
+          //                 v[active_indices[j]]->coordinates.begin(), dim);
+          float dist = Points[index].distance(Points[active_indices[j]]);
           pid e = std::make_pair(active_indices[j], dist);
           if (Q.size() >= maxK) {
             float topdist = Q.top().second;
@@ -86,30 +84,20 @@ struct clusterPID {
     });
   }
 
-  bool tvec_equal(tvec_point* a, tvec_point* b, unsigned d) {
-    for (int i = 0; i < d; i++) {
-      if (a->coordinates[i] != b->coordinates[i]) {
-        return false;
-      }
-    }
-    return true;
-  }
 
-  void random_clustering(parlay::sequence<tvec_point*>& v,
+  void random_clustering(PR &Points,
                          parlay::sequence<size_t>& active_indices,
-                         parlay::random& rnd, size_t cluster_size, unsigned dim,
+                         parlay::random& rnd, size_t cluster_size,
                          int K) {
     if (active_indices.size() < cluster_size)
-      naive_neighbors(v, active_indices, dim, K);
+      naive_neighbors(Points, active_indices, K);
     else {
       auto [f, s] = select_two_random(active_indices, rnd);
-      tvec_point* first = v[f];
-      tvec_point* second = v[s];
 
       auto left_rnd = rnd.fork(0);
       auto right_rnd = rnd.fork(1);
 
-      if (tvec_equal(first, second, dim)) {
+      if (Points[f]==Points[s]) {
         // std::cout << "Equal points selected, splitting evenly" << std::endl;
         parlay::sequence<size_t> closer_first;
         parlay::sequence<size_t> closer_second;
@@ -123,76 +111,78 @@ struct clusterPID {
         auto right_rnd = rnd.fork(1);
         parlay::par_do(
             [&]() {
-              random_clustering(v, closer_first, left_rnd, cluster_size, dim,
+              random_clustering(Points, closer_first, left_rnd, cluster_size,
                                 K);
             },
             [&]() {
-              random_clustering(v, closer_second, right_rnd, cluster_size, dim,
+              random_clustering(Points, closer_second, right_rnd, cluster_size,
                                 K);
             });
       } else {
         // Split points based on which of the two points are closer.
         auto closer_first =
             parlay::filter(parlay::make_slice(active_indices), [&](size_t ind) {
-              tvec_point* p = v[ind];
-              float dist_first = D->distance(p->coordinates.begin(),
-                                             first->coordinates.begin(), d);
-              float dist_second = D->distance(p->coordinates.begin(),
-                                              second->coordinates.begin(), d);
+              // float dist_first = D->distance(p->coordinates.begin(),
+              //                                first->coordinates.begin(), d);
+              float dist_first = Points[ind].distance(Points[f]);
+              float dist_second = Points[ind].distance(Points[s]);
+              // float dist_second = D->distance(p->coordinates.begin(),
+              //                                 second->coordinates.begin(), d);
               return dist_first <= dist_second;
             });
 
         auto closer_second =
             parlay::filter(parlay::make_slice(active_indices), [&](size_t ind) {
-              tvec_point* p = v[ind];
-              float dist_first = D->distance(p->coordinates.begin(),
-                                             first->coordinates.begin(), d);
-              float dist_second = D->distance(p->coordinates.begin(),
-                                              second->coordinates.begin(), d);
+              // tvec_point* p = v[ind];
+              // float dist_first = D->distance(p->coordinates.begin(),
+              //                                first->coordinates.begin(), d);
+              // float dist_second = D->distance(p->coordinates.begin(),
+              //                                 second->coordinates.begin(), d);
+              float dist_first = Points[ind].distance(Points[f]);
+              float dist_second = Points[ind].distance(Points[s]);
               return dist_second < dist_first;
             });
 
         if (closer_first.size() == 1) {
-          random_clustering(v, active_indices, right_rnd, cluster_size, dim, K);
+          random_clustering(Points, active_indices, right_rnd, cluster_size, K);
         } else if (closer_second.size() == 1) {
-          random_clustering(v, active_indices, left_rnd, cluster_size, dim, K);
+          random_clustering(Points, active_indices, left_rnd, cluster_size, K);
         } else {
           parlay::par_do(
               [&]() {
-                random_clustering(v, closer_first, left_rnd, cluster_size, dim,
+                random_clustering(Points, closer_first, left_rnd, cluster_size, 
                                   K);
               },
               [&]() {
-                random_clustering(v, closer_second, right_rnd, cluster_size,
-                                  dim, K);
+                random_clustering(Points, closer_second, right_rnd, cluster_size,
+                                   K);
               });
         }
       }
     }
   }
 
-  void random_clustering_wrapper(parlay::sequence<tvec_point*>& v,
-                                 size_t cluster_size, unsigned dim, int K) {
+  void random_clustering_wrapper(PR &Points,
+                                 size_t cluster_size, int K) {
     std::random_device rd;
     std::mt19937 rng(rd());
-    std::uniform_int_distribution<int> uni(0, v.size());
+    std::uniform_int_distribution<int> uni(0, Points.size());
     parlay::random rnd(uni(rng));
     auto active_indices =
-        parlay::tabulate(v.size(), [&](size_t i) { return i; });
-    random_clustering(v, active_indices, rnd, cluster_size, dim, K);
+        parlay::tabulate(Points.size(), [&](size_t i) { return i; });
+    random_clustering(Points, active_indices, rnd, cluster_size, K);
   }
 
-  void multiple_clustertrees(parlay::sequence<tvec_point*>& v,
+  void multiple_clustertrees(PR &Points,
                              size_t cluster_size, int num_clusters,
-                             unsigned dim, int K,
+                             int K,
                              parlay::sequence<parlay::sequence<pid>>& old_nbh) {
-    intermediate_edges = parlay::sequence<parlay::sequence<pid>>(v.size());
-    // intermediate_sizes = parlay::sequence<size_t>(v.size(), 0);
+    intermediate_edges = parlay::sequence<parlay::sequence<pid>>(Points.size());
     for (int i = 0; i < num_clusters; i++) {
-      random_clustering_wrapper(v, cluster_size, dim, K);
+      random_clustering_wrapper(Points, cluster_size, K);
+      std::cout << "Cluster " << i << std::endl; 
     }
-    // std::cout << parlay::reduce(intermediate_sizes) << std::endl;
-    parlay::parallel_for(0, v.size(),
+    parlay::parallel_for(0, Points.size(),
                          [&](size_t i) { old_nbh[i] = intermediate_edges[i]; });
   }
 };

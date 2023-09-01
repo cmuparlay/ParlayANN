@@ -90,8 +90,8 @@ int main(int argc, char* argv[]) {
   long cluster_size = P.getOptionIntValue("-cluster_size", 0);
   long k = P.getOptionIntValue("-k", 1);
   if (k > 1000 || k < 1) P.badArgument();
-  double alpha = P.getOptionDoubleValue("-a", 0);
-  double delta = P.getOptionDoubleValue("-d", 0);
+  double alpha = P.getOptionDoubleValue("-alpha", 0);
+  double delta = P.getOptionDoubleValue("-delta", 0);
   int algoOpt = P.getOptionIntValue("-memory_flag", 0);
   char* dfc = P.getOptionValue("-dist_func");
   int Q = 0;

@@ -33,20 +33,21 @@
 
 
 
-template<typename T>
+template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
 struct pyNN_index{
-	int K;
-	unsigned d;
-	float delta;
-    Distance* D; 
-	using tvec_point = Tvec_point<T>;
-	using edge = std::pair<int, int>;
+    using uint = unsigned int;
+	using GraphI = Graph<uint>;
+	using PR = PointRange<T, Point>;
+    using edge = std::pair<int, int>;
     using pid = std::pair<int,float>;
     using labelled_edge = std::pair<int, pid>;
 
+    long K;
+	double delta;
+
     static constexpr auto less = [] (edge a, edge b) {return a.second < b.second;};
 
-    pyNN_index(int md, unsigned dim, float Delta, Distance* m) : K(md), d(dim), delta(Delta), D(m) {}
+    pyNN_index(long md, double Delta) : K(md), delta(Delta) {}
 
     parlay::sequence<parlay::sequence<pid>> old_neighbors;
 
@@ -62,11 +63,11 @@ struct pyNN_index{
         }
     }
 
-    parlay::sequence<int> nn_descent(parlay::sequence<tvec_point*> &v, parlay::sequence<int> &changed){
-        auto new_changed = parlay::sequence<int>(v.size(), 0);
+    parlay::sequence<int> nn_descent(PR &Points, parlay::sequence<int> &changed){
+        auto new_changed = parlay::sequence<int>(Points.size(), 0);
         auto rev = reverse_graph();
         parlay::random_generator gen;
-        size_t n=v.size();
+        size_t n=Points.size();
         std::uniform_int_distribution<int> dis(0, n-1);
         int batch_size = 100000;
         std::pair<int, parlay::sequence<int>> *begin;
@@ -77,12 +78,12 @@ struct pyNN_index{
 			begin = end;
 			int remaining = rev.end() - end;
 			end += std::min(remaining, batch_size);
-			nn_descent_chunk(v, changed, new_changed, begin, end);
+			nn_descent_chunk(Points, changed, new_changed, begin, end);
 		}
         return new_changed;
     }
 
-    void nn_descent_chunk(parlay::sequence<tvec_point*> &v, parlay::sequence<int> &changed, 
+    void nn_descent_chunk(PR &Points, parlay::sequence<int> &changed, 
 		parlay::sequence<int> &new_changed, std::pair<int, parlay::sequence<int>> *begin, 
 		std::pair<int, parlay::sequence<int>> *end){
         size_t stride = end - begin;
@@ -104,7 +105,8 @@ struct pyNN_index{
 		for(int m=l+1; m<filtered_candidates.size(); m++){
                     int k=filtered_candidates[m];
 		    if (changed[j] || changed[k]) {
-		      float dist = D->distance(v[j]->coordinates.begin(), v[k]->coordinates.begin(), d);
+		    //   float dist = D->distance(v[j]->coordinates.begin(), v[k]->coordinates.begin(), d);
+              float dist = Points[j].distance(Points[k]);
 		      float k_max = old_neighbors[k][old_neighbors[k].size()-1].second;
 		      if(dist < j_max) edges.push_back(std::make_pair(j, std::make_pair(k, dist)));
 		      if(dist < k_max) edges.push_back(std::make_pair(k, std::make_pair(j, dist)));
@@ -115,7 +117,8 @@ struct pyNN_index{
                 int j = old_neighbors[index][l].first;
                 for(const int& k : filtered_candidates){
 		  if (changed[index] || changed[k]) {
-                    float dist = D->distance(v[j]->coordinates.begin(), v[k]->coordinates.begin(), d);
+                    // float dist = D->distance(v[j]->coordinates.begin(), v[k]->coordinates.begin(), d);
+                    float dist = Points[j].distance(Points[k]);
                     float j_max = old_neighbors[j][old_neighbors[j].size()-1].second;
                     float k_max = old_neighbors[k][old_neighbors[k].size()-1].second;
                     if(dist < j_max) edges.push_back(std::make_pair(j, std::make_pair(k, dist)));
@@ -164,7 +167,7 @@ struct pyNN_index{
         auto sorted_graph =  parlay::group_by_key(parlay::flatten(to_group));
         parlay::parallel_for(0, sorted_graph.size(), [&] (size_t i){
             auto shuffled = parlay::remove_duplicates(parlay::random_shuffle(sorted_graph[i].second, i));
-            int upper_bound = std::min((int) shuffled.size(), K);
+            int upper_bound = std::min((long) shuffled.size(), K);
             auto truncated = parlay::tabulate(upper_bound, [&] (size_t j){
                 return shuffled[j];
             });
@@ -173,16 +176,17 @@ struct pyNN_index{
         return sorted_graph;
     }
 
-    int nn_descent_wrapper(parlay::sequence<tvec_point*> &v){
-		size_t n = v.size();
+    int nn_descent_wrapper(PR &Points){
+		size_t n = Points.size();
 		auto changed = parlay::tabulate(n, [&] (size_t i) {return 1;});
 		int rounds = 0;
-        int max_rounds = std::max(10, (int) log2(d));
-        if(d==256) max_rounds=20; //hack for ssnpp
+        int max_rounds = std::max(10, (int) log2(Points.dimension()));
+        if(Points.dimension()==256) max_rounds=20; //hack for ssnpp
 		while(parlay::reduce(changed) >= delta*n && rounds < max_rounds){
-			auto new_changed = nn_descent(v, changed);
+			auto new_changed = nn_descent(Points, changed);
 			changed = new_changed;
 			rounds++;
+            std::cout << parlay::reduce(new_changed) << " elements changed" << std::endl;
 			std::cout << "Round " << rounds << " of " <<  max_rounds << " completed" << std::endl; 
 		}
 
@@ -192,9 +196,10 @@ struct pyNN_index{
 		return rounds;
 	}
 
-    void undirect_and_prune(parlay::sequence<tvec_point*> &v, float alpha){
+    void undirect_and_prune(GraphI &G, PR &Points, float alpha){
         parlay::sequence<parlay::sequence<edge>> to_group = parlay::tabulate(old_neighbors.size(), [&] (size_t i){
             size_t s = old_neighbors[i].size();
+            assert(s == K);
             parlay::sequence<edge> e(s);
             for(int j=0; j<s; j++){
                 e[j] = std::make_pair(old_neighbors[i][j].first, (int) i);
@@ -207,14 +212,15 @@ struct pyNN_index{
             auto filtered = parlay::remove_duplicates(undirected_graph[i].second);
             auto undirected_pids = parlay::tabulate(filtered.size(), [&] (size_t j){
                 int indexU = filtered[j];
-                float dist = D->distance(v[index]->coordinates.begin(), v[indexU]->coordinates.begin(), d);
+                // float dist = D->distance(v[index]->coordinates.begin(), v[indexU]->coordinates.begin(), d);
+                float dist = Points[index].distance(Points[indexU]);
                 return std::make_pair(indexU, dist);
             });
             parlay::sort_inplace(undirected_pids, less);
             auto merged_pids = seq_union(old_neighbors[index], undirected_pids);
             old_neighbors[index] = merged_pids;
         });
-        parlay::parallel_for(0, v.size(), [&] (size_t i){
+        parlay::parallel_for(0, G.size(), [&] (size_t i){
             parlay::sequence<int> new_out = parlay::sequence<int>();
 			for(const pid& j : old_neighbors[i]){
 				if(new_out.size() == K) break;
@@ -223,31 +229,24 @@ struct pyNN_index{
 					float dist_p = j.second;
 					bool add = true;
 					for(const int& k : new_out){
-						float dist = D->distance(v[j.first]->coordinates.begin(), v[k]->coordinates.begin(), d);
+						// float dist = D->distance(v[j.first]->coordinates.begin(), v[k]->coordinates.begin(), d);
+                        float dist = Points[j.first].distance(Points[k]);
 						if(dist_p > alpha*dist) {add = false; break;}
 					}
 					if(add) new_out.push_back(j.first);
 				}
 			}
-			add_out_nbh(new_out, v[i]);
+			// add_out_nbh(new_out, v[i]);
+            G[i].add_neighbors(new_out);
         });
     }
 
-    void assign_edges(parlay::sequence<tvec_point*> &v){
-		parlay::parallel_for(0, v.size(), [&] (size_t i){
-			for(size_t j=0; j<old_neighbors[i].size(); j++){
-				int out_nbh = old_neighbors[i][j].first;
-				add_nbh(out_nbh, v[i]);
-			}
-		});
-	}
 
-    void build_index(parlay::sequence<tvec_point*> &v, size_t cluster_size, int num_clusters, double alpha){
-		clear(v);
-		clusterPID<T> C(d, D);
-        old_neighbors = parlay::sequence<parlay::sequence<pid>>(v.size());
-		C.multiple_clustertrees(v, cluster_size, num_clusters, d, K, old_neighbors);
-		nn_descent_wrapper(v);
-		undirect_and_prune(v, alpha);
+    void build_index(GraphI &G, PR &Points, size_t cluster_size, int num_clusters, double alpha){
+		clusterPID<T, Point, PointRange> C;
+        old_neighbors = parlay::sequence<parlay::sequence<pid>>(G.size());
+		C.multiple_clustertrees(Points, cluster_size, num_clusters, K, old_neighbors);
+		nn_descent_wrapper(Points);
+		undirect_and_prune(G, Points, alpha);
 	}
 };
