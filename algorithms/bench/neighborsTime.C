@@ -114,7 +114,7 @@ int main(int argc, char* argv[]) {
 
 
   int maxDeg;
-  if(algoOpt == 1) maxDeg = L*R;
+  if(algoOpt == 1) maxDeg = MST_deg*num_clusters;
   else maxDeg = R;
 
   bool graph_built = (gFile != NULL);

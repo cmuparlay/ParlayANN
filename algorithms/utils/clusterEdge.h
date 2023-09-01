@@ -28,7 +28,7 @@
 #include <random>
 #include <set>
 
-#include "indexTools.h"
+#include "graph.h"
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 #include "parlay/random.h"
@@ -48,65 +48,48 @@ struct cluster_params {
   int MSTDeg;
   int L;
   double alpha;
-  Distance* D;
   cluster_params() {}
 };
 
-template <typename T>
+template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
 struct cluster {
-  unsigned d;
-  Distance* D;
-  using tvec_point = Tvec_point<T>;
   using edge = std::pair<int, int>;
   using labelled_edge = std::pair<edge, float>;
+  using uint = unsigned int;
+  using GraphI = Graph<uint>;
+  using PR = PointRange<T, Point>;
 
-  cluster(unsigned dim, Distance* m) : d(dim), D(m) {}
-
-  void remove_edge_duplicates(tvec_point* p) {
-    parlay::sequence<int> points;
-    for (int i = 0; i < size_of(p->out_nbh); i++) {
-      points.push_back(p->out_nbh[i]);
-    }
-    auto np = parlay::remove_duplicates(points);
-    add_out_nbh(np, p);
-  }
+  cluster(){}
 
   int generate_index(int N, int i) {
     return (N * (N - 1) - (N - i) * (N - i - 1)) / 2;
   }
 
-  bool tvec_equal(tvec_point* a, tvec_point* b, unsigned d) {
-    for (int i = 0; i < d; i++) {
-      if (a->coordinates[i] != b->coordinates[i]) {
-        return false;
-      }
-    }
-    return true;
-  }
-
   template <typename F>
-  void recurse(parlay::sequence<tvec_point*>& v,
+  void recurse(GraphI &G, PR &Points,
                parlay::sequence<size_t>& active_indices, parlay::random& rnd,
-               size_t cluster_size, F f, cluster_params P, tvec_point* first,
-               tvec_point* second) {
+               size_t cluster_size, F f, cluster_params P, uint first,
+               uint second) {
     // Split points based on which of the two points are closer.
     auto closer_first =
         parlay::filter(parlay::make_slice(active_indices), [&](size_t ind) {
-          tvec_point* p = v[ind];
-          float dist_first = D->distance(p->coordinates.begin(),
-                                         first->coordinates.begin(), d);
-          float dist_second = D->distance(p->coordinates.begin(),
-                                          second->coordinates.begin(), d);
+          // float dist_first = D->distance(p->coordinates.begin(),
+          //                                first->coordinates.begin(), d);
+          float dist_first = Points[ind].distance(Points[first]);
+          // float dist_second = D->distance(p->coordinates.begin(),
+          //                                 second->coordinates.begin(), d);
+          float dist_second = Points[ind].distance(Points[second]);
           return dist_first <= dist_second;
         });
 
     auto closer_second =
         parlay::filter(parlay::make_slice(active_indices), [&](size_t ind) {
-          tvec_point* p = v[ind];
-          float dist_first = D->distance(p->coordinates.begin(),
-                                         first->coordinates.begin(), d);
-          float dist_second = D->distance(p->coordinates.begin(),
-                                          second->coordinates.begin(), d);
+          // float dist_first = D->distance(p->coordinates.begin(),
+          //                                first->coordinates.begin(), d);
+          // float dist_second = D->distance(p->coordinates.begin(),
+          //                                 second->coordinates.begin(), d);
+          float dist_first = Points[ind].distance(Points[first]);
+          float dist_second = Points[ind].distance(Points[second]);
           return dist_second < dist_first;
         });
 
@@ -114,33 +97,30 @@ struct cluster {
     auto right_rnd = rnd.fork(1);
 
     if (closer_first.size() == 1) {
-      random_clustering(v, active_indices, right_rnd, cluster_size, f, P);
+      random_clustering(G, Points, active_indices, right_rnd, cluster_size, f, P);
     } else if (closer_second.size() == 1) {
-      random_clustering(v, active_indices, left_rnd, cluster_size, f, P);
+      random_clustering(G, Points, active_indices, left_rnd, cluster_size, f, P);
     } else {
       parlay::par_do(
           [&]() {
-            random_clustering(v, closer_first, left_rnd, cluster_size, f, P);
+            random_clustering(G, Points, closer_first, left_rnd, cluster_size, f, P);
           },
           [&]() {
-            random_clustering(v, closer_second, right_rnd, cluster_size, f, P);
+            random_clustering(G, Points, closer_second, right_rnd, cluster_size, f, P);
           });
     }
   }
 
   template <typename F>
-  void random_clustering(parlay::sequence<tvec_point*>& v,
+  void random_clustering(GraphI &G, PR &Points,
                          parlay::sequence<size_t>& active_indices,
                          parlay::random& rnd, size_t cluster_size, F g,
                          cluster_params P) {
     if (active_indices.size() < cluster_size)
-      g(v, active_indices, P);
+      g(G, Points, active_indices, P);
     else {
       auto [f, s] = select_two_random(active_indices, rnd);
-      tvec_point* first = v[f];
-      tvec_point* second = v[s];
-      int dim = v[0]->coordinates.size();
-      if (tvec_equal(first, second, dim)) {
+      if (Points[f]==Points[s]) {
         parlay::sequence<size_t> closer_first;
         parlay::sequence<size_t> closer_second;
         for (int i = 0; i < active_indices.size(); i++) {
@@ -153,37 +133,37 @@ struct cluster {
         auto right_rnd = rnd.fork(1);
         parlay::par_do(
             [&]() {
-              random_clustering(v, closer_first, left_rnd, cluster_size, g, P);
+              random_clustering(G, Points, closer_first, left_rnd, cluster_size, g, P);
             },
             [&]() {
-              random_clustering(v, closer_second, right_rnd, cluster_size, g,
+              random_clustering(G, Points, closer_second, right_rnd, cluster_size, g,
                                 P);
             });
       } else {
-        recurse(v, active_indices, rnd, cluster_size, g, P, first, second);
+        recurse(G, Points, active_indices, rnd, cluster_size, g, P, f, s);
       }
     }
   }
 
   template <typename F>
-  void random_clustering_wrapper(parlay::sequence<tvec_point*>& v,
+  void random_clustering_wrapper(GraphI &G, PR &Points,
                                  size_t cluster_size, F f, cluster_params P) {
     std::random_device rd;
     std::mt19937 rng(rd());
-    std::uniform_int_distribution<int> uni(0, v.size());
+    std::uniform_int_distribution<int> uni(0, Points.size());
     parlay::random rnd(uni(rng));
     auto active_indices =
-        parlay::tabulate(v.size(), [&](size_t i) { return i; });
-    random_clustering(v, active_indices, rnd, cluster_size, f, P);
+        parlay::tabulate(Points.size(), [&](size_t i) { return i; });
+    random_clustering(G, Points, active_indices, rnd, cluster_size, f, P);
   }
 
   template <typename F>
-  void multiple_clustertrees(parlay::sequence<tvec_point*>& v,
+  void multiple_clustertrees(GraphI &G, PR &Points,
                              size_t cluster_size, int num_clusters, F f,
                              cluster_params P) {
     for (int i = 0; i < num_clusters; i++) {
       std::cout << "Cluster " << i << std::endl;
-      random_clustering_wrapper(v, cluster_size, f, P);
+      random_clustering_wrapper(G, Points, cluster_size, f, P);
       std::cout << "Built cluster " << i << " of " << num_clusters << std::endl;
     }
   }

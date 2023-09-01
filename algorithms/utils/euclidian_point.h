@@ -81,6 +81,15 @@ struct Euclidian_Point {
   Euclidian_Point(T* values, unsigned int d, long id)
     : values(values), d(d), id_(id) {}
 
+  bool operator==(Euclidian_Point<T> q){
+    for (int i = 0; i < d; i++) {
+      if (values[i] != q.values[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
 private:
   T* values;
   unsigned int d;

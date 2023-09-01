@@ -28,32 +28,31 @@
 #include "../utils/NSGDist.h"  
 #include "../utils/types.h"
 #include "../utils/beamSearch.h"
-#include "../utils/indexTools.h"
 #include "../utils/stats.h"
 #include "../utils/parse_results.h"
 #include "../utils/check_nn_recall.h"
+#include "../utils/graph.h"
 #include "hcnng_index.h"
 
-template<typename T>
-void ANN(parlay::sequence<Tvec_point<T>*> &v, int k, int mstDeg,
-	 int num_clusters, int beamSizeQ, double cluster_size, double dummy,
-	 parlay::sequence<Tvec_point<T>*> &q, parlay::sequence<ivec_point>& groundTruth, char* res_file, bool graph_built, Distance* D, data_store<T> &Data) {
+template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
+void ANN(Graph<unsigned int> &G, int k, BuildParams &BP,
+         PointRange<T, Point> &Query_Points,
+         groundTruth<int> GT, char *res_file,
+         bool graph_built, PointRange<T, Point> &Points) {
 
   parlay::internal::timer t("ANN"); 
-  using findex = hcnng_index<T>;
-  unsigned d = (v[0]->coordinates).size();
+  using findex = hcnng_index<T, Point, PointRange>;
+
   double idx_time;
   if(!graph_built){
-    findex I(mstDeg, d, D);
-     parlay::sequence<int> inserts = parlay::tabulate(v.size(), [&] (size_t i){
-					    return static_cast<int>(i);});
-    I.build_index(v, num_clusters, cluster_size);
+    findex I;
+    I.build_index(G, Points, BP.num_clusters, BP.cluster_size);
     idx_time = t.next_time();
   } else{idx_time=0;}
   std::string name = "HCNNG";
-  std::string params = "Trees = " + std::to_string(num_clusters);
-  auto [avg_deg, max_deg] = graph_stats(v);
-  Graph G(name, params, v.size(), avg_deg, max_deg, idx_time);
-  G.print();
-  if(q.size() != 0) search_and_parse(G, v, q, groundTruth, res_file, D);
+  std::string params = "Trees = " + std::to_string(BP.num_clusters);
+  auto [avg_deg, max_deg] = graph_stats_(G);
+  Graph_ G_(name, params, G.size(), avg_deg, max_deg, idx_time);
+  G_.print();
+  if(Query_Points.size() != 0) search_and_parse(G_, G, Points, Query_Points, GT, res_file);
 }
