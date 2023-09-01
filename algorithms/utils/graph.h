@@ -58,12 +58,12 @@ struct edgeRange{
         } else return edges[j+1];
     }
 
-    void add_neighbor(indexType nbh){
+    void append_neighbor(indexType nbh){
         if(edges[0] == maxDeg){
             std::cout << "ERROR in add_neighbor: cannot exceed max degree " << maxDeg << std::endl;
             abort();
         }else{
-            edges[edges[0]] = nbh;
+            edges[edges[0]+1] = nbh;
             edges[0] += 1;
         }
     }
@@ -123,7 +123,6 @@ struct Graph{
         graph = parlay::sequence<indexType>(n*(maxDeg+1),0);
     }
 
-    // //TODO fill in
     // //TODO work in blocks for sake of memory
     Graph(char* gFile){
         auto [fileptr, length] = mmapStringFromFile(gFile);
@@ -147,7 +146,6 @@ struct Graph{
         });
     }
 
-    //TODO fill in
     //TODO work in blocks for sake of memory
     void save(char* oFile){
         std::cout << "Writing graph with " << n << " points and max degree " << maxDeg

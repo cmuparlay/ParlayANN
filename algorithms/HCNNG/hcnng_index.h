@@ -25,6 +25,7 @@
 #include "parlay/primitives.h"
 #include "parlay/random.h"
 #include "../utils/clusterEdge.h"
+#include "../utils/graph.h"
 #include <random>
 #include <set>
 #include <math.h>
@@ -87,57 +88,56 @@ struct DisjointSet{
 
 };
 
-template<typename T>
+template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
 struct hcnng_index{
-	int maxDeg;
-	unsigned d;
-	Distance* D;
-	using tvec_point = Tvec_point<T>;
-	using slice_tvec = decltype(make_slice(parlay::sequence<tvec_point*>()));
+
 	using edge = std::pair<int, int>;
 	using labelled_edge = std::pair<edge, float>;
 	using pid = std::pair<int, float>;
+	using uint = unsigned int;
+	using GraphI = Graph<uint>;
+	using PR = PointRange<T, Point>;
 
-	hcnng_index(int md, unsigned dim, Distance* DD) : maxDeg(md), d(dim), D(DD) {}
+	hcnng_index(){}
 
-	static void remove_edge_duplicates(tvec_point* p){
-		parlay::sequence<int> points;
-		for(int i=0; i<size_of(p->out_nbh); i++){
-			points.push_back(p->out_nbh[i]);
+	static void remove_edge_duplicates(uint p, GraphI &G){
+		parlay::sequence<uint> points;
+		for(int i=0; i<G[p].size(); i++){
+			points.push_back(G[p][i]);
 		}
 		auto np = parlay::remove_duplicates(points);
-		add_out_nbh(np, p);
+		G[p].add_neighbors(points);
 	}
 
-	void remove_all_duplicates(parlay::sequence<tvec_point*> &v){
-		parlay::parallel_for(0, v.size(), [&] (size_t i){
-			remove_edge_duplicates(v[i]);
+	void remove_all_duplicates(GraphI &G){
+		parlay::parallel_for(0, G.size(), [&] (size_t i){
+			remove_edge_duplicates(i, G);
 		});
 	}
 	
 	//inserts each edge after checking for duplicates
-	static void process_edges(parlay::sequence<tvec_point*> &v, parlay::sequence<edge> edges){
-		int maxDeg = v[1]->out_nbh.begin() - v[0]->out_nbh.begin();
+	static void process_edges(GraphI &G, parlay::sequence<edge> edges){
+		long maxDeg = G.max_degree();
 		auto grouped = parlay::group_by_key(edges);
 		for(auto pair : grouped){
 			auto [index, candidates] = pair;
 			for(auto c : candidates){
-				if(size_of(v[index]->out_nbh) < maxDeg){
-					add_nbh(c, v[index]);
+				if(G[index].size() < maxDeg){
+					G[index].append_neighbor(c);
 				}else{
-					remove_edge_duplicates(v[index]);
-					add_nbh(c, v[index]);
+					remove_edge_duplicates(index, G);
+					G[index].append_neighbor(c);
 				}
 			}
 		}
 	}
 
 	//parameters dim and K are just to interface with the cluster tree code
-	static void MSTk(parlay::sequence<tvec_point*> &v, parlay::sequence<size_t> &active_indices, 
+	static void MSTk(GraphI &G, PR &Points, parlay::sequence<size_t> &active_indices, 
 		cluster_params C){
 		//preprocessing for Kruskal's
 		int N = active_indices.size();
-		int dim = v[0]->coordinates.size();
+		int dim = Points.dimension();
 		DisjointSet *disjset = new DisjointSet(N);
 		size_t m = 10;
 		auto less = [&] (labelled_edge a, labelled_edge b) {return a.second < b.second;};
@@ -147,10 +147,9 @@ struct hcnng_index{
 		parlay::parallel_for(0, N, [&] (size_t i){
 			std::priority_queue<labelled_edge, std::vector<labelled_edge>, decltype(less)> Q(less);
 			for(int j=0; j<N; j++){
-				// float ff = dis(gen);
-				// std::cout << ff << std::endl;
 				if(j!=i){
-					float dist_ij = C.D->distance(v[active_indices[i]]->coordinates.begin(), v[active_indices[j]]->coordinates.begin(), dim);
+					// float dist_ij = C.D->distance(v[active_indices[i]]->coordinates.begin(), v[active_indices[j]]->coordinates.begin(), dim);
+					float dist_ij = Points[active_indices[i]].distance(Points[active_indices[j]]);
 					if(Q.size() >= m){
 						float topdist = Q.top().second;
 						if(dist_ij < topdist){
@@ -214,17 +213,17 @@ struct hcnng_index{
 			}
 		}
 		delete disjset;
-		process_edges(v, MST_edges);
+		process_edges(G, MST_edges);
 	}
 
 	//robustPrune routine as found in DiskANN paper, with the exception that the new candidate set
 	//is added to the field new_nbhs instead of directly replacing the out_nbh of p
-	void robustPrune(tvec_point* p, parlay::sequence<tvec_point*> &v, double alpha, int maxDeg) {
+	void robustPrune(uint p, PR &Points, GraphI &G, double alpha) {
     // add out neighbors of p to the candidate set.
 		parlay::sequence<pid> candidates;
-		for (size_t i=0; i<size_of(p->out_nbh); i++) {
-			candidates.push_back(std::make_pair(p->out_nbh[i],
-				D->distance(v[p->out_nbh[i]]->coordinates.begin(), p->coordinates.begin(), d)));
+		for (size_t i=0; i<G[p].size(); i++) {
+			candidates.push_back(std::make_pair(G[p][i],
+				Points[p].distance(Points[G[p][i]])));
 		}
 		
 
@@ -236,38 +235,38 @@ struct hcnng_index{
 
 		
     	size_t candidate_idx = 0;
-		while (new_nbhs.size() < maxDeg && candidate_idx < candidates.size()) {
+		while (new_nbhs.size() < G.max_degree() && candidate_idx < candidates.size()) {
 			// Don't need to do modifications.
 			int p_star = candidates[candidate_idx].first;
 			candidate_idx++;
-			if (p_star == p->id || p_star == -1) continue;
+			if (p_star == p) continue;
 
       		new_nbhs.push_back(p_star);
 
 			for (size_t i = candidate_idx; i < candidates.size(); i++) {
 				int p_prime = candidates[i].first;
 				if (p_prime != -1) {
-					float dist_starprime = D->distance(v[p_star]->coordinates.begin(), v[p_prime]->coordinates.begin(), d);
+					// float dist_starprime = D->distance(v[p_star]->coordinates.begin(), v[p_prime]->coordinates.begin(), d);
+					float dist_starprime = Points[p_star].distance(Points[p_prime]);
 					float dist_pprime = candidates[i].second;
 					if (alpha * dist_starprime <= dist_pprime) candidates[i].first = -1;
 				}
 			}
 		}
-		add_out_nbh(new_nbhs, p);
+		G[p].add_neighbors(new_nbhs);
+		// add_out_nbh(new_nbhs, p);
 	}
 
 
 
 
-	void build_index(parlay::sequence<tvec_point*> &v, int cluster_rounds, size_t cluster_size){ 
-		clear(v); 
-		cluster<T> C(d, D);
+	void build_index(GraphI &G, PR &Points, int cluster_rounds, size_t cluster_size){  
+		cluster<T, Point, PointRange> C;
 		cluster_params P;
 		P.MSTDeg = 3;
-		P.D = D;
 		int maxDeg = P.MSTDeg*cluster_rounds;
-		C.multiple_clustertrees(v, cluster_size, cluster_rounds, MSTk, P);
-		remove_all_duplicates(v);
+		C.multiple_clustertrees(G, Points, cluster_size, cluster_rounds, MSTk, P);
+		remove_all_duplicates(G);
 		// parlay::parallel_for(0, v.size(), [&] (size_t i){robustPrune(v[i], v, 1.1, maxDeg);});
 	}
 	
