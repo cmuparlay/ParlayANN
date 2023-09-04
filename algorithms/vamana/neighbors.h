@@ -40,12 +40,11 @@
 
 
 template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
-void ANN(Graph<unsigned int> &G, int k, BuildParams &BP,
+void ANN(Graph<unsigned int> &G, long k, BuildParams &BP,
          PointRange<T, Point> &Query_Points,
-         groundTruth<int> GT, char *res_file,
+         groundTruth<uint> GT, char *res_file,
          bool graph_built, PointRange<T, Point> &Points) {
   parlay::internal::timer t("ANN");
-  long d = Points.dimension();
   using findex = knn_index<T, Point, PointRange>;
   findex I(BP);
   double idx_time;
@@ -53,9 +52,7 @@ void ANN(Graph<unsigned int> &G, int k, BuildParams &BP,
   if(graph_built){
     idx_time = 0;
   } else{
-    parlay::sequence<int> inserts = parlay::tabulate(Points.size(), [&] (size_t i){
-					    return static_cast<int>(i);});
-    I.build_index(G, std::move(inserts), Points, BuildStats);
+    I.build_index(G, Points, BuildStats);
     idx_time = t.next_time();
   }
 

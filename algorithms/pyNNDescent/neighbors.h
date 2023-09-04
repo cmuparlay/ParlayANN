@@ -34,9 +34,9 @@
 
 
 template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
-void ANN(Graph<unsigned int> &G, int k, BuildParams &BP,
+void ANN(Graph<unsigned int> &G, long k, BuildParams &BP,
          PointRange<T, Point> &Query_Points,
-         groundTruth<int> GT, char *res_file,
+         groundTruth<uint> GT, char *res_file,
          bool graph_built, PointRange<T, Point> &Points) {
   parlay::internal::timer t("ANN"); 
   {

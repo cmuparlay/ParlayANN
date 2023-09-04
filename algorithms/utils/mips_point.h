@@ -33,7 +33,6 @@
 
 #include "../bench/parse_command_line.h"
 #include "types.h"
-// #include "common/time_loop.h"
 
 #include <fcntl.h>
 #include <sys/mman.h>
@@ -41,35 +40,37 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-float euclidian_distance(uint8_t *p, uint8_t *q, unsigned d) {
-  int result = 0;
-  for (int i = 0; i < d; i++) {
-    result += ((int32_t)((int16_t)q[i] - (int16_t)p[i])) *
-      ((int32_t)((int16_t)q[i] - (int16_t)p[i]));
-  }
-  return (float)result;
-}
 
-float euclidian_distance(int8_t *p, int8_t *q, unsigned d) {
-  int result = 0;
-  for (int i = 0; i < d; i++) {
-    result += ((int32_t)((int16_t)q[i] - (int16_t)p[i])) *
-      ((int32_t)((int16_t)q[i] - (int16_t)p[i]));
+  float mips_distance(uint8_t *p, uint8_t *q, unsigned d) {
+    int result = 0;
+    for (int i = 0; i < d; i++) {
+      result += ((int32_t)q[i]) * ((int32_t)p[i]);
+    }
+    return -((float)result);
   }
-  return (float)result;
-}
 
-float euclidian_distance(float *p, float *q, unsigned d) {
-  efanna2e::DistanceL2 distfunc;
-  return distfunc.compare(p, q, d);
-}
+  float mips_distance(int8_t *p, int8_t *q, unsigned d) {
+    int result = 0;
+    for (int i = 0; i < d; i++) {
+      result += ((int32_t)q[i]) * ((int32_t)p[i]);
+    }
+    return -((float)result);
+  }
+
+  float mips_distance(float *p, float *q, unsigned d) {
+    float result = 0;
+    for (int i = 0; i < d; i++) {
+      result += (q[i]) * (p[i]);
+    }
+    return -result;
+  }
 
 template<typename T>
-struct Euclidian_Point {
-  static bool is_metric() {return true;}
+struct Mips_Point {
+  static bool is_metric() {return false;}
 
-  float distance(Euclidian_Point<T> x) {
-    return euclidian_distance(this->values, x.values, d);
+  float distance(Mips_Point<T> x) {
+    return mips_distance(this->values, x.values, d);
   }
 
   void prefetch() {
@@ -80,10 +81,10 @@ struct Euclidian_Point {
 
   long id() {return id_;}
 
-  Euclidian_Point(T* values, unsigned int d, long id)
+  Mips_Point(T* values, unsigned int d, long id)
     : values(values), d(d), id_(id) {}
 
-  bool operator==(Euclidian_Point<T> q){
+  bool operator==(Mips_Point<T> q){
     for (int i = 0; i < d; i++) {
       if (values[i] != q.values[i]) {
         return false;
@@ -97,4 +98,3 @@ private:
   unsigned int d;
   long id_;
 };
-

@@ -123,27 +123,76 @@ struct Graph{
         graph = parlay::sequence<indexType>(n*(maxDeg+1),0);
     }
 
+    // // //TODO work in blocks for sake of memory
+    // Graph(char* gFile){
+    //     auto [fileptr, length] = mmapStringFromFile(gFile);
+    //     indexType num_points = *((indexType*)fileptr);
+    //     indexType max_deg = *((indexType*)(fileptr + sizeof(indexType)));
+    //     n = num_points;
+    //     maxDeg = max_deg;
+    //     std::cout << "Detected " << num_points << " points with max degree " << max_deg << std::endl;
+    //     indexType* degrees_start = (indexType*)(fileptr + 2*sizeof(indexType));
+    //     indexType* degrees_end = degrees_start + num_points;
+    //     parlay::slice<indexType*, indexType*> degrees = parlay::make_slice(degrees_start, degrees_end);
+    //     auto [offsets, total] = parlay::scan(degrees);
+    //     offsets.push_back(total);
+    //     graph = parlay::sequence<indexType>(n*(maxDeg+1),0);
+    //     indexType* edges_start = degrees_end;
+    //     parlay::parallel_for(0, n, [&] (size_t i){
+    //         graph[i*(maxDeg+1)] = degrees[i];
+    //         for(size_t j=0; j<degrees[i]; j++){
+    //             graph[i*(maxDeg+1)+1+j] = *(edges_start + offsets[i] + j);
+    //         }
+    //     });
+    // }
+
     // //TODO work in blocks for sake of memory
     Graph(char* gFile){
-        auto [fileptr, length] = mmapStringFromFile(gFile);
-        indexType num_points = *((indexType*)fileptr);
-        indexType max_deg = *((indexType*)(fileptr + sizeof(indexType)));
+        std::ifstream reader(gFile);
+        assert(reader.is_open());
+
+        //read num points and max degree
+        indexType num_points;
+        indexType max_deg;
+        reader.read((char*)(&num_points), sizeof(indexType));
         n = num_points;
+        reader.read((char*)(&max_deg), sizeof(indexType));
         maxDeg = max_deg;
         std::cout << "Detected " << num_points << " points with max degree " << max_deg << std::endl;
-        indexType* degrees_start = (indexType*)(fileptr + 2*sizeof(indexType));
-        indexType* degrees_end = degrees_start + num_points;
+
+        //read degrees and perform scan to find offsets
+        indexType* degrees_start = new indexType[n];
+        reader.read((char*)(degrees_start), sizeof(indexType)*n);
+        indexType* degrees_end = degrees_start + n;
         parlay::slice<indexType*, indexType*> degrees = parlay::make_slice(degrees_start, degrees_end);
         auto [offsets, total] = parlay::scan(degrees);
         offsets.push_back(total);
+
+        //write to graph object
         graph = parlay::sequence<indexType>(n*(maxDeg+1),0);
-        indexType* edges_start = degrees_end;
-        parlay::parallel_for(0, n, [&] (size_t i){
-            graph[i*(maxDeg+1)] = degrees[i];
-            for(size_t j=0; j<degrees[i]; j++){
-                graph[i*(maxDeg+1)+1+j] = *(edges_start + offsets[i] + j);
-            }
-        });
+        //write 1000000 vertices at a time
+        size_t BLOCK_SIZE=1000000;
+        size_t index = 0;
+        size_t total_size_read = 0;
+        while(index < n){
+            size_t g_floor = index;
+            size_t g_ceiling = g_floor + BLOCK_SIZE <= n ? g_floor + BLOCK_SIZE : n;
+            size_t total_size_to_read = offsets[g_ceiling]-offsets[g_floor];
+            indexType* edges_start = new indexType[total_size_to_read];
+            reader.read((char*)(edges_start), sizeof(indexType)*total_size_to_read);
+            indexType* edges_end = edges_start + total_size_to_read;
+            parlay::slice<indexType*, indexType*> edges = parlay::make_slice(edges_start, edges_end);
+            parlay::parallel_for(g_floor, g_ceiling, [&] (size_t i){
+               graph[i*(maxDeg+1)] = degrees[i]; 
+                for(size_t j=0; j<degrees[i]; j++){
+                    graph[i*(maxDeg+1)+1+j] = edges[offsets[i] - total_size_read + j];
+                }
+            });
+            total_size_read += total_size_to_read;
+            index = g_ceiling; 
+            delete[] edges_start;
+        }
+        delete[] degrees_start;
     }
 
     //TODO work in blocks for sake of memory
@@ -152,17 +201,23 @@ struct Graph{
                     << std::endl;
         parlay::sequence<indexType> preamble = {static_cast<indexType>(n), static_cast<indexType>(maxDeg)};
         parlay::sequence<indexType> sizes = parlay::tabulate(n, [&] (size_t i){return static_cast<indexType>((*this)[i].size());});
-        parlay::sequence<parlay::sequence<indexType>> edge_data = parlay::tabulate(n, [&] (size_t i){
-            return parlay::tabulate(sizes[i], [&] (size_t j){return (*this)[i][j];});
-        });
-        parlay::sequence<indexType> data = parlay::flatten(edge_data);
         std::ofstream writer;
         writer.open(oFile, std::ios::binary | std::ios::out);
         writer.write((char*)preamble.begin(), 2 * sizeof(indexType));
         writer.write((char*)sizes.begin(), sizes.size() * sizeof(indexType));
-        writer.write((char*)data.begin(), data.size() * sizeof(indexType));
+        size_t BLOCK_SIZE = 1000000;
+        size_t index = 0;
+        while(index < n){
+            size_t floor = index;
+            size_t ceiling = index+BLOCK_SIZE <= n ? index+BLOCK_SIZE : n;
+            parlay::sequence<parlay::sequence<indexType>> edge_data = parlay::tabulate(ceiling-floor, [&] (size_t i){
+                return parlay::tabulate(sizes[i+floor], [&] (size_t j){return (*this)[i+floor][j];});
+            });
+            parlay::sequence<indexType> data = parlay::flatten(edge_data);
+            writer.write((char*)data.begin(), data.size() * sizeof(indexType));
+            index = ceiling;
+        }
         writer.close();
-
     }
 
     edgeRange<indexType> operator [] (indexType i) {return edgeRange<indexType>(graph.begin()+i*(maxDeg+1), graph.begin()+(i+1)*(maxDeg+1), i);}

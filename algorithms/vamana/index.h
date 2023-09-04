@@ -35,7 +35,7 @@
 template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
 struct knn_index {
   using uint = unsigned int;
-  using pid = std::pair<int, float>;
+  using pid = std::pair<uint, float>;
   using PR = PointRange<T, Point>;
   using GraphI = Graph<unsigned int>;
 
@@ -51,7 +51,7 @@ struct knn_index {
   //robustPrune routine as found in DiskANN paper, with the exception
   //that the new candidate set is added to the field new_nbhs instead
   //of directly replacing the out_nbh of p
-  parlay::sequence<uint> robustPrune(int p, parlay::sequence<pid>& cand,
+  parlay::sequence<uint> robustPrune(uint p, parlay::sequence<pid>& cand,
                     GraphI &G, PR &Points, 
                   parlay::sequence<uint> &new_neighbors, bool add = true) {
     // add out neighbors of p to the candidate set.
@@ -103,7 +103,7 @@ struct knn_index {
 
   //wrapper to allow calling robustPrune on a sequence of candidates 
   //that do not come with precomputed distances
-  parlay::sequence<uint> robustPrune(int p, parlay::sequence<int> candidates,
+  parlay::sequence<uint> robustPrune(uint p, parlay::sequence<uint> candidates,
                     GraphI &G, PR &Points, 
                    parlay::sequence<uint> &new_neighbors, bool add = true){
 
@@ -115,12 +115,14 @@ struct knn_index {
     return robustPrune(p, cc, G, Points, new_neighbors, add);
   }
 
-  void build_index(GraphI &G, parlay::sequence<int> inserts, PR &Points, stats<uint> &BuildStats){
+  void build_index(GraphI &G, PR &Points, stats<uint> &BuildStats){
     std::cout << "Building graph..." << std::endl;
     medoid = 0;
+    parlay::sequence<uint> inserts = parlay::tabulate(Points.size(), [&] (size_t i){
+					    return static_cast<uint>(i);});
     batch_insert(inserts, G, Points, BuildStats, true, 2, .02);
     parlay::parallel_for (0, G.size(), [&] (long i) {
-      auto less = [&] (long j, long k) {
+      auto less = [&] (uint j, uint k) {
 		    return Points[i].distance(Points[j]) < Points[i].distance(Points[k]);};
       G[i].sort(less);});
   }
@@ -199,7 +201,7 @@ struct knn_index {
   //   delete_set.clear();
   // }
 
-  void batch_insert(parlay::sequence<int> &inserts,
+  void batch_insert(parlay::sequence<uint> &inserts,
                      GraphI &G, PR &Points, stats<uint> &BuildStats,
                     bool random_order = false, double base = 2,
                     double max_fraction = .02, bool print=true) {
@@ -267,7 +269,7 @@ struct knn_index {
       //(i,j) to a sequence, then semisorting the sequence by key values
       t_bidirect.start();
       auto to_flatten = parlay::tabulate(ceiling - floor, [&](size_t i) {
-        int index = shuffled_inserts[i + floor];
+        uint index = shuffled_inserts[i + floor];
         auto edges =
             parlay::tabulate(new_out_[i].size(), [&](size_t j) {
               return std::make_pair(new_out_[i][j], index);
@@ -286,7 +288,7 @@ struct knn_index {
       // otherwise, use robustPrune on the vertex with user-specified alpha
       parlay::parallel_for(0, grouped_by.size(), [&](size_t j) {
         auto &[index, candidates] = grouped_by[j];
-        int newsize = candidates.size() + G[index].size();
+        size_t newsize = candidates.size() + G[index].size();
         if (newsize <= BP.R) {
           G[index].append_neighbors(candidates);
         } else {
@@ -303,8 +305,8 @@ struct knn_index {
     t_prune.total();
   }
 
-  void batch_insert(int p, Graph<uint> &G) {
-    parlay::sequence<int> inserts;
+  void batch_insert(uint p, Graph<uint> &G) {
+    parlay::sequence<uint> inserts;
     inserts.push_back(p);
     batch_insert(inserts, G, true);
   }

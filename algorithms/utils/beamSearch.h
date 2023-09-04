@@ -37,14 +37,14 @@
 #include "graph.h"
 #include "stats.h"
 
-
-using vertex_id = int;
+using uint = unsigned int;
+using vertex_id = unsigned int;
 using distance = float;
 using id_dist = std::pair<vertex_id, distance>;
 using GraphI = Graph<unsigned int>;
 
 template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
-std::pair<std::pair<parlay::sequence<id_dist>, parlay::sequence<id_dist>>, int>
+std::pair<std::pair<parlay::sequence<id_dist>, parlay::sequence<id_dist>>, uint>
 beam_search(Point<T> p, GraphI &G, PointRange<T, Point> &Points,
 	    uint starting_point, int beamSize,
 	    int k=0, float cut=1.14, int limit=-1) {
@@ -57,8 +57,8 @@ beam_search(Point<T> p, GraphI &G, PointRange<T, Point> &Points,
 template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
 std::pair<std::pair<parlay::sequence<id_dist>, parlay::sequence<id_dist>>, size_t>
 beam_search(Point<T> p, GraphI &G, PointRange<T, Point> &Points,
-	      parlay::sequence<uint> starting_points, int beamSize,
-	      int k=0, float cut=1.14, int max_visit=-1) {
+	      parlay::sequence<uint> starting_points, long beamSize,
+	      long k=0, double cut=1.14, long max_visit=-1) {
   if(max_visit == -1) max_visit = G.size();
   // if (D->id() == "mips") cut = -cut;
 
@@ -70,9 +70,6 @@ beam_search(Point<T> p, GraphI &G, PointRange<T, Point> &Points,
 
   
   // calculate distance from q to p
-  // auto distance_from_p = [&] (vertex_id q) { 
-  //     return Data.distance(Data.get(q), p_coords);};
-
   auto distance_from_p = [&] (vertex_id q) { 
       return Points[q].distance(p);};
   
@@ -80,7 +77,7 @@ beam_search(Point<T> p, GraphI &G, PointRange<T, Point> &Points,
   // used as a hash filter (can give false negative -- i.e. can say
   // not in table when it is)
   int bits = std::max<int>(10, std::ceil(std::log2(beamSize * beamSize)) - 2);
-  std::vector<int> hash_filter(1 << bits, -1);
+  std::vector<uint> hash_filter(1 << bits, -1);
   auto has_been_seen = [&](vertex_id a) -> bool {
     int loc = parlay::hash64_2(a) & ((1 << bits) - 1);
     if (hash_filter[loc] == a) return true;
@@ -138,7 +135,7 @@ beam_search(Point<T> p, GraphI &G, PointRange<T, Point> &Points,
     // not bump anyone else.
     candidates.clear();
     keep.clear();
-    for (int i=0; i<G[current.first].size(); i++) {
+    for (uint i=0; i<G[current.first].size(); i++) {
       auto a = G[current.first][i];
       if (a == p.id() || has_been_seen(a)) continue;  // skip if already seen
       keep.push_back(a);
@@ -183,7 +180,7 @@ beam_search(Point<T> p, GraphI &G, PointRange<T, Point> &Points,
 
     // copy new_frontier back to the frontier
     frontier.clear();
-    for (int i = 0; i < new_frontier_size; i++)
+    for (uint i = 0; i < new_frontier_size; i++)
       frontier.push_back(new_frontier[i]);
 
     // get the unvisited frontier (we only care about the first one)
@@ -287,9 +284,9 @@ beam_search(Point<T> p, GraphI &G, PointRange<T, Point> &Points,
 
 // searches every element in q starting from a randomly selected point
 template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
-parlay::sequence<parlay::sequence<int>> beamSearchRandom(PointRange<T, Point>& Query_Points,
-                                         GraphI &G, PointRange<T, Point> &Base_Points, stats<uint> &QueryStats, int beamSizeQ, 
-                                        int k, double cut = 1.14, int max_visit=-1) {
+parlay::sequence<parlay::sequence<uint>> beamSearchRandom(PointRange<T, Point>& Query_Points,
+                                         GraphI &G, PointRange<T, Point> &Base_Points, stats<uint> &QueryStats, long beamSizeQ, 
+                                        long k, double cut = 1.14, long max_visit=-1) {
   if ((k + 1) > beamSizeQ) {
     std::cout << "Error: beam search parameter Q = " << beamSizeQ
               << " same size or smaller than k = " << k << std::endl;
@@ -298,7 +295,7 @@ parlay::sequence<parlay::sequence<int>> beamSearchRandom(PointRange<T, Point>& Q
   // use a random shuffle to generate random starting points for each query
   size_t n = G.size();
 
-  parlay::sequence<parlay::sequence<int>> all_neighbors(Query_Points.size());
+  parlay::sequence<parlay::sequence<uint>> all_neighbors(Query_Points.size());
 
   parlay::random_generator gen;
   std::uniform_int_distribution<long> dis(0, n - 1);
@@ -308,7 +305,7 @@ parlay::sequence<parlay::sequence<int>> beamSearchRandom(PointRange<T, Point>& Q
   });
 
   parlay::parallel_for(0, Query_Points.size(), [&](size_t i) {
-    parlay::sequence<int> neighbors = parlay::sequence<int>(k);
+    parlay::sequence<uint> neighbors = parlay::sequence<uint>(k);
     uint start = indices[i];
     parlay::sequence<id_dist> beamElts;
     parlay::sequence<id_dist> visitedElts;
@@ -316,53 +313,47 @@ parlay::sequence<parlay::sequence<int>> beamSearchRandom(PointRange<T, Point>& Q
         beam_search(Query_Points[i], G, Base_Points, start, beamSizeQ, k, cut, max_visit);
     beamElts = pairElts.first;
     visitedElts = pairElts.second;
-    for (int j = 0; j < k; j++) {
+    for (uint j = 0; j < k; j++) {
       neighbors[j] = beamElts[j].first;
     }
     all_neighbors[i] = neighbors;
-    //TODO replace with stats object
     QueryStats.increment_visited(i, visitedElts.size());
     QueryStats.increment_dist(i, dist_cmps);
-    // q[i]->visited = visitedElts.size(); 
-    // q[i]->dist_calls = dist_cmps; 
   });
   return all_neighbors;
 }
 
 template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
-parlay::sequence<parlay::sequence<int>> searchAll(PointRange<T, Point>& Query_Points,
+parlay::sequence<parlay::sequence<uint>> searchAll(PointRange<T, Point>& Query_Points,
 	                                       GraphI &G, PointRange<T, Point> &Base_Points, stats<uint> &QueryStats,
-                                        int beamSizeQ, int k,
-	                                      uint starting_point, float cut, int max_visit) {
+                                        long beamSizeQ, long k,
+	                                      uint starting_point, double cut, long max_visit) {
     parlay::sequence<uint> start_points = {starting_point};
     return searchAll(Query_Points, G, Base_Points, QueryStats, beamSizeQ, k, start_points, cut, max_visit);
 }
 
 template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
-parlay::sequence<parlay::sequence<int>> searchAll(PointRange<T, Point> &Query_Points,
-	                                       GraphI &G, PointRange<T, Point> &Base_Points, stats<uint> &QueryStats, int beamSizeQ, 
-                                        int k, parlay::sequence<uint> starting_points,
-	                                      float cut, int max_visit) {
+parlay::sequence<parlay::sequence<uint>> searchAll(PointRange<T, Point> &Query_Points,
+	                                       GraphI &G, PointRange<T, Point> &Base_Points, stats<uint> &QueryStats, long beamSizeQ, 
+                                        long k, parlay::sequence<uint> starting_points,
+	                                      double cut, long max_visit) {
   if ((k + 1) > beamSizeQ) {
     std::cout << "Error: beam search parameter Q = " << beamSizeQ
               << " same size or smaller than k = " << k << std::endl;
     abort();
   }
-  parlay::sequence<parlay::sequence<int>> all_neighbors(Query_Points.size());
+  parlay::sequence<parlay::sequence<uint>> all_neighbors(Query_Points.size());
   parlay::parallel_for(0, Query_Points.size(), [&](size_t i) {
-    parlay::sequence<int> neighbors = parlay::sequence<int>(k);
+    parlay::sequence<uint> neighbors = parlay::sequence<uint>(k);
     auto [pairElts, dist_cmps] = beam_search(Query_Points[i], G, Base_Points, starting_points,
 					     beamSizeQ, k, cut, max_visit);
     auto [beamElts, visitedElts] = pairElts;
-    for (int j = 0; j < k; j++) {
+    for (uint j = 0; j < k; j++) {
       neighbors[j] = beamElts[j].first;
     }
     all_neighbors[i] = neighbors;
-    //TODO replace with stats object later
     QueryStats.increment_visited(i, visitedElts.size());
     QueryStats.increment_dist(i, dist_cmps);
-    // q[i]->visited = visitedElts.size();
-    // q[i]->dist_calls = dist_cmps;
   });
 
   return all_neighbors;

@@ -24,7 +24,7 @@
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 #include "parlay/random.h"
-#include "../utils/clusterEdge.h"
+#include "clusterEdge.h"
 #include "../utils/graph.h"
 #include <random>
 #include <set>
@@ -90,11 +90,10 @@ struct DisjointSet{
 
 template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
 struct hcnng_index{
-
-	using edge = std::pair<int, int>;
-	using labelled_edge = std::pair<edge, float>;
-	using pid = std::pair<int, float>;
 	using uint = unsigned int;
+	using edge = std::pair<uint, uint>;
+	using labelled_edge = std::pair<edge, float>;
+	using pid = std::pair<uint, float>;
 	using GraphI = Graph<uint>;
 	using PR = PointRange<T, Point>;
 
@@ -102,7 +101,7 @@ struct hcnng_index{
 
 	static void remove_edge_duplicates(uint p, GraphI &G){
 		parlay::sequence<uint> points;
-		for(int i=0; i<G[p].size(); i++){
+		for(uint i=0; i<G[p].size(); i++){
 			points.push_back(G[p][i]);
 		}
 		auto np = parlay::remove_duplicates(points);
@@ -134,10 +133,10 @@ struct hcnng_index{
 
 	//parameters dim and K are just to interface with the cluster tree code
 	static void MSTk(GraphI &G, PR &Points, parlay::sequence<size_t> &active_indices, 
-		cluster_params C){
+		long MSTDeg){
 		//preprocessing for Kruskal's
-		int N = active_indices.size();
-		int dim = Points.dimension();
+		size_t N = active_indices.size();
+		long dim = Points.dimension();
 		DisjointSet *disjset = new DisjointSet(N);
 		size_t m = 10;
 		auto less = [&] (labelled_edge a, labelled_edge b) {return a.second < b.second;};
@@ -146,9 +145,8 @@ struct hcnng_index{
   		std::uniform_real_distribution<float> dis(0.0, 1.0);
 		parlay::parallel_for(0, N, [&] (size_t i){
 			std::priority_queue<labelled_edge, std::vector<labelled_edge>, decltype(less)> Q(less);
-			for(int j=0; j<N; j++){
+			for(uint j=0; j<N; j++){
 				if(j!=i){
-					// float dist_ij = C.D->distance(v[active_indices[i]]->coordinates.begin(), v[active_indices[j]]->coordinates.begin(), dim);
 					float dist_ij = Points[active_indices[i]].distance(Points[active_indices[j]]);
 					if(Q.size() >= m){
 						float topdist = Q.top().second;
@@ -167,14 +165,12 @@ struct hcnng_index{
 					}
 				}
 			}
-			// if(Q.size() < m) std::cout << "small queue" << std::endl;
-			int limit = std::min(Q.size(), m);
+			uint limit = std::min(Q.size(), m);
 			parlay::sequence<labelled_edge> edges(limit);
-			for(int j=0; j<limit; j++){edges[j] = Q.top(); Q.pop();}
+			for(uint j=0; j<limit; j++){edges[j] = Q.top(); Q.pop();}
 			pre_labelled[i] = edges;
 		});
 		auto flat_edges = parlay::flatten(pre_labelled);
-		// std::cout << flat_edges.size() << std::endl;
 		auto less_dup = [&] (labelled_edge a, labelled_edge b){
 			auto dist_a = a.second;
 			auto dist_b = b.second;
@@ -192,14 +188,13 @@ struct hcnng_index{
 			}else return (dist_a < dist_b);
 		};
 		auto labelled_edges = parlay::remove_duplicates_ordered(flat_edges, less_dup);
-		// parlay::sort_inplace(labelled_edges, less);
 		auto degrees = parlay::tabulate(active_indices.size(), [&] (size_t i) {return 0;});
 		parlay::sequence<edge> MST_edges = parlay::sequence<edge>();
 		//modified Kruskal's algorithm
-		for(int i=0; i<labelled_edges.size(); i++){
+		for(uint i=0; i<labelled_edges.size(); i++){
 			labelled_edge e_l = labelled_edges[i];
 			edge e = e_l.first;
-			if((disjset->find(e.first) != disjset->find(e.second)) && (degrees[e.first]<C.MSTDeg) && (degrees[e.second]<C.MSTDeg)){
+			if((disjset->find(e.first) != disjset->find(e.second)) && (degrees[e.first]<MSTDeg) && (degrees[e.second]<MSTDeg)){
 				MST_edges.push_back(std::make_pair(active_indices[e.first], active_indices[e.second]));
 				MST_edges.push_back(std::make_pair(active_indices[e.second], active_indices[e.first]));
 				degrees[e.first] += 1;
@@ -246,7 +241,6 @@ struct hcnng_index{
 			for (size_t i = candidate_idx; i < candidates.size(); i++) {
 				int p_prime = candidates[i].first;
 				if (p_prime != -1) {
-					// float dist_starprime = D->distance(v[p_star]->coordinates.begin(), v[p_prime]->coordinates.begin(), d);
 					float dist_starprime = Points[p_star].distance(Points[p_prime]);
 					float dist_pprime = candidates[i].second;
 					if (alpha * dist_starprime <= dist_pprime) candidates[i].first = -1;
@@ -254,18 +248,14 @@ struct hcnng_index{
 			}
 		}
 		G[p].add_neighbors(new_nbhs);
-		// add_out_nbh(new_nbhs, p);
 	}
 
 
 
 
-	void build_index(GraphI &G, PR &Points, int cluster_rounds, size_t cluster_size){  
+	void build_index(GraphI &G, PR &Points, long cluster_rounds, long cluster_size, long MSTDeg){  
 		cluster<T, Point, PointRange> C;
-		cluster_params P;
-		P.MSTDeg = 3;
-		int maxDeg = P.MSTDeg*cluster_rounds;
-		C.multiple_clustertrees(G, Points, cluster_size, cluster_rounds, MSTk, P);
+		C.multiple_clustertrees(G, Points, cluster_size, cluster_rounds, MSTk, MSTDeg);
 		remove_all_duplicates(G);
 		// parlay::parallel_for(0, v.size(), [&] (size_t i){robustPrune(v[i], v, 1.1, maxDeg);});
 	}

@@ -36,16 +36,16 @@ nn_result checkRecall(
         Graph<unsigned int> &G,
         PointRange<T, Point> &Base_Points,
         PointRange<T, Point> &Query_Points,
-        groundTruth<int> GT,
-        int k, int beamQ, float cut, bool random,
-        int limit, int start_point, int r) {
+        groundTruth<uint> GT,
+        long k, long beamQ, double cut, bool random,
+        long limit, long start_point, long r) {
   if (GT.size() > 0 && r > GT.dimension()) {
     std::cout << r << "@" << r << " too large for ground truth data of size "
               << GT.dimension() << std::endl;
     abort();
   }
 
-  parlay::sequence<parlay::sequence<int>> all_ngh;
+  parlay::sequence<parlay::sequence<uint>> all_ngh;
 
   parlay::internal::timer t;
   float query_time;
@@ -157,7 +157,7 @@ parlay::sequence<int> calculate_limits(size_t avg_visited) {
 template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
 void search_and_parse(Graph_ G_, Graph<unsigned int> &G, PointRange<T, Point> &Base_Points,
    PointRange<T, Point> &Query_Points, 
-  groundTruth<int> GT, char* res_file, 
+  groundTruth<uint> GT, char* res_file, 
   bool random=true, uint start_point=0){
 
   parlay::sequence<nn_result> results;
@@ -169,12 +169,14 @@ void search_and_parse(Graph_ G_, Graph<unsigned int> &G, PointRange<T, Point> &B
     beams = {15, 20, 30, 50, 75, 100};
     allk = {10, 15, 20, 50};
     allr = {10, 20};
-    cuts = {1.1, 1.15, 1.2, 1.25};
+    if(Base_Points[0].is_metric()) cuts = {1.35};
+    else cuts = {0.0};
   } else {
     beams = {15, 20, 25, 30, 35, 40, 45, 50, 60, 75, 85,  100, 125, 150, 175, 200, 250, 300, 375, 450, 500, 750, 1000};
     allk = {10, 15, 20, 30, 50, 100};
     allr = {10};  // {10, 20, 100};
-    cuts = {1.35};
+    if(Base_Points[0].is_metric()) cuts = {1.35};
+    else cuts = {0.0};
   }
 
     for (int r : allr) {
