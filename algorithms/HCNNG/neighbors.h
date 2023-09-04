@@ -35,9 +35,9 @@
 #include "hcnng_index.h"
 
 template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
-void ANN(Graph<unsigned int> &G, int k, BuildParams &BP,
+void ANN(Graph<unsigned int> &G, long k, BuildParams &BP,
          PointRange<T, Point> &Query_Points,
-         groundTruth<int> GT, char *res_file,
+         groundTruth<uint> GT, char *res_file,
          bool graph_built, PointRange<T, Point> &Points) {
 
   parlay::internal::timer t("ANN"); 
@@ -46,7 +46,7 @@ void ANN(Graph<unsigned int> &G, int k, BuildParams &BP,
   double idx_time;
   if(!graph_built){
     findex I;
-    I.build_index(G, Points, BP.num_clusters, BP.cluster_size);
+    I.build_index(G, Points, BP.num_clusters, BP.cluster_size, BP.MST_deg);
     idx_time = t.next_time();
   } else{idx_time=0;}
   std::string name = "HCNNG";
