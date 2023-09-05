@@ -231,7 +231,7 @@ struct pyNN_index{
 					if(add) new_out.push_back(j.first);
 				}
 			}
-            G[i].add_neighbors(new_out);
+            G[i].update_neighbors(new_out);
         });
     }
 

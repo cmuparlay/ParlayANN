@@ -60,7 +60,7 @@ struct edgeRange{
 
     void append_neighbor(indexType nbh){
         if(edges[0] == maxDeg){
-            std::cout << "ERROR in add_neighbor: cannot exceed max degree " << maxDeg << std::endl;
+            std::cout << "ERROR in append_neighbor: cannot exceed max degree " << maxDeg << std::endl;
             abort();
         }else{
             edges[edges[0]+1] = nbh;
@@ -69,9 +69,9 @@ struct edgeRange{
     }
 
     template<typename rangeType>
-    void add_neighbors(rangeType r){
+    void update_neighbors(rangeType r){
         if(r.size() > maxDeg){
-            std::cout << "ERROR in add_neighbors: cannot exceed max degree " << maxDeg << std::endl;
+            std::cout << "ERROR in update_neighbors: cannot exceed max degree " << maxDeg << std::endl;
             abort();
         }
         edges[0] = r.size();

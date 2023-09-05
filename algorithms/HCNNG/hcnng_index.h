@@ -104,7 +104,7 @@ struct hcnng_index{
 			points.push_back(G[p][i]);
 		}
 		auto np = parlay::remove_duplicates(points);
-		G[p].add_neighbors(points);
+		G[p].update_neighbors(points);
 	}
 
 	void remove_all_duplicates(GraphI &G){
@@ -246,7 +246,7 @@ struct hcnng_index{
 				}
 			}
 		}
-		G[p].add_neighbors(new_nbhs);
+		G[p].update_neighbors(new_nbhs);
 	}
 
 
