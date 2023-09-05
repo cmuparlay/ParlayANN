@@ -100,5 +100,19 @@ struct BuildParams{
 };
 
 
+struct QueryParams{
+  long k;
+  long beamSize; 
+  double cut;
+  long limit;
+  long degree_limit;
+
+  QueryParams(long k, long Q, double cut, long limit) : k(k), beamSize(Q), cut(cut), limit(limit) {}
+
+  QueryParams() {}
+
+};
+
+
 
 #endif

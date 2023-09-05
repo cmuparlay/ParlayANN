@@ -74,15 +74,15 @@ struct Mips_Point {
   }
 
   void prefetch() {
-    int l = (d * sizeof(T))/64;
+    int l = (aligned_d * sizeof(T))/64;
     for (int i=0; i < l; i++)
       __builtin_prefetch((char*) values + i* 64);
   }
 
   long id() {return id_;}
 
-  Mips_Point(T* values, unsigned int d, long id)
-    : values(values), d(d), id_(id) {}
+  Mips_Point(T* values, unsigned int d, unsigned int ad, long id)
+    : values(values), d(d), aligned_d(ad), id_(id) {}
 
   bool operator==(Mips_Point<T> q){
     for (int i = 0; i < d; i++) {
@@ -96,5 +96,6 @@ struct Mips_Point {
 private:
   T* values;
   unsigned int d;
+  unsigned int aligned_d;
   long id_;
 };

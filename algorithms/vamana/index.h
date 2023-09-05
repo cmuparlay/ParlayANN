@@ -32,28 +32,26 @@
 #include "parlay/random.h"
 
 
-template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
+template<typename Point, typename PointRange, typename indexType>
 struct knn_index {
-  using uint = unsigned int;
-  using pid = std::pair<uint, float>;
-  using PR = PointRange<T, Point>;
-  using GraphI = Graph<unsigned int>;
+  using pid = std::pair<indexType, float>;
+  using PR = PointRange;
+  using GraphI = Graph<indexType>;
 
   BuildParams BP;
-  std::set<uint> delete_set; 
-  uint medoid;
+  std::set<indexType> delete_set; 
+  indexType start_point;
 
 
   knn_index(BuildParams &BP) : BP(BP) {}
 
-  uint get_medoid() { return medoid; }
+  indexType get_start() { return start_point; }
 
   //robustPrune routine as found in DiskANN paper, with the exception
   //that the new candidate set is added to the field new_nbhs instead
   //of directly replacing the out_nbh of p
-  parlay::sequence<uint> robustPrune(uint p, parlay::sequence<pid>& cand,
-                    GraphI &G, PR &Points, 
-                  parlay::sequence<uint> &new_neighbors, bool add = true) {
+  parlay::sequence<indexType> robustPrune(indexType p, parlay::sequence<pid>& cand,
+                    GraphI &G, PR &Points,  bool add = true) {
     // add out neighbors of p to the candidate set.
     size_t out_size = G[p].size();
     std::vector<pid> candidates;
@@ -70,7 +68,7 @@ struct knn_index {
     auto less = [&](pid a, pid b) { return a.second < b.second; };
     std::sort(candidates.begin(), candidates.end(), less);
 
-    std::vector<uint> new_nbhs;
+    std::vector<indexType> new_nbhs;
     new_nbhs.reserve(BP.R);
 
     size_t candidate_idx = 0;
@@ -103,52 +101,51 @@ struct knn_index {
 
   //wrapper to allow calling robustPrune on a sequence of candidates 
   //that do not come with precomputed distances
-  parlay::sequence<uint> robustPrune(uint p, parlay::sequence<uint> candidates,
-                    GraphI &G, PR &Points, 
-                   parlay::sequence<uint> &new_neighbors, bool add = true){
+  parlay::sequence<indexType> robustPrune(indexType p, parlay::sequence<indexType> candidates,
+                    GraphI &G, PR &Points, bool add = true){
 
     parlay::sequence<pid> cc;
     cc.reserve(candidates.size()); // + size_of(p->out_nbh));
     for (size_t i=0; i<candidates.size(); ++i) {
       cc.push_back(std::make_pair(candidates[i], Points[candidates[i]].distance(Points[p])));
     }
-    return robustPrune(p, cc, G, Points, new_neighbors, add);
+    return robustPrune(p, cc, G, Points, add);
   }
 
-  void build_index(GraphI &G, PR &Points, stats<uint> &BuildStats){
+  void build_index(GraphI &G, PR &Points, stats<indexType> &BuildStats){
     std::cout << "Building graph..." << std::endl;
-    medoid = 0;
-    parlay::sequence<uint> inserts = parlay::tabulate(Points.size(), [&] (size_t i){
-					    return static_cast<uint>(i);});
+    start_point = 0;
+    parlay::sequence<indexType> inserts = parlay::tabulate(Points.size(), [&] (size_t i){
+					    return static_cast<indexType>(i);});
     batch_insert(inserts, G, Points, BuildStats, true, 2, .02);
     parlay::parallel_for (0, G.size(), [&] (long i) {
-      auto less = [&] (uint j, uint k) {
+      auto less = [&] (indexType j, indexType k) {
 		    return Points[i].distance(Points[j]) < Points[i].distance(Points[k]);};
       G[i].sort(less);});
   }
 
-  void lazy_delete(parlay::sequence<uint> deletes, GraphI &G) {
-    for (uint p : deletes) {
+  void lazy_delete(parlay::sequence<indexType> deletes, GraphI &G) {
+    for (indexType p : deletes) {
       if (p > (int)G.size()) {
         std::cout << "ERROR: invalid point " << p << " given to lazy_delete"
                   << std::endl;
         abort();
       }
-      if (p != medoid)
+      if (p != start_point)
         delete_set.insert(p);
       else
-        std::cout << "Deleting medoid not permitted; continuing" << std::endl;
+        std::cout << "Deleting start_point not permitted; continuing" << std::endl;
     }
   }
 
-  void lazy_delete(uint p, GraphI &G) {
+  void lazy_delete(indexType p, GraphI &G) {
     if (p > (int)G.size()) {
       std::cout << "ERROR: invalid point " << p << " given to lazy_delete"
                 << std::endl;
       abort();
     }
-    if (p == medoid) {
-      std::cout << "Deleting medoid not permitted; continuing" << std::endl;
+    if (p == start_point) {
+      std::cout << "Deleting start_point not permitted; continuing" << std::endl;
       return;
     }
     delete_set.insert(p);
@@ -201,8 +198,8 @@ struct knn_index {
   //   delete_set.clear();
   // }
 
-  void batch_insert(parlay::sequence<uint> &inserts,
-                     GraphI &G, PR &Points, stats<uint> &BuildStats,
+  void batch_insert(parlay::sequence<indexType> &inserts,
+                     GraphI &G, PR &Points, stats<indexType> &BuildStats,
                     bool random_order = false, double base = 2,
                     double max_fraction = .02, bool print=true) {
     for(int p : inserts){
@@ -253,23 +250,23 @@ struct knn_index {
                     << std::endl;
         }
       }
-      parlay::sequence<parlay::sequence<uint>> new_out_(ceiling-floor);
-      // search for each node starting from the medoid, then call
+      parlay::sequence<parlay::sequence<indexType>> new_out_(ceiling-floor);
+      // search for each node starting from the start_point, then call
       // robustPrune with the visited list as its candidate set
       t_beam.start();
       parlay::parallel_for(floor, ceiling, [&](size_t i) {
         size_t index = shuffled_inserts[i];
+        QueryParams QP((long) 0, BP.L, (double) 0.0, (long) Points.size());
         parlay::sequence<pid> visited = 
-          (beam_search(Points[index], G, Points, medoid, BP.L)).first.second;
+          (beam_search(Points[index], G, Points, start_point, QP)).first.second;
         BuildStats.increment_visited(index, visited.size());
-        parlay::sequence<uint> temp;
-        new_out_[i-floor] = robustPrune(index, visited, G, Points, temp); });
+        new_out_[i-floor] = robustPrune(index, visited, G, Points); });
       t_beam.stop();
       // make each edge bidirectional by first adding each new edge
       //(i,j) to a sequence, then semisorting the sequence by key values
       t_bidirect.start();
       auto to_flatten = parlay::tabulate(ceiling - floor, [&](size_t i) {
-        uint index = shuffled_inserts[i + floor];
+        indexType index = shuffled_inserts[i + floor];
         auto edges =
             parlay::tabulate(new_out_[i].size(), [&](size_t j) {
               return std::make_pair(new_out_[i][j], index);
@@ -292,8 +289,7 @@ struct knn_index {
         if (newsize <= BP.R) {
           G[index].append_neighbors(candidates);
         } else {
-          parlay::sequence<uint> temp;
-          auto new_out_2_ = robustPrune(index, std::move(candidates), G, Points, temp);  
+          auto new_out_2_ = robustPrune(index, std::move(candidates), G, Points);  
           G[index].add_neighbors(new_out_2_);    
         }
       });
@@ -305,15 +301,15 @@ struct knn_index {
     t_prune.total();
   }
 
-  void batch_insert(uint p, Graph<uint> &G) {
-    parlay::sequence<uint> inserts;
+  void batch_insert(indexType p, Graph<indexType> &G) {
+    parlay::sequence<indexType> inserts;
     inserts.push_back(p);
     batch_insert(inserts, G, true);
   }
 
   // void check_index(parlay::sequence<Tvec_point<T>*> &v){
   //   parlay::parallel_for(0, v.size(), [&] (size_t i){
-  //     if(v[i]->id > 1000000 && v[i]->id != medoid->id){
+  //     if(v[i]->id > 1000000 && v[i]->id != start_point->id){
   //       if(size_of(v[i]->out_nbh) != 0) {
   //         std::cout << "ERROR : deleted point " << i << " still in graph" << std::endl; 
   //         abort();
@@ -321,7 +317,7 @@ struct knn_index {
   //     } else {
   //       for(int j=0; j<size_of(v[i]->out_nbh); j++){
   //         int nbh = v[i]->out_nbh[j];
-  //         if(nbh > 1000000 && nbh != medoid->id){
+  //         if(nbh > 1000000 && nbh != start_point->id){
   //           std::cout << "ERROR : point " << i << " contains deleted neighbor "
   //                     << nbh << std::endl; 
   //           abort();

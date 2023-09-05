@@ -44,13 +44,12 @@ std::pair<size_t, size_t> select_two_random(
   return {active_indices[first_index], active_indices[second_index]};
 }
 
-template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
+template<typename Point, typename PointRange, typename indexType>
 struct cluster {
-  using uint = unsigned int;
-  using edge = std::pair<uint, uint>;
+  using edge = std::pair<indexType, indexType>;
   using labelled_edge = std::pair<edge, float>;
-  using GraphI = Graph<uint>;
-  using PR = PointRange<T, Point>;
+  using GraphI = Graph<indexType>;
+  using PR = PointRange;
 
   cluster(){}
 
@@ -61,8 +60,8 @@ struct cluster {
   template <typename F>
   void recurse(GraphI &G, PR &Points,
                parlay::sequence<size_t>& active_indices, parlay::random& rnd,
-               size_t cluster_size, F f, long MSTDeg, uint first,
-               uint second) {
+               size_t cluster_size, F f, long MSTDeg, indexType first,
+               indexType second) {
     // Split points based on which of the two points are closer.
     auto closer_first =
         parlay::filter(parlay::make_slice(active_indices), [&](size_t ind) {
