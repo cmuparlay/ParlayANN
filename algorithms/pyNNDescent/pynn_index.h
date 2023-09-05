@@ -33,14 +33,13 @@
 
 
 
-template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
+template<typename Point, typename PointRange, typename indexType>
 struct pyNN_index{
-    using uint = unsigned int;
-	using GraphI = Graph<uint>;
-	using PR = PointRange<T, Point>;
-    using edge = std::pair<uint, uint>;
-    using pid = std::pair<uint,float>;
-    using labelled_edge = std::pair<uint, pid>;
+	using GraphI = Graph<indexType>;
+	using PR = PointRange;
+    using edge = std::pair<indexType, indexType>;
+    using pid = std::pair<indexType,float>;
+    using labelled_edge = std::pair<indexType, pid>;
 
     long K;
 	double delta;
@@ -55,7 +54,7 @@ struct pyNN_index{
         if(Q.size() < 2*K){
             Q.push(p);
         } else{
-            uint highest_p = Q.top().second;
+            indexType highest_p = Q.top().second;
             if(p.second < highest_p){
                 Q.pop();
                 Q.push(p);
@@ -68,10 +67,10 @@ struct pyNN_index{
         auto rev = reverse_graph();
         parlay::random_generator gen;
         size_t n=Points.size();
-        std::uniform_int_distribution<uint> dis(0, n-1);
+        std::uniform_int_distribution<indexType> dis(0, n-1);
         int batch_size = 100000;
-        std::pair<uint, parlay::sequence<uint>> *begin;
-		std::pair<uint, parlay::sequence<uint>> *end = rev.begin();
+        std::pair<indexType, parlay::sequence<indexType>> *begin;
+		std::pair<indexType, parlay::sequence<indexType>> *end = rev.begin();
 		int counter = 0;
 		while(end != rev.end()){
 			counter++;
@@ -84,26 +83,26 @@ struct pyNN_index{
     }
 
     void nn_descent_chunk(PR &Points, parlay::sequence<int> &changed, 
-		parlay::sequence<int> &new_changed, std::pair<uint, parlay::sequence<uint>> *begin, 
-		std::pair<uint, parlay::sequence<uint>> *end){
+		parlay::sequence<int> &new_changed, std::pair<indexType, parlay::sequence<indexType>> *begin, 
+		std::pair<indexType, parlay::sequence<indexType>> *end){
         size_t stride = end - begin;
 	auto less = [&] (pid a, pid b) {return a.second < b.second;};
 	auto grouped_labelled = parlay::tabulate(stride, [&] (size_t i){
-            int index = (begin+i)->first;
-            std::set<uint> to_filter;
+            indexType index = (begin+i)->first;
+            std::set<indexType> to_filter;
             to_filter.insert(index);
-            for(int j=0; j<old_neighbors[index].size(); j++){
+            for(indexType j=0; j<old_neighbors[index].size(); j++){
                 to_filter.insert(old_neighbors[index][j].first);
             }
-            auto f = [&] (uint a) {return (to_filter.find(a) == to_filter.end());};
+            auto f = [&] (indexType a) {return (to_filter.find(a) == to_filter.end());};
             auto filtered_candidates = parlay::filter((begin+i)->second, f);
 	    parlay::sequence<labelled_edge> edges;
 	    edges.reserve(K*2);
-	    for(int l=0; l<filtered_candidates.size(); l++){
-                uint j=filtered_candidates[l];
+	    for(indexType l=0; l<filtered_candidates.size(); l++){
+                indexType j=filtered_candidates[l];
 		float j_max = old_neighbors[j][old_neighbors[j].size()-1].second;
-		for(int m=l+1; m<filtered_candidates.size(); m++){
-                    uint k=filtered_candidates[m];
+		for(indexType m=l+1; m<filtered_candidates.size(); m++){
+                    indexType k=filtered_candidates[m];
 		    if (changed[j] || changed[k]) {
               float dist = Points[j].distance(Points[k]);
 		      float k_max = old_neighbors[k][old_neighbors[k].size()-1].second;
@@ -112,9 +111,9 @@ struct pyNN_index{
 		    }
 		}
 	    }
-            for(int l=0; l<old_neighbors[index].size(); l++){
-                uint j = old_neighbors[index][l].first;
-                for(const uint& k : filtered_candidates){
+            for(indexType l=0; l<old_neighbors[index].size(); l++){
+                indexType j = old_neighbors[index][l].first;
+                for(const indexType& k : filtered_candidates){
 		  if (changed[index] || changed[k]) {
                     float dist = Points[j].distance(Points[k]);
                     float j_max = old_neighbors[j][old_neighbors[j].size()-1].second;
@@ -136,7 +135,7 @@ struct pyNN_index{
                 return false;
             };
             parlay::sort_inplace(candidates[i].second, less2);
-            uint cur_index=std::numeric_limits<unsigned int>::max();
+            indexType cur_index=std::numeric_limits<unsigned int>::max();
             parlay::sequence<pid> filtered_candidates;
             for(const pid& p : candidates[i].second){
                 if(p.first!=cur_index){
@@ -144,7 +143,7 @@ struct pyNN_index{
                     cur_index = p.first;
                 }
             }
-            uint index = candidates[i].first;
+            indexType index = candidates[i].first;
             auto [new_edges, change] = seq_union_bounded(old_neighbors[index], filtered_candidates, K);
             if(change){
                 new_changed[index]=1;
@@ -153,11 +152,11 @@ struct pyNN_index{
         });
     }
 
-    parlay::sequence<std::pair<uint, parlay::sequence<uint>>> reverse_graph(){
+    parlay::sequence<std::pair<indexType, parlay::sequence<indexType>>> reverse_graph(){
         parlay::sequence<parlay::sequence<edge>> to_group = parlay::tabulate(old_neighbors.size(), [&] (size_t i){
             size_t s = old_neighbors[i].size();
             parlay::sequence<edge> e(s);
-            for(int j=0; j<s; j++){
+            for(indexType j=0; j<s; j++){
                 e[j] = std::make_pair(old_neighbors[i][j].first, (int) i);
             }
             return e; 
@@ -165,7 +164,7 @@ struct pyNN_index{
         auto sorted_graph =  parlay::group_by_key(parlay::flatten(to_group));
         parlay::parallel_for(0, sorted_graph.size(), [&] (size_t i){
             auto shuffled = parlay::remove_duplicates(parlay::random_shuffle(sorted_graph[i].second, i));
-            int upper_bound = std::min((long) shuffled.size(), K);
+            indexType upper_bound = std::min((long) shuffled.size(), K);
             auto truncated = parlay::tabulate(upper_bound, [&] (size_t j){
                 return shuffled[j];
             });
@@ -199,17 +198,17 @@ struct pyNN_index{
             size_t s = old_neighbors[i].size();
             assert(s == K);
             parlay::sequence<edge> e(s);
-            for(int j=0; j<s; j++){
+            for(indexType j=0; j<s; j++){
                 e[j] = std::make_pair(old_neighbors[i][j].first, (int) i);
             }
             return e; 
         });
         auto undirected_graph = parlay::group_by_key_ordered(parlay::flatten(to_group));
         parlay::parallel_for(0, undirected_graph.size(), [&] (size_t i){
-            uint index = undirected_graph[i].first;
+            indexType index = undirected_graph[i].first;
             auto filtered = parlay::remove_duplicates(undirected_graph[i].second);
             auto undirected_pids = parlay::tabulate(filtered.size(), [&] (size_t j){
-                uint indexU = filtered[j];
+                indexType indexU = filtered[j];
                 float dist = Points[index].distance(Points[indexU]);
                 return std::make_pair(indexU, dist);
             });
@@ -218,14 +217,14 @@ struct pyNN_index{
             old_neighbors[index] = merged_pids;
         });
         parlay::parallel_for(0, G.size(), [&] (size_t i){
-            parlay::sequence<uint> new_out = parlay::sequence<uint>();
+            parlay::sequence<indexType> new_out = parlay::sequence<indexType>();
 			for(const pid& j : old_neighbors[i]){
 				if(new_out.size() == K) break;
 				else if(new_out.size() == 0) new_out.push_back(j.first);
 				else{
 					float dist_p = j.second;
 					bool add = true;
-					for(const uint& k : new_out){
+					for(const indexType& k : new_out){
                         float dist = Points[j.first].distance(Points[k]);
 						if(dist_p > alpha*dist) {add = false; break;}
 					}
@@ -238,7 +237,7 @@ struct pyNN_index{
 
 
     void build_index(GraphI &G, PR &Points, long cluster_size, long num_clusters, double alpha){
-		clusterPID<T, Point, PointRange> C;
+		clusterPID<Point, PointRange, indexType> C;
         old_neighbors = parlay::sequence<parlay::sequence<pid>>(G.size());
 		C.multiple_clustertrees(Points, cluster_size, num_clusters, K, old_neighbors);
 		nn_descent_wrapper(Points);

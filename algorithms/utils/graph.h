@@ -146,7 +146,6 @@ struct Graph{
     //     });
     // }
 
-    // //TODO work in blocks for sake of memory
     Graph(char* gFile){
         std::ifstream reader(gFile);
         assert(reader.is_open());

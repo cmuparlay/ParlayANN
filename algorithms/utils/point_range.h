@@ -41,77 +41,60 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-long dim_round_up(long dim){
-  long qt = dim/64;
-  long remainder = dim%64;
+//tp_size must divide 64 evenly--no weird/large types!
+long dim_round_up(long dim, long tp_size){
+  long qt = (dim*tp_size)/64;
+  long remainder = (dim*tp_size)%64;
   if(remainder == 0) return dim;
-  else return (qt+1)*64;
+  else return ((qt+1)*64)/tp_size;
 }
 
-template<typename T, template<typename C> class Point>
+template<typename T, class Point>
 struct PointRange{
 
   long dimension(){return dims;}
-    
-  // PointRange(char* filename) {
-  //   if(filename == NULL) {
-  //     n = 0;
-  //     dims = 0;
-  //     return;
-  //   }
-  //   parlay::file_map fmap(filename);
-  //   values = (T*) aligned_alloc(128, fmap.size() - 8);
-  //   n = *((int*) fmap.begin());
-  //   dims = *((int*) (fmap.begin() + 4));
-  //   int bytes = dims * sizeof(T);
-  //   parlay::parallel_for(0, n, [&](long i) {
-  //     std::memmove(values + i * bytes,
-	// 	   fmap.begin() + 8 + i * bytes, bytes);});
-  //   std::cout << "Detected " << n
-	//       << " points with dimension " << dims << std::endl;
-  // }
+  
 
-    PointRange(char* filename){
-        if(filename == NULL) {
-          n = 0;
-          dims = 0;
-          return;
-        }
-        std::ifstream reader(filename);
-        assert(reader.is_open());
+  PointRange(char* filename){
+      if(filename == NULL) {
+        n = 0;
+        dims = 0;
+        return;
+      }
+      std::ifstream reader(filename);
+      assert(reader.is_open());
 
-        //read num points and max degree
-        unsigned int num_points;
-        unsigned int d;
-        reader.read((char*)(&num_points), sizeof(unsigned int));
-        n = num_points;
-        reader.read((char*)(&d), sizeof(unsigned int));
-        dims = d;
-        std::cout << "Detected " << num_points << " points with dimension " << d << std::endl;
-        aligned_dims = dim_round_up(dims);
-        std::cout << "Aligning dimension to " << aligned_dims << std::endl;
-        values = (T*) aligned_alloc(aligned_dims*sizeof(T), n*aligned_dims*sizeof(T));
-        size_t BLOCK_SIZE = 1000000;
-        size_t index = 0;
-        while(index < n){
-            size_t floor = index;
-            size_t ceiling = index+BLOCK_SIZE <= n ? index+BLOCK_SIZE : n;
-            T* data_start = new T[(ceiling-floor)*dims];
-            reader.read((char*)(data_start), sizeof(T)*(ceiling-floor)*dims);
-            T* data_end = data_start + (ceiling-floor)*dims;
-            parlay::slice<T*, T*> data = parlay::make_slice(data_start, data_end);
-            int data_bytes = dims*sizeof(T);
-            parlay::parallel_for(floor, ceiling, [&] (size_t i){
-              std::memmove(values + i*aligned_dims, data.begin() + (i-floor)*dims, data_bytes);
-              for(size_t j=dims; j<aligned_dims; j++){
-                values[i*aligned_dims+j] = (T) 0;
-              }
-            });
-            delete[] data_start;
-            index = ceiling;
-        }
-        std::cout << "here" << std::endl;
-    }
+      //read num points and max degree
+      unsigned int num_points;
+      unsigned int d;
+      reader.read((char*)(&num_points), sizeof(unsigned int));
+      n = num_points;
+      reader.read((char*)(&d), sizeof(unsigned int));
+      dims = d;
+      std::cout << "Detected " << num_points << " points with dimension " << d << std::endl;
+      aligned_dims =  dim_round_up(dims, sizeof(T));
+      if(aligned_dims != dims) std::cout << "Aligning dimension to " << aligned_dims << std::endl;
+      values = (T*) aligned_alloc(64, n*aligned_dims*sizeof(T));
+      size_t BLOCK_SIZE = 1000000;
+      size_t index = 0;
+      while(index < n){
+          size_t floor = index;
+          size_t ceiling = index+BLOCK_SIZE <= n ? index+BLOCK_SIZE : n;
+          T* data_start = new T[(ceiling-floor)*dims];
+          reader.read((char*)(data_start), sizeof(T)*(ceiling-floor)*dims);
+          T* data_end = data_start + (ceiling-floor)*dims;
+          parlay::slice<T*, T*> data = parlay::make_slice(data_start, data_end);
+          int data_bytes = dims*sizeof(T);
+          parlay::parallel_for(floor, ceiling, [&] (size_t i){
+            std::memmove(values + i*aligned_dims, data.begin() + (i-floor)*dims, data_bytes);
+            // for(size_t j=dims; j<aligned_dims; j++){
+            //   values[i*aligned_dims+j] = (T) 0;
+            // }
+          });
+          delete[] data_start;
+          index = ceiling;
+      }
+  }
 
   // PointRange(char* filename) {
   //   if(filename == NULL) {
@@ -132,8 +115,8 @@ struct PointRange{
 
   size_t size() { return n; }
   
-  Point<T> operator [] (long i) {
-    return Point<T>(values+i*aligned_dims, dims, i);
+  Point operator [] (long i) {
+    return Point(values+i*aligned_dims, dims, aligned_dims, i);
   }
 
 private:

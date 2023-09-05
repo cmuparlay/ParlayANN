@@ -34,12 +34,11 @@
 #include "parlay/random.h"
 #include "../utils/union.h"
 
-template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
+template<typename Point, typename PointRange, typename indexType>
 struct clusterPID {
-  using uint = unsigned int;
-	using PR = PointRange<T, Point>;
-  using edge = std::pair<uint, uint>;
-  using pid = std::pair<uint, float>;
+	using PR = PointRange;
+  using edge = std::pair<indexType , indexType >;
+  using pid = std::pair<indexType , float>;
 
   clusterPID() {}
 
@@ -54,7 +53,7 @@ struct clusterPID {
       std::priority_queue<pid, std::vector<pid>, decltype(less)> Q(less);
       size_t index = active_indices[i];
       // tabulate all-pairs distances between the elements in the leaf
-      for (uint j = 0; j < n; j++) {
+      for (indexType  j = 0; j < n; j++) {
         if (j != i) {
           float dist = Points[index].distance(Points[active_indices[j]]);
           pid e = std::make_pair(active_indices[j], dist);
@@ -71,7 +70,7 @@ struct clusterPID {
       }
       size_t q = Q.size();
       parlay::sequence<pid> sorted_edges(q);
-      for (uint j = 0; j < q; j++) {
+      for (indexType  j = 0; j < q; j++) {
         sorted_edges[j] = Q.top();
         Q.pop();
       }
@@ -86,7 +85,7 @@ struct clusterPID {
   void random_clustering(PR &Points,
                          parlay::sequence<size_t>& active_indices,
                          parlay::random& rnd, long cluster_size,
-                         int K) {
+                         long K) {
     if (active_indices.size() < cluster_size)
       naive_neighbors(Points, active_indices, K);
     else {
@@ -98,7 +97,7 @@ struct clusterPID {
       if (Points[f]==Points[s]) {
         parlay::sequence<size_t> closer_first;
         parlay::sequence<size_t> closer_second;
-        for (int i = 0; i < active_indices.size(); i++) {
+        for (indexType i = 0; i < active_indices.size(); i++) {
           if (i < active_indices.size() / 2)
             closer_first.push_back(active_indices[i]);
           else
@@ -151,10 +150,10 @@ struct clusterPID {
   }
 
   void random_clustering_wrapper(PR &Points,
-                                 long cluster_size, int K) {
+                                 long cluster_size, long K) {
     std::random_device rd;
     std::mt19937 rng(rd());
-    std::uniform_int_distribution<uint> uni(0, Points.size());
+    std::uniform_int_distribution<indexType> uni(0, Points.size());
     parlay::random rnd(uni(rng));
     auto active_indices =
         parlay::tabulate(Points.size(), [&](size_t i) { return i; });

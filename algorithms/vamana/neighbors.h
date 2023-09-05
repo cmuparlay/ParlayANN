@@ -39,13 +39,13 @@
 
 
 
-template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
-void ANN(Graph<unsigned int> &G, long k, BuildParams &BP,
-         PointRange<T, Point> &Query_Points,
-         groundTruth<uint> GT, char *res_file,
-         bool graph_built, PointRange<T, Point> &Points) {
+template<typename Point, typename PointRange, typename indexType>
+void ANN(Graph<indexType> &G, long k, BuildParams &BP,
+         PointRange &Query_Points,
+         groundTruth<indexType> GT, char *res_file,
+         bool graph_built, PointRange &Points) {
   parlay::internal::timer t("ANN");
-  using findex = knn_index<T, Point, PointRange>;
+  using findex = knn_index<Point, PointRange, indexType>;
   findex I(BP);
   double idx_time;
   stats<unsigned int> BuildStats(G.size());
@@ -56,7 +56,7 @@ void ANN(Graph<unsigned int> &G, long k, BuildParams &BP,
     idx_time = t.next_time();
   }
 
-  uint medoid = 0; 
+  indexType start_point = I.get_start();
   std::string name = "Vamana";
   std::string params =
       "R = " + std::to_string(BP.R) + ", L = " + std::to_string(BP.L);
@@ -66,7 +66,7 @@ void ANN(Graph<unsigned int> &G, long k, BuildParams &BP,
             << std::endl;
   Graph_ G_(name, params, G.size(), avg_deg, max_deg, idx_time);
   G_.print();
-  if(Query_Points.size() != 0) search_and_parse(G_, G, Points, Query_Points, GT, res_file, false, medoid);
+  if(Query_Points.size() != 0) search_and_parse<Point, PointRange, indexType>(G_, G, Points, Query_Points, GT, res_file, k, false, start_point);
 }
 
 

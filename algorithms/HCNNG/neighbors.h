@@ -34,14 +34,14 @@
 #include "../utils/graph.h"
 #include "hcnng_index.h"
 
-template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
-void ANN(Graph<unsigned int> &G, long k, BuildParams &BP,
-         PointRange<T, Point> &Query_Points,
-         groundTruth<uint> GT, char *res_file,
-         bool graph_built, PointRange<T, Point> &Points) {
+template<typename Point, typename PointRange, typename indexType>
+void ANN(Graph<indexType> &G, long k, BuildParams &BP,
+         PointRange &Query_Points,
+         groundTruth<indexType> GT, char *res_file,
+         bool graph_built, PointRange &Points) {
 
   parlay::internal::timer t("ANN"); 
-  using findex = hcnng_index<T, Point, PointRange>;
+  using findex = hcnng_index<Point, PointRange, indexType>;
 
   double idx_time;
   if(!graph_built){
@@ -54,5 +54,5 @@ void ANN(Graph<unsigned int> &G, long k, BuildParams &BP,
   auto [avg_deg, max_deg] = graph_stats_(G);
   Graph_ G_(name, params, G.size(), avg_deg, max_deg, idx_time);
   G_.print();
-  if(Query_Points.size() != 0) search_and_parse(G_, G, Points, Query_Points, GT, res_file);
+  if(Query_Points.size() != 0) search_and_parse<Point, PointRange, indexType>(G_, G, Points, Query_Points, GT, res_file, k);
 }

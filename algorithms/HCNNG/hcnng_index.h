@@ -88,20 +88,19 @@ struct DisjointSet{
 
 };
 
-template<typename T, template<typename C> class Point, template<typename E, template<typename D> class P> class PointRange>
+template<typename Point, typename PointRange, typename indexType>
 struct hcnng_index{
-	using uint = unsigned int;
-	using edge = std::pair<uint, uint>;
+	using edge = std::pair<indexType, indexType>;
 	using labelled_edge = std::pair<edge, float>;
-	using pid = std::pair<uint, float>;
-	using GraphI = Graph<uint>;
-	using PR = PointRange<T, Point>;
+	using pid = std::pair<indexType, float>;
+	using GraphI = Graph<indexType>;
+	using PR = PointRange;
 
 	hcnng_index(){}
 
-	static void remove_edge_duplicates(uint p, GraphI &G){
-		parlay::sequence<uint> points;
-		for(uint i=0; i<G[p].size(); i++){
+	static void remove_edge_duplicates(indexType p, GraphI &G){
+		parlay::sequence<indexType> points;
+		for(indexType i=0; i<G[p].size(); i++){
 			points.push_back(G[p][i]);
 		}
 		auto np = parlay::remove_duplicates(points);
@@ -145,7 +144,7 @@ struct hcnng_index{
   		std::uniform_real_distribution<float> dis(0.0, 1.0);
 		parlay::parallel_for(0, N, [&] (size_t i){
 			std::priority_queue<labelled_edge, std::vector<labelled_edge>, decltype(less)> Q(less);
-			for(uint j=0; j<N; j++){
+			for(indexType j=0; j<N; j++){
 				if(j!=i){
 					float dist_ij = Points[active_indices[i]].distance(Points[active_indices[j]]);
 					if(Q.size() >= m){
@@ -165,9 +164,9 @@ struct hcnng_index{
 					}
 				}
 			}
-			uint limit = std::min(Q.size(), m);
+			indexType limit = std::min(Q.size(), m);
 			parlay::sequence<labelled_edge> edges(limit);
-			for(uint j=0; j<limit; j++){edges[j] = Q.top(); Q.pop();}
+			for(indexType j=0; j<limit; j++){edges[j] = Q.top(); Q.pop();}
 			pre_labelled[i] = edges;
 		});
 		auto flat_edges = parlay::flatten(pre_labelled);
@@ -191,7 +190,7 @@ struct hcnng_index{
 		auto degrees = parlay::tabulate(active_indices.size(), [&] (size_t i) {return 0;});
 		parlay::sequence<edge> MST_edges = parlay::sequence<edge>();
 		//modified Kruskal's algorithm
-		for(uint i=0; i<labelled_edges.size(); i++){
+		for(indexType i=0; i<labelled_edges.size(); i++){
 			labelled_edge e_l = labelled_edges[i];
 			edge e = e_l.first;
 			if((disjset->find(e.first) != disjset->find(e.second)) && (degrees[e.first]<MSTDeg) && (degrees[e.second]<MSTDeg)){
@@ -213,7 +212,7 @@ struct hcnng_index{
 
 	//robustPrune routine as found in DiskANN paper, with the exception that the new candidate set
 	//is added to the field new_nbhs instead of directly replacing the out_nbh of p
-	void robustPrune(uint p, PR &Points, GraphI &G, double alpha) {
+	void robustPrune(indexType p, PR &Points, GraphI &G, double alpha) {
     // add out neighbors of p to the candidate set.
 		parlay::sequence<pid> candidates;
 		for (size_t i=0; i<G[p].size(); i++) {
@@ -232,14 +231,14 @@ struct hcnng_index{
     	size_t candidate_idx = 0;
 		while (new_nbhs.size() < G.max_degree() && candidate_idx < candidates.size()) {
 			// Don't need to do modifications.
-			int p_star = candidates[candidate_idx].first;
+			indexType p_star = candidates[candidate_idx].first;
 			candidate_idx++;
 			if (p_star == p) continue;
 
       		new_nbhs.push_back(p_star);
 
 			for (size_t i = candidate_idx; i < candidates.size(); i++) {
-				int p_prime = candidates[i].first;
+				indexType p_prime = candidates[i].first;
 				if (p_prime != -1) {
 					float dist_starprime = Points[p_star].distance(Points[p_prime]);
 					float dist_pprime = candidates[i].second;
@@ -254,7 +253,7 @@ struct hcnng_index{
 
 
 	void build_index(GraphI &G, PR &Points, long cluster_rounds, long cluster_size, long MSTDeg){  
-		cluster<T, Point, PointRange> C;
+		cluster<Point, PointRange, indexType> C;
 		C.multiple_clustertrees(G, Points, cluster_size, cluster_rounds, MSTk, MSTDeg);
 		remove_all_duplicates(G);
 		// parlay::parallel_for(0, v.size(), [&] (size_t i){robustPrune(v[i], v, 1.1, maxDeg);});
