@@ -275,7 +275,7 @@ struct knn_index {
       });
 
       parlay::parallel_for(floor, ceiling, [&](size_t i) {
-        G[shuffled_inserts[i]].add_neighbors(new_out_[i-floor]);
+        G[shuffled_inserts[i]].update_neighbors(new_out_[i-floor]);
       });
       auto grouped_by = parlay::group_by_key(parlay::flatten(to_flatten));
       t_bidirect.stop();
@@ -290,7 +290,7 @@ struct knn_index {
           G[index].append_neighbors(candidates);
         } else {
           auto new_out_2_ = robustPrune(index, std::move(candidates), G, Points);  
-          G[index].add_neighbors(new_out_2_);    
+          G[index].update_neighbors(new_out_2_);    
         }
       });
       t_prune.stop();
