@@ -256,7 +256,7 @@ struct knn_index {
       t_beam.start();
       parlay::parallel_for(floor, ceiling, [&](size_t i) {
         size_t index = shuffled_inserts[i];
-        QueryParams QP((long) 0, BP.L, (double) 0.0, (long) Points.size());
+        QueryParams QP((long) 0, BP.L, (double) 0.0, (long) Points.size(), (long) G.max_degree());
         parlay::sequence<pid> visited = 
           (beam_search(Points[index], G, Points, start_point, QP)).first.second;
         BuildStats.increment_visited(index, visited.size());

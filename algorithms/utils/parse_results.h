@@ -136,18 +136,20 @@ struct nn_result {
   int beamQ;
   float cut;
   int limit;
+  int degree_limit;
   int gtn;
 
   long num_queries;
 
   nn_result(double r, parlay::sequence<uint> stats, float qps, int K, int Q,
-            float c, long q, int limit, int gtn)
+            float c, long q, int limit, int degree_limit, int gtn)
       : recall(r),
         QPS(qps),
         k(K),
         beamQ(Q),
         cut(c),
         limit(limit),
+        degree_limit(degree_limit),
         gtn(gtn),
         num_queries(q) {
     if (stats.size() != 4) abort();
@@ -161,10 +163,7 @@ struct nn_result {
   void print() {
     std::cout << "For " << gtn << "@" << gtn << " recall = " << recall
               << ", QPS = " << QPS << ", Q = " << beamQ << ", cut = " << cut;
-    if (limit == -1)
-      std::cout << ", limit = none";
-    else
-      std::cout << ", limit = " << limit;
+    std::cout << ", visited limit = " << limit << ", degree limit: " << degree_limit;
     std::cout << ", average visited = " << avg_visited << ", average cmps = " << avg_cmps << std::endl;
   }
 
