@@ -110,7 +110,7 @@ nn_result checkRecall(
   float QPS = Query_Points.size() / query_time;
   auto stats_ = {QueryStats.dist_stats(), QueryStats.visited_stats()};
   parlay::sequence<indexType> stats = parlay::flatten(stats_);
-  nn_result N(recall, stats, QPS, k, QP.beamSize, QP.cut, Query_Points.size(), QP.limit, k);
+  nn_result N(recall, stats, QPS, k, QP.beamSize, QP.cut, Query_Points.size(), QP.limit, QP.degree_limit, k);
   return N;
 }
 
@@ -147,10 +147,10 @@ void write_to_csv(std::string csv_filename, parlay::sequence<float> buckets,
   csv << endrow;
 }
 
-parlay::sequence<long> calculate_limits(size_t avg_visited) {
+parlay::sequence<long> calculate_limits(size_t upper_bound) {
   parlay::sequence<long> L(9);
   for (float i = 1; i < 10; i++) {
-    L[i - 1] = (long)(i * ((float)avg_visited) * .1);
+    L[i - 1] = (long)(i * ((float) upper_bound) * .1);
   }
   auto limits = parlay::remove_duplicates(L);
   return limits;
@@ -169,6 +169,7 @@ void search_and_parse(Graph_ G_, Graph<indexType> &G, PointRange &Base_Points,
 
   QueryParams QP;
   QP.limit = (long) G.size();
+  QP.degree_limit = (long) G.max_degree();
   beams = {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 24, 26, 28, 30, 32, 
           34, 36, 38, 40, 45, 50, 55, 60, 65, 70, 80, 90, 100, 120, 140, 160, 
           180, 200, 225, 250, 275, 300, 375, 500, 750, 1000}; 
@@ -190,14 +191,19 @@ void search_and_parse(Graph_ G_, Graph<indexType> &G, PointRange &Base_Points,
       }
       // check "limited accuracy"
       parlay::sequence<long> limits = calculate_limits(results[0].avg_visited);
-      QP = QueryParams(r, r, 1.35, (long) G.size());
+      parlay::sequence<long> degree_limits = calculate_limits(G.max_degree());
+      degree_limits.push_back(G.max_degree());
+      QP = QueryParams(r, r, 1.35, (long) G.size(), (long) G.max_degree());
       for(long l : limits){
         QP.limit = l;
         QP.beamSize = std::max<long>(l, r);
-	      results.push_back(checkRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, random, start_point, r, QP));
+        for(long dl : degree_limits){
+          QP.degree_limit = dl;
+	        results.push_back(checkRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, random, start_point, r, QP));
+        }
       }
       // check "best accuracy"
-      QP = QueryParams((long) 100, (long) 1000, (double) 10.0, (long) G.size());
+      QP = QueryParams((long) 100, (long) 1000, (double) 10.0, (long) G.size(), (long) G.max_degree());
       results.push_back(checkRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, random, start_point, r, QP));
 
     parlay::sequence<float> buckets =  {.1, .2, .3,  .4,  .5,  .6, .7, .75,  .8, .85,                                                                                            

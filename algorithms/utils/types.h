@@ -107,7 +107,7 @@ struct QueryParams{
   long limit;
   long degree_limit;
 
-  QueryParams(long k, long Q, double cut, long limit) : k(k), beamSize(Q), cut(cut), limit(limit) {}
+  QueryParams(long k, long Q, double cut, long limit, long dg) : k(k), beamSize(Q), cut(cut), limit(limit), degree_limit(dg) {}
 
   QueryParams() {}
 
