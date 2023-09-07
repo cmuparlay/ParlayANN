@@ -35,10 +35,11 @@
 
 template<typename Point, typename PointRange, typename indexType>
 struct pyNN_index{
+    using distanceType = typename Point::distanceType;
 	using GraphI = Graph<indexType>;
 	using PR = PointRange;
     using edge = std::pair<indexType, indexType>;
-    using pid = std::pair<indexType,float>;
+    using pid = std::pair<indexType,distanceType>;
     using labelled_edge = std::pair<indexType, pid>;
 
     long K;
@@ -100,12 +101,12 @@ struct pyNN_index{
 	    edges.reserve(K*2);
 	    for(indexType l=0; l<filtered_candidates.size(); l++){
                 indexType j=filtered_candidates[l];
-		float j_max = old_neighbors[j][old_neighbors[j].size()-1].second;
+		distanceType j_max = old_neighbors[j][old_neighbors[j].size()-1].second;
 		for(indexType m=l+1; m<filtered_candidates.size(); m++){
                     indexType k=filtered_candidates[m];
 		    if (changed[j] || changed[k]) {
-              float dist = Points[j].distance(Points[k]);
-		      float k_max = old_neighbors[k][old_neighbors[k].size()-1].second;
+              distanceType dist = Points[j].distance(Points[k]);
+		      distanceType k_max = old_neighbors[k][old_neighbors[k].size()-1].second;
 		      if(dist < j_max) edges.push_back(std::make_pair(j, std::make_pair(k, dist)));
 		      if(dist < k_max) edges.push_back(std::make_pair(k, std::make_pair(j, dist)));
 		    }
@@ -115,9 +116,9 @@ struct pyNN_index{
                 indexType j = old_neighbors[index][l].first;
                 for(const indexType& k : filtered_candidates){
 		  if (changed[index] || changed[k]) {
-                    float dist = Points[j].distance(Points[k]);
-                    float j_max = old_neighbors[j][old_neighbors[j].size()-1].second;
-                    float k_max = old_neighbors[k][old_neighbors[k].size()-1].second;
+                    distanceType dist = Points[j].distance(Points[k]);
+                    distanceType j_max = old_neighbors[j][old_neighbors[j].size()-1].second;
+                    distanceType k_max = old_neighbors[k][old_neighbors[k].size()-1].second;
                     if(dist < j_max) edges.push_back(std::make_pair(j, std::make_pair(k, dist)));
                     if(dist < k_max) edges.push_back(std::make_pair(k, std::make_pair(j, dist)));
 		  }
@@ -144,7 +145,8 @@ struct pyNN_index{
                 }
             }
             indexType index = candidates[i].first;
-            auto [new_edges, change] = seq_union_bounded(old_neighbors[index], filtered_candidates, K);
+            auto less3 = [&] (pid a, pid b) {return a.second < b.second;};
+            auto [new_edges, change] = seq_union_bounded(old_neighbors[index], filtered_candidates, K, less3);
             if(change){
                 new_changed[index]=1;
                 old_neighbors[index]=new_edges;
@@ -193,7 +195,7 @@ struct pyNN_index{
 		return rounds;
 	}
 
-    void undirect_and_prune(GraphI &G, PR &Points, float alpha){
+    void undirect_and_prune(GraphI &G, PR &Points, double alpha){
         parlay::sequence<parlay::sequence<edge>> to_group = parlay::tabulate(old_neighbors.size(), [&] (size_t i){
             size_t s = old_neighbors[i].size();
             assert(s == K);
@@ -209,11 +211,12 @@ struct pyNN_index{
             auto filtered = parlay::remove_duplicates(undirected_graph[i].second);
             auto undirected_pids = parlay::tabulate(filtered.size(), [&] (size_t j){
                 indexType indexU = filtered[j];
-                float dist = Points[index].distance(Points[indexU]);
+                distanceType dist = Points[index].distance(Points[indexU]);
                 return std::make_pair(indexU, dist);
             });
             parlay::sort_inplace(undirected_pids, less);
-            auto merged_pids = seq_union(old_neighbors[index], undirected_pids);
+            auto less3 = [&] (pid a, pid b) {return a.second < b.second;};
+            auto merged_pids = seq_union(old_neighbors[index], undirected_pids, less3);
             old_neighbors[index] = merged_pids;
         });
         parlay::parallel_for(0, G.size(), [&] (size_t i){
@@ -222,10 +225,10 @@ struct pyNN_index{
 				if(new_out.size() == K) break;
 				else if(new_out.size() == 0) new_out.push_back(j.first);
 				else{
-					float dist_p = j.second;
+					distanceType dist_p = j.second;
 					bool add = true;
 					for(const indexType& k : new_out){
-                        float dist = Points[j.first].distance(Points[k]);
+                        distanceType dist = Points[j.first].distance(Points[k]);
 						if(dist_p > alpha*dist) {add = false; break;}
 					}
 					if(add) new_out.push_back(j.first);

@@ -36,9 +36,10 @@
 
 template<typename Point, typename PointRange, typename indexType>
 struct clusterPID {
+  using distanceType = typename Point::distanceType;
 	using PR = PointRange;
   using edge = std::pair<indexType , indexType >;
-  using pid = std::pair<indexType , float>;
+  using pid = std::pair<indexType , distanceType>;
 
   clusterPID() {}
 
@@ -55,10 +56,10 @@ struct clusterPID {
       // tabulate all-pairs distances between the elements in the leaf
       for (indexType  j = 0; j < n; j++) {
         if (j != i) {
-          float dist = Points[index].distance(Points[active_indices[j]]);
+          distanceType dist = Points[index].distance(Points[active_indices[j]]);
           pid e = std::make_pair(active_indices[j], dist);
           if (Q.size() >= maxK) {
-            float topdist = Q.top().second;
+            distanceType topdist = Q.top().second;
             if (dist < topdist) {
               Q.pop();
               Q.push(e);
@@ -76,7 +77,7 @@ struct clusterPID {
       }
       auto rev_edges = parlay::reverse(sorted_edges);
       auto [new_best, changed] =
-          seq_union_bounded(intermediate_edges[index], rev_edges, maxK);
+          seq_union_bounded(intermediate_edges[index], rev_edges, maxK, less);
       intermediate_edges[index] = new_best;
     });
   }
@@ -118,15 +119,15 @@ struct clusterPID {
         // Split points based on which of the two points are closer.
         auto closer_first =
             parlay::filter(parlay::make_slice(active_indices), [&](size_t ind) {
-              float dist_first = Points[ind].distance(Points[f]);
-              float dist_second = Points[ind].distance(Points[s]);
+              distanceType dist_first = Points[ind].distance(Points[f]);
+              distanceType dist_second = Points[ind].distance(Points[s]);
               return dist_first <= dist_second;
             });
 
         auto closer_second =
             parlay::filter(parlay::make_slice(active_indices), [&](size_t ind) {
-              float dist_first = Points[ind].distance(Points[f]);
-              float dist_second = Points[ind].distance(Points[s]);
+              distanceType dist_first = Points[ind].distance(Points[f]);
+              distanceType dist_second = Points[ind].distance(Points[s]);
               return dist_second < dist_first;
             });
 

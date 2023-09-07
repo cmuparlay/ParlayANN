@@ -46,8 +46,9 @@ std::pair<size_t, size_t> select_two_random(
 
 template<typename Point, typename PointRange, typename indexType>
 struct cluster {
+  using distanceType = typename Point::distanceType;
   using edge = std::pair<indexType, indexType>;
-  using labelled_edge = std::pair<edge, float>;
+  using labelled_edge = std::pair<edge, distanceType>;
   using GraphI = Graph<indexType>;
   using PR = PointRange;
 
@@ -65,15 +66,15 @@ struct cluster {
     // Split points based on which of the two points are closer.
     auto closer_first =
         parlay::filter(parlay::make_slice(active_indices), [&](size_t ind) {
-          float dist_first = Points[ind].distance(Points[first]);
-          float dist_second = Points[ind].distance(Points[second]);
+          distanceType dist_first = Points[ind].distance(Points[first]);
+          distanceType dist_second = Points[ind].distance(Points[second]);
           return dist_first <= dist_second;
         });
 
     auto closer_second =
         parlay::filter(parlay::make_slice(active_indices), [&](size_t ind) {
-          float dist_first = Points[ind].distance(Points[first]);
-          float dist_second = Points[ind].distance(Points[second]);
+          distanceType dist_first = Points[ind].distance(Points[first]);
+          distanceType dist_second = Points[ind].distance(Points[second]);
           return dist_second < dist_first;
         });
 
