@@ -123,29 +123,6 @@ struct Graph{
         graph = parlay::sequence<indexType>(n*(maxDeg+1),0);
     }
 
-    // // //TODO work in blocks for sake of memory
-    // Graph(char* gFile){
-    //     auto [fileptr, length] = mmapStringFromFile(gFile);
-    //     indexType num_points = *((indexType*)fileptr);
-    //     indexType max_deg = *((indexType*)(fileptr + sizeof(indexType)));
-    //     n = num_points;
-    //     maxDeg = max_deg;
-    //     std::cout << "Detected " << num_points << " points with max degree " << max_deg << std::endl;
-    //     indexType* degrees_start = (indexType*)(fileptr + 2*sizeof(indexType));
-    //     indexType* degrees_end = degrees_start + num_points;
-    //     parlay::slice<indexType*, indexType*> degrees = parlay::make_slice(degrees_start, degrees_end);
-    //     auto [offsets, total] = parlay::scan(degrees);
-    //     offsets.push_back(total);
-    //     graph = parlay::sequence<indexType>(n*(maxDeg+1),0);
-    //     indexType* edges_start = degrees_end;
-    //     parlay::parallel_for(0, n, [&] (size_t i){
-    //         graph[i*(maxDeg+1)] = degrees[i];
-    //         for(size_t j=0; j<degrees[i]; j++){
-    //             graph[i*(maxDeg+1)+1+j] = *(edges_start + offsets[i] + j);
-    //         }
-    //     });
-    // }
-
     Graph(char* gFile){
         std::ifstream reader(gFile);
         assert(reader.is_open());
@@ -194,7 +171,6 @@ struct Graph{
         delete[] degrees_start;
     }
 
-    //TODO work in blocks for sake of memory
     void save(char* oFile){
         std::cout << "Writing graph with " << n << " points and max degree " << maxDeg
                     << std::endl;
