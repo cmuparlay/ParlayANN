@@ -34,10 +34,6 @@
 #include "parlay/primitives.h"
 #include "parlay/random.h"
 
-// void ANN(Graph G, Data D, BuildParams B, Query_Data Q, groundTruth GT, char* res_file)
-
-
-
 
 template<typename Point, typename PointRange, typename indexType>
 void ANN(Graph<indexType> &G, long k, BuildParams &BP,
