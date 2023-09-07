@@ -90,9 +90,10 @@ struct DisjointSet{
 
 template<typename Point, typename PointRange, typename indexType>
 struct hcnng_index{
+	using distanceType = typename Point::distanceType;
 	using edge = std::pair<indexType, indexType>;
-	using labelled_edge = std::pair<edge, float>;
-	using pid = std::pair<indexType, float>;
+	using labelled_edge = std::pair<edge, distanceType>;
+	using pid = std::pair<indexType, distanceType>;
 	using GraphI = Graph<indexType>;
 	using PR = PointRange;
 
@@ -140,15 +141,13 @@ struct hcnng_index{
 		size_t m = 10;
 		auto less = [&] (labelled_edge a, labelled_edge b) {return a.second < b.second;};
 		parlay::sequence<parlay::sequence<labelled_edge>> pre_labelled(N);
-		parlay::random_generator gen;
-  		std::uniform_real_distribution<float> dis(0.0, 1.0);
 		parlay::parallel_for(0, N, [&] (size_t i){
 			std::priority_queue<labelled_edge, std::vector<labelled_edge>, decltype(less)> Q(less);
 			for(indexType j=0; j<N; j++){
 				if(j!=i){
-					float dist_ij = Points[active_indices[i]].distance(Points[active_indices[j]]);
+					distanceType dist_ij = Points[active_indices[i]].distance(Points[active_indices[j]]);
 					if(Q.size() >= m){
-						float topdist = Q.top().second;
+						distanceType topdist = Q.top().second;
 						if(dist_ij < topdist){
 							labelled_edge e;
 							if(i<j) e = std::make_pair(std::make_pair(i,j), dist_ij);
@@ -240,8 +239,8 @@ struct hcnng_index{
 			for (size_t i = candidate_idx; i < candidates.size(); i++) {
 				indexType p_prime = candidates[i].first;
 				if (p_prime != -1) {
-					float dist_starprime = Points[p_star].distance(Points[p_prime]);
-					float dist_pprime = candidates[i].second;
+					distanceType dist_starprime = Points[p_star].distance(Points[p_prime]);
+					distanceType dist_pprime = candidates[i].second;
 					if (alpha * dist_starprime <= dist_pprime) candidates[i].first = -1;
 				}
 			}

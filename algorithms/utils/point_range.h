@@ -87,9 +87,6 @@ struct PointRange{
           int data_bytes = dims*sizeof(T);
           parlay::parallel_for(floor, ceiling, [&] (size_t i){
             std::memmove(values + i*aligned_dims, data.begin() + (i-floor)*dims, data_bytes);
-            // for(size_t j=dims; j<aligned_dims; j++){
-            //   values[i*aligned_dims+j] = (T) 0;
-            // }
           });
           delete[] data_start;
           index = ceiling;

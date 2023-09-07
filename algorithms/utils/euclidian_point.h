@@ -66,6 +66,8 @@ float euclidian_distance(float *p, float *q, unsigned d) {
 
 template<typename T>
 struct Euclidian_Point {
+  using distanceType = float;
+
   static bool is_metric() {return true;}
 
   float distance(Euclidian_Point<T> x) {

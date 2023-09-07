@@ -67,6 +67,8 @@
 
 template<typename T>
 struct Mips_Point {
+  using distanceType = float; 
+  
   static bool is_metric() {return false;}
 
   float distance(Mips_Point<T> x) {

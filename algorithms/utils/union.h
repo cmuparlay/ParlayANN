@@ -25,19 +25,17 @@
 #ifndef UNION
 #define UNION
 
-using pid = std::pair<uint, float>;
-using nbh = std::pair<pid, bool>;
-
 // takes in two sorted sequences and returns a sorted union
-std::pair<parlay::sequence<pid>, bool> seq_union_bounded(
-    parlay::sequence<pid>& P, parlay::sequence<pid>& Q, int K) {
-  auto less = [&](pid a, pid b) { return a.second < b.second; };
-  pid* first1 = P.begin();
-  pid* last1 = P.end();
-  pid* first2 = Q.begin();
-  pid* last2 = Q.end();
+// of length at most K, with a bool denoting whether P has changed
+template <typename F, typename T>
+std::pair<parlay::sequence<T>, bool> seq_union_bounded(
+    parlay::sequence<T>& P, parlay::sequence<T>& Q, int K, F&& less) {
+  T* first1 = P.begin();
+  T* last1 = P.end();
+  T* first2 = Q.begin();
+  T* last2 = Q.end();
   bool changed = false;
-  parlay::sequence<pid> result = parlay::sequence<pid>();
+  parlay::sequence<T> result = parlay::sequence<T>();
   result.reserve(K);
   int count = 0;
   while (true && count < K) {
@@ -91,14 +89,13 @@ std::pair<parlay::sequence<pid>, bool> seq_union_bounded(
 }
 
 // takes in two sorted sequences and returns a sorted union
-template <typename Seq>
-parlay::sequence<pid> seq_union(Seq& P, parlay::sequence<pid>& Q) {
-  auto less = [&](pid a, pid b) { return a.second < b.second; };
-  pid* first1 = P.begin();
-  pid* last1 = P.end();
-  pid* first2 = Q.begin();
-  pid* last2 = Q.end();
-  parlay::sequence<pid> result = parlay::sequence<pid>();
+template <typename F, typename T>
+parlay::sequence<T> seq_union(parlay::sequence<T>& P, parlay::sequence<T>& Q, F&& less) {
+  T* first1 = P.begin();
+  T* last1 = P.end();
+  T* first2 = Q.begin();
+  T* last2 = Q.end();
+  parlay::sequence<T> result = parlay::sequence<T>();
   result.reserve(P.size() + Q.size());
   while (true) {
     if (first1 == last1) {

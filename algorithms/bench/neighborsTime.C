@@ -61,7 +61,7 @@ void timeNeighbors(Graph<indexType> &G,
     time_loop(1, 0,
       [&] () {},
       [&] () {
-        ANN<Point, PointRange>(G, k, BP, Query_Points, GT, res_file, graph_built, Points);
+        ANN<Point, PointRange, indexType>(G, k, BP, Query_Points, GT, res_file, graph_built, Points);
       },
       [&] () {});
 
