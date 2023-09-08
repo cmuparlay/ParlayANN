@@ -81,7 +81,7 @@ PYBIND11_MODULE(_ParlayANNpy, m)
     default_values.attr("METRIC") = "Euclidian";
     default_values.attr("ALPHA") = 1.2;
     default_values.attr("GRAPH_DEGREE") = 64;
-    default_values.attr("COMPLEXITY") = 128;
+    default_values.attr("BEAMWIDTH") = 128;
 
     add_variant<float>(m, FloatVariant);
     add_variant<uint8_t>(m, UInt8Variant);
