@@ -87,6 +87,10 @@ struct BuildParams{
 
   std::string alg_type;
 
+  BuildParams() {}
+
+  BuildParams(long R, long L, double a) : R(R), L(L), alpha(a) {}
+
   BuildParams(long R, long L, double a, long nc, long cs, long mst, double de) : R(R), L(L), alpha(a), num_clusters(nc), cluster_size(cs), MST_deg(mst), delta(de) {
     if(R != 0 && L != 0 && alpha != 0){alg_type = "Vamana";}
     else if(num_clusters != 0 && cluster_size != 0 && MST_deg != 0){alg_type = "HCNNG";}
