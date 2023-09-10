@@ -43,7 +43,7 @@
 
   float mips_distance(uint8_t *p, uint8_t *q, unsigned d) {
     int result = 0;
-    for (int i = 0; i < d; i++) {
+    for (int i = 0; i < (int) d; i++) {
       result += ((int32_t)q[i]) * ((int32_t)p[i]);
     }
     return -((float)result);
@@ -51,7 +51,7 @@
 
   float mips_distance(int8_t *p, int8_t *q, unsigned d) {
     int result = 0;
-    for (int i = 0; i < d; i++) {
+    for (int i = 0; i < (int) d; i++) {
       result += ((int32_t)q[i]) * ((int32_t)p[i]);
     }
     return -((float)result);
@@ -59,7 +59,7 @@
 
   float mips_distance(float *p, float *q, unsigned d) {
     float result = 0;
-    for (int i = 0; i < d; i++) {
+    for (int i = 0; i < (int) d; i++) {
       result += (q[i]) * (p[i]);
     }
     return -result;

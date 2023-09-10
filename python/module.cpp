@@ -25,8 +25,8 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "builder.h"
-#include "vamana_index.h"
+#include "builder.cpp"
+// #include "vamana_index.h"
 
 
 PYBIND11_MAKE_OPAQUE(std::vector<uint32_t>);
@@ -55,12 +55,12 @@ template <typename T> inline void add_variant(py::module_ &m, const Variant &var
     m.def(variant.builder_name.c_str(), build_vamana_index<T>, "distance_metric"_a,
           "data_file_path"_a, "index_output_path"_a, "graph_degree"_a, "beam_width"_a, "alpha"_a);
 
-    py::class_<VamanaIndex<T>>(m, variant.vamana_index_name.c_str())
-        .def(py::init<const std::string &, const std::string &, const size_t, const size_t>(),
-             "distance_metric"_a, "index_path"_a, "num_points"_a, "dimensions"_a) //maybe these last two are unnecessary?
-        .def("search", &VamanaIndex<T>::search, "query"_a, "knn"_a, "beam_width"_a) //do we want to add options like visited limit, or leave those as defaults?
-        .def("batch_search", &VamanaIndex<T>::batch_search, "queries"_a, "num_queries"_a, "knn"_a,
-             "beam_width"_a);
+    // py::class_<VamanaIndex<T>>(m, variant.vamana_index_name.c_str())
+    //     .def(py::init<const std::string &, const std::string &, const size_t, const size_t>(),
+    //          "distance_metric"_a, "index_path"_a, "num_points"_a, "dimensions"_a) //maybe these last two are unnecessary?
+        // .def("search", &VamanaIndex<T>::search, "query"_a, "knn"_a, "beam_width"_a) //do we want to add options like visited limit, or leave those as defaults?
+        // .def("batch_search", &VamanaIndex<T>::batch_search, "queries"_a, "num_queries"_a, "knn"_a,
+        //      "beam_width"_a);
 
    
 }

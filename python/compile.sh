@@ -1,0 +1,1 @@
+g++ -DSTATS -DHOMEGROWN -pthread -mcx16 -O3 -Wall -shared -std=c++17 -march=native -DNDEBUG -I . -fPIC $(python3 -m pybind11 --includes) builder.cpp -o builder$(python3-config --extension-suffix) -DHOMEGROWN -pthread -ldl -L/usr/local/lib -ljemalloc 
