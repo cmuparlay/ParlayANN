@@ -43,7 +43,7 @@
 
 float euclidian_distance(uint8_t *p, uint8_t *q, unsigned d) {
   int result = 0;
-  for (int i = 0; i < d; i++) {
+  for (int i = 0; i < (int) d; i++) {
     result += ((int32_t)((int16_t)q[i] - (int16_t)p[i])) *
       ((int32_t)((int16_t)q[i] - (int16_t)p[i]));
   }
@@ -52,7 +52,7 @@ float euclidian_distance(uint8_t *p, uint8_t *q, unsigned d) {
 
 float euclidian_distance(int8_t *p, int8_t *q, unsigned d) {
   int result = 0;
-  for (int i = 0; i < d; i++) {
+  for (int i = 0; i < (int) d; i++) {
     result += ((int32_t)((int16_t)q[i] - (int16_t)p[i])) *
       ((int32_t)((int16_t)q[i] - (int16_t)p[i]));
   }
