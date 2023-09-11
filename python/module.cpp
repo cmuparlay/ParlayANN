@@ -26,7 +26,7 @@
 #include <pybind11/stl.h>
 
 #include "builder.cpp"
-// #include "vamana_index.h"
+#include "vamana_index.cpp"
 
 
 PYBIND11_MAKE_OPAQUE(std::vector<uint32_t>);
@@ -46,8 +46,8 @@ struct Variant
 const Variant FloatEuclidianVariant{"build_vamana_float_euclidian_index", "VamanaFloatEuclidianIndex"};
 const Variant FloatMipsVariant{"build_vamana_float_mips_index", "VamanaFloatMipsIndex"};
 
-const Variant UInt8EuclidianVariant{"build_vamana_uint8_euclidian_index", "VamanaUint8Index"};
-const Variant UInt8MipsVariant{"build_vamana_uint8_mips_index", "VamanaUint8MipsIndex"};
+const Variant UInt8EuclidianVariant{"build_vamana_uint8_euclidian_index", "VamanaUInt8EuclidianIndex"};
+const Variant UInt8MipsVariant{"build_vamana_uint8_mips_index", "VamanaUInt8MipsIndex"};
 
 const Variant Int8EuclidianVariant{"build_vamana_int8_euclidian_index", "VamanaInt8EuclidianIndex"};
 const Variant Int8MipsVariant{"build_vamana_int8_mips_index", "VamanaInt8MipsIndex"};
@@ -58,12 +58,14 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
     m.def(variant.builder_name.c_str(), build_vamana_index<T, Point>, "distance_metric"_a,
           "data_file_path"_a, "index_output_path"_a, "graph_degree"_a, "beam_width"_a, "alpha"_a);
 
-    // py::class_<VamanaIndex<T, Point>>(m, variant.vamana_index_name.c_str())
-    //     .def(py::init<const std::string &, const std::string &, const size_t, const size_t>(),
-    //          "distance_metric"_a, "index_path"_a, "num_points"_a, "dimensions"_a) //maybe these last two are unnecessary?
-    //     //do we want to add options like visited limit, or leave those as defaults?
-    //     .def("batch_search", &VamanaIndex<T>::batch_search, "queries"_a, "num_queries"_a, "knn"_a,
-    //          "beam_width"_a);
+    py::class_<VamanaIndex<T, Point>>(m, variant.index_name.c_str())
+        .def(py::init<std::string &, std::string &, size_t, size_t>(),
+             "index_path"_a, "data_path"_a, "num_points"_a, "dimensions"_a) //maybe these last two are unnecessary?
+        //do we want to add options like visited limit, or leave those as defaults?
+        // .def("batch_search", &VamanaIndex<T, Point>::batch_search, "queries"_a, "num_queries"_a, "knn"_a,
+        //      "beam_width"_a);
+        .def("batch_search_from_string", &VamanaIndex<T, Point>::batch_search_from_string, "queries"_a, "num_queries"_a, "knn"_a,
+             "beam_width"_a);
 
    
 }
