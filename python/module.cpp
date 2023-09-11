@@ -39,8 +39,8 @@ using namespace pybind11::literals;
 
 struct Variant
 {
-    std::string vamana_builder_name;
-    std::string vamana_index_name;
+    std::string builder_name;
+    std::string index_name;
 };
 
 const Variant FloatVariant{"build_vamana_float_index", "VamanaFloatIndex"};
