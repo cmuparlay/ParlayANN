@@ -30,7 +30,7 @@
 #include "../algorithms/utils/stats.h"
 
 
-template <typename T>
+template <typename T, typename Point>
 void build_vamana_index(std::string metric, std::string &vector_bin_path,
                          std::string &index_output_path, uint32_t graph_degree, uint32_t beam_width,
                         float alpha)
@@ -39,46 +39,36 @@ void build_vamana_index(std::string metric, std::string &vector_bin_path,
     //instantiate build params object
     BuildParams BP(graph_degree, beam_width, alpha);
 
-    //use the metric string to infer the point type
-    assert(metric == "Euclidian" | metric == "mips");
-
     //use file parsers to create Point object
-    if(metric == "Euclidian"){
-        PointRange<T, Euclidian_Point<T>> Points = PointRange<T, Euclidian_Point<T>>(vector_bin_path.data());
-        //use max degree info to create Graph object
-        Graph<unsigned int> G = Graph<unsigned int>(graph_degree, Points.size());
 
-        //call the build function
-        using index = knn_index<Euclidian_Point<T>, PointRange<T, Euclidian_Point<T>>, unsigned int>;
-        index I(BP);
-        stats<unsigned int> BuildStats(G.size());
-        I.build_index(G, Points, BuildStats);
+    PointRange<T, Point> Points = PointRange<T, Point>(vector_bin_path.data());
+    //use max degree info to create Graph object
+    Graph<unsigned int> G = Graph<unsigned int>(graph_degree, Points.size());
 
-        //save the graph object
-        G.save(index_output_path.data());
-    }else if(metric == "mips"){
-        PointRange<T, Mips_Point<T>> Points = PointRange<T, Mips_Point<T>>(vector_bin_path.data());
-        //use max degree info to create Graph object
-        Graph<unsigned int> G = Graph<unsigned int>(graph_degree, Points.size());
+    //call the build function
+    using index = knn_index<Point, PointRange<T, Point>, unsigned int>;
+    index I(BP);
+    stats<unsigned int> BuildStats(G.size());
+    I.build_index(G, Points, BuildStats);
 
-        //call the build function
-        using index = knn_index<Mips_Point<T>, PointRange<T, Mips_Point<T>>, unsigned int>;
-        index I(BP);
-        stats<unsigned int> BuildStats(G.size());
-        I.build_index(G, Points, BuildStats);
+    //save the graph object
+    G.save(index_output_path.data());
 
-        //save the graph object
-        G.save(index_output_path.data());
-    }
     
     
 }
 
-template void build_vamana_index<float>(std::string , std::string &, std::string &, uint32_t, uint32_t,
+template void build_vamana_index<float, Euclidian_Point<float>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
+                                        float);                            
+template void build_vamana_index<float, Mips_Point<float>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
                                         float);
 
-template void build_vamana_index<int8_t>(std::string , std::string &, std::string &, uint32_t, uint32_t,
+template void build_vamana_index<int8_t, Euclidian_Point<int8_t>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
+                                         float);
+template void build_vamana_index<int8_t, Mips_Point<int8_t>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
                                          float);
 
-template void build_vamana_index<uint8_t>(std::string , std::string &, std::string &, uint32_t, uint32_t,
+template void build_vamana_index<uint8_t, Euclidian_Point<uint8_t>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
+                                          float);
+template void build_vamana_index<uint8_t, Mips_Point<uint8_t>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
                                           float);

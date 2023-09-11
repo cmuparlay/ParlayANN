@@ -43,24 +43,27 @@ struct Variant
     std::string index_name;
 };
 
-const Variant FloatVariant{"build_vamana_float_index", "VamanaFloatIndex"};
+const Variant FloatEuclidianVariant{"build_vamana_float_euclidian_index", "VamanaFloatEuclidianIndex"};
+const Variant FloatMipsVariant{"build_vamana_float_mips_index", "VamanaFloatMipsIndex"};
 
-const Variant UInt8Variant{"build_vamana_uint8_index", "VamanaUint8Index"};
+const Variant UInt8EuclidianVariant{"build_vamana_uint8_euclidian_index", "VamanaUint8Index"};
+const Variant UInt8MipsVariant{"build_vamana_uint8_mips_index", "VamanaUint8MipsIndex"};
 
-const Variant Int8Variant{"build_vamana_int8_index", "VamanaInt8Index"};
+const Variant Int8EuclidianVariant{"build_vamana_int8_euclidian_index", "VamanaInt8EuclidianIndex"};
+const Variant Int8MipsVariant{"build_vamana_int8_mips_index", "VamanaInt8MipsIndex"};
 
-template <typename T> inline void add_variant(py::module_ &m, const Variant &variant)
+template <typename T, typename Point> inline void add_variant(py::module_ &m, const Variant &variant)
 {
 
-    m.def(variant.builder_name.c_str(), build_vamana_index<T>, "distance_metric"_a,
+    m.def(variant.builder_name.c_str(), build_vamana_index<T, Point>, "distance_metric"_a,
           "data_file_path"_a, "index_output_path"_a, "graph_degree"_a, "beam_width"_a, "alpha"_a);
 
-    // py::class_<VamanaIndex<T>>(m, variant.vamana_index_name.c_str())
+    // py::class_<VamanaIndex<T, Point>>(m, variant.vamana_index_name.c_str())
     //     .def(py::init<const std::string &, const std::string &, const size_t, const size_t>(),
     //          "distance_metric"_a, "index_path"_a, "num_points"_a, "dimensions"_a) //maybe these last two are unnecessary?
-        // .def("search", &VamanaIndex<T>::search, "query"_a, "knn"_a, "beam_width"_a) //do we want to add options like visited limit, or leave those as defaults?
-        // .def("batch_search", &VamanaIndex<T>::batch_search, "queries"_a, "num_queries"_a, "knn"_a,
-        //      "beam_width"_a);
+    //     //do we want to add options like visited limit, or leave those as defaults?
+    //     .def("batch_search", &VamanaIndex<T>::batch_search, "queries"_a, "num_queries"_a, "knn"_a,
+    //          "beam_width"_a);
 
    
 }
@@ -83,8 +86,11 @@ PYBIND11_MODULE(_ParlayANNpy, m)
     default_values.attr("GRAPH_DEGREE") = 64;
     default_values.attr("BEAMWIDTH") = 128;
 
-    add_variant<float>(m, FloatVariant);
-    add_variant<uint8_t>(m, UInt8Variant);
-    add_variant<int8_t>(m, Int8Variant);
+    add_variant<float, Euclidian_Point<float>>(m, FloatEuclidianVariant);
+    add_variant<float, Mips_Point<float>>(m, FloatMipsVariant);
+    add_variant<uint8_t, Euclidian_Point<uint8_t>>(m, UInt8EuclidianVariant);
+    add_variant<uint8_t, Mips_Point<uint8_t>>(m, UInt8MipsVariant);
+    add_variant<int8_t, Euclidian_Point<int8_t>>(m, Int8EuclidianVariant);
+    add_variant<int8_t, Mips_Point<int8_t>>(m, Int8MipsVariant);
 
 }
