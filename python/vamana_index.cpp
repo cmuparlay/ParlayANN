@@ -48,21 +48,21 @@ struct VamanaIndex{
         assert(dimensions == Points.dimension());
     }
 
-    // void batch_search(py::array_t<T, py::array::c_style | py::array::forcecast> &queries, uint64_t num_queries, uint64_t knn,
-    // uint64_t beam_width){
-    //     QueryParams QP(knn, beam_width, 1.35, G.size(), G.max_degree());
-    //     parlay::parallel_for(0, num_queries, [&] (size_t i){
-    //         Point q = Point(queries[i].data(), Points.dimension(), Points.aligned_dimension(), i);
-    //         auto [pairElts, dist_cmps] = beam_search(q, G, Points, 0, QP);
-    //     });
-    // }
+    void batch_search(py::array_t<T, py::array::c_style | py::array::forcecast> &queries, uint64_t num_queries, uint64_t knn,
+                        uint64_t beam_width){
+        QueryParams QP(knn, beam_width, 1.35, G.size(), G.max_degree());
+        parlay::parallel_for(0, num_queries, [&] (size_t i){
+            Point q = Point(queries.mutable_data(i), Points.dimension(), Points.aligned_dimension(), i);
+            auto [pairElts, dist_cmps] = beam_search<Point, PointRange<T, Point>, unsigned int>(q, G, Points, 0, QP);
+        });
+    }
 
     void batch_search_from_string(std::string &queries, uint64_t num_queries, uint64_t knn,
-    uint64_t beam_width){
+                                    uint64_t beam_width){
         QueryParams QP(knn, beam_width, 1.35, G.size(), G.max_degree());
         PointRange<T, Point> QueryPoints = PointRange<T, Point>(queries.data());
         parlay::parallel_for(0, num_queries, [&] (size_t i){
-            auto [pairElts, dist_cmps] = beam_search<Point, PointRange<T, Point>, unsigned int>(QueryPoints[i], G, Points, 0, QP);
+            auto [pairElts, dist_cmps] = beam_search<Point, PointRange<T, Point>, unsigned int>(QueryPoints[i], G, Points, (unsigned int) 0, QP);
         });
     }
 
