@@ -35,11 +35,13 @@
 #include "parlay/primitives.h"
 
 namespace py = pybind11;
+using NeighborsAndDistances = std::pair<py::array_t<unsigned int>, py::array_t<float>>;
 
 template<typename T, typename Point> 
 struct VamanaIndex{
     Graph<unsigned int> G;
     PointRange<T, Point> Points;
+    
 
     VamanaIndex(std::string &data_path, std::string &index_path, size_t num_points, size_t dimensions){
         G = Graph<unsigned int>(index_path.data());
@@ -48,22 +50,70 @@ struct VamanaIndex{
         assert(dimensions == Points.dimension());
     }
 
-    void batch_search(py::array_t<T, py::array::c_style | py::array::forcecast> &queries, uint64_t num_queries, uint64_t knn,
+    NeighborsAndDistances batch_search(py::array_t<T, py::array::c_style | py::array::forcecast> &queries, uint64_t num_queries, uint64_t knn,
                         uint64_t beam_width){
         QueryParams QP(knn, beam_width, 1.35, G.size(), G.max_degree());
+        py::array_t<unsigned int> ids({num_queries, knn});
+        py::array_t<float> dists({num_queries, knn});
         parlay::parallel_for(0, num_queries, [&] (size_t i){
             Point q = Point(queries.mutable_data(i), Points.dimension(), Points.aligned_dimension(), i);
             auto [pairElts, dist_cmps] = beam_search<Point, PointRange<T, Point>, unsigned int>(q, G, Points, 0, QP);
+            auto [frontier, visited] = pairElts;
+            parlay::sequence<unsigned int> point_ids;
+            parlay::sequence<float> point_distances;
+            for(int j=0; j<knn; j++){
+                ids.mutable_data(i)[j] = frontier[j].first;
+                dists.mutable_data(i)[j] = frontier[j].second;
+            }
         });
+        return std::make_pair(std::move(ids), std::move(dists));
     }
 
-    void batch_search_from_string(std::string &queries, uint64_t num_queries, uint64_t knn,
+    NeighborsAndDistances batch_search_from_string(std::string &queries, uint64_t num_queries, uint64_t knn,
                                     uint64_t beam_width){
         QueryParams QP(knn, beam_width, 1.35, G.size(), G.max_degree());
         PointRange<T, Point> QueryPoints = PointRange<T, Point>(queries.data());
+        py::array_t<unsigned int> ids({num_queries, knn});
+        py::array_t<float> dists({num_queries, knn});
         parlay::parallel_for(0, num_queries, [&] (size_t i){
             auto [pairElts, dist_cmps] = beam_search<Point, PointRange<T, Point>, unsigned int>(QueryPoints[i], G, Points, (unsigned int) 0, QP);
+            auto [frontier, visited] = pairElts;
+            parlay::sequence<unsigned int> point_ids;
+            parlay::sequence<float> point_distances;
+            for(int j=0; j<knn; j++){
+                ids.mutable_data(i)[j] = frontier[j].first;
+                dists.mutable_data(i)[j] = frontier[j].second;
+            }
         });
+        return std::make_pair(std::move(ids), std::move(dists));
+    }
+
+    void check_recall(std::string &gFile, py::array_t<unsigned int, py::array::c_style | py::array::forcecast> &neighbors, int k){
+        groundTruth<unsigned int> GT = groundTruth<unsigned int>(gFile.data());
+
+        size_t n = GT.size();
+    
+        int numCorrect = 0;
+        for (unsigned int i = 0; i < n; i++) {
+        parlay::sequence<int> results_with_ties;
+            for (unsigned int l = 0; l < k; l++)
+                results_with_ties.push_back(GT.coordinates(i,l));
+            float last_dist = GT.distances(i, k-1);
+            for (unsigned int l = k; l < GT.dimension(); l++) {
+                if (GT.distances(i,l) == last_dist) {
+                results_with_ties.push_back(GT.coordinates(i,l));
+                }
+            }
+            std::set<int> reported_nbhs;
+            for (unsigned int l = 0; l < k; l++) reported_nbhs.insert(neighbors.mutable_data(i)[l]);
+            for (unsigned int l = 0; l < results_with_ties.size(); l++) {
+                if (reported_nbhs.find(results_with_ties[l]) != reported_nbhs.end()) {
+                numCorrect += 1;
+                }
+            }
+        }
+        float recall = static_cast<float>(numCorrect) / static_cast<float>(k * n);
+        std::cout << "Recall: " << recall << std::endl;
     }
 
 };
