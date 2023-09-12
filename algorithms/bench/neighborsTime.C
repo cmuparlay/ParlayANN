@@ -88,10 +88,15 @@ int main(int argc, char* argv[]) {
   char* rFile = P.getOptionValue("-res_path");
   char* vectype = P.getOptionValue("-data_type");
   long R = P.getOptionIntValue("-R", 0);
+  if(R<0) P.badArgument();
   long L = P.getOptionIntValue("-L", 0);
+  if(L<0) P.badArgument();
   long MST_deg = P.getOptionIntValue("-mst_deg", 0);
+  if(MST_deg < 0) P.badArgument();
   long num_clusters = P.getOptionIntValue("-num_clusters", 0);
+  if(num_clusters<0) P.badArgument();
   long cluster_size = P.getOptionIntValue("-cluster_size", 0);
+  if(cluster_size<0) P.badArgument();
   long k = P.getOptionIntValue("-k", 0);
   if (k > 1000 || k < 0) P.badArgument();
   double alpha = P.getOptionDoubleValue("-alpha", 0);
@@ -99,7 +104,7 @@ int main(int argc, char* argv[]) {
   if(two_pass > 1 | two_pass < 0) P.badArgument();
   bool pass = (two_pass == 1);
   double delta = P.getOptionDoubleValue("-delta", 0);
-  int algoOpt = P.getOptionIntValue("-memory_flag", 0);
+  if(delta<0) P.badArgument();
   char* dfc = P.getOptionValue("-dist_func");
 
   std::string df = std::string(dfc);
