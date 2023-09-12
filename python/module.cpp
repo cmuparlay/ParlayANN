@@ -62,8 +62,8 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
         .def(py::init<std::string &, std::string &, size_t, size_t>(),
              "index_path"_a, "data_path"_a, "num_points"_a, "dimensions"_a) //maybe these last two are unnecessary?
         //do we want to add options like visited limit, or leave those as defaults?
-        // .def("batch_search", &VamanaIndex<T, Point>::batch_search, "queries"_a, "num_queries"_a, "knn"_a,
-        //      "beam_width"_a);
+        .def("batch_search", &VamanaIndex<T, Point>::batch_search, "queries"_a, "num_queries"_a, "knn"_a,
+             "beam_width"_a)
         .def("batch_search_from_string", &VamanaIndex<T, Point>::batch_search_from_string, "queries"_a, "num_queries"_a, "knn"_a,
              "beam_width"_a);
 
