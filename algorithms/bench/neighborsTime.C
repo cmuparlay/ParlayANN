@@ -95,6 +95,9 @@ int main(int argc, char* argv[]) {
   long k = P.getOptionIntValue("-k", 0);
   if (k > 1000 || k < 0) P.badArgument();
   double alpha = P.getOptionDoubleValue("-alpha", 0);
+  int two_pass = P.getOptionIntValue("-two_pass", 0);
+  if(two_pass > 1 | two_pass < 0) P.badArgument();
+  bool pass = (two_pass == 1);
   double delta = P.getOptionDoubleValue("-delta", 0);
   int algoOpt = P.getOptionIntValue("-memory_flag", 0);
   char* dfc = P.getOptionValue("-dist_func");
@@ -102,7 +105,7 @@ int main(int argc, char* argv[]) {
   std::string df = std::string(dfc);
   std::string tp = std::string(vectype);
 
-  BuildParams BP = BuildParams(R, L, alpha, num_clusters, cluster_size, MST_deg, delta);
+  BuildParams BP = BuildParams(R, L, alpha, pass, num_clusters, cluster_size, MST_deg, delta);
   long maxDeg = BP.max_degree();
 
   if((tp != "uint8") && (tp != "int8") && (tp != "float")){

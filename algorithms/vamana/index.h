@@ -53,7 +53,7 @@ struct knn_index {
   //that the new candidate set is added to the field new_nbhs instead
   //of directly replacing the out_nbh of p
   parlay::sequence<indexType> robustPrune(indexType p, parlay::sequence<pid>& cand,
-                    GraphI &G, PR &Points,  bool add = true) {
+                    GraphI &G, PR &Points, double alpha, bool add = true) {
     // add out neighbors of p to the candidate set.
     size_t out_size = G[p].size();
     std::vector<pid> candidates;
@@ -90,7 +90,7 @@ struct knn_index {
         if (p_prime != -1) {
           distanceType dist_starprime = Points[p_star].distance(Points[p_prime]);
           distanceType dist_pprime = candidates[i].second;
-          if (BP.alpha * dist_starprime <= dist_pprime) {
+          if (alpha * dist_starprime <= dist_pprime) {
             candidates[i].first = -1;
           }
         }
@@ -119,7 +119,9 @@ struct knn_index {
     start_point = 0;
     parlay::sequence<indexType> inserts = parlay::tabulate(Points.size(), [&] (size_t i){
 					    return static_cast<indexType>(i);});
-    batch_insert(inserts, G, Points, BuildStats, true, 2, .02);
+    std::cout << BP.alpha << std::endl;
+    if(BP.two_pass) batch_insert(inserts, G, Points, BuildStats, 1.0, true, 2, .02);
+    batch_insert(inserts, G, Points, BuildStats, BP.alpha, true, 2, .02);
     parlay::parallel_for (0, G.size(), [&] (long i) {
       auto less = [&] (indexType j, indexType k) {
 		    return Points[i].distance(Points[j]) < Points[i].distance(Points[k]);};
@@ -201,12 +203,12 @@ struct knn_index {
   // }
 
   void batch_insert(parlay::sequence<indexType> &inserts,
-                     GraphI &G, PR &Points, stats<indexType> &BuildStats,
+                     GraphI &G, PR &Points, stats<indexType> &BuildStats, double alpha,
                     bool random_order = false, double base = 2,
                     double max_fraction = .02, bool print=true) {
     for(int p : inserts){
       if(p < 0 || p > (int) G.size()){
-        std::cout << "ERROR: invalid or already inserted point "
+        std::cout << "ERROR: invalid point "
                   << p << " given to batch_insert" << std::endl;
         abort();
       }
@@ -262,7 +264,7 @@ struct knn_index {
         parlay::sequence<pid> visited = 
           (beam_search<Point, PointRange, indexType>(Points[index], G, Points, start_point, QP)).first.second;
         BuildStats.increment_visited(index, visited.size());
-        new_out_[i-floor] = robustPrune(index, visited, G, Points); });
+        new_out_[i-floor] = robustPrune(index, visited, G, Points, alpha); });
       t_beam.stop();
       // make each edge bidirectional by first adding each new edge
       //(i,j) to a sequence, then semisorting the sequence by key values
