@@ -81,19 +81,13 @@ struct cluster {
     auto left_rnd = rnd.fork(0);
     auto right_rnd = rnd.fork(1);
 
-    if (closer_first.size() == 1) {
-      random_clustering(G, Points, active_indices, right_rnd, cluster_size, f, MSTDeg);
-    } else if (closer_second.size() == 1) {
-      random_clustering(G, Points, active_indices, left_rnd, cluster_size, f, MSTDeg);
-    } else {
-      parlay::par_do(
-          [&]() {
-            random_clustering(G, Points, closer_first, left_rnd, cluster_size, f, MSTDeg);
-          },
-          [&]() {
-            random_clustering(G, Points, closer_second, right_rnd, cluster_size, f, MSTDeg);
-          });
-    }
+    parlay::par_do(
+        [&]() {
+          random_clustering(G, Points, closer_first, left_rnd, cluster_size, f, MSTDeg);
+        },
+        [&]() {
+          random_clustering(G, Points, closer_second, right_rnd, cluster_size, f, MSTDeg);
+        });
   }
 
   template <typename F>
@@ -101,7 +95,7 @@ struct cluster {
                          parlay::sequence<size_t>& active_indices,
                          parlay::random& rnd, size_t cluster_size, F g,
                          long MSTDeg) {
-    if (active_indices.size() < cluster_size)
+    if (active_indices.size() <= cluster_size)
       g(G, Points, active_indices, MSTDeg);
     else {
       auto [f, s] = select_two_random(active_indices, rnd);
