@@ -104,14 +104,14 @@ struct knn_index {
   //wrapper to allow calling robustPrune on a sequence of candidates 
   //that do not come with precomputed distances
   parlay::sequence<indexType> robustPrune(indexType p, parlay::sequence<indexType> candidates,
-                    GraphI &G, PR &Points, bool add = true){
+                    GraphI &G, PR &Points, double alpha, bool add = true){
 
     parlay::sequence<pid> cc;
     cc.reserve(candidates.size()); // + size_of(p->out_nbh));
     for (size_t i=0; i<candidates.size(); ++i) {
       cc.push_back(std::make_pair(candidates[i], Points[candidates[i]].distance(Points[p])));
     }
-    return robustPrune(p, cc, G, Points, add);
+    return robustPrune(p, cc, G, Points, alpha, add);
   }
 
   void build_index(GraphI &G, PR &Points, stats<indexType> &BuildStats){
@@ -119,7 +119,7 @@ struct knn_index {
     start_point = 0;
     parlay::sequence<indexType> inserts = parlay::tabulate(Points.size(), [&] (size_t i){
 					    return static_cast<indexType>(i);});
-    std::cout << BP.alpha << std::endl;
+
     if(BP.two_pass) batch_insert(inserts, G, Points, BuildStats, 1.0, true, 2, .02);
     batch_insert(inserts, G, Points, BuildStats, BP.alpha, true, 2, .02);
     parlay::parallel_for (0, G.size(), [&] (long i) {
@@ -250,7 +250,7 @@ struct knn_index {
         auto ind = frac * n;
         if (floor <= ind && ceiling > ind) {
           frac += progress_inc;
-          std::cout << "Index build " << 100 * frac << "% complete"
+          std::cout << "Pass " << 100 * frac << "% complete"
                     << std::endl;
         }
       }
@@ -293,7 +293,7 @@ struct knn_index {
         if (newsize <= BP.R) {
           G[index].append_neighbors(candidates);
         } else {
-          auto new_out_2_ = robustPrune(index, std::move(candidates), G, Points);  
+          auto new_out_2_ = robustPrune(index, std::move(candidates), G, Points, alpha);  
           G[index].update_neighbors(new_out_2_);    
         }
       });
