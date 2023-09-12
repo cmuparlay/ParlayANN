@@ -24,10 +24,10 @@
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include "pybind11/numpy.h"
 
 #include "builder.cpp"
 #include "vamana_index.cpp"
-
 
 PYBIND11_MAKE_OPAQUE(std::vector<uint32_t>);
 PYBIND11_MAKE_OPAQUE(std::vector<float>);
@@ -36,6 +36,8 @@ PYBIND11_MAKE_OPAQUE(std::vector<uint8_t>);
 
 namespace py = pybind11;
 using namespace pybind11::literals;
+
+// using NeighborsAndDistances = std::pair<py::array_t<unsigned int, py::array::c_style | py::array::forcecast>, py::array_t<float, py::array::c_style | py::array::forcecast>>;
 
 struct Variant
 {
@@ -65,7 +67,8 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
         .def("batch_search", &VamanaIndex<T, Point>::batch_search, "queries"_a, "num_queries"_a, "knn"_a,
              "beam_width"_a)
         .def("batch_search_from_string", &VamanaIndex<T, Point>::batch_search_from_string, "queries"_a, "num_queries"_a, "knn"_a,
-             "beam_width"_a);
+             "beam_width"_a)
+        .def("check_recall", &VamanaIndex<T, Point>::check_recall, "gFile"_a, "neighbors"_a, "k"_a);
 
    
 }
