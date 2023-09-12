@@ -87,7 +87,7 @@ struct clusterPID {
                          parlay::sequence<size_t>& active_indices,
                          parlay::random& rnd, long cluster_size,
                          long K) {
-    if (active_indices.size() < cluster_size)
+    if (active_indices.size() <= cluster_size)
       naive_neighbors(Points, active_indices, K);
     else {
       auto [f, s] = select_two_random(active_indices, rnd);
@@ -131,21 +131,17 @@ struct clusterPID {
               return dist_second < dist_first;
             });
 
-        if (closer_first.size() == 1) {
-          random_clustering(Points, active_indices, right_rnd, cluster_size, K);
-        } else if (closer_second.size() == 1) {
-          random_clustering(Points, active_indices, left_rnd, cluster_size, K);
-        } else {
-          parlay::par_do(
-              [&]() {
-                random_clustering(Points, closer_first, left_rnd, cluster_size, 
+
+        parlay::par_do(
+            [&]() {
+              random_clustering(Points, closer_first, left_rnd, cluster_size, 
+                                K);
+            },
+            [&]() {
+              random_clustering(Points, closer_second, right_rnd, cluster_size,
                                   K);
-              },
-              [&]() {
-                random_clustering(Points, closer_second, right_rnd, cluster_size,
-                                   K);
-              });
-        }
+        });
+
       }
     }
   }
