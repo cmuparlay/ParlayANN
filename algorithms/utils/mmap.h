@@ -31,7 +31,6 @@
 // #include "common/geometry.h"
 // #include "common/geometryIO.h"
 #include "../bench/parse_command_line.h"
-#include "types.h"
 // #include "common/time_loop.h"
 
 #include <fcntl.h>
