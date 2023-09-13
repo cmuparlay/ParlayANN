@@ -9,7 +9,7 @@ def build_vamana_index(metric, dtype, data_dir, index_dir, R, L, alpha):
         elif dtype == 'float':
             build_vamana_float_euclidian_index(metric, data_dir, index_dir, R, L, alpha)
         else:
-            raise Exception('Invalid data type')
+            raise Exception('Invalid data type ' + dtype)
     elif metric == 'mips':
         if dtype == 'uint8':
             build_vamana_uint8_mips_index(metric, data_dir, index_dir, R, L, alpha)
@@ -18,9 +18,9 @@ def build_vamana_index(metric, dtype, data_dir, index_dir, R, L, alpha):
         elif dtype == 'float':
             build_vamana_float_mips_index(metric, data_dir, index_dir, R, L, alpha)
         else:
-            raise Exception('Invalid data type')
+            raise Exception('Invalid data type ' + dtype)
     else:
-        raise Exception('Invalid metric')
+        raise Exception('Invalid metric ' + metric)
         
 def load_vamana_index(metric, dtype, data_dir, index_dir, n, d):
     if metric == 'Euclidian':
