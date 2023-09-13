@@ -41,7 +41,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-float euclidian_distance(uint8_t *p, uint8_t *q, unsigned d) {
+float euclidian_distance(const uint8_t *p, const uint8_t *q, unsigned d) {
   int result = 0;
   for (int i = 0; i < (int) d; i++) {
     result += ((int32_t)((int16_t)q[i] - (int16_t)p[i])) *
@@ -50,7 +50,7 @@ float euclidian_distance(uint8_t *p, uint8_t *q, unsigned d) {
   return (float)result;
 }
 
-float euclidian_distance(int8_t *p, int8_t *q, unsigned d) {
+float euclidian_distance(const int8_t *p, const int8_t *q, unsigned d) {
   int result = 0;
   for (int i = 0; i < (int) d; i++) {
     result += ((int32_t)((int16_t)q[i] - (int16_t)p[i])) *
@@ -59,7 +59,7 @@ float euclidian_distance(int8_t *p, int8_t *q, unsigned d) {
   return (float)result;
 }
 
-float euclidian_distance(float *p, float *q, unsigned d) {
+float euclidian_distance(const float *p, const float *q, unsigned d) {
   efanna2e::DistanceL2 distfunc;
   return distfunc.compare(p, q, d);
 }
@@ -82,7 +82,7 @@ struct Euclidian_Point {
 
   long id() {return id_;}
 
-  Euclidian_Point(T* values, unsigned int d, unsigned int ad, long id)
+  Euclidian_Point(const T* values, unsigned int d, unsigned int ad, long id)
     : values(values), d(d), aligned_d(ad), id_(id) {}
 
   bool operator==(Euclidian_Point<T> q){
@@ -95,7 +95,7 @@ struct Euclidian_Point {
   }
 
 private:
-  T* values;
+  const T* values;
   unsigned int d;
   unsigned int aligned_d;
   long id_;

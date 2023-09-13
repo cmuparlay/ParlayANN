@@ -41,7 +41,7 @@
 #include <unistd.h>
 
 
-  float mips_distance(uint8_t *p, uint8_t *q, unsigned d) {
+  float mips_distance(const uint8_t *p, const uint8_t *q, unsigned d) {
     int result = 0;
     for (int i = 0; i < (int) d; i++) {
       result += ((int32_t)q[i]) * ((int32_t)p[i]);
@@ -49,7 +49,7 @@
     return -((float)result);
   }
 
-  float mips_distance(int8_t *p, int8_t *q, unsigned d) {
+  float mips_distance(const int8_t *p, const int8_t *q, unsigned d) {
     int result = 0;
     for (int i = 0; i < (int) d; i++) {
       result += ((int32_t)q[i]) * ((int32_t)p[i]);
@@ -57,7 +57,7 @@
     return -((float)result);
   }
 
-  float mips_distance(float *p, float *q, unsigned d) {
+  float mips_distance(const float *p, const float *q, unsigned d) {
     float result = 0;
     for (int i = 0; i < (int) d; i++) {
       result += (q[i]) * (p[i]);
@@ -83,7 +83,7 @@ struct Mips_Point {
 
   long id() {return id_;}
 
-  Mips_Point(T* values, unsigned int d, unsigned int ad, long id)
+  Mips_Point(const T* values, unsigned int d, unsigned int ad, long id)
     : values(values), d(d), aligned_d(ad), id_(id) {}
 
   bool operator==(Mips_Point<T> q){
@@ -96,7 +96,7 @@ struct Mips_Point {
   }
 
 private:
-  T* values;
+  const T* values;
   unsigned int d;
   unsigned int aligned_d;
   long id_;
