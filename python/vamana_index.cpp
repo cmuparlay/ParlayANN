@@ -66,6 +66,14 @@ struct VamanaIndex{
         size_t i = 0;
         Point q = Point(queries.data(i), Points.dimension(), Points.aligned_dimension(), i);
 
+        // printing the query point
+        std::cout << "query point: " << std::endl;
+        for(int j=0; j<Points.dimension(); j++){
+            std::cout << q.values[j] << " ";
+        }
+        std::cout << std::endl;
+
+
         std::cout << "query point initialized" << std::endl;
 
         auto [pairElts, dist_cmps] = beam_search<Point, PointRange<T, Point>, unsigned int>(q, G, Points, 0, QP);
