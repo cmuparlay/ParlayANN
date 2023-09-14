@@ -56,40 +56,14 @@ struct VamanaIndex{
                         uint64_t beam_width){
         QueryParams QP(knn, beam_width, 1.35, G.size(), G.max_degree());
 
-        std::cout << "knn: " << knn << std::endl;
+        // std::cout << "knn: " << knn << std::endl;
 
         py::array_t<unsigned int> ids({num_queries, knn});
         py::array_t<float> dists({num_queries, knn});
 
-        std::cout << "outputs initialized" << std::endl;
+        // std::cout << "outputs initialized" << std::endl;
 
-        size_t i = 0;
-        Point q = Point(queries.data(i), Points.dimension(), Points.aligned_dimension(), i);
-
-        std::cout << "query point: " << q.to_string() << std::endl;
-
-
-        // std::cout << "query point initialized" << std::endl;
-
-        auto [pairElts, dist_cmps] = beam_search<Point, PointRange<T, Point>, unsigned int>(q, G, Points, 0, QP);
-
-        std::cout << "beam search complete" << std::endl;
-
-        auto [frontier, visited] = pairElts;
-
-        std::cout << "pairElts unpacked" << std::endl;
-
-        parlay::sequence<unsigned int> point_ids;
-        parlay::sequence<float> point_distances;
-        for(int j=0; j<knn; j++){
-            ids.mutable_data(i)[j] = frontier[j].first;
-            dists.mutable_data(i)[j] = frontier[j].second;
-        }
-
-        std::cout << "ids and dists set" << std::endl;
-
-        // the above code should be removed when it runs and the 1 below should be returned to a 0
-        parlay::parallel_for(1, num_queries, [&] (size_t i){
+        parlay::parallel_for(0, num_queries, [&] (size_t i){
             Point q = Point(queries.data(i), Points.dimension(), Points.aligned_dimension(), i);
             auto [pairElts, dist_cmps] = beam_search<Point, PointRange<T, Point>, unsigned int>(q, G, Points, 0, QP);
             auto [frontier, visited] = pairElts;
