@@ -6,7 +6,7 @@ print(dir(pann))
 FERN_DATA_DIR = "/ssd1/anndata/bigann/"
 AWARE_DATA_DIR = "/ssd1/data/bigann/"
 
-DATA_DIR = FERN_DATA_DIR
+DATA_DIR = AWARE_DATA_DIR
 
 wp.build_vamana_index("Euclidian", "uint8", DATA_DIR + "base.1B.u8bin.crop_nb_1000000", DATA_DIR + "outputs/parlayann", 64, 128, 1.2)
 
