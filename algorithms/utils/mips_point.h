@@ -95,6 +95,14 @@ struct Mips_Point {
     return true;
   }
 
+  std::string to_string() {
+    std::string s = "";
+    for (int i = 0; i < d; i++) {
+      s += std::to_string(values[i]) + " ";
+    }
+    return s;
+  }
+
 private:
   const T* values;
   unsigned int d;
