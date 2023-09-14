@@ -70,6 +70,7 @@ struct Euclidian_Point {
 
   static distanceType d_min() {return 0;}
   static bool is_metric() {return true;}
+  bool is_learn_point() {return learn;}
 
   float distance(Euclidian_Point<T> x) {
     return euclidian_distance(this->values, x.values, d);
@@ -83,8 +84,8 @@ struct Euclidian_Point {
 
   long id() {return id_;}
 
-  Euclidian_Point(const T* values, unsigned int d, unsigned int ad, long id)
-    : values(values), d(d), aligned_d(ad), id_(id) {}
+  Euclidian_Point(const T* values, unsigned int d, unsigned int ad, long id, bool learn)
+    : values(values), d(d), aligned_d(ad), id_(id), learn(learn) {}
 
   bool operator==(Euclidian_Point<T> q){
     for (int i = 0; i < d; i++) {
@@ -100,5 +101,6 @@ private:
   unsigned int d;
   unsigned int aligned_d;
   long id_;
+  bool learn;
 };
 

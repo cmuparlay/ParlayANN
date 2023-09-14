@@ -71,6 +71,7 @@ struct Mips_Point {
   
   static distanceType d_min() {return -std::numeric_limits<float>::max();}
   static bool is_metric() {return false;}
+  bool is_learn_point() {return learn;}
 
   float distance(Mips_Point<T> x) {
     return mips_distance(this->values, x.values, d);
@@ -84,8 +85,8 @@ struct Mips_Point {
 
   long id() {return id_;}
 
-  Mips_Point(const T* values, unsigned int d, unsigned int ad, long id)
-    : values(values), d(d), aligned_d(ad), id_(id) {}
+  Mips_Point(const T* values, unsigned int d, unsigned int ad, long id, bool learn)
+    : values(values), d(d), aligned_d(ad), id_(id), learn(learn) {}
 
   bool operator==(Mips_Point<T> q){
     for (int i = 0; i < d; i++) {
@@ -101,4 +102,5 @@ private:
   unsigned int d;
   unsigned int aligned_d;
   long id_;
+  bool learn;
 };
