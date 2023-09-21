@@ -72,6 +72,8 @@ struct Euclidian_Point {
   static bool is_metric() {return true;}
   bool is_learn_point() {return learn;}
 
+
+
   float distance(Euclidian_Point<T> x) {
     return euclidian_distance(this->values, x.values, d);
   }

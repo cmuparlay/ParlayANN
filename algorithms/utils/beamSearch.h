@@ -41,18 +41,18 @@
 template<typename Point, typename PointRange, typename indexType>
 std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>, parlay::sequence<std::pair<indexType, typename Point::distanceType>>>, indexType>
 beam_search(Point p, Graph<indexType> &G, PointRange &Points,
-	    indexType starting_point, QueryParams &QP) {
+	    indexType starting_point, QueryParams &QP, bool build=false) {
   
   parlay::sequence<indexType> start_points = {starting_point};
-  return beam_search(p, G, Points, start_points, QP);
+  return beam_search(p, G, Points, start_points, QP, build);
 }
 
 // main beam search
 template<typename Point, typename PointRange, typename indexType>
 std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>, parlay::sequence<std::pair<indexType, typename Point::distanceType>>>, size_t>
 beam_search(Point p, Graph<indexType> &G, PointRange &Points,
-	      parlay::sequence<indexType> starting_points, QueryParams &QP) {
-
+	      parlay::sequence<indexType> starting_points, QueryParams &QP, bool build=false) {
+  // std::cout << "start beam" << std::endl;
   // compare two (node_id,distance) pairs, first by distance and then id if
   // equal
   using distanceType = typename Point::distanceType; 
@@ -63,7 +63,7 @@ beam_search(Point p, Graph<indexType> &G, PointRange &Points,
 
   // used as a hash filter (can give false negative -- i.e. can say
   // not in table when it is)
-  int bits = std::max<int>(10, std::ceil(std::log2(QP.beamSize * QP.beamSize)) - 2);
+  int bits = std::max<int>(10, std::ceil(std::log2(4*QP.beamSize * QP.beamSize)) - 2);
   std::vector<indexType> hash_filter(1 << bits, -1);
   auto has_been_seen = [&](indexType a) -> bool {
     int loc = parlay::hash64_2(a) & ((1 << bits) - 1);
@@ -83,7 +83,7 @@ beam_search(Point p, Graph<indexType> &G, PointRange &Points,
 
   // The subset of the frontier that has not been visited
   // Use the first of these to pick next vertex to visit.
-  std::vector<std::pair<indexType, distanceType>> unvisited_frontier(QP.beamSize);
+  std::vector<std::pair<indexType, distanceType>> unvisited_frontier(2*QP.beamSize);
   unvisited_frontier[0] = frontier[0];
 
   // maintains sorted set of visited vertices (id-distance pairs)
@@ -97,7 +97,7 @@ beam_search(Point p, Graph<indexType> &G, PointRange &Points,
   double total;
 
   // used as temporaries in the loop
-  std::vector<std::pair<indexType, distanceType>> new_frontier(QP.beamSize + G.max_degree());
+  std::vector<std::pair<indexType, distanceType>> new_frontier(2*QP.beamSize + G.max_degree());
   std::vector<std::pair<indexType, distanceType>> candidates;
   candidates.reserve(G.max_degree());
   std::vector<indexType> keep;
@@ -132,14 +132,18 @@ beam_search(Point p, Graph<indexType> &G, PointRange &Points,
 
     // Further filter on whether distance is greater than current
     // furthest distance in current frontier (if full).
-    distanceType cutoff = ((frontier.size() < QP.beamSize)
+    int N_base = 0;
+    for(auto p : frontier){
+      if(!Points.is_learn(p.first)) N_base++;
+    }
+    distanceType cutoff = ((N_base < QP.beamSize)
                            ? (distanceType)std::numeric_limits<int>::max()
                            : frontier[frontier.size() - 1].second);
     for (auto a : keep) {
       distanceType dist = Points[a].distance(p);
       total += dist;
       dist_cmps++;
-      // skip if frontier not full and distance too large
+      // skip if frontier full and distance too large
       if (dist >= cutoff) continue;
       candidates.push_back(std::pair{a, dist});
     }
@@ -153,12 +157,14 @@ beam_search(Point p, Graph<indexType> &G, PointRange &Points,
                        candidates.end(), new_frontier.begin(), less) -
         new_frontier.begin();
 
-    // trim to at most beam size
-    new_frontier_size = std::min<size_t>(QP.beamSize, new_frontier_size);
+    
 
     // if a k is given (i.e. k != 0) then trim off entries that have a
     // distance greater than cut * current-kth-smallest-distance.
     // Only used during query and not during build.
+
+    // TODO turn this off for ood + Euclidian
+    // (automatically off for mips)
     if (QP.k > 0 && new_frontier_size > QP.k && Points[0].is_metric())
       new_frontier_size =
           (std::upper_bound(new_frontier.begin(),
@@ -168,8 +174,32 @@ beam_search(Point p, Graph<indexType> &G, PointRange &Points,
 
     // copy new_frontier back to the frontier
     frontier.clear();
-    for (indexType i = 0; i < new_frontier_size; i++)
-      frontier.push_back(new_frontier[i]);
+
+    //allow base points to remain in frontier past cutoff
+    int num_base = 0;
+    // trim to at most beam size
+    size_t new_frontier_size2 = std::min<size_t>(QP.beamSize, new_frontier_size);
+    for (indexType j = 0; j < new_frontier_size2; j++){
+      if(!Points.is_learn(new_frontier[j].first)) num_base++;
+      frontier.push_back(new_frontier[j]);
+    }
+    // if(new_frontier_size2 != num_base) {
+      // std::cout << "Out of " << new_frontier_size2 << " points in beam, " << num_base << " are base points " << std::endl;
+    // }
+    int cc = new_frontier_size2; 
+    if(new_frontier_size < new_frontier_size2){std::cout << "ERROR: frontier sizes incorrect" << std::endl;}
+    // std::cout << "starting additional pts" << std::endl;
+    if(!build){
+      while(num_base < QP.beamSize && cc < new_frontier_size){
+        if(!Points.is_learn(new_frontier[cc].first)){ 
+          frontier.push_back(new_frontier[cc]); 
+          num_base++; 
+        }
+        cc++;
+      }
+    }
+    // std::cout << "end additional pts" << std::endl;
+    // if(frontier.size() - new_frontier_size2 > 0) {std::cout << "Added " << frontier.size() - new_frontier_size2 << " additional points" << std::endl;}
 
     // get the unvisited frontier (we only care about the first one)
     remain =
@@ -178,7 +208,20 @@ beam_search(Point p, Graph<indexType> &G, PointRange &Points,
         unvisited_frontier.begin();
   }
 
-  return std::make_pair(std::make_pair(parlay::to_sequence(frontier),
+  std::vector<std::pair<indexType, distanceType>> filtered_frontier;
+  // filtered_frontier.reserve(QP.beamSize);
+  for(auto p : frontier){
+    if(!Points.is_learn(p.first)) filtered_frontier.push_back(p);
+  }
+  if(filtered_frontier.size() > QP.beamSize){
+    std::cout << "ERROR: returning too many points" << std::endl;
+  }
+  for(auto p : filtered_frontier){
+    if(Points.is_learn(p.first)){
+      std::cout << "ERROR: point " << p.first << " in filtered frontier" << std::endl;
+    }
+  }
+  return std::make_pair(std::make_pair(parlay::to_sequence(filtered_frontier),
                                        parlay::to_sequence(visited)),
                         dist_cmps);
 }
@@ -329,18 +372,25 @@ parlay::sequence<parlay::sequence<indexType>> searchAll(PointRange &Query_Points
               << " same size or smaller than k = " << QP.k << std::endl;
     abort();
   }
+  // std::cout << "Start search " << std::endl;
   parlay::sequence<parlay::sequence<indexType>> all_neighbors(Query_Points.size());
   parlay::parallel_for(0, Query_Points.size(), [&](size_t i) {
-    parlay::sequence<indexType> neighbors = parlay::sequence<indexType>(QP.k);
+    parlay::sequence<indexType> neighbors;
     auto [pairElts, dist_cmps] = beam_search(Query_Points[i], G, Base_Points, starting_points, QP);
     auto [beamElts, visitedElts] = pairElts;
-    for (indexType j = 0; j < QP.k; j++) {
-      neighbors[j] = beamElts[j].first;
+    // if(beamElts.size() == 0) std::cout << "Point with no neighbors reported" << std::endl;
+    for (indexType j = 0; j < std::min<size_t>((size_t) QP.k, beamElts.size()); j++) {
+      if(Base_Points.is_learn(beamElts[j].first)){
+        std::cout << "ERROR: returned point with id " << beamElts[j].first << std::endl;
+        abort();
+      } 
+      neighbors.push_back(beamElts[j].first);
     }
     all_neighbors[i] = neighbors;
     QueryStats.increment_visited(i, visitedElts.size());
     QueryStats.increment_dist(i, dist_cmps);
   });
+  // std::cout << "End search " << std::endl;
 
   return all_neighbors;
 }

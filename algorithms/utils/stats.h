@@ -50,6 +50,43 @@ std::pair<double, int> graph_stats_(Graph<unsigned int> &G) {
   return std::make_pair(avg_deg, maxDegree);
 }
 
+void graph_learn_base_stats(Graph<unsigned int> &G, size_t base_size) {
+  auto od = parlay::delayed_seq<size_t>(
+      G.size(), [&](size_t i) { return G[i].size(); });
+  size_t j = parlay::max_element(od) - od.begin();
+  int maxDegree = od[j];
+  size_t p = parlay::min_element(od) - od.begin();
+  int minDegree = od[p];
+  size_t sum1 = parlay::reduce(od);
+  double avg_deg = sum1 / ((double)G.size());
+
+  parlay::sequence<size_t> base_degrees(base_size);
+  parlay::sequence<size_t> learn_degrees(base_size);
+  parlay::parallel_for(0, base_size, [&] (size_t i){
+    size_t num_base = 0;
+    for(size_t j=0; j<G[i].size(); j++){
+      if(G[i][j] < base_size) num_base++;
+      base_degrees[i] = num_base;
+      learn_degrees[i] = G[i].size() - num_base;
+    }
+  });
+
+  size_t l = parlay::max_element(base_degrees) - base_degrees.begin();
+  int maxDegreeBase = base_degrees[l];
+  size_t sum2 = parlay::reduce(base_degrees);
+  double avg_base = sum2 / ((double) base_size);
+
+  size_t m = parlay::max_element(learn_degrees) - learn_degrees.begin();
+  int maxDegreeLearn= learn_degrees[m];
+  size_t sum3 = parlay::reduce(learn_degrees);
+  double avg_learn = sum3 / ((double) base_size);
+
+  std::cout << "Average degree: " << avg_deg << ", max degree: " << maxDegree << ", min degree " << minDegree << std::endl;
+  std::cout << "Average base degree: " << avg_base << ", max degree: " << maxDegreeBase << std::endl;
+  std::cout << "Average learn degree: " << avg_learn << ", max degree: " << maxDegreeLearn << std::endl;
+  // return std::make_pair(avg_deg, maxDegree);
+}
+
 template<typename indexType>
 struct stats{
 

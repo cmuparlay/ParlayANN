@@ -103,7 +103,38 @@ struct PointRange{
         dims = 0;
         return;
       } if(sFile == NULL){
-        PointRange(filename);
+        std::ifstream reader(filename);
+        assert(reader.is_open());
+
+        //read num points and max degree
+        unsigned int num_points;
+        unsigned int d;
+        reader.read((char*)(&num_points), sizeof(unsigned int));
+        n = num_points;
+        base_size = num_points;
+        learn_size = 0;
+        reader.read((char*)(&d), sizeof(unsigned int));
+        dims = d;
+        std::cout << "Detected " << num_points << " points with dimension " << d << std::endl;
+        aligned_dims =  dim_round_up(dims, sizeof(T));
+        if(aligned_dims != dims) std::cout << "Aligning dimension to " << aligned_dims << std::endl;
+        values = (T*) aligned_alloc(64, n*aligned_dims*sizeof(T));
+        size_t BLOCK_SIZE = 1000000;
+        size_t index = 0;
+        while(index < n){
+            size_t floor = index;
+            size_t ceiling = index+BLOCK_SIZE <= n ? index+BLOCK_SIZE : n;
+            T* data_start = new T[(ceiling-floor)*dims];
+            reader.read((char*)(data_start), sizeof(T)*(ceiling-floor)*dims);
+            T* data_end = data_start + (ceiling-floor)*dims;
+            parlay::slice<T*, T*> data = parlay::make_slice(data_start, data_end);
+            int data_bytes = dims*sizeof(T);
+            parlay::parallel_for(floor, ceiling, [&] (size_t i){
+              std::memmove(values + i*aligned_dims, data.begin() + (i-floor)*dims, data_bytes);
+            });
+            delete[] data_start;
+            index = ceiling;
+        }
         return;
       }
       std::ifstream reader(filename);
@@ -116,7 +147,7 @@ struct PointRange{
       base_size = num_points;
       reader.read((char*)(&d), sizeof(unsigned int));
       dims = d;
-      std::cout << "Detected " << num_points << " base points with dimension " << d << std::endl;
+      std::cout << "Detected " << base_size << " base points with dimension " << d << std::endl;
 
       std::ifstream sample_reader(sFile);
       assert(sample_reader.is_open());
@@ -129,7 +160,7 @@ struct PointRange{
       sample_reader.read((char*)(&sample_d), sizeof(unsigned int));
       assert(sample_d == d);
       n = base_size + learn_size; 
-      std::cout << "Detected " << num_sample_points << " sample points with dimension " << sample_d << std::endl;
+      std::cout << "Detected " << learn_size << " sample points with dimension " << sample_d << std::endl;
 
 
       aligned_dims =  dim_round_up(dims, sizeof(T));
@@ -162,12 +193,12 @@ struct PointRange{
           parlay::slice<T*, T*> data = parlay::make_slice(data_start, data_end);
           int data_bytes = dims*sizeof(T);
           parlay::parallel_for(floor, ceiling, [&] (size_t i){
-            std::memmove(values + i*aligned_dims, data.begin() + (i-floor)*dims, data_bytes);
+            std::memmove(values + (i+base_size)*aligned_dims, data.begin() + (i-floor)*dims, data_bytes);
           });
           delete[] data_start;
           index = ceiling;
       }
-      std::cout << "Build point set with " << n << " total points" << std::endl;
+      std::cout << "Built point set with " << n << " total points" << std::endl;
   }
 
   // PointRange(char* filename) {
@@ -188,9 +219,19 @@ struct PointRange{
   // }
 
   size_t size() { return n; }
+  size_t b_size() {return base_size;}
+  size_t l_size() {return learn_size;}
+
+  bool is_learn(long i){
+    if(i >= n || i < 0){
+      std::cout << "Error: invalid id " << i << std::endl;
+      abort();
+    }
+    return (i >= base_size);
+  }
   
   Point operator [] (long i) {
-    if(i > base_size) return Point(values+i*aligned_dims, dims, aligned_dims, i, true);
+    if(i >= base_size) return Point(values+i*aligned_dims, dims, aligned_dims, i, true);
     else return Point(values+i*aligned_dims, dims, aligned_dims, i, false);
   }
 

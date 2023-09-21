@@ -74,7 +74,8 @@ nn_result checkRecall(
     int numCorrect = 0;
     for (indexType i = 0; i < n; i++) {
       std::set<indexType> reported_nbhs;
-      for (indexType l = 0; l < k; l++) reported_nbhs.insert((all_ngh[i])[l]);
+      int b = std::min<size_t>((size_t) k, all_ngh[i].size());
+      for (indexType l = 0; l < b; l++) reported_nbhs.insert((all_ngh[i])[l]);
       for (indexType l = 0; l < k; l++) {
         if (reported_nbhs.find((GT.coordinates(i,l))) !=
             reported_nbhs.end()) {
@@ -98,7 +99,8 @@ nn_result checkRecall(
         }
       }
       std::set<int> reported_nbhs;
-      for (indexType l = 0; l < k; l++) reported_nbhs.insert((all_ngh[i])[l]);
+      int b = std::min<size_t>((size_t) k, all_ngh[i].size());
+      for (indexType l = 0; l < b; l++) reported_nbhs.insert((all_ngh[i])[l]);
       for (indexType l = 0; l < results_with_ties.size(); l++) {
         if (reported_nbhs.find(results_with_ties[l]) != reported_nbhs.end()) {
           numCorrect += 1;
