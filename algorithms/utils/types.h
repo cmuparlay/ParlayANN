@@ -91,7 +91,7 @@ struct BuildParams{
 
   BuildParams() {}
 
-  BuildParams(long R, long L, double a) : R(R), L(L), alpha(a) {}
+  BuildParams(long R, long L, double a, bool tp) : R(R), L(L), alpha(a), two_pass(tp) {}
 
   BuildParams(long R, long L, double a, bool tp, long nc, long cs, long mst, double de) : R(R), L(L), 
             alpha(a), two_pass(tp), num_clusters(nc), cluster_size(cs), MST_deg(mst), delta(de) {

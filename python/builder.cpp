@@ -33,11 +33,11 @@
 template <typename T, typename Point>
 void build_vamana_index(std::string metric, std::string &vector_bin_path,
                          std::string &index_output_path, uint32_t graph_degree, uint32_t beam_width,
-                        float alpha)
+                        float alpha, bool two_pass)
 {
     
     //instantiate build params object
-    BuildParams BP(graph_degree, beam_width, alpha);
+    BuildParams BP(graph_degree, beam_width, alpha, two_pass);
 
     //use file parsers to create Point object
 
@@ -59,16 +59,16 @@ void build_vamana_index(std::string metric, std::string &vector_bin_path,
 }
 
 template void build_vamana_index<float, Euclidian_Point<float>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
-                                        float);                            
+                                        float, bool);                            
 template void build_vamana_index<float, Mips_Point<float>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
-                                        float);
+                                        float, bool);
 
 template void build_vamana_index<int8_t, Euclidian_Point<int8_t>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
-                                         float);
+                                         float, bool);
 template void build_vamana_index<int8_t, Mips_Point<int8_t>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
-                                         float);
+                                         float, bool);
 
 template void build_vamana_index<uint8_t, Euclidian_Point<uint8_t>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
-                                          float);
+                                          float, bool);
 template void build_vamana_index<uint8_t, Mips_Point<uint8_t>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
-                                          float);
+                                          float, bool);
