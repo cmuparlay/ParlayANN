@@ -64,7 +64,7 @@ struct VamanaIndex{
         std::cout << "outputs initialized" << std::endl;
 
         size_t i = 0;
-        Point q = Point(queries.mutable_data(i), Points.dimension(), Points.aligned_dimension(), i);
+        Point q = Point(queries.data(i), Points.dimension(), Points.aligned_dimension(), i);
 
         std::cout << "query point initialized" << std::endl;
 
