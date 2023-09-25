@@ -25,4 +25,5 @@ neighbors, distances = ivf.batch_search(query, 10000, 10, 100)
 
 print(neighbors.shape)
 print(neighbors[:10, :])
+print(distances[:10, :])
 # Index.check_recall(DATA_DIR + "bigann-1M", neighbors, 10)
