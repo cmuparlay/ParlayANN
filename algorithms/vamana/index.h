@@ -240,7 +240,12 @@ struct knn_index {
           parlay::sequence<indexType> to_sort;
           for(int l=0; l<G[j].size(); l++){to_sort.push_back(G[G[i][j]][l]);}
           parlay::sort_inplace(to_sort, less);
-          size_t s = std::min<size_t>((size_t) degree_gaps[i], to_sort.size());
+          // size_t s = std::min<size_t>((size_t) degree_gaps[i], to_sort.size());
+          size_t l = 0;
+          size_t added = 0;
+          while(added < degree_gaps[i] && l < to_sort.size()){
+            indexType candidate = to_sort[l];
+          }
           for(int l=0; l<std::min<size_t>((size_t) degree_gaps[i], to_sort.size()); l++){new_nbh.push_back(to_sort[l]);}
         } else new_nbh.push_back(G[i][j]);
       }
