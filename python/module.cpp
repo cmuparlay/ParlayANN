@@ -77,7 +77,8 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
         .def(py::init())
         .def("fit", &IVFIndex<T, Point, NaivePostingList<T, Point>>::fit, "points"_a, "cluster_size"_a)
         .def("fit_from_filename", &IVFIndex<T, Point, NaivePostingList<T, Point>>::fit_from_filename, "filename"_a, "cluster_size"_a)
-        .def("batch_search", &IVFIndex<T, Point, NaivePostingList<T, Point>>::batch_search, "queries"_a, "num_queries"_a, "knn"_a);
+        .def("batch_search", &IVFIndex<T, Point, NaivePostingList<T, Point>>::batch_search, "queries"_a, "num_queries"_a, "knn"_a, "n_lists"_a)
+        .def("print_stats", &IVFIndex<T, Point, NaivePostingList<T, Point>>::print_stats);
 }
 
 PYBIND11_MODULE(_ParlayANNpy, m)

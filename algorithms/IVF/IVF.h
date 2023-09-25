@@ -76,23 +76,29 @@ struct IVFIndex {
         py::array_t<float> dists({num_queries, knn});
 
         parlay::parallel_for(0, num_queries, [&] (size_t i){
-            Point q = Point(queries.data(i), dim, aligned_dim, i);
+            Point q = Point(queries.data(i), dim, dim, i);
             parlay::sequence<size_t> nearest_centroid_ids = nearest_centroids(q, n_lists);
-            parlay::sequence<std::pair<unsigned int, float>> frontier;
+
+            parlay::sequence<std::pair<unsigned int, float>> frontier = parlay::tabulate(knn, [&] (size_t i) {
+                return std::make_pair(std::numeric_limits<unsigned int>::max(), std::numeric_limits<float>::max());
+            });
 
             for (size_t j=0; j<nearest_centroid_ids.size(); j++){
                 posting_lists[nearest_centroid_ids[j]].query(q, knn, frontier);
             }
 
             // this sort should be redundant
-            std::sort(frontier.begin(), frontier.end(), [&] (std::pair<unsigned int, float> a, std::pair<unsigned int, float> b) {
-                return a.second < b.second;
-            });
+            // std::sort(frontier.begin(), frontier.end(), [&] (std::pair<unsigned int, float> a, std::pair<unsigned int, float> b) {
+            //     return a.second < b.second;
+            // });
             for (size_t j=0; j<knn; j++){
                 ids.mutable_data(i)[j] = frontier[j].first;
                 dists.mutable_data(i)[j] = frontier[j].second;
             }
         });
+
+        // std::cout << "parfor done" << std::endl;
+
         return std::make_pair(std::move(ids), std::move(dists));
     }
 

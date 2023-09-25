@@ -20,7 +20,7 @@ ivf.print_stats()
 # neighbors, distances = Index.batch_search_from_string(DATA_DIR + "query.public.10K.u8bin", 10000, 10, 100)
 
 query = np.fromfile(DATA_DIR + "query.public.10K.u8bin", dtype=np.uint8)[8:].reshape((10000, 128))
-
+print(query.shape)
 neighbors, distances = ivf.batch_search(query, 10000, 10, 100)
 
 print(neighbors.shape)
