@@ -105,6 +105,10 @@ struct edgeRange{
     template<typename F>
     void sort(F&& less){std::sort(edges.begin()+1, edges.begin()+1+edges[0], less);}
 
+    indexType* begin(){return edges.begin()+1;}
+
+    indexType* end(){return edges.end()+1+edges[0];}
+
     private:
         parlay::slice<indexType*, indexType*> edges;
         long maxDeg;
