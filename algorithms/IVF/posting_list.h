@@ -27,7 +27,7 @@ struct NaivePostingList {
     PointRange<T, Point> points;
     parlay::sequence<size_t> indices;
 
-    NaivePostingList() {}
+    // NaivePostingList() {}
 
     NaivePostingList(PointRange<T, Point> points, parlay::sequence<size_t> indices) : points(points), indices(indices) {}
 
@@ -66,6 +66,21 @@ struct NaivePostingList {
                 farthest = result[result.size() - 1].second;
             }
         }
+    }
+
+    /* Returns the mean sum squared error of the cluster */
+    double msse() {
+        Point centroid = this->centroid();
+        double result = 0;
+        for (size_t i = 0; i < indices.size(); i++) {
+            result += points[indices[i]].distance(centroid);
+        }
+        return result / indices.size();
+    }
+
+    /* Returns the number of points in the cluster */
+    size_t size() {
+        return indices.size();
     }
 };
 

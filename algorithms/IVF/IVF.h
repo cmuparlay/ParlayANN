@@ -71,13 +71,13 @@ struct IVFIndex {
         return parlay::map(nearest_centroids, [&] (std::pair<size_t, float> p) {return p.first;});
     }
 
-    NeighborsAndDistances batch_search(py::array_t<T, py::array::c_style | py::array::forcecast> &queries, uint64_t num_queries, uint64_t knn){
+    NeighborsAndDistances batch_search(py::array_t<T, py::array::c_style | py::array::forcecast> &queries, uint64_t num_queries, uint64_t knn, uint64_t n_lists){
         py::array_t<unsigned int> ids({num_queries, knn});
         py::array_t<float> dists({num_queries, knn});
 
         parlay::parallel_for(0, num_queries, [&] (size_t i){
             Point q = Point(queries.data(i), dim, aligned_dim, i);
-            parlay::sequence<size_t> nearest_centroid_ids = nearest_centroids(q, knn);
+            parlay::sequence<size_t> nearest_centroid_ids = nearest_centroids(q, n_lists);
             parlay::sequence<std::pair<unsigned int, float>> frontier;
 
             for (size_t j=0; j<nearest_centroid_ids.size(); j++){
@@ -94,6 +94,15 @@ struct IVFIndex {
             }
         });
         return std::make_pair(std::move(ids), std::move(dists));
+    }
+
+    void print_stats(){
+        size_t total = 0;
+        for (size_t i=0; i<posting_lists.size(); i++){
+            total += posting_lists[i].indices.size();
+        }
+        std::cout << "Total number of points: " << total << std::endl;
+        std::cout << "Average number of points per list: " << total / posting_lists.size() << std::endl;
     }
 };
 
