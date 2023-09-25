@@ -22,7 +22,6 @@ parlay::sequence<parlay::sequence<pid>> compute_groundtruth(PointRange &B,
         int toppos;
         parlay::sequence<pid> topk;
         for(size_t j=0; j<b; j++){
-            // float dist = D->distance((Q[i].coordinates).begin(), (B[j].coordinates).begin(), d);
             float dist = Q[i].distance(B[j]);
             if(topk.size() < k){
                 if(dist > topdist){
