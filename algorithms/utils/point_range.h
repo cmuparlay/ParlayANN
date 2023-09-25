@@ -57,7 +57,7 @@ struct PointRange{
 
   PointRange(){}
 
-  PointRange(char* filename){
+  PointRange(const char* filename){
       if(filename == NULL) {
         n = 0;
         dims = 0;

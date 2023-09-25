@@ -1,10 +1,14 @@
 /* Posting list for the bottom level of an IVF index. */
 
+#ifndef POSTING_LIST
+#define POSTING_LIST
+
 #include "parlay/sequence.h"
 #include "parlay/primitives.h"
 #include "parlay/parallel.h"
 
-#include "point_range.h"
+#include "../utils/point_range.h"
+#include "../utils/types.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,7 +35,7 @@ struct NaivePostingList {
     /* 
     This generates (serially) the centroid of the points in the posting list.
      */
-    parlay::sequence<T> centroid() {
+    Point centroid() {
         parlay::sequence<double> result(points.dimension(), 0);
         for (size_t i = 0; i < indices.size(); i++) {
             T* values = points[indices[i]].get();
@@ -42,22 +46,27 @@ struct NaivePostingList {
         for (size_t j = 0; j < points.dimension(); j++) {
             result[j] /= indices.size();
         }
-        return parlay::map(result, [](double x) {return static_cast<T>(std::round(x));});
+
+        parlay::sequence<T> casted_result = parlay::map(result, [](double x) {return static_cast<T>(x);});
+        return Point(static_cast<T*>(casted_result.data()), points.dimension(), points.dimension(), 0); // this may cause issues with alignment
+        // return parlay::map(result, [](double x) {return static_cast<T>(std::round(x));});
     }
 
     /* 
     Takes a query point, k, and a sequence of pairs of indices and distances, and if there are points in the posting list closer than the farthest point in the sequence, adds them to the sequence.
      */
-    void query(Point query, size_t k, parlay::sequence<std::pair<size_t, float>>& result) {
+    void query(Point query, unsigned int k, parlay::sequence<std::pair<unsigned int, float>>& result) {
         float farthest = result[result.size() - 1].second;
-        for (size_t i = 0; i < indices.size(); i++) {
+        for (unsigned int i = 0; i < indices.size(); i++) {
             float dist = points[indices[i]].distance(query);
             if (dist < farthest) {
                 result.push_back(std::make_pair(indices[i], dist));
-                std::sort(result.begin(), result.end(), [](std::pair<size_t, float> a, std::pair<size_t, float> b) {return a.second < b.second;});
+                std::sort(result.begin(), result.end(), [](std::pair<unsigned int, float> a, std::pair<unsigned int, float> b) {return a.second < b.second;});
                 result.pop_back();
                 farthest = result[result.size() - 1].second;
             }
         }
     }
 };
+
+#endif // POSTING_LIST

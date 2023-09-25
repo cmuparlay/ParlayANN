@@ -103,6 +103,8 @@ struct Mips_Point {
     return s;
   }
 
+  T* get() {return const_cast<T*>(values);}
+
 private:
   const T* values;
   unsigned int d;

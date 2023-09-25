@@ -43,3 +43,25 @@ def load_vamana_index(metric, dtype, data_dir, index_dir, n, d):
             raise Exception('Invalid data type')
     else:
         raise Exception('Invalid metric')
+    
+def init_ivf_index(metric, dtype):
+    if metric == 'Euclidian':
+        if dtype == 'uint8':
+            return IVFUInt8EuclidianIndex()
+        elif dtype == 'int8':
+            return IVFInt8EuclidianIndex()
+        elif dtype == 'float':
+            return IVFFloatEuclidianIndex()
+        else:
+            raise Exception('Invalid data type ' + dtype)
+    elif metric == 'mips':
+        if dtype == 'uint8':
+            return IVFUInt8MipsIndex()
+        elif dtype == 'int8':
+            return IVFInt8MipsIndex()
+        elif dtype == 'float':
+            return IVFFloatMipsIndex()
+        else:
+            raise Exception('Invalid data type ' + dtype)
+    else:
+        raise Exception('Invalid metric ' + metric)

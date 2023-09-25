@@ -28,6 +28,8 @@
 
 #include "builder.cpp"
 #include "vamana_index.cpp"
+#include "../algorithms/IVF/IVF.h"
+#include "../algorithms/IVF/posting_list.h"
 
 PYBIND11_MAKE_OPAQUE(std::vector<uint32_t>);
 PYBIND11_MAKE_OPAQUE(std::vector<float>);
@@ -43,16 +45,17 @@ struct Variant
 {
     std::string builder_name;
     std::string index_name;
+    std::string ivf_name;
 };
 
-const Variant FloatEuclidianVariant{"build_vamana_float_euclidian_index", "VamanaFloatEuclidianIndex"};
-const Variant FloatMipsVariant{"build_vamana_float_mips_index", "VamanaFloatMipsIndex"};
+const Variant FloatEuclidianVariant{"build_vamana_float_euclidian_index", "VamanaFloatEuclidianIndex", "IVFFloatEuclidianIndex"};
+const Variant FloatMipsVariant{"build_vamana_float_mips_index", "VamanaFloatMipsIndex", "IVFFloatMipsIndex"};
 
-const Variant UInt8EuclidianVariant{"build_vamana_uint8_euclidian_index", "VamanaUInt8EuclidianIndex"};
-const Variant UInt8MipsVariant{"build_vamana_uint8_mips_index", "VamanaUInt8MipsIndex"};
+const Variant UInt8EuclidianVariant{"build_vamana_uint8_euclidian_index", "VamanaUInt8EuclidianIndex", "IVFUInt8EuclidianIndex"};
+const Variant UInt8MipsVariant{"build_vamana_uint8_mips_index", "VamanaUInt8MipsIndex", "IVFUInt8MipsIndex"};
 
-const Variant Int8EuclidianVariant{"build_vamana_int8_euclidian_index", "VamanaInt8EuclidianIndex"};
-const Variant Int8MipsVariant{"build_vamana_int8_mips_index", "VamanaInt8MipsIndex"};
+const Variant Int8EuclidianVariant{"build_vamana_int8_euclidian_index", "VamanaInt8EuclidianIndex", "IVFInt8EuclidianIndex"};
+const Variant Int8MipsVariant{"build_vamana_int8_mips_index", "VamanaInt8MipsIndex", "IVFInt8MipsIndex"};
 
 template <typename T, typename Point> inline void add_variant(py::module_ &m, const Variant &variant)
 {
@@ -70,7 +73,11 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
              "beam_width"_a)
         .def("check_recall", &VamanaIndex<T, Point>::check_recall, "gFile"_a, "neighbors"_a, "k"_a);
 
-   
+    py::class_<IVFIndex<T, Point, NaivePostingList<T, Point>>>(m, variant.ivf_name.c_str())
+        .def(py::init())
+        .def("fit", &IVFIndex<T, Point, NaivePostingList<T, Point>>::fit, "points"_a, "cluster_size"_a)
+        .def("fit_from_filename", &IVFIndex<T, Point, NaivePostingList<T, Point>>::fit_from_filename, "filename"_a, "cluster_size"_a)
+        .def("batch_search", &IVFIndex<T, Point, NaivePostingList<T, Point>>::batch_search, "queries"_a, "num_queries"_a, "knn"_a);
 }
 
 PYBIND11_MODULE(_ParlayANNpy, m)

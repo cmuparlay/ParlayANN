@@ -20,6 +20,9 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#ifndef CLUSTER_EDGE
+#define CLUSTER_EDGE
+
 #include <math.h>
 
 #include <algorithm>
@@ -151,3 +154,5 @@ struct cluster {
     }
   }
 };
+
+#endif // CLUSTER_EDGE
