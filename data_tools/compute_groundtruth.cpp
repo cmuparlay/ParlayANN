@@ -175,7 +175,4 @@ int main(int argc, char* argv[]) {
   return 0;
 }
 
-<<<<<<< HEAD
-=======
 
->>>>>>> committing for the sake of switching branches
