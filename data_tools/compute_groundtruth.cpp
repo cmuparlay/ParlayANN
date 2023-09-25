@@ -18,7 +18,7 @@ parlay::sequence<parlay::sequence<pid>> compute_groundtruth(PointRange &B,
     size_t q = Q.size();
     size_t b = B.size();
     auto answers = parlay::tabulate(q, [&] (size_t i){  
-        float topdist = B[0].d_max();   
+        float topdist = B[0].d_min();   
         int toppos;
         parlay::sequence<pid> topk;
         for(size_t j=0; j<b; j++){
@@ -32,7 +32,7 @@ parlay::sequence<parlay::sequence<pid>> compute_groundtruth(PointRange &B,
                 topk.push_back(std::make_pair((int) j, dist));
             }
             else if(dist < topdist){
-                float new_topdist=B[0].d_max();  
+                float new_topdist=B[0].d_min();  
                 int new_toppos=0;
                 topk[toppos] = std::make_pair((int) j, dist);
                 for(size_t l=0; l<topk.size(); l++){

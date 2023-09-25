@@ -69,6 +69,7 @@ template<typename T>
 struct Mips_Point {
   using distanceType = float; 
   
+  static distanceType d_min() {return -std::numeric_limits<float>::max();}
   static bool is_metric() {return false;}
 
   float distance(Mips_Point<T> x) {
