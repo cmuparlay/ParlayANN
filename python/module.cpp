@@ -30,6 +30,7 @@
 #include "vamana_index.cpp"
 #include "../algorithms/IVF/IVF.h"
 #include "../algorithms/IVF/posting_list.h"
+#include "../algorithms/utils/filters.h"
 
 PYBIND11_MAKE_OPAQUE(std::vector<uint32_t>);
 PYBIND11_MAKE_OPAQUE(std::vector<float>);
@@ -105,5 +106,11 @@ PYBIND11_MODULE(_ParlayANNpy, m)
     add_variant<uint8_t, Mips_Point<uint8_t>>(m, UInt8MipsVariant);
     add_variant<int8_t, Euclidian_Point<int8_t>>(m, Int8EuclidianVariant);
     add_variant<int8_t, Mips_Point<int8_t>>(m, Int8MipsVariant);
+
+    py::class_<csr_filters>(m, "csr_filters")
+        .def(py::init<std::string &>())
+        .def("match", &csr_filters::match, "p"_a, "f"_a)
+        .def("first_label", &csr_filters::first_label, "p"_a)
+        .def("print_stats", &csr_filters::print_stats);
 
 }

@@ -27,3 +27,12 @@ print(neighbors.shape)
 print(neighbors[:10, :])
 print(distances[:10, :])
 # Index.check_recall(DATA_DIR + "bigann-1M", neighbors, 10)
+
+filters = wp.csr_filters(DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat')
+
+print(filters.first_label(42))
+print(filters.match(42, 6))
+print(filters.match(42, 2))
+# print(filters.n_points)
+# print(filters.n_filters)
+# print(filters.n_nonzero)
