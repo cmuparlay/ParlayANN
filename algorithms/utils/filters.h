@@ -45,6 +45,9 @@ struct csr_filters{
         fclose(fp);
     }
 
+    /* constructs csr_filters with all the values already provided as arguments (should probably be protected)*/
+    csr_filters(int64_t n_points, int64_t n_filters, int64_t n_nonzero, int64_t* row_offsets, int32_t* row_indices) : n_points(n_points), n_filters(n_filters), n_nonzero(n_nonzero), row_offsets(row_offsets), row_indices(row_indices) {}
+
     void del() {
         free(row_offsets);
         free(row_indices);
@@ -91,6 +94,30 @@ struct csr_filters{
         return parlay::tabulate(n_filters, [&] (int64_t i) {
             return filter_count(i);
         });
+    }
+
+    /* Transposes to make acessing points associated with a filter fast */
+    csr_filters transpose() {
+        int64_t* new_row_offsets = (int64_t*) malloc((n_filters + 1) * sizeof(int64_t)); // where to index for each filter (length is +1 because the last value is nnz to make the length calculation work for the last one)
+        int32_t* new_row_indices = (int32_t*) malloc(n_nonzero * sizeof(int32_t)); // indices of matching points
+
+        // initializing both arrays to 0s
+        memset(new_row_offsets, 0, (n_filters + 1) * sizeof(int64_t));
+        memset(new_row_indices, 0, n_nonzero * sizeof(int32_t));
+        
+        // should only need to iterate once
+        for (int64_t i = 0; i < n_points; i++) {
+            int64_t start = row_offsets[i];
+            int64_t end = row_offsets[i + 1];
+            for (int64_t j = start; j < end; j++) {
+                int64_t f = row_indices[j];
+                int64_t index = new_row_offsets[f];
+                new_row_indices[index] = i;
+                new_row_offsets[f]++;
+            }
+        }
+
+        return csr_filters(n_filters, n_points, n_nonzero, new_row_offsets, new_row_indices);
     }
 };
 
