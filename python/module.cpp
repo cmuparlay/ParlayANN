@@ -116,4 +116,10 @@ PYBIND11_MODULE(_ParlayANNpy, m)
         .def("point_count", &csr_filters::point_count, "p"_a)
         .def("transpose", &csr_filters::transpose);
 
+    // should have initializers taking either one or two int32_t arguments
+    py::class_<QueryFilter>(m, "QueryFilter")
+        .def(py::init<int32_t>(), "a"_a)
+        .def(py::init<int32_t, int32_t>(), "a"_a, "b"_a)
+        .def("is_and", &QueryFilter::is_and);
+
 }

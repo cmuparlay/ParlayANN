@@ -140,6 +140,19 @@ struct csr_filters{
     }
 };
 
+struct QueryFilter {
+    int32_t a, b;
+
+    QueryFilter(int32_t a, int32_t b) : a(a), b(b) {}
+
+    QueryFilter(int32_t a) : a(a), b(-1) {}
+
+    bool is_and() {
+        // because the only possible negative value is -1, we can return the inverse of the sign bit of b
+        return ~b >> 31;
+    }
+};
+
 // /* Creating this struct just for the sake of having a complete implementation if we ever need to use csr where we care about the values */
 // struct csr_matrix{
 //     int64_t num_points;

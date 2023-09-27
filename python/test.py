@@ -47,6 +47,12 @@ print(filters_t.match(2, 42)) # should be False
 print(f"Filter count of point 42: {filters_t.filter_count(42)}")
 print(f"Point count of filter 6: {filters_t.point_count(6)}")
 
-# print(filters.n_points)
-# print(filters.n_filters)
-# print(filters.n_nonzero)
+print("Filter Query")
+
+query_a = wp.QueryFilter(1)
+query_b = wp.QueryFilter(1, 2)
+
+print(query_a.is_and()) # should be False
+print(query_b.is_and()) # should be True
+
+
