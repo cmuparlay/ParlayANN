@@ -111,6 +111,9 @@ PYBIND11_MODULE(_ParlayANNpy, m)
         .def(py::init<std::string &>())
         .def("match", &csr_filters::match, "p"_a, "f"_a)
         .def("first_label", &csr_filters::first_label, "p"_a)
-        .def("print_stats", &csr_filters::print_stats);
+        .def("print_stats", &csr_filters::print_stats)
+        .def("filter_count", &csr_filters::filter_count, "f"_a)
+        .def("point_count", &csr_filters::point_count, "p"_a)
+        .def("transpose", &csr_filters::transpose);
 
 }

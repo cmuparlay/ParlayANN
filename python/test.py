@@ -33,6 +33,20 @@ filters = wp.csr_filters(DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat')
 print(filters.first_label(42))
 print(filters.match(42, 6))
 print(filters.match(42, 2))
+
+print(f"Filter count of point 42: {filters.point_count(42)}")
+print(f"Point count of filter 6: {filters.filter_count(6)}")
+
+print("Transposing...")
+
+filters_t = filters.transpose()
+print(filters_t.first_label(6)) # should be 42
+print(filters_t.match(6, 42)) # should be True
+print(filters_t.match(2, 42)) # should be False
+
+print(f"Filter count of point 42: {filters_t.filter_count(42)}")
+print(f"Point count of filter 6: {filters_t.point_count(6)}")
+
 # print(filters.n_points)
 # print(filters.n_filters)
 # print(filters.n_nonzero)

@@ -98,24 +98,43 @@ struct csr_filters{
 
     /* Transposes to make acessing points associated with a filter fast */
     csr_filters transpose() {
+        std::cout << "Transposing..." << std::endl;
+
         int64_t* new_row_offsets = (int64_t*) malloc((n_filters + 1) * sizeof(int64_t)); // where to index for each filter (length is +1 because the last value is nnz to make the length calculation work for the last one)
         int32_t* new_row_indices = (int32_t*) malloc(n_nonzero * sizeof(int32_t)); // indices of matching points
 
-        // initializing both arrays to 0s
-        memset(new_row_offsets, 0, (n_filters + 1) * sizeof(int64_t));
-        memset(new_row_indices, 0, n_nonzero * sizeof(int32_t));
+        // counting points associated with each filter and scanning to get row offsets
+        // auto counts = parlay::scan_inclusive(parlay::delayed_seq<int64_t>(n_filters, [&] (int64_t i) {
+        //     return filter_count(i);
+        // }));
+
+        memset(new_row_offsets, 0, (n_filters + 1) * sizeof(int64_t)); // initializing to 0s
+        // counting points associated with each filter and scanning to get row offsets
+        for (int64_t i = 0; i <= n_nonzero; i++) {
+            new_row_offsets[row_indices[i] + 1]++;
+        }
+        // not a sequence so for now I'll just do it serially
+        for (int64_t i = 1; i < n_filters + 1; i++) {
+            new_row_offsets[i] += new_row_offsets[i - 1];
+        }
+        std::cout << "Offsets computed" << std::endl;
         
-        // should only need to iterate once
+        int64_t* tmp_offset = (int64_t*) malloc(n_filters * sizeof(int64_t)); // temporary array to keep track of where to put the next point in each filter
+        memset(tmp_offset, 0, n_filters * sizeof(int64_t)); // initializing to 0s
+
+        // iterating over the data to fill in row indices
         for (int64_t i = 0; i < n_points; i++) {
             int64_t start = row_offsets[i];
             int64_t end = row_offsets[i + 1];
             for (int64_t j = start; j < end; j++) {
                 int64_t f = row_indices[j];
-                int64_t index = new_row_offsets[f];
+                int64_t index = new_row_offsets[f] + tmp_offset[f];
                 new_row_indices[index] = i;
-                new_row_offsets[f]++;
+                tmp_offset[f]++;
             }
         }
+
+        free(tmp_offset);
 
         return csr_filters(n_filters, n_points, n_nonzero, new_row_offsets, new_row_indices);
     }
