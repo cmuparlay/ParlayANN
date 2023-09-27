@@ -74,6 +74,24 @@ struct csr_filters{
     int64_t first_label(int64_t p) {
         return row_indices[row_offsets[0]];
     }
+
+    /* Returns the number of points matching a given filter */
+    int64_t filter_count(int64_t f) {
+        return parlay::reduce(parlay::delayed_seq<int64_t>(n_points, [&] (int64_t i) {
+            return match(i, f);
+        }));
+    }
+
+    /* Returns the number of filters associated with a point */
+    int64_t point_count(int64_t p) {
+        return row_offsets[p + 1] - row_offsets[p];
+    }
+
+    parlay::sequence<int64_t> filter_counts() {
+        return parlay::tabulate(n_filters, [&] (int64_t i) {
+            return filter_count(i);
+        });
+    }
 };
 
 // /* Creating this struct just for the sake of having a complete implementation if we ever need to use csr where we care about the values */
