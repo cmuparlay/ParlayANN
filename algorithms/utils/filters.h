@@ -1,4 +1,7 @@
-/* interface for point filters represented in CSR format */
+/* interface for point filters represented in CSR format 
+
+The fact that we use int32 for one of the indices and require transposes means we realistically are only going to be able to handle 2^31 points and 2^31 filters, but that's probably fine for now.
+*/
 #ifndef CSR_FILTER_H
 #define CSR_FILTER_H
 
@@ -12,6 +15,30 @@
 #include <utility>
 #include <stdint.h>
 
+/* leetcode-core double pointers sorted array join 
+
+Once saw someone refer to this algorithm as having constant space, which is kind of obviously not true but not morally wrong.
+*/
+template <typename T>
+parlay::sequence<T> join(T* a, size_t len_a, T* b, size_t len_b){
+    parlay::sequence<T> output();
+    size_t i = 0;
+    size_t j = 0;
+
+    while(i < len_a && j < len_b){
+        if(a[i] < b[j]){
+            i++;
+        } else if(a[i] > b[j]){
+            j++;
+        } else {
+            output.push_back(a[i]);
+            i++;
+            j++;
+        }
+    }
+    return output;
+}
+
 
 struct csr_filters{
     int64_t n_points;
@@ -19,6 +46,7 @@ struct csr_filters{
     int64_t n_nonzero;
     int64_t* row_offsets; // indices into data
     int32_t* row_indices; // the indices of the nonzero entries, which is actually all we need
+    bool transposed = false;
     
     /* mmaps filter data in csr form from filename */
     csr_filters(std::string filename) {
@@ -71,6 +99,20 @@ struct csr_filters{
             }
         }
         return false;
+    }
+
+    /* returns indices of points matching QueryFilter 
+    */
+    parlay::sequence<int32_t> query_matches(QueryFilter q) {
+        if (not transposed) {
+            std::cout << "You are attempting to query a non-transposed csr_filter. This would require iterating over all the points in the dataset, which is almost certainly not what you want to do. Transpose this object." << std::endl;
+            exit(1);
+        };
+        if (q.is_and()) {
+            return join(row_indices + row_offsets[q.a], row_offsets[q.a + 1] - row_offsets[q.a], row_indices + row_offsets[q.b], row_offsets[q.b + 1] - row_offsets[q.b]);
+        } else {
+            return parlay::sequence<int32_t>(row_indices + row_offsets[q.a], row_indices + row_offsets[q.a + 1]);
+        }
     }
 
     /* I would like to be able to get the filters associated with a point in a python-accesible way but this is a good enough proof of concept until I figure out how to do that */
@@ -136,7 +178,9 @@ struct csr_filters{
 
         free(tmp_offset);
 
-        return csr_filters(n_filters, n_points, n_nonzero, new_row_offsets, new_row_indices);
+        auto out = csr_filters(n_filters, n_points, n_nonzero, new_row_offsets, new_row_indices);
+        out.transposed = true;
+        return out;
     }
 };
 
