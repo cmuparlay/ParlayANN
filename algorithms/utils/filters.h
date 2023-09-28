@@ -39,6 +39,19 @@ parlay::sequence<T> join(T* a, size_t len_a, T* b, size_t len_b){
     return output;
 }
 
+struct QueryFilter {
+    int32_t a, b;
+
+    QueryFilter(int32_t a, int32_t b) : a(a), b(b) {}
+
+    QueryFilter(int32_t a) : a(a), b(-1) {}
+
+    bool is_and() {
+        // because the only possible negative value is -1, we can return the inverse of the sign bit of b
+        return ~b >> 31;
+    }
+};
+
 
 struct csr_filters{
     int64_t n_points;
@@ -79,6 +92,10 @@ struct csr_filters{
     void del() {
         free(row_offsets);
         free(row_indices);
+    }
+
+    ~csr_filters() {
+        del();
     }
 
     void print_stats(){
@@ -182,18 +199,50 @@ struct csr_filters{
         out.transposed = true;
         return out;
     }
-};
 
-struct QueryFilter {
-    int32_t a, b;
+    csr_filters copy() {
+        return csr_filters(n_points, n_filters, n_nonzero, row_offsets, row_indices);
+    }
 
-    QueryFilter(int32_t a, int32_t b) : a(a), b(b) {}
+    /* subsets the rows based on the indices
 
-    QueryFilter(int32_t a) : a(a), b(-1) {}
+        if you then transpose the output you can get the inverted index for a posting list
 
-    bool is_and() {
-        // because the only possible negative value is -1, we can return the inverse of the sign bit of b
-        return ~b >> 31;
+        Similarly, if you want to only track specific filters, you can subset after transposing
+
+        keep in  mind:
+            - the indices of the rows have to be mapped with the indices sequence to get back to the original values (but the filter numbers remain the same)
+            - This is a copy, not a view
+     */
+    csr_filters subset_rows(parlay::sequence<int32_t> indices) {
+        int64_t* new_row_offsets = (int64_t*) malloc((indices.size() + 1) * sizeof(int64_t)); // where to index for each filter (length is +1 because the last value is nnz to make the length calculation work for the last one)
+        new_row_offsets[0] = 0;
+        for (int64_t i = 0; i < indices.size(); i++) {
+            new_row_offsets[i + 1] = row_offsets[indices[i] + 1] - row_offsets[indices[i]] + new_row_offsets[i];
+        }
+
+        int32_t* new_row_indices = (int32_t*) malloc(new_row_offsets[indices.size()] * sizeof(int32_t)); // indices of matching points
+
+        for (int64_t i = 0; i < indices.size(); i++) {
+            memcpy(new_row_indices + new_row_offsets[i], row_indices + row_offsets[indices[i]], (row_offsets[indices[i] + 1] - row_offsets[indices[i]]) * sizeof(int32_t));
+        }
+
+        auto out = csr_filters(indices.size(), n_filters, new_row_offsets[indices.size()], new_row_offsets, new_row_indices);
+        out.transposed = transposed;
+        return out;
+    }
+
+    /* Copies to a new csr_filters with only the specified filters
+    
+    Data distribution suggests this might not be worth doing
+     */
+    csr_filters subset_filters(parlay::sequence<int32_t> filters) {
+        csr_filters a = this->transpose();
+        auto b = a.subset_rows(filters);
+        a.del();
+        a = b.transpose();
+        b.del();
+        return a;
     }
 };
 
