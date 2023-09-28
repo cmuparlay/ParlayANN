@@ -77,44 +77,6 @@ struct IVFIndex {
         py::array_t<unsigned int> ids({num_queries, knn});
         py::array_t<float> dists({num_queries, knn});
 
-        // std::cout << "output arrays initialized" << std::endl;
-
-        // unsigned int i = 0;
-
-        // Point q = Point(queries.data(i), dim, dim, i);
-
-        // std::cout << "query point initialized" << std::endl;
-
-        // parlay::sequence<unsigned int> nearest_centroid_ids = nearest_centroids(q, n_lists);
-
-        // std::cout << "nearest centroid ids found" << std::endl;
-
-        // for (unsigned int j=0; j < nearest_centroid_ids.size(); j++){
-        //     std::cout << nearest_centroid_ids[j] << " ";
-        // }
-        // std::cout << std::endl;
-
-        // parlay::sequence<std::pair<unsigned int, float>> frontier = parlay::tabulate(knn, [&] (unsigned int i) {
-        //     return std::make_pair(std::numeric_limits<unsigned int>().max(), std::numeric_limits<float>().max());
-        //     });
-
-        // for (unsigned int j=0; j<nearest_centroid_ids.size(); j++){
-        //     posting_lists[nearest_centroid_ids[j]].query(q, knn, frontier);
-        // }
-
-        // std::cout << "frontier populated" << std::endl;
-
-        // // this sort should be redundant
-        // // std::sort(frontier.begin(), frontier.end(), [&] (std::pair<unsigned int, float> a, std::pair<unsigned int, float> b) {
-        // //     return a.second < b.second;
-        // // });
-        // for (unsigned int j=0; j<knn; j++){
-        //     ids.mutable_data(i)[j] = frontier[j].first;
-        //     dists.mutable_data(i)[j] = frontier[j].second;
-        // }
-
-        // std::cout << "mutable data written" << std::endl;
-
         parlay::parallel_for(0, num_queries, [&] (unsigned int i){
             Point q = Point(queries.data(i), dim, dim, i);
             parlay::sequence<unsigned int> nearest_centroid_ids = nearest_centroids(q, n_lists);
