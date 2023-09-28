@@ -9,6 +9,7 @@
 
 #include "../utils/point_range.h"
 #include "../utils/types.h"
+#include "../utils/filters.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,8 +25,8 @@ The operations here are serial for simplcity, since posting lists should be appr
  */
 template<typename T, class Point>
 struct NaivePostingList {
-    PointRange<T, Point> points;
-    parlay::sequence<size_t> indices;
+    PointRange<T, Point> points; // reference to the full dataset
+    parlay::sequence<size_t> indices; // the indices of the points this posting list actually cares about
 
     // NaivePostingList() {}
 
@@ -83,5 +84,21 @@ struct NaivePostingList {
         return indices.size();
     }
 };
+
+template<typename T, class Point>
+class FilteredPostingList : public NaivePostingList<T, Point>{
+    public:
+        csr_filters& filters; // the filters for the dataset, which should probably be transposed (filter-major) but this class shouldn't care so if you want to do row major you can adjust accordingly
+
+        FilteredPostingList(PointRange<T, Point> points, parlay::sequence<size_t> indices, csr_filters& filters) : NaivePostingList<T, Point>(points, indices), filters(filters) {}
+
+        virtual ~FilteredPostingList() {
+            // probably want to delete the filters here
+        }
+        virtual void filtered_query(Point query, QueryFilter f, unsigned int k, parlay::sequence<std::pair<unsigned int, float>>& result) = 0;
+    
+};
+
+
 
 #endif // POSTING_LIST
