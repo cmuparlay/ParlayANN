@@ -85,17 +85,35 @@ struct NaivePostingList {
     }
 };
 
+/* Parent class for filtered posting lists
+
+This should probably be an abstract class but I'm using it to hold a naive implementation */
 template<typename T, class Point>
 class FilteredPostingList : public NaivePostingList<T, Point>{
     public:
         csr_filters& filters; // the filters for the dataset, which should probably be transposed (filter-major) but this class shouldn't care so if you want to do row major you can adjust accordingly
+        // natively, this shares one filter object for the whole index, and adjusting to one per posting list requires either defining a new constructor (probably best) or making a subset filter object to pass in (adds more complexity)
 
         FilteredPostingList(PointRange<T, Point> points, parlay::sequence<size_t> indices, csr_filters& filters) : NaivePostingList<T, Point>(points, indices), filters(filters) {}
 
         virtual ~FilteredPostingList() {
-            // probably want to delete the filters here
+            // want to delete the filters here if they're unique to this posting list
         }
-        virtual void filtered_query(Point query, QueryFilter f, unsigned int k, parlay::sequence<std::pair<unsigned int, float>>& result) = 0;
+        virtual void filtered_query(Point query, QueryFilter f, unsigned int k, parlay::sequence<std::pair<unsigned int, float>>& result) {
+            // same logic as query, but checking the filter matches
+            float farthest = result[result.size() - 1].second;
+            for (unsigned int i = 0; i < indices.size(); i++) {
+                if (filters.match(indices[i], f)) {
+                    float dist = this->points[indices[i]].distance(query);
+                    if (dist < farthest) {
+                        result.push_back(std::make_pair(indices[i], dist));
+                        std::sort(result.begin(), result.end(), [](std::pair<unsigned int, float> a, std::pair<unsigned int, float> b) {return a.second < b.second;});
+                        result.pop_back();
+                        farthest = result[result.size() - 1].second;
+                    }
+                }
+            }
+        }
     
 };
 

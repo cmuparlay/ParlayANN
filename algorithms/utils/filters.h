@@ -106,8 +106,12 @@ struct csr_filters{
 
     /* Returns true if p matches filter f, which is equivalent to row p column i being nonzero 
     
-    This specifically */
+    Because it would be confusing not to, p and f work as advertised regardless of whether the filters are transposed*/
     bool match(int64_t p, int64_t f) {
+        if (transposed) {
+            std::swap(p, f);
+        }
+        
         int64_t start = row_offsets[p];
         int64_t end = row_offsets[p + 1];
         
