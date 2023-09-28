@@ -24,7 +24,7 @@ namespace py = pybind11;
 using NeighborsAndDistances = std::pair<py::array_t<unsigned int>, py::array_t<float>>;
 
 /* A reasonably extensible ivf index */
-template<typename T, class Point, typename PostingList>
+template<typename T, typename Point, typename PostingList>
 struct IVFIndex {
     // PointRange<T, Point> points;
     parlay::sequence<PostingList> posting_lists = parlay::sequence<PostingList>();
@@ -119,6 +119,29 @@ struct IVFIndex {
         std::cout << "Average number of points per list: " << total / posting_lists.size() << std::endl;
         std::cout << "Max number of points in a list: " << max << std::endl;
         std::cout << "Min number of points in a list: " << min << std::endl;
+    }
+};
+
+template<typename T, typename Point, typename PostingList>
+struct FilteredIVFIndex : IVFIndex<T, Point, PostingList> {
+    csr_filters filters;
+
+    FilteredIVFIndex() {}
+
+    void fit(PointRange<T, Point> points, csr_filters filters, size_t cluster_size=1000){
+        this->filters = filters.transpose();
+        // cluster the points
+        auto clusterer = HCNNGClusterer<Point, PointRange<T, Point>>(cluster_size);
+        parlay::sequence<parlay::sequence<size_t>> clusters = clusterer.cluster(points);
+
+        // generate the posting lists
+        this->posting_lists = parlay::tabulate(clusters.size(), [&] (size_t i) {
+            return PostingList(points, clusters[i], filters);
+        });
+        this->centroids = parlay::map(this->posting_lists, [&] (PostingList pl) {return pl.centroid();});
+        
+        this->dim = points.dimension();
+        this->aligned_dim = points.aligned_dimension();
     }
 };
 

@@ -102,11 +102,13 @@ class FilteredPostingList : public NaivePostingList<T, Point>{
         virtual void filtered_query(Point query, QueryFilter f, unsigned int k, parlay::sequence<std::pair<unsigned int, float>>& result) {
             // same logic as query, but checking the filter matches
             float farthest = result[result.size() - 1].second;
-            for (unsigned int i = 0; i < indices.size(); i++) {
-                if (filters.match(indices[i], f)) {
-                    float dist = this->points[indices[i]].distance(query);
+            for (unsigned int i = 0; i < this->indices.size(); i++) {
+                bool matches = filters.match(this->indices[i], f.a) and (~f.is_and() or filters.match(this->indices[i], f.b));
+                
+                if (matches) {
+                    float dist = this->points[this->indices[i]].distance(query);
                     if (dist < farthest) {
-                        result.push_back(std::make_pair(indices[i], dist));
+                        result.push_back(std::make_pair(this->indices[i], dist));
                         std::sort(result.begin(), result.end(), [](std::pair<unsigned int, float> a, std::pair<unsigned int, float> b) {return a.second < b.second;});
                         result.pop_back();
                         farthest = result[result.size() - 1].second;
