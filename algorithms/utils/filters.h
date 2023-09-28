@@ -104,7 +104,9 @@ struct csr_filters{
         printf("n_nonzeros: %ld\n", n_nonzero);
     }
 
-    /* Returns true if p matches filter f, which is equivalent to row p column i being nonzero */
+    /* Returns true if p matches filter f, which is equivalent to row p column i being nonzero 
+    
+    This specifically */
     bool match(int64_t p, int64_t f) {
         int64_t start = row_offsets[p];
         int64_t end = row_offsets[p + 1];
@@ -201,7 +203,9 @@ struct csr_filters{
     }
 
     csr_filters copy() {
-        return csr_filters(n_points, n_filters, n_nonzero, row_offsets, row_indices);
+        auto out = csr_filters(n_points, n_filters, n_nonzero, row_offsets, row_indices);
+        out.transposed = transposed;
+        return out;
     }
 
     /* subsets the rows based on the indices
@@ -232,17 +236,55 @@ struct csr_filters{
         return out;
     }
 
-    /* Copies to a new csr_filters with only the specified filters
+    /* Copies to a new csr_filters with only the specified filters (columns)
     
-    Data distribution suggests this might not be worth doing
+    As written preserves the number of the filters (or points if transposed), which should be much easier to work with
      */
     csr_filters subset_filters(parlay::sequence<int32_t> filters) {
-        csr_filters a = this->transpose();
-        auto b = a.subset_rows(filters);
-        a.del();
-        a = b.transpose();
-        b.del();
-        return a;
+        // construct a boolean array of which filters to keep
+        bool* keep = (bool*) malloc(n_filters * sizeof(bool));
+        memset(keep, false, n_filters * sizeof(bool));
+        for (int64_t i = 0; i < filters.size(); i++) {
+            keep[filters[i]] = true;
+        }
+
+        // compute the new offsets
+        int64_t* new_row_offsets = (int64_t*) malloc((n_points + 1) * sizeof(int64_t)); // where to index for each filter (length is +1 because the last value is nnz to make the length calculation work for the last one)
+        memset(new_row_offsets, 0, (n_points + 1) * sizeof(int64_t)); // initializing to 0s
+        for (int64_t i = 0; i < n_points; i++) {
+            int64_t start = row_offsets[i];
+            int64_t end = row_offsets[i + 1];
+            new_row_offsets[i + 1] = new_row_offsets[i];
+            for (int64_t j = start; j < end; j++) {
+                if (keep[row_indices[j]]) {
+                    new_row_offsets[i + 1]++;
+                }
+            }
+        }
+
+        // compute the new indices
+        int32_t* new_row_indices = (int32_t*) malloc(new_row_offsets[n_points] * sizeof(int32_t)); // indices of matching points
+        // this could just iterate over the indices but this is more readable
+        for (int64_t i = 0; i < n_points; i++) {
+            int64_t start = row_offsets[i];
+            int64_t end = row_offsets[i + 1];
+            int64_t new_index = new_row_offsets[i];
+            for (int64_t j = start; j < end; j++) {
+                if (keep[row_indices[j]]) {
+                    new_row_indices[new_index] = row_indices[j];
+                    new_index++;
+                }
+            }
+        }
+
+        delete keep;
+
+        int64_t new_n_nonzero = new_row_offsets[n_points];
+        int64_t new_n_filters = filters.size();
+
+        csr_filters out = csr_filters(n_points, new_n_filters, new_n_nonzero, new_row_offsets, new_row_indices);
+        out.transposed = transposed;
+        return out;
     }
 };
 
