@@ -21,7 +21,7 @@ Once saw someone refer to this algorithm as having constant space, which is kind
 */
 template <typename T>
 parlay::sequence<T> join(T* a, size_t len_a, T* b, size_t len_b){
-    parlay::sequence<T> output();
+    parlay::sequence<T> output = parlay::sequence<T>();
     size_t i = 0;
     size_t j = 0;
 
@@ -46,7 +46,7 @@ struct QueryFilter {
 
     QueryFilter(int32_t a) : a(a), b(-1) {}
 
-    bool is_and() {
+    bool is_and() const {
         // because the only possible negative value is -1, we can return the inverse of the sign bit of b
         return ~b >> 31;
     }
@@ -111,7 +111,7 @@ struct csr_filters{
         if (transposed) {
             std::swap(p, f);
         }
-        
+
         int64_t start = row_offsets[p];
         int64_t end = row_offsets[p + 1];
         

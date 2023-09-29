@@ -17,8 +17,10 @@
 #include <string.h>
 #include <math.h>
 #include <utility>
+#include <vector>
 
 #include "pybind11/numpy.h"
+#include "pybind11/stl.h"
 
 namespace py = pybind11;
 using NeighborsAndDistances = std::pair<py::array_t<unsigned int>, py::array_t<float>>;
@@ -36,7 +38,7 @@ struct IVFIndex {
 
     // IVFIndex(PointRange<T, Point> points) : points(points) {}
 
-    void fit(PointRange<T, Point> points, size_t cluster_size=1000){
+    virtual void fit(PointRange<T, Point> points, size_t cluster_size=1000){
         // cluster the points
         auto clusterer = HCNNGClusterer<Point, PointRange<T, Point>>(cluster_size);
         parlay::sequence<parlay::sequence<size_t>> clusters = clusterer.cluster(points);
@@ -142,6 +144,38 @@ struct FilteredIVFIndex : IVFIndex<T, Point, PostingList> {
         
         this->dim = points.dimension();
         this->aligned_dim = points.aligned_dimension();
+    }
+
+    /* The use of vector here is because that supposedly allows us to take python lists as input, although I'll believe it when I see it.
+    
+    This is incredibly easy, but might be slower than parsing the sparse array of filters in C++.  */
+    NeighborsAndDistances batch_filter_search(py::array_t<T, py::array::c_style | py::array::forcecast> &queries, const std::vector<QueryFilter>& filters, uint64_t num_queries, uint64_t knn, uint64_t n_lists) {
+        py::array_t<unsigned int> ids({num_queries, knn});
+        py::array_t<float> dists({num_queries, knn});
+
+        parlay::parallel_for(0, num_queries, [&] (unsigned int i){
+            Point q = Point(queries.data(i), this->dim, this->dim, i);
+            const QueryFilter& filter = filters[i];
+            parlay::sequence<unsigned int> nearest_centroid_ids = this->nearest_centroids(q, n_lists);
+
+            // maybe should be sequential? a memcopy?
+            parlay::sequence<std::pair<unsigned int, float>> frontier = parlay::tabulate(knn, [&] (unsigned int i) {
+                return std::make_pair(std::numeric_limits<unsigned int>().max(), std::numeric_limits<float>().max());
+            });
+
+            for (unsigned int j=0; j<nearest_centroid_ids.size(); j++){
+                this->posting_lists[nearest_centroid_ids[j]].filtered_query(q, filter, knn, frontier);
+            }
+
+            for (unsigned int j=0; j<knn; j++){
+                ids.mutable_data(i)[j] = frontier[j].first;
+                dists.mutable_data(i)[j] = frontier[j].second;
+            }
+        });
+
+        // std::cout << "parfor done" << std::endl;
+
+        return std::make_pair(std::move(ids), std::move(dists));
     }
 };
 

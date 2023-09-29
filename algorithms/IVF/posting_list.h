@@ -99,7 +99,8 @@ class FilteredPostingList : public NaivePostingList<T, Point>{
         virtual ~FilteredPostingList() {
             // want to delete the filters here if they're unique to this posting list
         }
-        virtual void filtered_query(Point query, QueryFilter f, unsigned int k, parlay::sequence<std::pair<unsigned int, float>>& result) {
+        
+        virtual void filtered_query(const Point& query, const QueryFilter& f, unsigned int k, parlay::sequence<std::pair<unsigned int, float>>& result) {
             // same logic as query, but checking the filter matches
             float farthest = result[result.size() - 1].second;
             for (unsigned int i = 0; i < this->indices.size(); i++) {
