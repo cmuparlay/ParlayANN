@@ -173,6 +173,10 @@ struct csr_filters{
 
     /* Transposes to make acessing points associated with a filter fast */
     csr_filters transpose() {
+        if (transposed) {
+            std::cout << "This csr_filters is already transposed" << std::endl;
+            return *this;
+        }
         std::cout << "Transposing..." << std::endl;
 
         int64_t* new_row_offsets = (int64_t*) malloc((n_filters + 1) * sizeof(int64_t)); // where to index for each filter (length is +1 because the last value is nnz to make the length calculation work for the last one)
@@ -209,10 +213,26 @@ struct csr_filters{
             }
         }
 
+        // std::cout << "Indices computed" << std::endl;
+
         free(tmp_offset);
+
+        std::cout << "tmp_offset freed" << std::endl;
 
         auto out = csr_filters(n_filters, n_points, n_nonzero, new_row_offsets, new_row_indices);
         out.transposed = true;
+        std::cout << "Transposed" << std::endl;
+        return out;
+    }
+
+    csr_filters reverse_transpose() {
+        if (~transposed) {
+            std::cout << "This csr_filters is not transposed" << std::endl;
+            return *this;
+        }
+        transposed = false;
+        csr_filters out = transpose();
+        out.transposed = false;
         return out;
     }
 

@@ -41,20 +41,33 @@ struct IVFIndex {
     virtual void fit(PointRange<T, Point> points, size_t cluster_size=1000){
         // cluster the points
         auto clusterer = HCNNGClusterer<Point, PointRange<T, Point>, index_type>(cluster_size);
+
+        std::cout << "clusterer initialized" << std::endl;
+
         parlay::sequence<parlay::sequence<index_type>> clusters = clusterer.cluster(points);
+
+        std::cout << "clusters generated" << std::endl;
 
         // generate the posting lists
         posting_lists = parlay::tabulate(clusters.size(), [&] (size_t i) {
             return PostingList(points, clusters[i]);
         });
+
+        std::cout << "posting lists generated" << std::endl;
+
         centroids = parlay::map(posting_lists, [&] (PostingList pl) {return pl.centroid();});
         
+        std::cout << "centroids generated" << std::endl;
+
         dim = points.dimension();
         aligned_dim = points.aligned_dimension();
+
+        std::cout << "fit completed" << std::endl;
     }
 
     void fit_from_filename(std::string filename, size_t cluster_size=1000){
         PointRange<T, Point> points(filename.c_str());
+        std::cout << "points loaded" << std::endl;
         this->fit(points, cluster_size);
     }
 
@@ -132,24 +145,37 @@ struct FilteredIVFIndex : IVFIndex<T, Point, PostingList> {
 
     void fit(PointRange<T, Point> points, csr_filters& filters, size_t cluster_size=1000){
         this->filters = filters.transpose();
+
+        std::cout << "filters transposed" << std::endl;
+        
         // cluster the points
         auto clusterer = HCNNGClusterer<Point, PointRange<T, Point>, index_type>(cluster_size);
         parlay::sequence<parlay::sequence<index_type>> clusters = clusterer.cluster(points);
+
+        std::cout << "clusters generated" << std::endl;
 
         // generate the posting lists
         this->posting_lists = parlay::tabulate(clusters.size(), [&] (size_t i) {
             return PostingList(points, clusters[i], this->filters);
         });
+
+        std::cout << "posting lists generated" << std::endl;
+
         this->centroids = parlay::map(this->posting_lists, [&] (PostingList pl) {return pl.centroid();});
         
+        std::cout << "centroids generated" << std::endl;
+
         this->dim = points.dimension();
         this->aligned_dim = points.aligned_dimension();
     }
 
     void fit_from_filename(std::string filename, std::string filter_filename, size_t cluster_size=1000){
         PointRange<T, Point> points(filename.c_str());
+        std::cout << "points loaded" << std::endl;
         csr_filters filters(filter_filename.c_str());
+        std::cout << "filters loaded" << std::endl;
         this->fit(points, filters, cluster_size);
+        std::cout << "fit completed" << std::endl;
     }
 
     /* The use of vector here is because that supposedly allows us to take python lists as input, although I'll believe it when I see it.
