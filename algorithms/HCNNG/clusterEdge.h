@@ -36,11 +36,13 @@
 #include "parlay/primitives.h"
 #include "parlay/random.h"
 
-std::pair<size_t, size_t> select_two_random(
-    parlay::sequence<size_t>& active_indices, parlay::random& rnd) {
-  size_t first_index = rnd.ith_rand(0) % active_indices.size();
-  size_t second_index_unshifted = rnd.ith_rand(1) % (active_indices.size() - 1);
-  size_t second_index = (second_index_unshifted < first_index)
+
+template <typename indexType>
+std::pair<indexType, indexType> select_two_random(
+    parlay::sequence<indexType>& active_indices, parlay::random& rnd) {
+  indexType first_index = rnd.ith_rand(0) % active_indices.size();
+  indexType second_index_unshifted = rnd.ith_rand(1) % (active_indices.size() - 1);
+  indexType second_index = (second_index_unshifted < first_index)
                             ? second_index_unshifted
                             : (second_index_unshifted + 1);
 
@@ -63,7 +65,7 @@ struct cluster {
 
   template <typename F>
   void recurse(GraphI &G, PR &Points,
-               parlay::sequence<size_t>& active_indices, parlay::random& rnd,
+               parlay::sequence<indexType>& active_indices, parlay::random& rnd,
                size_t cluster_size, F f, long MSTDeg, indexType first,
                indexType second) {
     // Split points based on which of the two points are closer.
@@ -101,7 +103,7 @@ struct cluster {
 
   template <typename F>
   void random_clustering(GraphI &G, PR &Points,
-                         parlay::sequence<size_t>& active_indices,
+                         parlay::sequence<indexType>& active_indices,
                          parlay::random& rnd, size_t cluster_size, F g,
                          long MSTDeg) {
     if (active_indices.size() < cluster_size)
@@ -109,8 +111,8 @@ struct cluster {
     else {
       auto [f, s] = select_two_random(active_indices, rnd);
       if (Points[f]==Points[s]) {
-        parlay::sequence<size_t> closer_first;
-        parlay::sequence<size_t> closer_second;
+        parlay::sequence<indexType> closer_first;
+        parlay::sequence<indexType> closer_second;
         for (int i = 0; i < active_indices.size(); i++) {
           if (i < active_indices.size() / 2)
             closer_first.push_back(active_indices[i]);
@@ -140,7 +142,7 @@ struct cluster {
     std::uniform_int_distribution<int> uni(0, Points.size());
     parlay::random rnd(uni(rng));
     auto active_indices =
-        parlay::tabulate(Points.size(), [&](size_t i) { return i; });
+        parlay::tabulate(Points.size(), [&](indexType i) { return i; });
     random_clustering(G, Points, active_indices, rnd, cluster_size, f, MSTDeg);
   }
 
