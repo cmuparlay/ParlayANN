@@ -112,7 +112,7 @@ class FilteredPostingList : public NaivePostingList<T, Point>{
             // same logic as query, but checking the filter matches
             float farthest = result[result.size() - 1].second;
             for (unsigned int i = 0; i < this->indices.size(); i++) {
-                bool matches = filters.match(this->indices[i], f.a) and (~f.is_and() or filters.match(this->indices[i], f.b));
+                bool matches = filters.match(this->indices[i], f.a) and (!f.is_and() or filters.match(this->indices[i], f.b));
                 
                 if (matches) {
                     float dist = this->points[this->indices[i]].distance(query);
