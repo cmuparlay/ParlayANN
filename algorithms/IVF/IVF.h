@@ -40,8 +40,8 @@ struct IVFIndex {
 
     virtual void fit(PointRange<T, Point> points, size_t cluster_size=1000){
         // cluster the points
-        auto clusterer = HCNNGClusterer<Point, PointRange<T, Point>>(cluster_size);
-        parlay::sequence<parlay::sequence<size_t>> clusters = clusterer.cluster(points);
+        auto clusterer = HCNNGClusterer<Point, PointRange<T, Point>, index_type>(cluster_size);
+        parlay::sequence<parlay::sequence<index_type>> clusters = clusterer.cluster(points);
 
         // generate the posting lists
         posting_lists = parlay::tabulate(clusters.size(), [&] (size_t i) {
@@ -130,20 +130,26 @@ struct FilteredIVFIndex : IVFIndex<T, Point, PostingList> {
 
     FilteredIVFIndex() {}
 
-    void fit(PointRange<T, Point> points, csr_filters filters, size_t cluster_size=1000){
+    void fit(PointRange<T, Point> points, csr_filters& filters, size_t cluster_size=1000){
         this->filters = filters.transpose();
         // cluster the points
-        auto clusterer = HCNNGClusterer<Point, PointRange<T, Point>>(cluster_size);
-        parlay::sequence<parlay::sequence<size_t>> clusters = clusterer.cluster(points);
+        auto clusterer = HCNNGClusterer<Point, PointRange<T, Point>, index_type>(cluster_size);
+        parlay::sequence<parlay::sequence<index_type>> clusters = clusterer.cluster(points);
 
         // generate the posting lists
         this->posting_lists = parlay::tabulate(clusters.size(), [&] (size_t i) {
-            return PostingList(points, clusters[i], filters);
+            return PostingList(points, clusters[i], this->filters);
         });
         this->centroids = parlay::map(this->posting_lists, [&] (PostingList pl) {return pl.centroid();});
         
         this->dim = points.dimension();
         this->aligned_dim = points.aligned_dimension();
+    }
+
+    void fit_from_filename(std::string filename, std::string filter_filename, size_t cluster_size=1000){
+        PointRange<T, Point> points(filename.c_str());
+        csr_filters filters(filter_filename.c_str());
+        this->fit(points, filters, cluster_size);
     }
 
     /* The use of vector here is because that supposedly allows us to take python lists as input, although I'll believe it when I see it.

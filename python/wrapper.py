@@ -65,3 +65,25 @@ def init_ivf_index(metric, dtype):
             raise Exception('Invalid data type ' + dtype)
     else:
         raise Exception('Invalid metric ' + metric)
+    
+def init_filtered_ivf_index(metric, dtype):
+    if metric == 'Euclidian':
+        if dtype == 'uint8':
+            return FilteredIVFUInt8EuclidianIndex()
+        elif dtype == 'int8':
+            return FilteredIVFInt8EuclidianIndex()
+        elif dtype == 'float':
+            return FilteredIVFFloatEuclidianIndex()
+        else:
+            raise Exception('Invalid data type ' + dtype)
+    elif metric == 'mips':
+        if dtype == 'uint8':
+            return FilteredIVFUInt8MipsIndex()
+        elif dtype == 'int8':
+            return FilteredIVFInt8MipsIndex()
+        elif dtype == 'float':
+            return FilteredIVFFloatMipsIndex()
+        else:
+            raise Exception('Invalid data type ' + dtype)
+    else:
+        raise Exception('Invalid metric ' + metric)

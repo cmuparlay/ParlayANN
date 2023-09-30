@@ -60,7 +60,14 @@ struct csr_filters{
     int64_t* row_offsets; // indices into data
     int32_t* row_indices; // the indices of the nonzero entries, which is actually all we need
     bool transposed = false;
+
+    bool real = true; // to avoid illegal frees when using the default constructor
     
+    /* There has to be a better way */
+    csr_filters() {
+        real = false;
+    }
+
     /* mmaps filter data in csr form from filename */
     csr_filters(std::string filename) {
         // opening file stream
@@ -89,9 +96,12 @@ struct csr_filters{
     /* constructs csr_filters with all the values already provided as arguments (should probably be protected)*/
     csr_filters(int64_t n_points, int64_t n_filters, int64_t n_nonzero, int64_t* row_offsets, int32_t* row_indices) : n_points(n_points), n_filters(n_filters), n_nonzero(n_nonzero), row_offsets(row_offsets), row_indices(row_indices) {}
 
+
     void del() {
-        free(row_offsets);
-        free(row_indices);
+        if (real) {
+            free(row_offsets);
+            free(row_indices);
+        }
     }
 
     ~csr_filters() {

@@ -17,7 +17,7 @@
 #include <math.h>
 #include <utility>
 
-
+using index_type = int32_t;
 /* 
 A basic, minimal implementation of a posting list.
 
@@ -26,11 +26,11 @@ The operations here are serial for simplcity, since posting lists should be appr
 template<typename T, class Point>
 struct NaivePostingList {
     PointRange<T, Point> points; // reference to the full dataset
-    parlay::sequence<size_t> indices; // the indices of the points this posting list actually cares about
+    parlay::sequence<index_type> indices; // the indices of the points this posting list actually cares about
 
     // NaivePostingList() {}
 
-    NaivePostingList(PointRange<T, Point> points, parlay::sequence<size_t> indices) : points(points), indices(indices) {}
+    NaivePostingList(PointRange<T, Point> points, parlay::sequence<index_type> indices) : points(points), indices(indices) {}
 
     // see no reason to store its own centroid, but makes sense to be able to generate it
     /* 
@@ -91,15 +91,23 @@ This should probably be an abstract class but I'm using it to hold a naive imple
 template<typename T, class Point>
 class FilteredPostingList : public NaivePostingList<T, Point>{
     public:
-        csr_filters& filters; // the filters for the dataset, which should probably be transposed (filter-major) but this class shouldn't care so if you want to do row major you can adjust accordingly
+        csr_filters filters ; // the filters for the dataset, which should probably be transposed (filter-major) but this class shouldn't care so if you want to do row major you can adjust accordingly
         // natively, this shares one filter object for the whole index, and adjusting to one per posting list requires either defining a new constructor (probably best) or making a subset filter object to pass in (adds more complexity)
+        // having posting lists own their own filters is the only thing that makes sense when every posting list has their own object, but if they're all shared this would consume crazy amounts of memory.
 
-        FilteredPostingList(PointRange<T, Point> points, parlay::sequence<size_t> indices, csr_filters& filters) : NaivePostingList<T, Point>(points, indices), filters(filters) {}
+        FilteredPostingList(PointRange<T, Point> points, parlay::sequence<int32_t> indices, csr_filters& filters) : NaivePostingList<T, Point>(points, indices) {
+            // assuming here that the filters are already transposed
+            this->filters = filters.subset_filters(indices);
+        }
+
+        FilteredPostingList(PointRange<T, Point> points, parlay::sequence<int32_t> indices) : NaivePostingList<T, Point>(points, indices) {
+            this->filters = csr_filters();
+        }
 
         virtual ~FilteredPostingList() {
             // want to delete the filters here if they're unique to this posting list
         }
-        
+
         virtual void filtered_query(const Point& query, const QueryFilter& f, unsigned int k, parlay::sequence<std::pair<unsigned int, float>>& result) {
             // same logic as query, but checking the filter matches
             float farthest = result[result.size() - 1].second;

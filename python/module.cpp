@@ -40,6 +40,12 @@ PYBIND11_MAKE_OPAQUE(std::vector<uint8_t>);
 namespace py = pybind11;
 using namespace pybind11::literals;
 
+template <typename T, typename Point>
+using posting_list_t = NaivePostingList<T, Point>;
+
+template<typename T, typename Point>
+using filtered_posting_list_t = FilteredPostingList<T, Point>;
+
 // using NeighborsAndDistances = std::pair<py::array_t<unsigned int, py::array::c_style | py::array::forcecast>, py::array_t<float, py::array::c_style | py::array::forcecast>>;
 
 struct Variant
@@ -80,6 +86,13 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
         .def("fit_from_filename", &IVFIndex<T, Point, NaivePostingList<T, Point>>::fit_from_filename, "filename"_a, "cluster_size"_a)
         .def("batch_search", &IVFIndex<T, Point, NaivePostingList<T, Point>>::batch_search, "queries"_a, "num_queries"_a, "knn"_a, "n_lists"_a)
         .def("print_stats", &IVFIndex<T, Point, NaivePostingList<T, Point>>::print_stats);
+
+    py::class_<FilteredIVFIndex<T, Point, filtered_posting_list_t<T, Point>>>(m, ("Filtered" + variant.ivf_name).c_str())
+        .def(py::init())
+        .def("fit", &FilteredIVFIndex<T, Point, filtered_posting_list_t<T, Point>>::fit, "points"_a, "filters"_a, "cluster_size"_a)
+        .def("fit_from_filename", &FilteredIVFIndex<T, Point, filtered_posting_list_t<T, Point>>::fit_from_filename, "filename"_a, "cluster_size"_a, "filters"_a)
+        .def("batch_search", &FilteredIVFIndex<T, Point, filtered_posting_list_t<T, Point>>::batch_filter_search, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a, "n_lists"_a)
+        .def("print_stats", &FilteredIVFIndex<T, Point, filtered_posting_list_t<T, Point>>::print_stats);
 }
 
 PYBIND11_MODULE(_ParlayANNpy, m)
