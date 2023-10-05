@@ -57,16 +57,12 @@ struct csr_filters{
     int64_t n_points;
     int64_t n_filters;
     int64_t n_nonzero;
-    int64_t* row_offsets; // indices into data
-    int32_t* row_indices; // the indices of the nonzero entries, which is actually all we need
+    std::unique_ptr<int64_t[]> row_offsets; // indices into data
+    std::unique_ptr<int32_t[]> row_indices; // the indices of the nonzero entries, which is actually all we need
     bool transposed = false;
-
-    bool real = true; // to avoid illegal frees when using the default constructor
     
     /* There has to be a better way */
-    csr_filters() {
-        real = false;
-    }
+    csr_filters() = default;
 
     /* mmaps filter data in csr form from filename */
     csr_filters(std::string filename) {
@@ -83,30 +79,62 @@ struct csr_filters{
         fread(&n_nonzero, sizeof(int64_t), 1, fp);
 
         // reading in row offsets
-        row_offsets = (int64_t*) malloc((n_points + 1) * sizeof(int64_t));
-        fread(row_offsets, sizeof(int64_t), n_points + 1, fp);
+        // row_offsets = (int64_t*) malloc((n_points + 1) * sizeof(int64_t));
+        row_offsets = std::make_unique<int64_t[]>(n_points + 1);
+        fread(row_offsets.get(), sizeof(int64_t), n_points + 1, fp);
 
         // reading in row lengths
-        row_indices = (int32_t*) malloc(n_nonzero * sizeof(int32_t));
-        fread(row_indices, sizeof(int32_t), n_nonzero, fp);
+        // row_indices = (int32_t*) malloc(n_nonzero * sizeof(int32_t));
+        row_indices = std::make_unique<int32_t[]>(n_nonzero);
+        fread(row_indices.get(), sizeof(int32_t), n_nonzero, fp);
 
         fclose(fp);
     }
 
-    /* constructs csr_filters with all the values already provided as arguments (should probably be protected)*/
-    csr_filters(int64_t n_points, int64_t n_filters, int64_t n_nonzero, int64_t* row_offsets, int32_t* row_indices) : n_points(n_points), n_filters(n_filters), n_nonzero(n_nonzero), row_offsets(row_offsets), row_indices(row_indices) {}
+    // /* constructs csr_filters with all the values already provided as arguments (should probably be protected)*/
+    // csr_filters(int64_t n_points, int64_t n_filters, int64_t n_nonzero, std::unique_ptr<int64_t[]> row_offsets, std::unique_ptr<int32_t[]> row_indices) : n_points(n_points), n_filters(n_filters), n_nonzero(n_nonzero), row_offsets(row_offsets), row_indices(row_indices) {
+    //     std::cout << "first offset: " << row_offsets[0] << std::endl;
+    //     std::cout << "first column: " << row_indices[0] << std::endl;
+    // }
 
+    csr_filters(const csr_filters& other) { // copy constructor
+        std::cout << "copying" << std::endl;
+        this->n_points = other.n_points;
+        this->n_filters = other.n_filters;
+        this->n_nonzero = other.n_nonzero;
 
-    void del() {
-        if (real) {
-            free(row_offsets);
-            free(row_indices);
+        // copying the dynamically allocated arrays
+        row_offsets = std::make_unique<int64_t[]>(this->n_points + 1);
+        row_indices = std::make_unique<int32_t[]>(this->n_nonzero);
+        std::copy(other.row_offsets.get(), other.row_offsets.get() + n_points + 1, row_offsets.get());
+        std::copy(other.row_indices.get(), other.row_indices.get() + n_nonzero, row_indices.get());
+
+        this->transposed = other.transposed;
+    }
+
+    csr_filters& operator=(const csr_filters& other) { // copy assignment
+        std::cout << "copying from assignment" << std::endl;
+
+        if (this == &other) { // self assignment
+            return *this;
         }
+
+        this->n_points = other.n_points;
+        this->n_filters = other.n_filters;
+        this->n_nonzero = other.n_nonzero;
+
+        // copying the dynamically allocated arrays
+        row_offsets = std::make_unique<int64_t[]>(this->n_points + 1);
+        row_indices = std::make_unique<int32_t[]>(this->n_nonzero);
+        std::copy(other.row_offsets.get(), other.row_offsets.get() + n_points + 1, row_offsets.get());
+        std::copy(other.row_indices.get(), other.row_indices.get() + n_nonzero, row_indices.get());
+
+        this->transposed = other.transposed;
+        return *this;
     }
 
-    ~csr_filters() {
-        del();
-    }
+
+    ~csr_filters() = default;
 
     void print_stats(){
         printf("n_points: %ld\n", n_points);
@@ -142,9 +170,9 @@ struct csr_filters{
             exit(1);
         };
         if (q.is_and()) {
-            return join(row_indices + row_offsets[q.a], row_offsets[q.a + 1] - row_offsets[q.a], row_indices + row_offsets[q.b], row_offsets[q.b + 1] - row_offsets[q.b]);
+            return join(row_indices.get() + row_offsets[q.a], row_offsets[q.a + 1] - row_offsets[q.a], row_indices.get() + row_offsets[q.b], row_offsets[q.b + 1] - row_offsets[q.b]);
         } else {
-            return parlay::sequence<int32_t>(row_indices + row_offsets[q.a], row_indices + row_offsets[q.a + 1]);
+            return parlay::sequence<int32_t>(row_indices.get() + row_offsets[q.a], row_indices.get() + row_offsets[q.a + 1]);
         }
     }
 
@@ -179,15 +207,18 @@ struct csr_filters{
         }
         std::cout << "Transposing..." << std::endl;
 
-        int64_t* new_row_offsets = (int64_t*) malloc((n_filters + 1) * sizeof(int64_t)); // where to index for each filter (length is +1 because the last value is nnz to make the length calculation work for the last one)
-        int32_t* new_row_indices = (int32_t*) malloc(n_nonzero * sizeof(int32_t)); // indices of matching points
+        // int64_t* new_row_offsets = (int64_t*) malloc((n_filters + 1) * sizeof(int64_t)); // where to index for each filter (length is +1 because the last value is nnz to make the length calculation work for the last one)
+        // int32_t* new_row_indices = (int32_t*) malloc(n_nonzero * sizeof(int32_t)); // indices of matching points
+
+        std::unique_ptr<int64_t[]> new_row_offsets = std::make_unique<int64_t[]>(n_filters + 1);
+        std::unique_ptr<int32_t[]> new_row_indices = std::make_unique<int32_t[]>(n_nonzero);
 
         // counting points associated with each filter and scanning to get row offsets
         // auto counts = parlay::scan_inclusive(parlay::delayed_seq<int64_t>(n_filters, [&] (int64_t i) {
         //     return filter_count(i);
         // }));
 
-        memset(new_row_offsets, 0, (n_filters + 1) * sizeof(int64_t)); // initializing to 0s
+        memset(new_row_offsets.get(), 0, (n_filters + 1) * sizeof(int64_t)); // initializing to 0s
         // counting points associated with each filter and scanning to get row offsets
         for (int64_t i = 0; i <= n_nonzero; i++) {
             new_row_offsets[row_indices[i] + 1]++;
@@ -198,8 +229,9 @@ struct csr_filters{
         }
         std::cout << "Offsets computed" << std::endl;
         
-        int64_t* tmp_offset = (int64_t*) malloc(n_filters * sizeof(int64_t)); // temporary array to keep track of where to put the next point in each filter
-        memset(tmp_offset, 0, n_filters * sizeof(int64_t)); // initializing to 0s
+        // int64_t* tmp_offset = (int64_t*) malloc(n_filters * sizeof(int64_t)); // temporary array to keep track of where to put the next point in each filter
+        std::unique_ptr<int64_t[]> tmp_offset = std::make_unique<int64_t[]>(n_filters);
+        memset(tmp_offset.get(), 0, n_filters * sizeof(int64_t)); // initializing to 0s
 
         // iterating over the data to fill in row indices
         for (int64_t i = 0; i < n_points; i++) {
@@ -215,14 +247,75 @@ struct csr_filters{
 
         // std::cout << "Indices computed" << std::endl;
 
-        free(tmp_offset);
+        // free(tmp_offset);
 
-        std::cout << "tmp_offset freed" << std::endl;
+        // std::cout << "tmp_offset freed" << std::endl;
 
-        auto out = csr_filters(n_filters, n_points, n_nonzero, new_row_offsets, new_row_indices);
-        out.transposed = true;
+        // auto out = csr_filters(n_filters, n_points, n_nonzero, new_row_offsets, new_row_indices);
+
+        // std::cout << "first offset: " << out.row_offsets[0] << std::endl;
+        // std::cout << "first column: " << out.row_indices[0] << std::endl;
+
+        // out.transposed = true;
         std::cout << "Transposed" << std::endl;
-        return out;
+
+        // auto fake_out = csr_filters("/ssd1/anndata/bigann/data/yfcc100M/base.metadata.10M.spmat");
+        auto fake_out = csr_filters();
+
+        return fake_out;
+    }
+
+    /* transposes the filters in place */
+    void transpose_inplace() {
+        if (transposed) {
+            std::cout << "This csr_filters is already transposed" << std::endl;
+            return;
+        }
+        std::cout << "Transposing (inplace)..." << std::endl;
+
+        std::unique_ptr<int64_t[]> new_row_offsets = std::make_unique<int64_t[]>(n_filters + 1);
+        std::unique_ptr<int32_t[]> new_row_indices = std::make_unique<int32_t[]>(n_nonzero);
+
+        memset(new_row_offsets.get(), 0, (n_filters + 1) * sizeof(int64_t)); // initializing to 0s
+
+        // counting points associated with each filter and scanning to get row offsets
+        for (int64_t i = 0; i <= n_nonzero; i++) {
+            new_row_offsets[row_indices[i] + 1]++;
+        }
+
+        // not a sequence so for now I'll just do it serially
+        for (int64_t i = 1; i < n_filters + 1; i++) {
+            new_row_offsets[i] += new_row_offsets[i - 1];
+        }
+        std::cout << "Offsets computed" << std::endl;
+
+        // int64_t* tmp_offset = (int64_t*) malloc(n_filters * sizeof(int64_t)); // temporary array to keep track of where to put the next point in each filter
+        std::unique_ptr<int64_t[]> tmp_offset = std::make_unique<int64_t[]>(n_filters);
+        memset(tmp_offset.get(), 0, n_filters * sizeof(int64_t)); // initializing to 0s
+
+        // iterating over the data to fill in row indices
+        for (int64_t i = 0; i < n_points; i++) {
+            int64_t start = row_offsets[i];
+            int64_t end = row_offsets[i + 1];
+            for (int64_t j = start; j < end; j++) {
+                int64_t f = row_indices[j];
+                int64_t index = new_row_offsets[f] + tmp_offset[f];
+                new_row_indices[index] = i;
+                tmp_offset[f]++;
+            }
+        }
+
+        // free(tmp_offset);
+
+        std::swap(this->n_points, this->n_filters);
+
+        // delete[] this->row_offsets;
+        // delete[] this->row_indices;
+
+        this->row_offsets = std::move(new_row_offsets);
+        this->row_indices = std::move(new_row_indices);
+
+        return;
     }
 
     csr_filters reverse_transpose() {
@@ -236,11 +329,11 @@ struct csr_filters{
         return out;
     }
 
-    csr_filters copy() {
-        auto out = csr_filters(n_points, n_filters, n_nonzero, row_offsets, row_indices);
-        out.transposed = transposed;
-        return out;
-    }
+    // csr_filters copy() {
+    //     auto out = csr_filters(n_points, n_filters, n_nonzero, row_offsets, row_indices);
+    //     out.transposed = transposed;
+    //     return out;
+    // }
 
     /* subsets the rows based on the indices
 
@@ -253,19 +346,26 @@ struct csr_filters{
             - This is a copy, not a view
      */
     csr_filters subset_rows(parlay::sequence<int32_t> indices) {
-        int64_t* new_row_offsets = (int64_t*) malloc((indices.size() + 1) * sizeof(int64_t)); // where to index for each filter (length is +1 because the last value is nnz to make the length calculation work for the last one)
+        // int64_t* new_row_offsets = (int64_t*) malloc((indices.size() + 1) * sizeof(int64_t)); // where to index for each filter (length is +1 because the last value is nnz to make the length calculation work for the last one)
+        std::unique_ptr<int64_t[]> new_row_offsets = std::make_unique<int64_t[]>(indices.size() + 1);
         new_row_offsets[0] = 0;
         for (int64_t i = 0; i < indices.size(); i++) {
             new_row_offsets[i + 1] = row_offsets[indices[i] + 1] - row_offsets[indices[i]] + new_row_offsets[i];
         }
 
-        int32_t* new_row_indices = (int32_t*) malloc(new_row_offsets[indices.size()] * sizeof(int32_t)); // indices of matching points
+        // int32_t* new_row_indices = (int32_t*) malloc(new_row_offsets[indices.size()] * sizeof(int32_t)); // indices of matching points
+        std::unique_ptr<int32_t[]> new_row_indices = std::make_unique<int32_t[]>(new_row_offsets[indices.size()]);
 
         for (int64_t i = 0; i < indices.size(); i++) {
-            memcpy(new_row_indices + new_row_offsets[i], row_indices + row_offsets[indices[i]], (row_offsets[indices[i] + 1] - row_offsets[indices[i]]) * sizeof(int32_t));
+            memcpy(new_row_indices.get() + new_row_offsets[i], row_indices.get() + row_offsets[indices[i]], (row_offsets[indices[i] + 1] - row_offsets[indices[i]]) * sizeof(int32_t));
         }
 
-        auto out = csr_filters(indices.size(), n_filters, new_row_offsets[indices.size()], new_row_offsets, new_row_indices);
+        auto out = csr_filters();
+        out.n_points = indices.size();
+        out.n_filters = n_filters;
+        out.n_nonzero = new_row_offsets[indices.size()];
+        out.row_offsets = std::move(new_row_offsets);
+        out.row_indices = std::move(new_row_indices);
         out.transposed = transposed;
         return out;
     }
@@ -276,15 +376,17 @@ struct csr_filters{
      */
     csr_filters subset_filters(parlay::sequence<int32_t> filters) {
         // construct a boolean array of which filters to keep
-        bool* keep = (bool*) malloc(n_filters * sizeof(bool));
-        memset(keep, false, n_filters * sizeof(bool));
+        // bool* keep = (bool*) malloc(n_filters * sizeof(bool));
+        std::unique_ptr<bool[]> keep = std::make_unique<bool[]>(n_filters);
+        memset(keep.get(), false, n_filters * sizeof(bool));
         for (int64_t i = 0; i < filters.size(); i++) {
             keep[filters[i]] = true;
         }
 
         // compute the new offsets
-        int64_t* new_row_offsets = (int64_t*) malloc((n_points + 1) * sizeof(int64_t)); // where to index for each filter (length is +1 because the last value is nnz to make the length calculation work for the last one)
-        memset(new_row_offsets, 0, (n_points + 1) * sizeof(int64_t)); // initializing to 0s
+        // int64_t* new_row_offsets = (int64_t*) malloc((n_points + 1) * sizeof(int64_t)); // where to index for each filter (length is +1 because the last value is nnz to make the length calculation work for the last one)
+        std::unique_ptr<int64_t[]> new_row_offsets = std::make_unique<int64_t[]>(n_points + 1);
+        memset(new_row_offsets.get(), 0, (n_points + 1) * sizeof(int64_t)); // initializing to 0s
         for (int64_t i = 0; i < n_points; i++) {
             int64_t start = row_offsets[i];
             int64_t end = row_offsets[i + 1];
@@ -297,7 +399,8 @@ struct csr_filters{
         }
 
         // compute the new indices
-        int32_t* new_row_indices = (int32_t*) malloc(new_row_offsets[n_points] * sizeof(int32_t)); // indices of matching points
+        // int32_t* new_row_indices = (int32_t*) malloc(new_row_offsets[n_points] * sizeof(int32_t)); // indices of matching points
+        std::unique_ptr<int32_t[]> new_row_indices = std::make_unique<int32_t[]>(new_row_offsets[n_points]);
         // this could just iterate over the indices but this is more readable
         for (int64_t i = 0; i < n_points; i++) {
             int64_t start = row_offsets[i];
@@ -311,12 +414,14 @@ struct csr_filters{
             }
         }
 
-        delete keep;
+        // delete keep;
 
-        int64_t new_n_nonzero = new_row_offsets[n_points];
-        int64_t new_n_filters = filters.size();
-
-        csr_filters out = csr_filters(n_points, new_n_filters, new_n_nonzero, new_row_offsets, new_row_indices);
+        auto out = csr_filters();
+        out.n_points = n_points;
+        out.n_filters = filters.size();
+        out.n_nonzero = new_row_offsets[n_points];
+        out.row_offsets = std::move(new_row_offsets);
+        out.row_indices = std::move(new_row_indices);
         out.transposed = transposed;
         return out;
     }

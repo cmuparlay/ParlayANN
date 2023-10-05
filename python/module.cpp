@@ -127,7 +127,8 @@ PYBIND11_MODULE(_ParlayANNpy, m)
         .def("print_stats", &csr_filters::print_stats)
         .def("filter_count", &csr_filters::filter_count, "f"_a)
         .def("point_count", &csr_filters::point_count, "p"_a)
-        .def("transpose", &csr_filters::transpose);
+        .def("transpose", &csr_filters::transpose)
+        .def("transpose_inplace", &csr_filters::transpose_inplace);
 
     // should have initializers taking either one or two int32_t arguments
     py::class_<QueryFilter>(m, "QueryFilter")

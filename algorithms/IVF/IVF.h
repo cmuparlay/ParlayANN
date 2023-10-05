@@ -144,26 +144,38 @@ struct FilteredIVFIndex : IVFIndex<T, Point, PostingList> {
     FilteredIVFIndex() {}
 
     void fit(PointRange<T, Point> points, csr_filters& filters, size_t cluster_size=1000){
-        this->filters = filters.transpose();
 
-        std::cout << "filters transposed" << std::endl;
-        
+        this->filters = filters;
+
+        this->filters.print_stats();
+
+        std::cout << this->filters.first_label(42) << std::endl;
+
+        // transpose the filters
+        this->filters.transpose_inplace();
+
+        this->filters.print_stats();
+
+        std::cout << this->filters.first_label(6) << std::endl;
+
+        std::cout << "FilteredIVF: filters transposed" << std::endl;
+
         // cluster the points
         auto clusterer = HCNNGClusterer<Point, PointRange<T, Point>, index_type>(cluster_size);
         parlay::sequence<parlay::sequence<index_type>> clusters = clusterer.cluster(points);
-
-        std::cout << "clusters generated" << std::endl;
+        
+        std::cout << "FilteredIVF: clusters generated" << std::endl;
 
         // generate the posting lists
         this->posting_lists = parlay::tabulate(clusters.size(), [&] (size_t i) {
             return PostingList(points, clusters[i], this->filters);
         });
 
-        std::cout << "posting lists generated" << std::endl;
+        std::cout << "FilteredIVF: posting lists generated" << std::endl;
 
         this->centroids = parlay::map(this->posting_lists, [&] (PostingList pl) {return pl.centroid();});
         
-        std::cout << "centroids generated" << std::endl;
+        std::cout << "FilteredIVF: centroids generated" << std::endl;
 
         this->dim = points.dimension();
         this->aligned_dim = points.aligned_dimension();
