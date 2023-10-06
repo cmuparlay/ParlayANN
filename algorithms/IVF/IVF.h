@@ -5,6 +5,7 @@
 #include "parlay/sequence.h"
 #include "parlay/primitives.h"
 #include "parlay/parallel.h"
+#include "parlay/internal/get_time.h"
 
 #include "../utils/point_range.h"
 #include "../utils/types.h"
@@ -39,10 +40,13 @@ struct IVFIndex {
     // IVFIndex(PointRange<T, Point> points) : points(points) {}
 
     virtual void fit(PointRange<T, Point> points, size_t cluster_size=1000){
+        auto timer = parlay::internal::timer();
+        timer.start();
+
         // cluster the points
         auto clusterer = HCNNGClusterer<Point, PointRange<T, Point>, index_type>(cluster_size);
 
-        std::cout << "clusterer initialized" << std::endl;
+        std::cout << "clusterer initialized (" << timer.next_time() <<"s)" << std::endl;
 
         parlay::sequence<parlay::sequence<index_type>> clusters = clusterer.cluster(points);
 
@@ -73,12 +77,12 @@ struct IVFIndex {
         //     }
         // }
 
-        // centroids = parlay::map(posting_lists, [&] (PostingList pl) {return pl.centroid();});
+        centroids = parlay::map(posting_lists, [&] (PostingList pl) {return pl.centroid();});
         // serially for debug
-        centroids = parlay::sequence<Point>();
-        for (size_t i=0; i<posting_lists.size(); i++){
-            centroids.push_back(posting_lists[i].centroid());
-        }
+        // centroids = parlay::sequence<Point>();
+        // for (size_t i=0; i<posting_lists.size(); i++){
+        //     centroids.push_back(posting_lists[i].centroid());
+        // }
         
         std::cout << "centroids generated" << std::endl;
 
@@ -167,6 +171,8 @@ struct FilteredIVFIndex : IVFIndex<T, Point, PostingList> {
     FilteredIVFIndex() {}
 
     void fit(PointRange<T, Point> points, csr_filters& filters, size_t cluster_size=1000){
+        auto timer = parlay::internal::timer();
+        timer.start();
 
         this->filters = filters;
 
@@ -175,33 +181,40 @@ struct FilteredIVFIndex : IVFIndex<T, Point, PostingList> {
         std::cout << this->filters.first_label(42) << std::endl;
 
         // transpose the filters
-        this->filters.transpose_inplace();
+        // this->filters.transpose_inplace();
 
         this->filters.print_stats();
 
-        std::cout << this->filters.first_label(6) << std::endl;
+        // std::cout << this->filters.first_label(6) << std::endl;
 
-        std::cout << "FilteredIVF: filters transposed" << std::endl;
+        // std::cout << "FilteredIVF: filters transposed (" << timer.next_time() << "s)" << std::endl;
 
         // cluster the points
         auto clusterer = HCNNGClusterer<Point, PointRange<T, Point>, index_type>(cluster_size);
 
-        std::cout << "FilteredIVF: clusterer initialized" << std::endl;
+        std::cout << "FilteredIVF: clusterer initialized (" << timer.next_time() << "s)" << std::endl;
 
         parlay::sequence<parlay::sequence<index_type>> clusters = clusterer.cluster(points);
+
+        std::cout << "FilteredIVF: clusters generated (" << timer.next_time() << "s)" << std::endl;
+
+        // we sort the clusters to facilitate the generation of subset filters
+        parlay::parallel_for(0, clusters.size(), [&] (size_t i) {
+            std::sort(clusters[i].begin(), clusters[i].end());
+        });
         
-        std::cout << "FilteredIVF: clusters generated" << std::endl;
+        std::cout << "FilteredIVF: clusters sorted (" << timer.next_time() << "s)" << std::endl;
 
         // generate the posting lists
         this->posting_lists = parlay::tabulate(clusters.size(), [&] (size_t i) {
             return PostingList(points, clusters[i], this->filters);
         });
 
-        std::cout << "FilteredIVF: posting lists generated" << std::endl;
+        std::cout << "FilteredIVF: posting lists generated (" << timer.next_time() << "s)" << std::endl;
 
         this->centroids = parlay::map(this->posting_lists, [&] (PostingList pl) {return pl.centroid();});
         
-        std::cout << "FilteredIVF: centroids generated" << std::endl;
+        std::cout << "FilteredIVF: centroids generated (" << timer.next_time() << "s)" << std::endl;
 
         this->dim = points.dimension();
         this->aligned_dim = points.aligned_dimension();

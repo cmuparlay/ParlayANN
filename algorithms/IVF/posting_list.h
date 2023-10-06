@@ -95,9 +95,10 @@ class FilteredPostingList : public NaivePostingList<T, Point>{
         // natively, this shares one filter object for the whole index, and adjusting to one per posting list requires either defining a new constructor (probably best) or making a subset filter object to pass in (adds more complexity)
         // having posting lists own their own filters is the only thing that makes sense when every posting list has their own object, but if they're all shared this would consume crazy amounts of memory.
 
-        FilteredPostingList(PointRange<T, Point> points, parlay::sequence<int32_t> indices, csr_filters& filters) : NaivePostingList<T, Point>(points, indices) {
-            // assuming here that the filters are already transposed
-            this->filters = filters.subset_filters(indices);
+        FilteredPostingList(PointRange<T, Point> points, parlay::sequence<int32_t> indices, const csr_filters& filters) : NaivePostingList<T, Point>(points, indices) {
+            // assuming here that the filters are NOT transposed
+            // this->filters = filters.subset_filters(indices);
+            this->filters = filters.subset_rows_transpose(indices);
         }
 
         FilteredPostingList(PointRange<T, Point> points, parlay::sequence<int32_t> indices) : NaivePostingList<T, Point>(points, indices) {

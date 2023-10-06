@@ -345,7 +345,7 @@ struct csr_filters{
             - the indices of the rows have to be mapped with the indices sequence to get back to the original values (but the filter numbers remain the same)
             - This is a copy, not a view
      */
-    csr_filters subset_rows(parlay::sequence<int32_t> indices) {
+    csr_filters subset_rows(parlay::sequence<int32_t> indices) const {
         // int64_t* new_row_offsets = (int64_t*) malloc((indices.size() + 1) * sizeof(int64_t)); // where to index for each filter (length is +1 because the last value is nnz to make the length calculation work for the last one)
         std::unique_ptr<int64_t[]> new_row_offsets = std::make_unique<int64_t[]>(indices.size() + 1);
         new_row_offsets[0] = 0;
@@ -374,7 +374,7 @@ struct csr_filters{
     
     As written preserves the number of the filters (or points if transposed), which should be much easier to work with
      */
-    csr_filters subset_filters(parlay::sequence<int32_t> filters) {
+    csr_filters subset_filters(parlay::sequence<int32_t> filters) const {
         // construct a boolean array of which filters to keep
         // bool* keep = (bool*) malloc(n_filters * sizeof(bool));
         std::unique_ptr<bool[]> keep = std::make_unique<bool[]>(n_filters);
@@ -423,6 +423,70 @@ struct csr_filters{
         out.row_offsets = std::move(new_row_offsets);
         out.row_indices = std::move(new_row_indices);
         out.transposed = transposed;
+        return out;
+    }
+
+    /* 
+    This abominably named function does 3 things:
+        - subsets the rows based on the indices
+        - transposes the result
+        - renames the columns to match the indices
+    
+    Internally, the implementation does not do all 3 of these things independently, but the result should be the same.
+
+    sorts the indices just in case they aren't already sorted
+     */
+    csr_filters subset_rows_transpose(parlay::sequence<int32_t>& indices) const {
+        std::sort(indices.begin(), indices.end()); // strictly speaking, this shouldn't violate constness of the reference
+
+        int64_t new_n_points = n_filters;
+        int64_t new_n_filters = indices.size();
+        int64_t new_n_nonzero = 0;
+
+        for (int64_t i = 0; i < indices.size(); i++) {
+            new_n_nonzero += row_offsets[indices[i] + 1] - row_offsets[indices[i]];
+        }
+
+        std::unique_ptr<int64_t[]> new_row_offsets = std::make_unique<int64_t[]>(new_n_points + 1);
+        std::unique_ptr<int32_t[]> new_row_indices = std::make_unique<int32_t[]>(new_n_nonzero);
+
+        // we use new_row_offsets to count the number of times each filter appears in the new data, then we can scan it to get the offsets
+        memset(new_row_offsets.get(), 0, (new_n_points + 1) * sizeof(int64_t)); // initializing to 0s
+
+        for (int64_t i = 0; i < indices.size(); i++) {
+            int64_t start = row_offsets[indices[i]];
+            int64_t end = row_offsets[indices[i] + 1];
+            for (int64_t j = start; j < end; j++) {
+                new_row_offsets[row_indices[j] + 1]++;
+            }
+        }
+
+        // not a sequence so doing this serially
+        for (int64_t i = 1; i < new_n_points + 1; i++) {
+            new_row_offsets[i] += new_row_offsets[i - 1];
+        }
+
+        std::unique_ptr<int64_t[]> tmp_offset = std::make_unique<int64_t[]>(new_n_points);
+        memset(tmp_offset.get(), 0, new_n_points * sizeof(int64_t)); // initializing to 0s
+
+        for (int64_t i = 0; i < indices.size(); i++) {
+            int64_t start = row_offsets[indices[i]];
+            int64_t end = row_offsets[indices[i] + 1];
+            for (int64_t j = start; j < end; j++) {
+                int64_t f = row_indices[j];
+                int64_t index = new_row_offsets[f] + tmp_offset[f];
+                new_row_indices[index] = i;
+                tmp_offset[f]++;
+            }
+        }
+
+        auto out = csr_filters();
+        out.n_points = new_n_points;
+        out.n_filters = new_n_filters;
+        out.n_nonzero = new_n_nonzero;
+        out.row_offsets = std::move(new_row_offsets);
+        out.row_indices = std::move(new_row_indices);
+        out.transposed = true;
         return out;
     }
 };
