@@ -31,16 +31,19 @@
 #include "types.h"
 #include "stats.h"
 
-template<typename Point, typename PointRange, typename indexType>
+template<typename Point, typename BPointRange, typename PointRange, typename indexType>
 nn_result checkRecall(
         Graph<indexType> &G,
-        PointRange &Base_Points,
+        PointRange &FP_Base_Points,
+        BPointRange &Base_Points,
         PointRange &Query_Points,
         groundTruth<indexType> GT,
         bool random,
         long start_point, 
         long k,
-        QueryParams &QP) {
+        QueryParams &QP,
+        parlay::sequence<parlay::sequence<indexType>> start_points,
+        double start_gen_time, long start_cmps) {
   if (GT.size() > 0 && k > GT.dimension()) {
     std::cout << k << "@" << k << " too large for ground truth data of size "
               << GT.dimension() << std::endl;
@@ -53,62 +56,50 @@ nn_result checkRecall(
   float query_time;
   stats<indexType> QueryStats(Query_Points.size());
   if(random){
-    all_ngh = beamSearchRandom<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, QP);
+    all_ngh = beamSearchRandom<Point, BPointRange, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, QP);
     t.next_time();
     QueryStats.clear();
-    all_ngh = beamSearchRandom<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, QP);
+    all_ngh = beamSearchRandom<Point, BPointRange, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, QP);
+    query_time = t.next_time();
+  }else if(start_points.size() == 0){
+    all_ngh = searchAll<Point, BPointRange, PointRange, indexType>(Query_Points, G, FP_Base_Points, Base_Points, QueryStats, start_point, QP);
+    t.next_time();
+    QueryStats.clear();
+    all_ngh = searchAll<Point, BPointRange, PointRange, indexType>(Query_Points, G, FP_Base_Points, Base_Points, QueryStats, start_point, QP);
     query_time = t.next_time();
   }else{
-    all_ngh = searchAll<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_point, QP);
+    all_ngh = searchAll<Point, BPointRange, PointRange, indexType>(Query_Points, G, FP_Base_Points, Base_Points, QueryStats, start_points, QP);
     t.next_time();
     QueryStats.clear();
-    all_ngh = searchAll<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_point, QP);
+    all_ngh = searchAll<Point, BPointRange, PointRange, indexType>(Query_Points, G, FP_Base_Points, Base_Points, QueryStats, start_points, QP);
     query_time = t.next_time();
   }
 
   float recall = 0.0;
-  //TODO deprecate this after further testing
-  bool dists_present = true;
-  if (GT.size() > 0 && !dists_present) {
-    size_t n = Query_Points.size();
-    int numCorrect = 0;
-    for (indexType i = 0; i < n; i++) {
-      std::set<indexType> reported_nbhs;
-      int b = std::min<size_t>((size_t) k, all_ngh[i].size());
-      for (indexType l = 0; l < b; l++) reported_nbhs.insert((all_ngh[i])[l]);
-      for (indexType l = 0; l < k; l++) {
-        if (reported_nbhs.find((GT.coordinates(i,l))) !=
-            reported_nbhs.end()) {
-          numCorrect += 1;
-        }
-      }
-    }
-    recall = static_cast<float>(numCorrect) / static_cast<float>(k * n);
-  } else if (GT.size() > 0 && dists_present) {
-    size_t n = Query_Points.size();
-    
-    int numCorrect = 0;
-    for (indexType i = 0; i < n; i++) {
-      parlay::sequence<int> results_with_ties;
-      for (indexType l = 0; l < k; l++)
+  size_t n = Query_Points.size();
+  
+  int numCorrect = 0;
+  for (indexType i = 0; i < n; i++) {
+    parlay::sequence<int> results_with_ties;
+    for (indexType l = 0; l < k; l++)
+      results_with_ties.push_back(GT.coordinates(i,l));
+    float last_dist = GT.distances(i, k-1);
+    for (indexType l = k; l < GT.dimension(); l++) {
+      if (GT.distances(i,l) == last_dist) {
         results_with_ties.push_back(GT.coordinates(i,l));
-      float last_dist = GT.distances(i, k-1);
-      for (indexType l = k; l < GT.dimension(); l++) {
-        if (GT.distances(i,l) == last_dist) {
-          results_with_ties.push_back(GT.coordinates(i,l));
-        }
-      }
-      std::set<int> reported_nbhs;
-      int b = std::min<size_t>((size_t) k, all_ngh[i].size());
-      for (indexType l = 0; l < b; l++) reported_nbhs.insert((all_ngh[i])[l]);
-      for (indexType l = 0; l < results_with_ties.size(); l++) {
-        if (reported_nbhs.find(results_with_ties[l]) != reported_nbhs.end()) {
-          numCorrect += 1;
-        }
       }
     }
-    recall = static_cast<float>(numCorrect) / static_cast<float>(k * n);
+    std::set<int> reported_nbhs;
+    int b = std::min<size_t>((size_t) k, all_ngh[i].size());
+    for (indexType l = 0; l < b; l++) reported_nbhs.insert((all_ngh[i])[l]);
+    for (indexType l = 0; l < results_with_ties.size(); l++) {
+      if (reported_nbhs.find(results_with_ties[l]) != reported_nbhs.end()) {
+        numCorrect += 1;
+      }
+    }
   }
+  recall = static_cast<float>(numCorrect) / static_cast<float>(k * n);
+
   float QPS = Query_Points.size() / query_time;
   auto stats_ = {QueryStats.dist_stats(), QueryStats.visited_stats()};
   parlay::sequence<indexType> stats = parlay::flatten(stats_);
@@ -158,11 +149,11 @@ parlay::sequence<long> calculate_limits(size_t upper_bound) {
   return limits;
 }
 
-template<typename Point, typename PointRange, typename indexType>
-void search_and_parse(Graph_ G_, Graph<indexType> &G, PointRange &Base_Points,
+template<typename Point, typename BPointRange, typename PointRange, typename indexType>
+void search_and_parse(Graph_ G_, Graph<indexType> &G, PointRange &FP_Base_Points, BPointRange &Base_Points,
    PointRange &Query_Points, 
-  groundTruth<indexType> GT, char* res_file, long k,
-  bool random=true, indexType start_point=0){
+  groundTruth<indexType> GT, char* res_file, long k, parlay::sequence<parlay::sequence<indexType>> start_points,
+  bool random, indexType start_point, double start_time = 0.0, long start_cmps = 0){
 
   parlay::sequence<nn_result> results;
   std::vector<long> beams;
@@ -187,7 +178,7 @@ void search_and_parse(Graph_ G_, Graph<indexType> &G, PointRange &Base_Points,
         for (float Q : beams){
           QP.beamSize = Q;
           if (Q > r){
-            results.push_back(checkRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, random, start_point, r, QP));
+            results.push_back(checkRecall<Point, BPointRange, PointRange, indexType>(G, FP_Base_Points, Base_Points, Query_Points, GT, random, start_point, r, QP, start_points, start_time, start_cmps));
           }
         }
       }
@@ -201,12 +192,12 @@ void search_and_parse(Graph_ G_, Graph<indexType> &G, PointRange &Base_Points,
         QP.beamSize = std::max<long>(l, r);
         for(long dl : degree_limits){
           QP.degree_limit = dl;
-	        results.push_back(checkRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, random, start_point, r, QP));
+	        results.push_back(checkRecall<Point, BPointRange, PointRange, indexType>(G, FP_Base_Points, Base_Points, Query_Points, GT, random, start_point, r, QP, start_points, start_time, start_cmps));
         }
       }
       // check "best accuracy"
       QP = QueryParams((long) 100, (long) 1000, (double) 10.0, (long) G.size(), (long) G.max_degree());
-      results.push_back(checkRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, random, start_point, r, QP));
+      results.push_back(checkRecall<Point, BPointRange, PointRange, indexType>(G, FP_Base_Points, Base_Points, Query_Points, GT, random, start_point, r, QP, start_points, start_time, start_cmps));
 
     parlay::sequence<float> buckets =  {.1, .2, .3,  .4,  .5,  .6, .7, .75,  .8, .85,                                                                                            
                                         .9, .93, .95, .97, .98, .99, .995, .999, .9995, 

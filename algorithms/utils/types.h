@@ -39,8 +39,8 @@ struct groundTruth{
   groundTruth(char* gtFile) : coords(parlay::make_slice<T*, T*>(nullptr, nullptr)),
     dists(parlay::make_slice<float*, float*>(nullptr, nullptr)){
       if(gtFile == NULL){
-        this->n = 0;
-        this->dim = 0;
+        n = 0;
+        dim = 0;
       } else{
         auto [fileptr, length] = mmapStringFromFile(gtFile);
 
@@ -94,6 +94,10 @@ struct BuildParams{
     else if(num_clusters != 0 && cluster_size != 0 && MST_deg != 0){alg_type = "HCNNG";}
     else if(R != 0 && alpha != 0 && num_clusters != 0 && cluster_size != 0 && delta != 0){alg_type = "pyNNDescent";}
   }
+
+  BuildParams() {}
+
+  BuildParams(long R, long L, double a, bool tp) : R(R), L(L), alpha(a), two_pass(tp) {}
 
   long max_degree(){
     if(alg_type == "HCNNG") return num_clusters*MST_deg;

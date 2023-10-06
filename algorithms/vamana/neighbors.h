@@ -29,6 +29,10 @@
 #include "../utils/stats.h"
 #include "../utils/types.h"
 #include "../utils/graph.h"
+#include "../utils/scalar_quantize.h"
+#include "../utils/point_range.h"
+#include "../utils/mips_point.h"
+#include "../utils/euclidian_point.h"
 #include "index.h"
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
@@ -38,6 +42,7 @@
 template<typename Point, typename PointRange, typename indexType>
 void ANN(Graph<indexType> &G, long k, BuildParams &BP,
          PointRange &Query_Points,
+         PointRange &Sample_Points,
          groundTruth<indexType> GT, char *res_file,
          bool graph_built, PointRange &Points) {
   parlay::internal::timer t("ANN");
@@ -62,8 +67,10 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
             << std::endl;
   Graph_ G_(name, params, G.size(), avg_deg, max_deg, idx_time);
   G_.print();
-  graph_learn_base_stats(G, Points.b_size());
-  if(Query_Points.size() != 0) search_and_parse<Point, PointRange, indexType>(G_, G, Points, Query_Points, GT, res_file, k, false, start_point);
+  // QuantizedPointRange<Quantized_Mips_Point<uint8_t>, uint8_t> Quantized_Points = QuantizedPointRange<Quantized_Mips_Point<uint8_t>, uint8_t>(Points);
+  // if(Query_Points.size() != 0) search_and_parse<Point, QuantizedPointRange<Quantized_Mips_Point<uint8_t>, uint8_t>, PointRange, indexType>(G_, G, Points, Quantized_Points, Query_Points, GT, res_file, k, false, start_point);
+  if(Query_Points.size() != 0) search_and_parse<Point, PointRange, PointRange, indexType>(G_, G, Points, Points, Query_Points, GT, res_file, k, false, start_point);
+
 }
 
 
