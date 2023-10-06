@@ -69,6 +69,7 @@ struct cluster {
                size_t cluster_size, F f, long MSTDeg, indexType first,
                indexType second) {
     // Split points based on which of the two points are closer.
+    // does all the distance calculations twice ???
     auto closer_first =
         parlay::filter(parlay::make_slice(active_indices), [&](size_t ind) {
           distanceType dist_first = Points[ind].distance(Points[first]);
@@ -106,6 +107,14 @@ struct cluster {
                          parlay::sequence<indexType>& active_indices,
                          parlay::random& rnd, size_t cluster_size, F g,
                          long MSTDeg) {
+    // if (std::max_element(active_indices.begin(), active_indices.end())[0] >= Points.size())
+    //   std::cout << "oversized index passed to random_clustering" << std::endl;
+
+    if (active_indices.size() == 0) {
+      std::cout << "random_clustering: active_indices.size() == 0" << std::endl;
+      abort();
+    }
+
     if (active_indices.size() < cluster_size)
       g(G, Points, active_indices, MSTDeg);
     else {
@@ -114,7 +123,7 @@ struct cluster {
         parlay::sequence<indexType> closer_first;
         parlay::sequence<indexType> closer_second;
         for (int i = 0; i < active_indices.size(); i++) {
-          if (i < active_indices.size() / 2)
+          if (i < active_indices.size() / 2) // random split if the two points are the same ???
             closer_first.push_back(active_indices[i]);
           else
             closer_second.push_back(active_indices[i]);
@@ -143,6 +152,11 @@ struct cluster {
     parlay::random rnd(uni(rng));
     auto active_indices =
         parlay::tabulate(Points.size(), [&](indexType i) { return i; });
+
+    if (std::max_element(active_indices.begin(), active_indices.end())[0] !=
+        Points.size() - 1)
+      std::cout << "max element is not the last element" << std::endl;
+      
     random_clustering(G, Points, active_indices, rnd, cluster_size, f, MSTDeg);
   }
 

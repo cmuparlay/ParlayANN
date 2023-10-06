@@ -98,7 +98,7 @@ struct csr_filters{
     // }
 
     csr_filters(const csr_filters& other) { // copy constructor
-        std::cout << "copying" << std::endl;
+        // std::cout << "copying" << std::endl;
         this->n_points = other.n_points;
         this->n_filters = other.n_filters;
         this->n_nonzero = other.n_nonzero;
@@ -113,7 +113,7 @@ struct csr_filters{
     }
 
     csr_filters& operator=(const csr_filters& other) { // copy assignment
-        std::cout << "copying from assignment" << std::endl;
+        // std::cout << "copying from assignment" << std::endl;
 
         if (this == &other) { // self assignment
             return *this;

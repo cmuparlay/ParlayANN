@@ -48,6 +48,15 @@ struct IVFIndex {
 
         std::cout << "clusters generated" << std::endl;
 
+        // check if there are indices in the clusters that are too large
+        // for (size_t i=0; i<clusters.size(); i++){
+        //     for (size_t j=0; j<clusters[i].size(); j++){
+        //         if (clusters[i][j] >= points.size()){
+        //             std::cout << "IVFIndex::fit: clusters[" << i << "][" << j << "] = " << clusters[i][j] << std::endl;
+        //         }
+        //     }
+        // }
+
         // generate the posting lists
         posting_lists = parlay::tabulate(clusters.size(), [&] (size_t i) {
             return PostingList(points, clusters[i]);
@@ -55,7 +64,21 @@ struct IVFIndex {
 
         std::cout << "posting lists generated" << std::endl;
 
-        centroids = parlay::map(posting_lists, [&] (PostingList pl) {return pl.centroid();});
+        // check if there are indices in the posting lists that are too large
+        // for (size_t i=0; i<posting_lists.size(); i++){
+        //     for (size_t j=0; j<posting_lists[i].indices.size(); j++){
+        //         if (posting_lists[i].indices[j] >= points.size()){
+        //             std::cout << "IVFIndex::fit: posting_lists[" << i << "].indices[" << j << "] = " << posting_lists[i].indices[j] << std::endl;
+        //         }
+        //     }
+        // }
+
+        // centroids = parlay::map(posting_lists, [&] (PostingList pl) {return pl.centroid();});
+        // serially for debug
+        centroids = parlay::sequence<Point>();
+        for (size_t i=0; i<posting_lists.size(); i++){
+            centroids.push_back(posting_lists[i].centroid());
+        }
         
         std::cout << "centroids generated" << std::endl;
 
@@ -162,6 +185,9 @@ struct FilteredIVFIndex : IVFIndex<T, Point, PostingList> {
 
         // cluster the points
         auto clusterer = HCNNGClusterer<Point, PointRange<T, Point>, index_type>(cluster_size);
+
+        std::cout << "FilteredIVF: clusterer initialized" << std::endl;
+
         parlay::sequence<parlay::sequence<index_type>> clusters = clusterer.cluster(points);
         
         std::cout << "FilteredIVF: clusters generated" << std::endl;

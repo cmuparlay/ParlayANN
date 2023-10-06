@@ -39,7 +39,7 @@ struct NaivePostingList {
     Point centroid() {
         parlay::sequence<double> result(points.dimension(), 0);
         for (size_t i = 0; i < indices.size(); i++) {
-            T* values = points[indices[i]].get();
+            const T* values = points[indices[i]].get();
             for (size_t j = 0; j < points.dimension(); j++) {
                 result[j] += values[j];
             }
@@ -81,7 +81,7 @@ struct NaivePostingList {
 
     /* Returns the number of points in the cluster */
     size_t size() {
-        return indices.size();
+        return indices.end() - indices.begin();
     }
 };
 
