@@ -34,6 +34,7 @@ def build_vamana_index(
     beam_width: int,
     graph_degree: int,
     alpha: float,
+    two_pass: bool,
     vector_dtype: VectorDType,
     index_prefix: str,
 ) -> None: ...

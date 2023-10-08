@@ -100,9 +100,10 @@ nn_result checkRecall(
   }
   recall = static_cast<float>(numCorrect) / static_cast<float>(k * n);
 
-  float QPS = Query_Points.size() / query_time;
+  float QPS = Query_Points.size() / (query_time + start_gen_time);
   auto stats_ = {QueryStats.dist_stats(), QueryStats.visited_stats()};
   parlay::sequence<indexType> stats = parlay::flatten(stats_);
+  stats[0] += start_cmps;
   nn_result N(recall, stats, QPS, k, QP.beamSize, QP.cut, Query_Points.size(), QP.limit, QP.degree_limit, k);
   return N;
 }

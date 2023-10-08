@@ -80,6 +80,7 @@ beam_search(Point p, Graph<indexType> &G, PointRange &Points,
   for (auto q : starting_points)
     frontier.push_back(std::pair<indexType, distanceType>(q, Points[q].distance(p)));
   std::sort(frontier.begin(), frontier.end(), less);
+  
 
   // The subset of the frontier that has not been visited
   // Use the first of these to pick next vertex to visit.

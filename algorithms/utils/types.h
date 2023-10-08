@@ -60,7 +60,30 @@ struct groundTruth{
         coords = parlay::make_slice(start_coords, end_coords);
         dists = parlay::make_slice(start_dists, end_dists);
       }
+  }
 
+  groundTruth(parlay::sequence<parlay::sequence<T>> gt) : coords(parlay::make_slice<T*, T*>(nullptr, nullptr)),
+    dists(parlay::make_slice<float*, float*>(nullptr, nullptr)){
+      n = gt.size();
+      dim = gt[0].size();
+      auto flat_gt = parlay::flatten(gt);
+      coords = parlay::make_slice(flat_gt.begin(), flat_gt.end());
+      parlay::sequence<float> dummy_ds = parlay::sequence<float>(dim*n, 0.0);
+      dists = parlay::make_slice(dummy_ds.begin(), dummy_ds.end());
+    }
+
+  //saves in binary format
+  //assumes gt is not so big that it needs block saving
+  void save(char* save_path){
+     std::cout << "Writing groundtruth for " << n << " points and num results " << dim
+                    << std::endl;
+      parlay::sequence<T> preamble = {static_cast<T>(n), static_cast<T>(dim)};
+      std::ofstream writer;
+      writer.open(save_path, std::ios::binary | std::ios::out);
+      writer.write((char*)preamble.begin(), 2 * sizeof(T));
+      writer.write((char*)coords.begin(), dim*n*sizeof(T));
+      writer.write((char*)dists.begin(), dim*n*sizeof(float));
+      writer.close();
   }
 
   T coordinates(long i, long j){return *(coords.begin() + i*dim + j);}

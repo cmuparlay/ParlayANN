@@ -58,7 +58,7 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
 {
 
     m.def(variant.builder_name.c_str(), build_vamana_index<T, Point>, "distance_metric"_a,
-          "data_file_path"_a, "index_output_path"_a, "graph_degree"_a, "beam_width"_a, "alpha"_a);
+          "data_file_path"_a, "index_output_path"_a, "graph_degree"_a, "beam_width"_a, "alpha"_a, "two_pass"_a);
 
     py::class_<VamanaIndex<T, Point>>(m, variant.index_name.c_str())
         .def(py::init<std::string &, std::string &, size_t, size_t>(),
