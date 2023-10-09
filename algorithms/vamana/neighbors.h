@@ -67,9 +67,10 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
             << std::endl;
   Graph_ G_(name, params, G.size(), avg_deg, max_deg, idx_time);
   G_.print();
+  parlay::sequence<parlay::sequence<indexType>> start_points(Query_Points.size());
   // QuantizedPointRange<Quantized_Mips_Point<uint8_t>, uint8_t> Quantized_Points = QuantizedPointRange<Quantized_Mips_Point<uint8_t>, uint8_t>(Points);
   // if(Query_Points.size() != 0) search_and_parse<Point, QuantizedPointRange<Quantized_Mips_Point<uint8_t>, uint8_t>, PointRange, indexType>(G_, G, Points, Quantized_Points, Query_Points, GT, res_file, k, false, start_point);
-  if(Query_Points.size() != 0) search_and_parse<Point, PointRange, PointRange, indexType>(G_, G, Points, Points, Query_Points, GT, res_file, k, false, start_point);
+  if(Query_Points.size() != 0) search_and_parse<Point, PointRange, PointRange, indexType>(G_, G, Points, Points, Query_Points, GT, res_file, k, start_points, false, start_point);
 
 }
 
