@@ -101,7 +101,7 @@ struct VamanaIndex{
         std::cout << "outputs initialized" << std::endl;
 
         size_t i = 0;
-        Point q = Point(queries.mutable_data(i), Points.dimension(), Points.aligned_dimension(), i);
+        Point q = Point(queries.data(i), Points.dimension(), Points.aligned_dimension(), i);
 
         std::cout << "query point initialized" << std::endl;
 
@@ -123,7 +123,7 @@ struct VamanaIndex{
         std::cout << "ids and dists set" << std::endl;
 
         parlay::parallel_for(0, num_queries, [&] (size_t i){
-            Point q = Point(queries.mutable_data(i), Points.dimension(), Points.aligned_dimension(), i);
+            Point q = Point(queries.data(i), Points.dimension(), Points.aligned_dimension(), i);
             auto start_points = generate_start_points(q);
             auto [pairElts, dist_cmps] = beam_search<Point, PointRange<T, Point>, unsigned int>(q, G, Points, start_points, QP);
             auto [frontier, visited] = pairElts;
