@@ -44,6 +44,7 @@ nn_result checkRecall(
         QueryParams &QP,
         parlay::sequence<parlay::sequence<indexType>> start_points,
         double start_gen_time, long start_cmps) {
+  std::cout << "begin" << std::endl;
   if (GT.size() > 0 && k > GT.dimension()) {
     std::cout << k << "@" << k << " too large for ground truth data of size "
               << GT.dimension() << std::endl;
@@ -105,6 +106,7 @@ nn_result checkRecall(
   parlay::sequence<indexType> stats = parlay::flatten(stats_);
   stats[0] += start_cmps;
   nn_result N(recall, stats, QPS, k, QP.beamSize, QP.cut, Query_Points.size(), QP.limit, QP.degree_limit, k);
+  std::cout << "end" << std::endl;
   return N;
 }
 

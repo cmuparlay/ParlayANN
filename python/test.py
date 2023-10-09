@@ -9,7 +9,7 @@ AWARE_DATA_DIR = "/ssd1/data/text2image1B/"
 DATA_DIR = AWARE_DATA_DIR
 
 base_dir = DATA_DIR + "base.1B.fbin.crop_nb_1000000"
-sample_dir = DATA_DIR + "query_rs_10000.fbin"
+sample_dir = DATA_DIR + "sample"
 output_dir = DATA_DIR + "outputs/parlayann"
 secondary_output_dir = DATA_DIR + "outputs/parlayann.secondary"
 secondary_gt_dir = DATA_DIR + "outputs/parlayann.secondary.gt"
