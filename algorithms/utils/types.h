@@ -36,6 +36,9 @@ struct groundTruth{
   long dim;
   size_t n;
 
+  groundTruth() : coords(parlay::make_slice<T*, T*>(nullptr, nullptr)),
+    dists(parlay::make_slice<float*, float*>(nullptr, nullptr)){}
+
   groundTruth(char* gtFile) : coords(parlay::make_slice<T*, T*>(nullptr, nullptr)),
     dists(parlay::make_slice<float*, float*>(nullptr, nullptr)){
       if(gtFile == NULL){

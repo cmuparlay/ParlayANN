@@ -1,4 +1,4 @@
-python// This code is part of the Problem Based Benchmark Suite (PBBS)
+// This code is part of the Problem Based Benchmark Suite (PBBS)
 // Copyright (c) 2011 Guy Blelloch and the PBBS team
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -31,9 +31,9 @@ python// This code is part of the Problem Based Benchmark Suite (PBBS)
 
 
 template <typename T, typename Point>
-void build_vamana_index(std::string metric, std::string &vector_bin_path,
-                         std::string &index_output_path, uint32_t graph_degree, uint32_t beam_width,
-                        float alpha, bool two_pass)
+void build_vamana_index(std::string metric, std::string &vector_bin_path, std::string &sample_bin_path,
+                        std::string &index_output_path, std::string &secondary_output_path, std::string& secondary_gt_path,
+                        uint32_t graph_degree, uint32_t beam_width, float alpha, bool two_pass)
 {
     
     //instantiate build params object
@@ -42,6 +42,7 @@ void build_vamana_index(std::string metric, std::string &vector_bin_path,
     //use file parsers to create Point object
 
     PointRange<T, Point> Points = PointRange<T, Point>(vector_bin_path.data());
+    PointRange<T, Point> Sample_Points = PointRange<T, Point>(sample_bin_path.data());
     //use max degree info to create Graph object
     Graph<unsigned int> G = Graph<unsigned int>(graph_degree, Points.size());
 
@@ -51,24 +52,41 @@ void build_vamana_index(std::string metric, std::string &vector_bin_path,
     stats<unsigned int> BuildStats(G.size());
     I.build_index(G, Points, BuildStats);
 
+    Graph G_S = Graph<unsigned int>(BP.max_degree(), Sample_Points.size());
+    BuildParams BP_S(32, 500, 1.0, true);
+    index J(BP_S);
+    stats<unsigned int> Sample_Stats(Sample_Points.size());
+    J.build_index(G_S, Sample_Points, BuildStats);
+
+    parlay::sequence<parlay::sequence<unsigned int>> neighbors_in_G = parlay::tabulate(Sample_Points.size(), [&] (size_t i){
+        QueryParams QP = QueryParams(50, 500, 1.35, G.size(), G.max_degree());
+        auto [pairElts, dist_cmps] = beam_search(Sample_Points[i], G, Points, I.get_start(), QP);
+        auto [beamElts, visitedElts] = pairElts;
+        parlay::sequence<unsigned int> closest;
+        //points to compute nn for 
+        for(int j=0; j<10; j++) closest.push_back(beamElts[j].first);
+        return closest;
+    });
+
     //save the graph object
     G.save(index_output_path.data());
-
-    
+    G_S.save(secondary_output_path.data());
+    groundTruth<unsigned int> GT(neighbors_in_G);
+    GT.save(secondary_gt_path.data());
     
 }
 
-template void build_vamana_index<float, Euclidian_Point<float>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
-                                        float, bool);                            
-template void build_vamana_index<float, Mips_Point<float>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
-                                        float, bool);
+template void build_vamana_index<float, Euclidian_Point<float>>(std::string , std::string &, std::string &, std::string &, std::string &, std::string &, 
+                                    uint32_t, uint32_t, float, bool);                            
+template void build_vamana_index<float, Mips_Point<float>>(std::string , std::string &, std::string &, std::string &, std::string &, std::string &, 
+                                    uint32_t, uint32_t, float, bool);   
 
-template void build_vamana_index<int8_t, Euclidian_Point<int8_t>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
-                                         float, bool);
-template void build_vamana_index<int8_t, Mips_Point<int8_t>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
-                                         float, bool);
+template void build_vamana_index<int8_t, Euclidian_Point<int8_t>>(std::string , std::string &, std::string &, std::string &, std::string &, std::string &, 
+                                    uint32_t, uint32_t, float, bool);   
+template void build_vamana_index<int8_t, Mips_Point<int8_t>>(std::string , std::string &, std::string &, std::string &, std::string &, std::string &, 
+                                    uint32_t, uint32_t, float, bool);   
 
-template void build_vamana_index<uint8_t, Euclidian_Point<uint8_t>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
-                                          float, bool);
-template void build_vamana_index<uint8_t, Mips_Point<uint8_t>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
-                                          float, bool);
+template void build_vamana_index<uint8_t, Euclidian_Point<uint8_t>>(std::string , std::string &, std::string &, std::string &, std::string &, std::string &, 
+                                    uint32_t, uint32_t, float, bool);   
+template void build_vamana_index<uint8_t, Mips_Point<uint8_t>>(std::string , std::string &, std::string &, std::string &, std::string &, std::string &, 
+                                    uint32_t, uint32_t, float, bool);   

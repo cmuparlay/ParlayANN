@@ -42,14 +42,51 @@ using NeighborsAndDistances = std::pair<py::array_t<unsigned int>, py::array_t<f
 template<typename T, typename Point> 
 struct VamanaIndex{
     Graph<unsigned int> G;
+    Graph<unsigned int> G_S;
     PointRange<T, Point> Points;
+    PointRange<T, Point> Sample_Points;
+    groundTruth<unsigned int> Sample_GT;
+    using pid = std::pair<unsigned int, float>;
     
 
-    VamanaIndex(std::string &data_path, std::string &index_path, size_t num_points, size_t dimensions){
+    VamanaIndex(std::string &data_path, std::string& sample_path, std::string &index_path, std::string& secondary_index_path, std::string& secondary_gt_path, size_t num_points, size_t dimensions){
         G = Graph<unsigned int>(index_path.data());
+        G_S = Graph<unsigned int>(secondary_index_path.data());
         Points = PointRange<T, Point>(data_path.data());
+        Sample_Points = PointRange<T, Point>(sample_path.data());
+        Sample_GT = groundTruth<unsigned int>(secondary_gt_path.data());
         assert(num_points == Points.size());
         assert(dimensions == Points.dimension());
+    }
+
+    parlay::sequence<unsigned int> generate_start_points(Point q){
+        unsigned int start_point = 0;
+        QueryParams QP = QueryParams(10, 10, 1.35, G_S.size(), G_S.max_degree());
+        auto [pairElts, dist_cmps] = beam_search<Point, PointRange<T, Point>, unsigned int>(q, G_S, Sample_Points, 0, QP);
+        auto [beamElts, visitedElts] = pairElts;
+        parlay::sequence<unsigned int> closest_in_sample;
+        //points to compute nn for 
+        for(int j=0; j<10; j++) closest_in_sample.push_back(beamElts[j].first);
+        parlay::sequence<unsigned int> starting_candidates;
+        for(auto j : closest_in_sample){
+            for(int l=0; l<10; l++){
+                starting_candidates.push_back(Sample_GT.coordinates(j, l));
+            }
+        }
+        auto less = [&] (pid a, pid b) {return a.second < b.second;};
+        auto starting_candidates_rd = parlay::remove_duplicates(starting_candidates);
+        auto starting_candidates_sorted = parlay::tabulate(starting_candidates_rd.size(), [&] (size_t j){
+            unsigned int index = starting_candidates_rd[j];
+            float dist = q.distance(Points[index]);
+            return std::make_pair(index, dist);
+        });
+        std::sort(starting_candidates_sorted.begin(), starting_candidates_sorted.end(), less);
+        //push back og start point
+        parlay::sequence<unsigned int> s; 
+        for(int j=0; j<10; j++) s.push_back(starting_candidates_sorted[j].first);
+        s.push_back(start_point);
+        return s;
+
     }
 
     NeighborsAndDistances batch_search(py::array_t<T, py::array::c_style | py::array::forcecast> &queries, uint64_t num_queries, uint64_t knn,
@@ -87,7 +124,8 @@ struct VamanaIndex{
 
         parlay::parallel_for(0, num_queries, [&] (size_t i){
             Point q = Point(queries.mutable_data(i), Points.dimension(), Points.aligned_dimension(), i);
-            auto [pairElts, dist_cmps] = beam_search<Point, PointRange<T, Point>, unsigned int>(q, G, Points, 0, QP);
+            auto start_points = generate_start_points(q);
+            auto [pairElts, dist_cmps] = beam_search<Point, PointRange<T, Point>, unsigned int>(q, G, Points, start_points, QP);
             auto [frontier, visited] = pairElts;
             parlay::sequence<unsigned int> point_ids;
             parlay::sequence<float> point_distances;
@@ -106,7 +144,8 @@ struct VamanaIndex{
         py::array_t<unsigned int> ids({num_queries, knn});
         py::array_t<float> dists({num_queries, knn});
         parlay::parallel_for(0, num_queries, [&] (size_t i){
-            auto [pairElts, dist_cmps] = beam_search<Point, PointRange<T, Point>, unsigned int>(QueryPoints[i], G, Points, (unsigned int) 0, QP);
+            auto start_points = generate_start_points(QueryPoints[i]);
+            auto [pairElts, dist_cmps] = beam_search<Point, PointRange<T, Point>, unsigned int>(QueryPoints[i], G, Points, start_points, QP);
             auto [frontier, visited] = pairElts;
             parlay::sequence<unsigned int> point_ids;
             parlay::sequence<float> point_distances;

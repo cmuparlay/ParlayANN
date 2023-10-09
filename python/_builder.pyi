@@ -31,11 +31,14 @@ def build_vamana_index(
     data: str,
     distance_metric: str,
     index_directory: str,
+    sample_dir : str,
     beam_width: int,
     graph_degree: int,
     alpha: float,
     two_pass: bool,
     vector_dtype: VectorDType,
     index_prefix: str,
+    secondary_prefix: str,
+    secondary_gt: str,
 ) -> None: ...
 
