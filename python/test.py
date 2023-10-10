@@ -1,6 +1,7 @@
 import _ParlayANNpy as pann
 import wrapper as wp
 import numpy as np
+# from scipy.sparse import csr_matrix, read_sp
 
 print(dir(pann))
 
@@ -13,6 +14,15 @@ print("!!! FILTERED IVF !!!")
 fivf = wp.init_filtered_ivf_index("Euclidian", "uint8")
 fivf.fit_from_filename(DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat', 1000)
 
+print("----- Querying Filtered IVF Index... -----")
+
+X = np.fromfile(DATA_DIR + "data/yfcc100M/query.public.100K.u8bin", dtype=np.uint8)[8:].reshape((100_000, 192))
+filters = [wp.QueryFilter(3432, 3075) for _ in range(50_000)] + [wp.QueryFilter(23) for _ in range(50_000)]
+
+neighbors, distances = fivf.batch_search(X, filters, 100_000, 10, 100)
+print(neighbors.shape)
+print(neighbors[:10, :])
+print(distances[:10, :])
 print("----- Building IVF Index... -----")
 
 ivf = wp.init_ivf_index("Euclidian", "uint8")
