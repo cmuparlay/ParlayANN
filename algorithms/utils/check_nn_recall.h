@@ -42,9 +42,9 @@ nn_result checkRecall(
         long start_point, 
         long k,
         QueryParams &QP,
-        parlay::sequence<parlay::sequence<indexType>> start_points,
+        parlay::sequence<parlay::sequence<indexType>> &start_points,
         double start_gen_time, long start_cmps) {
-  std::cout << "begin" << std::endl;
+  // std::cout << "begin" << std::endl;
   if (GT.size() > 0 && k > GT.dimension()) {
     std::cout << k << "@" << k << " too large for ground truth data of size "
               << GT.dimension() << std::endl;
@@ -62,13 +62,16 @@ nn_result checkRecall(
     QueryStats.clear();
     all_ngh = beamSearchRandom<Point, BPointRange, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, QP);
     query_time = t.next_time();
-  }else if(start_points.size() == 0){
+  }else if(start_points[0].size()==0){
+    // std::cout << "here" << std::endl;
     all_ngh = searchAll<Point, BPointRange, PointRange, indexType>(Query_Points, G, FP_Base_Points, Base_Points, QueryStats, start_point, QP);
     t.next_time();
     QueryStats.clear();
     all_ngh = searchAll<Point, BPointRange, PointRange, indexType>(Query_Points, G, FP_Base_Points, Base_Points, QueryStats, start_point, QP);
     query_time = t.next_time();
-  }else{
+  }
+  else{
+    // std::cout << "here1" << std::endl;
     all_ngh = searchAll<Point, BPointRange, PointRange, indexType>(Query_Points, G, FP_Base_Points, Base_Points, QueryStats, start_points, QP);
     t.next_time();
     QueryStats.clear();
@@ -106,7 +109,7 @@ nn_result checkRecall(
   parlay::sequence<indexType> stats = parlay::flatten(stats_);
   stats[0] += start_cmps;
   nn_result N(recall, stats, QPS, k, QP.beamSize, QP.cut, Query_Points.size(), QP.limit, QP.degree_limit, k);
-  std::cout << "end" << std::endl;
+  // std::cout << "end" << std::endl;
   return N;
 }
 
@@ -155,7 +158,7 @@ parlay::sequence<long> calculate_limits(size_t upper_bound) {
 template<typename Point, typename BPointRange, typename PointRange, typename indexType>
 void search_and_parse(Graph_ G_, Graph<indexType> &G, PointRange &FP_Base_Points, BPointRange &Base_Points,
    PointRange &Query_Points, 
-  groundTruth<indexType> GT, char* res_file, long k, parlay::sequence<parlay::sequence<indexType>> start_points,
+  groundTruth<indexType> GT, char* res_file, long k, parlay::sequence<parlay::sequence<indexType>> &start_points,
   bool random, indexType start_point, double start_time = 0.0, long start_cmps = 0){
 
   parlay::sequence<nn_result> results;

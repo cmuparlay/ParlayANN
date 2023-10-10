@@ -25,4 +25,4 @@ Q=/ssd1/data/text2image1B
 
 # ./neighbors -R 64 -L 128 -alpha 1.0 -data_type float -two_pass 0 -dist_func mips -query_path $Q/query.public.10K.fbin -gt_path $Q/text2image-10K-1M -res_path quantize.csv -base_path $Q/base.1B.fbin.crop_nb_1000000
 # ./neighbors -R 64 -L 128 -alpha 1.0 -data_type float -two_pass 1 -dist_func mips -query_path $Q/query.public.10K.fbin -gt_path $Q/text2image-10K-1M -res_path quantize.csv -base_path $Q/base.1B.fbin.crop_nb_1000000
-./neighbors -R 64 -L 128 -alpha 1.0 -data_type float -two_pass 0 -dist_func mips -graph_path $Q/test_t2i -query_path $Q/query.public.10K.fbin -gt_path $Q/text2image-10K-1M -base_path $Q/base.1B.fbin.crop_nb_1000000
+./neighbors -R 64 -L 128 -alpha 1.0 -data_type float -two_pass 0 -dist_func mips -graph_path $Q/test_t2i -sample_path $Q/query_rs_10000_2 -query_path $Q/query.public.10K.fbin -gt_path $Q/text2image-10K-1M -base_path $Q/base.1B.fbin.crop_nb_1000000

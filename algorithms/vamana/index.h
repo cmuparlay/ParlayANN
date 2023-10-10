@@ -51,7 +51,7 @@ struct knn_index {
   indexType start_point;
 
 
-  knn_index(BuildParams &BP) : BP(BP) {}
+  knn_index(BuildParams &BP, indexType start_point = 0) : BP(BP), start_point(start_point) {}
 
   indexType get_start() { return start_point; }
 
@@ -122,7 +122,6 @@ struct knn_index {
 
   void build_index(GraphI &G, PR &Points, stats<indexType> &BuildStats){
     std::cout << "Building graph..." << std::endl;
-    start_point = 0;
     parlay::sequence<indexType> inserts = parlay::tabulate(Points.size(), [&] (size_t i){
 					    return static_cast<indexType>(i);});
 
