@@ -61,7 +61,6 @@ struct csr_filters{
     std::unique_ptr<int32_t[]> row_indices; // the indices of the nonzero entries, which is actually all we need
     bool transposed = false;
     
-    /* There has to be a better way */
     csr_filters() = default;
 
     /* mmaps filter data in csr form from filename */
@@ -197,6 +196,16 @@ struct csr_filters{
         return parlay::tabulate(n_filters, [&] (int64_t i) {
             return filter_count(i);
         });
+    }
+
+    /* Returns the indices of the filters associated with a point */
+    parlay::sequence<int32_t> point_filters(int64_t p) {
+        return parlay::sequence<int32_t>(row_indices.get() + row_offsets[p], row_indices.get() + row_offsets[p + 1]);
+    }
+
+    /* Returns the intersection of the filters between two points */
+    parlay::sequence<int32_t> point_intersection(int64_t a, int64_t b) {
+        return join(row_indices.get() + row_offsets[a], row_offsets[a + 1] - row_offsets[a], row_indices.get() + row_offsets[b], row_offsets[b + 1] - row_offsets[b]);
     }
 
     /* Transposes to make acessing points associated with a filter fast */
@@ -488,6 +497,12 @@ struct csr_filters{
         out.row_indices = std::move(new_row_indices);
         out.transposed = true;
         return out;
+    }
+
+    parlay::sequence<int32_t> nonempty_rows() const {
+        return parlay::filter(parlay::iota<int32_t>(n_points), [&] (int32_t i) {
+            return row_offsets[i + 1] - row_offsets[i] > 0;
+        });
     }
 };
 
