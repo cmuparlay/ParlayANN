@@ -398,6 +398,12 @@ struct FilteredIVF2Stage {
 
         double total_proj_matches = parlay::reduce(parlay::make_slice(matches.get(), matches.get() + num_queries));
 
+        double fifth_percentile_super_time = parlay::kth_smallest_copy(parlay::filter(parlay::make_slice(times.get(), times.get() + num_queries), [&] (double x) {return x >= threshold;}), num_queries / 20);
+        double fifth_percentile_sub_time = parlay::kth_smallest_copy(parlay::filter(parlay::make_slice(times.get(), times.get() + num_queries), [&] (double x) {return x < threshold;}), subthreshold / 20);
+
+        double ninetyfifth_percentile_super_time = parlay::kth_smallest_copy(parlay::filter(parlay::make_slice(times.get(), times.get() + num_queries), [&] (double x) {return x >= threshold;}), num_queries / 20, [](double a, double b) {return a > b;});
+        double ninetyfifth_percentile_sub_time = parlay::kth_smallest_copy(parlay::filter(parlay::make_slice(times.get(), times.get() + num_queries), [&] (double x) {return x < threshold;}), subthreshold / 20, [](double a, double b) {return a > b;});
+
 
 
         std::cout << "Total time: " << total_time << std::endl;
@@ -408,6 +414,11 @@ struct FilteredIVF2Stage {
         std::cout << "Mean time per subthreshold query: " << total_subthreshold_time / subthreshold << std::endl;
         std::cout << "Mean time per superthreshold query: " << (total_time - total_subthreshold_time) / (num_queries - subthreshold) << std::endl;
         std::cout << "Subthreshold queries are " << (total_subthreshold_time / subthreshold) / ((total_time - total_subthreshold_time) / (num_queries - subthreshold)) << " times slower" << std::endl;
+
+        std::cout << "5th percentile time for superthreshold queries: " << fifth_percentile_super_time << std::endl;
+        std::cout << "5th percentile time for subthreshold queries: " << fifth_percentile_sub_time << std::endl;
+        std::cout << "95th percentile time for superthreshold queries: "<< ninetyfifth_percentile_super_time << std::endl;
+        std::cout << "95th percentile time for subthreshold queries: " << ninetyfifth_percentile_sub_time << std::endl;
 
         std::cout << "Mean projected frequency: " << total_proj_matches / num_queries << std::endl;
         
