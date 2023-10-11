@@ -10,19 +10,35 @@ AWARE_DATA_DIR = "/ssd1/data/bigann/"
 
 DATA_DIR = FERN_DATA_DIR
 
-print("!!! FILTERED IVF !!!")
-fivf = wp.init_filtered_ivf_index("Euclidian", "uint8")
-fivf.fit_from_filename(DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat', 1000)
+# print("!!! FILTERED IVF !!!")
+# fivf = wp.init_filtered_ivf_index("Euclidian", "uint8")
+# fivf.fit_from_filename(DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat', 1000)
 
-print("----- Querying Filtered IVF Index... -----")
+# print("----- Querying Filtered IVF Index... -----")
 
+# X = np.fromfile(DATA_DIR + "data/yfcc100M/query.public.100K.u8bin", dtype=np.uint8)[8:].reshape((100_000, 192))
+# filters = [wp.QueryFilter(3432, 3075) for _ in range(50_000)] + [wp.QueryFilter(23) for _ in range(50_000)]
+
+# neighbors, distances = fivf.batch_search(X, filters, 100_000, 10, 100)
+# print(neighbors.shape)
+# print(neighbors[:10, :])
+# print(distances[:10, :])
+
+print("----- Building 2 Stage Filtered IVF... -----")
+
+fivf2 = wp.init_2_stage_filtered_ivf_index("Euclidian", "uint8")
+fivf2.fit_from_filename(DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat', 1000)
+
+print("----- Querying 2 Stage Filtered IVF Index... -----")
 X = np.fromfile(DATA_DIR + "data/yfcc100M/query.public.100K.u8bin", dtype=np.uint8)[8:].reshape((100_000, 192))
 filters = [wp.QueryFilter(3432, 3075) for _ in range(50_000)] + [wp.QueryFilter(23) for _ in range(50_000)]
 
-neighbors, distances = fivf.batch_search(X, filters, 100_000, 10, 100)
+# neighbors, distances = fivf2.batch_search(X, filters, 100_000, 10, 100, 10_000)
+neighbors, distances = fivf2.batch_search(X, filters, 10_000, 10, 1000, 500)
 print(neighbors.shape)
 print(neighbors[:10, :])
 print(distances[:10, :])
+
 print("----- Building IVF Index... -----")
 
 ivf = wp.init_ivf_index("Euclidian", "uint8")
@@ -49,14 +65,17 @@ print(filters.first_label(42))
 print(filters.match(42, 6))
 print(filters.match(42, 2))
 
-print(f"Filter count of point 42: {filters.point_count(42)}")
-print(f"Point count of filter 6: {filters.filter_count(6)}")
+print(f"Point count of filter 23: {filters.filter_count(23):,}")
+
+print(f"Filter count of point 42: {filters.point_count(42):,}")
+print(f"Point count of filter 6: {filters.filter_count(6):,}")
 
 print("Transposing... (from python)")
 
 filters.transpose_inplace()
-
 filters_t = filters
+
+# filters_t = filters.transpose()
 
 print("Transposed! (from python)")
 
@@ -64,8 +83,8 @@ print(filters_t.first_label(6)) # should be 42
 print(filters_t.match(6, 42)) # should be True
 print(filters_t.match(2, 42)) # should be False
 
-print(f"Filter count of point 42: {filters_t.filter_count(42)}")
-print(f"Point count of filter 6: {filters_t.point_count(6)}")
+print(f"Filter count of point 42: {filters_t.filter_count(42):,}")
+print(f"Point count of filter 6: {filters_t.point_count(6):,}")
 
 # wp.build_vamana_index("Euclidian", "uint8", DATA_DIR + "base.1B.u8bin.crop_nb_1000000", DATA_DIR + "outputs/parlayann", 64, 128, 1.2)
 
