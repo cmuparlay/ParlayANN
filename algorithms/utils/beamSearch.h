@@ -343,13 +343,22 @@ parlay::sequence<parlay::sequence<indexType>> searchAll(PointRange &Query_Points
     abort();
   }
   // std::cout << "Start search " << std::endl;
+  using pid = std::pair<indexType, float>;
+  auto less = [&] (pid a, pid b) {return a.second < b.second;};
   parlay::sequence<parlay::sequence<indexType>> all_neighbors(Query_Points.size());
   parlay::parallel_for(0, Query_Points.size(), [&](size_t i) {
     parlay::sequence<indexType> neighbors;
     auto [pairElts, dist_cmps] = beam_search(Query_Points[i], G, Base_Points, starting_points[i], QP);
     auto [beamElts, visitedElts] = pairElts;
+    int sort_range = std::min<int>(2*QP.k, beamElts.size());
+    auto points_with_true_dist = parlay::tabulate(sort_range, [&] (size_t j){
+      indexType index = beamElts[j].first;
+      float dist = Query_Points[i].distance(FP_Base_Points[index]);
+      return std::make_pair(index, dist);
+    });
+    std::sort(points_with_true_dist.begin(), points_with_true_dist.end(), less);
     for (indexType j = 0; j < std::min<size_t>((size_t) QP.k, beamElts.size()); j++) {
-      neighbors.push_back(beamElts[j].first);
+      neighbors.push_back(points_with_true_dist[j].first);
     }
     all_neighbors[i] = neighbors;
     QueryStats.increment_visited(i, visitedElts.size());

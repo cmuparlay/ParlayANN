@@ -116,11 +116,11 @@ struct Quantized_Mips_Point{
 //   T operator [] (long j) {if(j >= d) abort(); return *(values+j);}
 
   float distance(Mips_Point<float> x) {
-    return mips_distance(decode(this->values, d, max_coord, min_coord).begin(), x.values, d);
+    return mips_distance(decode(this->values, d, quantized_d, max_coord, min_coord, bits).begin(), x.values, d);
   }
 
   float distance(Quantized_Mips_Point<T> x){
-    return mips_distance(decode(this->values, d, max_coord, min_coord).begin(), decode<T>(x.values, d, max_coord, min_coord).begin(), d);
+    return mips_distance(decode(this->values, d, quantized_d, max_coord, min_coord, bits).begin(), decode<T>(x.values, d, quantized_d, max_coord, min_coord, bits).begin(), d);
   }
 
   //hack for compatibility
@@ -135,10 +135,8 @@ struct Quantized_Mips_Point{
 
   long id() {return id_;}
 
-  Quantized_Mips_Point(const T* values, unsigned int d, unsigned int ad, long id, float max_coord, float min_coord)
-    : values(values), d(d), aligned_d(ad), id_(id), max_coord(max_coord), min_coord(min_coord) {
-      // std::cout << "Max coord at point construction: " << max_coord << std::endl;
-      // std::cout << "Min coord at point construction: " << min_coord << std::endl;
+  Quantized_Mips_Point(const T* values, unsigned int d, unsigned int qd, unsigned int ad, long id, float max_coord, float min_coord, int bits)
+    : values(values), d(d), quantized_d(qd), aligned_d(ad), id_(id), max_coord(max_coord), min_coord(min_coord), bits(bits) {;
     }
 
   bool operator==(Quantized_Mips_Point<T> q){
@@ -150,11 +148,16 @@ struct Quantized_Mips_Point{
     return true;
   }
 
+  //TEMPORARY
+  T operator [] (long i){return *(values+i);}
+
 private:
   const T* values;
   unsigned int d;
   unsigned int aligned_d;
+  unsigned int quantized_d;
   long id_;
   float min_coord;
   float max_coord;
+  int bits;
 };
