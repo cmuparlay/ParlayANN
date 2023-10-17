@@ -66,7 +66,7 @@ struct IVFIndex {
             return PostingList(points, clusters[i]);
         });
 
-        std::cout << "posting lists generated" << std::endl;
+        std::cout << "IVF: posting lists generated" << std::endl;
 
         // check if there are indices in the posting lists that are too large
         // for (size_t i=0; i<posting_lists.size(); i++){
@@ -84,17 +84,17 @@ struct IVFIndex {
         //     centroids.push_back(posting_lists[i].centroid());
         // }
         
-        std::cout << "centroids generated" << std::endl;
+        std::cout << "IVF: centroids generated" << std::endl;
 
         dim = points.dimension();
         aligned_dim = points.aligned_dimension();
 
-        std::cout << "fit completed" << std::endl;
+        std::cout << "IVF: fit completed" << std::endl;
     }
 
     void fit_from_filename(std::string filename, size_t cluster_size=1000){
         PointRange<T, Point> points(filename.c_str());
-        std::cout << "points loaded" << std::endl;
+        std::cout << "IVF: points loaded" << std::endl;
         this->fit(points, cluster_size);
     }
 
@@ -224,11 +224,11 @@ struct FilteredIVFIndex : IVFIndex<T, Point, PostingList> {
 
     void fit_from_filename(std::string filename, std::string filter_filename, size_t cluster_size=1000){
         PointRange<T, Point> points(filename.c_str());
-        std::cout << "points loaded" << std::endl;
+        std::cout << "FilteredIVF: points loaded" << std::endl;
         csr_filters filters(filter_filename.c_str());
-        std::cout << "filters loaded" << std::endl;
+        std::cout << "FilteredIVF: filters loaded" << std::endl;
         this->fit(points, filters, cluster_size);
-        std::cout << "fit completed" << std::endl;
+        std::cout << "FilteredIVF: fit completed" << std::endl;
     }
 
     /* The use of vector here is because that supposedly allows us to take python lists as input, although I'll believe it when I see it.
@@ -292,11 +292,11 @@ struct FilteredIVF2Stage {
 
     void fit_from_filename(std::string filename, std::string filter_filename, size_t cluster_size=1000){
         PointRange<T, Point> points(filename.c_str());
-        std::cout << "points loaded" << std::endl;
+        std::cout << "FilteredIVF: points loaded" << std::endl;
         csr_filters filters(filter_filename.c_str());
-        std::cout << "filters loaded" << std::endl;
+        std::cout << "FilteredIVF: filters loaded" << std::endl;
         this->fit(points, filters, cluster_size);
-        std::cout << "fit completed" << std::endl;
+        std::cout << "FilteredIVF: fit completed" << std::endl;
     }
 
     NeighborsAndDistances batch_filter_search(py::array_t<T, py::array::c_style | py::array::forcecast> &queries, const std::vector<QueryFilter>& filters, uint64_t num_queries, uint64_t knn, uint64_t n_lists, uint64_t threshold) {
