@@ -24,6 +24,7 @@ parlay::sequence<T> join(T* a, size_t len_a, T* b, size_t len_b){
     parlay::sequence<T> output = parlay::sequence<T>();
     size_t i = 0;
     size_t j = 0;
+    output.reserve(std::min(len_a, len_b));
 
     while(i < len_a && j < len_b){
         if(a[i] < b[j]){
@@ -38,6 +39,7 @@ parlay::sequence<T> join(T* a, size_t len_a, T* b, size_t len_b){
     }
     return output;
 }
+
 
 struct QueryFilter {
     int32_t a, b;
@@ -135,19 +137,17 @@ struct csr_filters{
 
     ~csr_filters() = default;
 
-    void print_stats(){
+    void print_stats() const {
         printf("n_points: %ld\n", n_points);
         printf("n_filters: %ld\n", n_filters);
         printf("n_nonzeros: %ld\n", n_nonzero);
     }
 
-    /* Returns true if p matches filter f, which is equivalent to row p column i being nonzero 
-    
-    Because it would be confusing not to, p and f work as advertised regardless of whether the filters are transposed*/
-    bool match(int64_t p, int64_t f) {
-        if (transposed) {
-            std::swap(p, f);
-        }
+    /* Returns true if p matches filter f, which is equivalent to row p column i being nonzero */
+    bool match(int64_t p, int64_t f) const {
+        // if (transposed) {
+        //     std::swap(p, f);
+        // }
 
         int64_t start = row_offsets[p];
         int64_t end = row_offsets[p + 1];
@@ -163,7 +163,7 @@ struct csr_filters{
 
     /* returns indices of points matching QueryFilter 
     */
-    parlay::sequence<int32_t> query_matches(QueryFilter q) {
+    parlay::sequence<int32_t> query_matches(QueryFilter q) const {
         if (not transposed) {
             std::cout << "You are attempting to query a non-transposed csr_filter. This would require iterating over all the points in the dataset, which is almost certainly not what you want to do. Transpose this object." << std::endl;
             exit(1);
@@ -176,110 +176,47 @@ struct csr_filters{
     }
 
     /* I would like to be able to get the filters associated with a point in a python-accesible way but this is a good enough proof of concept until I figure out how to do that */
-    int64_t first_label(int64_t p) {
+    int64_t first_label(int64_t p) const {
         return row_indices[row_offsets[0]];
     }
 
     /* Returns the number of points matching a given filter */
-    int64_t filter_count(int64_t f) {
+    int64_t filter_count(int64_t f) const {
         return parlay::reduce(parlay::delayed_seq<int64_t>(n_points, [&] (int64_t i) {
             return match(i, f);
         }));
     }
 
     /* Returns the number of filters associated with a point */
-    int64_t point_count(int64_t p) {
+    int64_t point_count(int64_t p) const {
         return row_offsets[p + 1] - row_offsets[p];
     }
 
-    parlay::sequence<int64_t> filter_counts() {
+    parlay::sequence<int64_t> filter_counts() const {
         return parlay::tabulate(n_filters, [&] (int64_t i) {
             return filter_count(i);
         });
     }
 
     /* Returns the indices of the filters associated with a point */
-    parlay::sequence<int32_t> point_filters(int64_t p) {
+    parlay::sequence<int32_t> point_filters(int64_t p) const {
         return parlay::sequence<int32_t>(row_indices.get() + row_offsets[p], row_indices.get() + row_offsets[p + 1]);
     }
 
     /* Returns the intersection of the filters between two points */
-    parlay::sequence<int32_t> point_intersection(int64_t a, int64_t b) {
+    parlay::sequence<int32_t> point_intersection(int64_t a, int64_t b) const {
         return join(row_indices.get() + row_offsets[a], row_offsets[a + 1] - row_offsets[a], row_indices.get() + row_offsets[b], row_offsets[b + 1] - row_offsets[b]);
     }
 
     /* Transposes to make acessing points associated with a filter fast */
-    csr_filters transpose() {
-        if (transposed) {
-            std::cout << "This csr_filters is already transposed" << std::endl;
-            return *this;
-        }
-        std::cout << "Transposing..." << std::endl;
-
-        // int64_t* new_row_offsets = (int64_t*) malloc((n_filters + 1) * sizeof(int64_t)); // where to index for each filter (length is +1 because the last value is nnz to make the length calculation work for the last one)
-        // int32_t* new_row_indices = (int32_t*) malloc(n_nonzero * sizeof(int32_t)); // indices of matching points
-
-        std::unique_ptr<int64_t[]> new_row_offsets = std::make_unique<int64_t[]>(n_filters + 1);
-        std::unique_ptr<int32_t[]> new_row_indices = std::make_unique<int32_t[]>(n_nonzero);
-
-        // counting points associated with each filter and scanning to get row offsets
-        // auto counts = parlay::scan_inclusive(parlay::delayed_seq<int64_t>(n_filters, [&] (int64_t i) {
-        //     return filter_count(i);
-        // }));
-
-        memset(new_row_offsets.get(), 0, (n_filters + 1) * sizeof(int64_t)); // initializing to 0s
-        // counting points associated with each filter and scanning to get row offsets
-        for (int64_t i = 0; i <= n_nonzero; i++) {
-            new_row_offsets[row_indices[i] + 1]++;
-        }
-        // not a sequence so for now I'll just do it serially
-        for (int64_t i = 1; i < n_filters + 1; i++) {
-            new_row_offsets[i] += new_row_offsets[i - 1];
-        }
-        std::cout << "Offsets computed" << std::endl;
-        
-        // int64_t* tmp_offset = (int64_t*) malloc(n_filters * sizeof(int64_t)); // temporary array to keep track of where to put the next point in each filter
-        std::unique_ptr<int64_t[]> tmp_offset = std::make_unique<int64_t[]>(n_filters);
-        memset(tmp_offset.get(), 0, n_filters * sizeof(int64_t)); // initializing to 0s
-
-        // iterating over the data to fill in row indices
-        for (int64_t i = 0; i < n_points; i++) {
-            int64_t start = row_offsets[i];
-            int64_t end = row_offsets[i + 1];
-            for (int64_t j = start; j < end; j++) {
-                int64_t f = row_indices[j];
-                int64_t index = new_row_offsets[f] + tmp_offset[f];
-                new_row_indices[index] = i;
-                tmp_offset[f]++;
-            }
-        }
-
-        // std::cout << "Indices computed" << std::endl;
-
-        // free(tmp_offset);
-
-        // std::cout << "tmp_offset freed" << std::endl;
-
-        // auto out = csr_filters(n_filters, n_points, n_nonzero, new_row_offsets, new_row_indices);
-
-        // std::cout << "first offset: " << out.row_offsets[0] << std::endl;
-        // std::cout << "first column: " << out.row_indices[0] << std::endl;
-
-        // out.transposed = true;
-        std::cout << "Transposed" << std::endl;
-
-        // auto fake_out = csr_filters("/ssd1/anndata/bigann/data/yfcc100M/base.metadata.10M.spmat");
-        auto fake_out = csr_filters();
-
-        return fake_out;
+    csr_filters transpose() const {
+        auto out = *this;
+        out.transpose_inplace();
+        return out;
     }
 
     /* transposes the filters in place */
     void transpose_inplace() {
-        if (transposed) {
-            std::cout << "This csr_filters is already transposed" << std::endl;
-            return;
-        }
         std::cout << "Transposing (inplace)..." << std::endl;
 
         std::unique_ptr<int64_t[]> new_row_offsets = std::make_unique<int64_t[]>(n_filters + 1);
@@ -324,9 +261,11 @@ struct csr_filters{
         this->row_offsets = std::move(new_row_offsets);
         this->row_indices = std::move(new_row_indices);
 
+        this->transposed = ~transposed;
         return;
     }
 
+    /* if the filters object is transposed, returns an un */
     csr_filters reverse_transpose() {
         if (~transposed) {
             std::cout << "This csr_filters is not transposed" << std::endl;
