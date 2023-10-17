@@ -120,7 +120,7 @@ class FilteredPostingList : public NaivePostingList<T, Point>{
             if (f.b == -1) {
                 matches = this->filters.nonempty_rows();
             } else {
-                matches = join(this->filters.row_indices.get() + f.a, this->filters.row_offsets[f.a + 1] - this->filters.row_offsets[f.a], this->filters.row_indices.get() + f.b, this->filters.row_offsets[f.b + 1] - this->filters.row_offsets[f.b]);
+                matches = join(this->filters.row_indices.get() + this->filters.row_offsets[f.a], this->filters.row_offsets[f.a + 1] - this->filters.row_offsets[f.a], this->filters.row_indices.get() + this->filters.row_offsets[f.b], this->filters.row_offsets[f.b + 1] - this->filters.row_offsets[f.b]);
             }
             float farthest = result[result.size() - 1].second;
             for (unsigned int i = 0; i < matches.size(); i++) {

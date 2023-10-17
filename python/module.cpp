@@ -141,6 +141,13 @@ PYBIND11_MODULE(_ParlayANNpy, m)
     py::class_<QueryFilter>(m, "QueryFilter")
         .def(py::init<int32_t>(), "a"_a)
         .def(py::init<int32_t, int32_t>(), "a"_a, "b"_a)
-        .def("is_and", &QueryFilter::is_and);
+        .def("is_and", &QueryFilter::is_and)
+        .def("__repr__", [](const QueryFilter &f) {
+            return "<QueryFilter: " + std::to_string(f.a) + ", " + std::to_string(f.b) + ">";
+        })
+        .def("__str__", [](const QueryFilter &f) {
+            return "(" + std::to_string(f.a) + ", " + std::to_string(f.b) + ")";
+        });
+
 
 }

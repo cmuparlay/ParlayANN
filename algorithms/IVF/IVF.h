@@ -218,6 +218,8 @@ struct FilteredIVFIndex : IVFIndex<T, Point, PostingList> {
 
         this->dim = points.dimension();
         this->aligned_dim = points.aligned_dimension();
+
+        this->points = points;
     }
 
     void fit_from_filename(std::string filename, std::string filter_filename, size_t cluster_size=1000){
@@ -282,7 +284,7 @@ struct FilteredIVF2Stage {
             this->filter_counts[i] = this->filters.point_count(i);
         });
 
-        // should we even bother filtering out the low frequency points? 
+        // should we even bother filtering out the low frequency filters? 
         // They represent a pretty small fraction of the total number of associations.
         // at least for the time being I won't bother
         this->index.fit(points, filters, cluster_size);
@@ -304,11 +306,12 @@ struct FilteredIVF2Stage {
         #ifdef VERBOSE
 
         std::unique_ptr<double[]> times = std::make_unique<double[]>(num_queries);
-        std::unique_ptr<double[]> matches = std::make_unique<double[]>(num_queries);
+        std::unique_ptr<double[]> n_matches = std::make_unique<double[]>(num_queries);
         
         #endif
 
-        parlay::parallel_for(0, num_queries, [&] (unsigned int i){
+        // parlay::parallel_for(0, num_queries, [&] (unsigned int i){
+        for (unsigned int i=0; i<num_queries; i++) {
             #ifdef VERBOSE
 
             auto timer = parlay::internal::timer();
@@ -316,7 +319,7 @@ struct FilteredIVF2Stage {
 
             #endif
 
-            Point q = Point(queries.data(i), this->index.dim, this->index.dim, i);
+            Point q = Point(queries.data(i), this->index.dim, this->index.aligned_dim, i);
             const QueryFilter& filter = filters[i];
             
             parlay::sequence<std::pair<unsigned int, float>> frontier = parlay::tabulate(knn, [&] (unsigned int i) {
@@ -331,9 +334,11 @@ struct FilteredIVF2Stage {
 
             #ifdef VERBOSE
             
-            matches[i] = proj_matches;
+            n_matches[i] = proj_matches;
 
             #endif
+
+            std::cout << "proj_matches: " << proj_matches << std::endl;
 
             // we may want to multiply the value by some constant to reflect that the query pairs tend to have disproportionately high overlap
             // empirically, this constant seems to be around 1.2 for the training queries
@@ -341,25 +346,45 @@ struct FilteredIVF2Stage {
                 parlay::sequence<int32_t> matches;
                 if (filter.is_and()){
                     matches = join(
-                        this->filters.row_indices.get() + filter.a, 
+                        this->filters.row_indices.get() + this->filters.row_offsets[filter.a], 
                         this->filters.row_offsets[filter.a + 1] - this->filters.row_offsets[filter.a], 
-                        this->filters.row_indices.get() + filter.b, 
+                        this->filters.row_indices.get() + this->filters.row_offsets[filter.b], 
                         this->filters.row_offsets[filter.b + 1] - this->filters.row_offsets[filter.b]); // indices of matching points
+
+                        std::cout << "join matches: ";
+                        for (size_t j=0; j<10; j++){
+                            std::cout << matches[j] << " ";
+                        }
+                        std::cout << std::endl;
                 } else {
-                    matches.reserve(this->filters.row_offsets[filter.a + 1] - this->filters.row_offsets[filter.a]);
-                    for (int32_t i=this->filters.row_offsets[filter.a]; i<this->filters.row_offsets[filter.a + 1]; i++){
-                        matches[i - this->filters.row_offsets[filter.a]] = this->filters.row_indices[i];
+                    matches = parlay::to_sequence(parlay::make_slice(this->filters.row_indices.get() + this->filters.row_offsets[filter.a], this->filters.row_indices.get() + this->filters.row_offsets[filter.a + 1]));
+
+                    std::cout << "non-join matches: ";
+                    for (size_t j=0; j<10; j++){
+                        std::cout << matches[j] << " ";
                     }
+                    std::cout << std::endl;
                 }
 
-                for (unsigned int j=0; j<matches.size(); j++){
-                    float dist = this->index.points[matches[j]].distance(q);
-                    if (dist < frontier[knn-1].second){
-                        frontier.push_back(std::make_pair(matches[j], dist));
+                // printing matches for debug
+                std::cout << "matches: " << matches.size() << std::endl;
+                for (size_t j=0; j<10; j++){
+                    std::cout << matches[j] << " ";
+                }
+                std::cout << std::endl;
+
+                std::cout << "max match: " << parlay::reduce(matches, parlay::maxm<int32_t>()) << std::endl;
+                std::cout << "min match: " << parlay::reduce(matches, parlay::minm<int32_t>()) << std::endl;
+
+                for (unsigned int j=0; j<matches.size(); j++){ // for each match
+                    float dist = this->index.points[matches[j]].distance(q); // compute the distance to query
+                    // these steps would be very slightly faster if reordered
+                    if (dist < frontier[knn-1].second){ // if it's closer than the furthest point in the frontier
+                        frontier.push_back(std::make_pair(matches[j], dist)); // add it to the frontier
                         std::sort(frontier.begin(), frontier.end(), [&] (std::pair<unsigned int, float> a, std::pair<unsigned int, float> b) {
                             return a.second < b.second;
-                        });
-                        frontier.pop_back();
+                        }); // sort the frontier
+                        frontier.pop_back(); // remove the furthest point
                     }
                 }
             } else { // normal filtered ivf search
@@ -381,28 +406,31 @@ struct FilteredIVF2Stage {
             times[i] = time;
 
             #endif
-        
-        });
+        }
+        // }, 2); // DEBUG GRANULARITY !!!
 
         #ifdef VERBOSE
 
-        int32_t subthreshold = parlay::count_if(parlay::make_slice(matches.get(), matches.get() + num_queries), [&] (double x) {return x < threshold;});
+        int32_t subthreshold = parlay::count_if(parlay::make_slice(n_matches.get(), n_matches.get() + num_queries), [&] (double x) {return x < threshold;});
         double total_subthreshold_time = 0;
         double total_time = 0;
         for (int32_t i=0; i<num_queries; i++){
-            if (matches[i] < threshold){
+            if (n_matches[i] < threshold){
                 total_subthreshold_time += times[i];
             }
             total_time += times[i];
         }
 
-        double total_proj_matches = parlay::reduce(parlay::make_slice(matches.get(), matches.get() + num_queries));
+        double total_proj_matches = parlay::reduce(parlay::make_slice(n_matches.get(), n_matches.get() + num_queries));
 
         double fifth_percentile_super_time = parlay::kth_smallest_copy(parlay::filter(parlay::make_slice(times.get(), times.get() + num_queries), [&] (double x) {return x >= threshold;}), num_queries / 20);
         double fifth_percentile_sub_time = parlay::kth_smallest_copy(parlay::filter(parlay::make_slice(times.get(), times.get() + num_queries), [&] (double x) {return x < threshold;}), subthreshold / 20);
 
         double ninetyfifth_percentile_super_time = parlay::kth_smallest_copy(parlay::filter(parlay::make_slice(times.get(), times.get() + num_queries), [&] (double x) {return x >= threshold;}), num_queries / 20, [](double a, double b) {return a > b;});
         double ninetyfifth_percentile_sub_time = parlay::kth_smallest_copy(parlay::filter(parlay::make_slice(times.get(), times.get() + num_queries), [&] (double x) {return x < threshold;}), subthreshold / 20, [](double a, double b) {return a > b;});
+
+        double median_freq = parlay::kth_smallest_copy(parlay::make_slice(n_matches.get(), n_matches.get() + num_queries), num_queries / 2);
+        double median_time = parlay::kth_smallest_copy(parlay::make_slice(times.get(), times.get() + num_queries), num_queries / 2);
 
 
 
@@ -422,6 +450,10 @@ struct FilteredIVF2Stage {
 
         std::cout << "Mean projected frequency: " << total_proj_matches / num_queries << std::endl;
         
+        std::cout << "Median projected frequency: " << median_freq << std::endl;
+
+        std::cout << "Min: " << parlay::reduce(parlay::make_slice(matches.get(), matches.get() + num_queries), parlay::minm<double>());
+        std::cout << "\tMax: " << parlay::reduce(parlay::make_slice(matches.get(), matches.get() + num_queries), parlay::maxm<double>()) << std::endl;
 
         #endif
 
