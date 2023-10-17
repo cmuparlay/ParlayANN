@@ -71,7 +71,7 @@ print(f"Time taken: {time.time() - start:.2f}s")
 print("----- Querying 2 Stage Filtered IVF Index... -----")
 start = time.time()
 
-NQ = 2
+NQ = 10_000
 
 X = np.fromfile(DATA_DIR + "data/yfcc100M/query.public.100K.u8bin", dtype=np.uint8)[8:].reshape((100_000, 192))
 filters = read_sparse_matrix(DATA_DIR + 'data/yfcc100M/query.metadata.public.100K.spmat')
@@ -91,8 +91,8 @@ if NQ < 10:
     print(filters[:NQ])
 
 
-N_LISTS = 1000
-CUTOFF = 10_000_000
+N_LISTS = 100
+CUTOFF = 20_000
 
 print(f"n_lists: {N_LISTS:,}")
 print(f"cutoff: {CUTOFF:,}")

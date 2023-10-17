@@ -310,8 +310,8 @@ struct FilteredIVF2Stage {
         
         #endif
 
-        // parlay::parallel_for(0, num_queries, [&] (unsigned int i){
-        for (unsigned int i=0; i<num_queries; i++) {
+        parlay::parallel_for(0, num_queries, [&] (unsigned int i){
+        // for (unsigned int i=0; i<num_queries; i++) {
             #ifdef VERBOSE
 
             auto timer = parlay::internal::timer();
@@ -338,7 +338,7 @@ struct FilteredIVF2Stage {
 
             #endif
 
-            std::cout << "proj_matches: " << proj_matches << std::endl;
+            // std::cout << "proj_matches: " << proj_matches << std::endl;
 
             // we may want to multiply the value by some constant to reflect that the query pairs tend to have disproportionately high overlap
             // empirically, this constant seems to be around 1.2 for the training queries
@@ -351,30 +351,30 @@ struct FilteredIVF2Stage {
                         this->filters.row_indices.get() + this->filters.row_offsets[filter.b], 
                         this->filters.row_offsets[filter.b + 1] - this->filters.row_offsets[filter.b]); // indices of matching points
 
-                        std::cout << "join matches: ";
-                        for (size_t j=0; j<10; j++){
-                            std::cout << matches[j] << " ";
-                        }
-                        std::cout << std::endl;
+                        // std::cout << "join matches: ";
+                        // for (size_t j=0; j<10; j++){
+                        //     std::cout << matches[j] << " ";
+                        // }
+                        // std::cout << std::endl;
                 } else {
                     matches = parlay::to_sequence(parlay::make_slice(this->filters.row_indices.get() + this->filters.row_offsets[filter.a], this->filters.row_indices.get() + this->filters.row_offsets[filter.a + 1]));
 
-                    std::cout << "non-join matches: ";
-                    for (size_t j=0; j<10; j++){
-                        std::cout << matches[j] << " ";
-                    }
-                    std::cout << std::endl;
+                    // std::cout << "non-join matches: ";
+                    // for (size_t j=0; j<10; j++){
+                    //     std::cout << matches[j] << " ";
+                    // }
+                    // std::cout << std::endl;
                 }
 
                 // printing matches for debug
-                std::cout << "matches: " << matches.size() << std::endl;
-                for (size_t j=0; j<10; j++){
-                    std::cout << matches[j] << " ";
-                }
-                std::cout << std::endl;
+                // std::cout << "matches: " << matches.size() << std::endl;
+                // for (size_t j=0; j<10; j++){
+                //     std::cout << matches[j] << " ";
+                // }
+                // std::cout << std::endl;
 
-                std::cout << "max match: " << parlay::reduce(matches, parlay::maxm<int32_t>()) << std::endl;
-                std::cout << "min match: " << parlay::reduce(matches, parlay::minm<int32_t>()) << std::endl;
+                // std::cout << "max match: " << parlay::reduce(matches, parlay::maxm<int32_t>()) << std::endl;
+                // std::cout << "min match: " << parlay::reduce(matches, parlay::minm<int32_t>()) << std::endl;
 
                 for (unsigned int j=0; j<matches.size(); j++){ // for each match
                     float dist = this->index.points[matches[j]].distance(q); // compute the distance to query
@@ -406,8 +406,8 @@ struct FilteredIVF2Stage {
             times[i] = time;
 
             #endif
-        }
-        // }, 2); // DEBUG GRANULARITY !!!
+        // }
+        });
 
         #ifdef VERBOSE
 
@@ -452,8 +452,8 @@ struct FilteredIVF2Stage {
         
         std::cout << "Median projected frequency: " << median_freq << std::endl;
 
-        std::cout << "Min: " << parlay::reduce(parlay::make_slice(matches.get(), matches.get() + num_queries), parlay::minm<double>());
-        std::cout << "\tMax: " << parlay::reduce(parlay::make_slice(matches.get(), matches.get() + num_queries), parlay::maxm<double>()) << std::endl;
+        std::cout << "Min: " << parlay::reduce(parlay::make_slice(n_matches.get(), n_matches.get() + num_queries), parlay::minm<double>());
+        std::cout << "\tMax: " << parlay::reduce(parlay::make_slice(n_matches.get(), n_matches.get() + num_queries), parlay::maxm<double>()) << std::endl;
 
         #endif
 
