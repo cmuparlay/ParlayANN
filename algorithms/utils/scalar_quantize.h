@@ -317,7 +317,7 @@ struct QuantizedPointRange{
     }
 
     void save(char* save_path){
-        std::cout << "Writing data with " << n << " points and dimension " << dims
+        std::cout << "Writing compressed data with " << n << " points and dimension " << dims
                     << std::endl;
         parlay::sequence<unsigned int> preamble = {static_cast<unsigned int>(n), dims, quantized_dims, static_cast<unsigned int>(bits)};
         parlay::sequence<float> quantization_info = {max_coord, min_coord};
@@ -333,6 +333,7 @@ struct QuantizedPointRange{
         writer.write((char*)quantization_info.begin(), 2 * sizeof(float));
         writer.write((char*)data.begin(), n*quantized_dims*sizeof(T));
         writer.close();
+        std::cout << "Finished writing compressed data to " << std::string(save_path) << std::endl;
     }
 
     private:

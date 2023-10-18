@@ -191,9 +191,9 @@ struct T2I_Point{
   //hack for compatibility
   float distance(Mips_Point<uint8_t> x) {return 0;}
   float distance(Mips_Point<int8_t> x) {return 0;}
-  float distance(Euclidian_Point<uint8_t> x) {return 0;}
-  float distance(Euclidian_Point<int8_t> x) {return 0;}
-  float distance(Euclidian_Point<float> x) {return 0;}
+  // float distance(Euclidian_Point<uint8_t> x) {return 0;}
+  // float distance(Euclidian_Point<int8_t> x) {return 0;}
+  // float distance(Euclidian_Point<float> x) {return 0;}
   float distance(T2I_Point x){return 0;}
 
   void prefetch() {
