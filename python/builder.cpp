@@ -31,7 +31,7 @@
 
 
 template <typename T, typename Point>
-void build_vamana_index(std::string metric, std::string &vector_bin_path, std::string &sample_bin_path,
+void build_vamana_index(std::string metric, std::string &vector_bin_path, std::string &sample_bin_path, std::string &compressed_vectors_path,
                         std::string &index_output_path, std::string &secondary_output_path, std::string& secondary_gt_path,
                         uint32_t graph_degree, uint32_t beam_width, float alpha, bool two_pass)
 {
@@ -67,6 +67,12 @@ void build_vamana_index(std::string metric, std::string &vector_bin_path, std::s
         return closest;
     });
 
+    //compute quantization and save
+    int bits = 10;
+    using QPR = QuantizedPointRange<T2I_Point, uint16_t>;
+    QPR Quantized_Points = QPR(Points, bits);
+    Quantized_Points.save(compressed_vectors_path.data());
+
     //save the graph object
     G.save(index_output_path.data());
     G_S.save(secondary_output_path.data());
@@ -75,17 +81,17 @@ void build_vamana_index(std::string metric, std::string &vector_bin_path, std::s
     
 }
 
-template void build_vamana_index<float, Euclidian_Point<float>>(std::string , std::string &, std::string &, std::string &, std::string &, std::string &, 
+template void build_vamana_index<float, Euclidian_Point<float>>(std::string, std::string &, std::string &, std::string &, std::string &, std::string &, std::string &, 
                                     uint32_t, uint32_t, float, bool);                            
-template void build_vamana_index<float, Mips_Point<float>>(std::string , std::string &, std::string &, std::string &, std::string &, std::string &, 
+template void build_vamana_index<float, Mips_Point<float>>(std::string , std::string &, std::string &, std::string &, std::string &, std::string &, std::string &, 
                                     uint32_t, uint32_t, float, bool);   
 
-template void build_vamana_index<int8_t, Euclidian_Point<int8_t>>(std::string , std::string &, std::string &, std::string &, std::string &, std::string &, 
+template void build_vamana_index<int8_t, Euclidian_Point<int8_t>>(std::string , std::string &, std::string &, std::string &, std::string &, std::string &, std::string &, 
                                     uint32_t, uint32_t, float, bool);   
-template void build_vamana_index<int8_t, Mips_Point<int8_t>>(std::string , std::string &, std::string &, std::string &, std::string &, std::string &, 
+template void build_vamana_index<int8_t, Mips_Point<int8_t>>(std::string , std::string &, std::string &, std::string &, std::string &, std::string &, std::string &, 
                                     uint32_t, uint32_t, float, bool);   
 
-template void build_vamana_index<uint8_t, Euclidian_Point<uint8_t>>(std::string , std::string &, std::string &, std::string &, std::string &, std::string &, 
+template void build_vamana_index<uint8_t, Euclidian_Point<uint8_t>>(std::string , std::string &, std::string &, std::string &, std::string &, std::string &, std::string &, 
                                     uint32_t, uint32_t, float, bool);   
-template void build_vamana_index<uint8_t, Mips_Point<uint8_t>>(std::string , std::string &, std::string &, std::string &, std::string &, std::string &, 
+template void build_vamana_index<uint8_t, Mips_Point<uint8_t>>(std::string , std::string &, std::string &, std::string &, std::string &, std::string &, std::string &, 
                                     uint32_t, uint32_t, float, bool);   

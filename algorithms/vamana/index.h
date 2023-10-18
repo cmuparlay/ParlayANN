@@ -49,11 +49,25 @@ struct knn_index {
   BuildParams BP;
   std::set<indexType> delete_set; 
   indexType start_point;
+  parlay::sequence<indexType> start_points;
 
 
   knn_index(BuildParams &BP, indexType start_point = 0) : BP(BP), start_point(start_point) {}
 
+  //randomly select a set of starting points out of the indices in G
+  void set_start_points(GraphI &G, int num=10){
+    // use a random shuffle to generate random starting points for each query
+    size_t n = G.size();
+    parlay::random_generator gen;
+    std::uniform_int_distribution<unsigned int> dis(0, n - 1);
+    start_points = parlay::tabulate(num, [&](size_t i) {
+      auto r = gen[i];
+      return dis(r);
+    });
+  }
+
   indexType get_start() { return start_point; }
+  parlay::sequence<indexType> get_start_points(){return start_points;}
 
   //robustPrune routine as found in DiskANN paper, with the exception
   //that the new candidate set is added to the field new_nbhs instead
@@ -122,6 +136,7 @@ struct knn_index {
 
   void build_index(GraphI &G, PR &Points, stats<indexType> &BuildStats){
     std::cout << "Building graph..." << std::endl;
+    set_start_points(G, 100);
     parlay::sequence<indexType> inserts = parlay::tabulate(Points.size(), [&] (size_t i){
 					    return static_cast<indexType>(i);});
 
@@ -271,7 +286,7 @@ struct knn_index {
         size_t index = shuffled_inserts[i];
         QueryParams QP((long) 0, BP.L, (double) 0.0, (long) Points.size(), (long) G.max_degree());
         parlay::sequence<pid> visited = 
-          (beam_search<Point, PointRange, indexType>(Points[index], G, Points, start_point, QP)).first.second;
+          (beam_search<Point, PointRange, indexType>(Points[index], G, Points, start_points, QP)).first.second;
         BuildStats.increment_visited(index, visited.size());
         new_out_[i-floor] = robustPrune(index, visited, G, Points, alpha); 
       });

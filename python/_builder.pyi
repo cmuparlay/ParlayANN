@@ -31,6 +31,7 @@ def build_vamana_index(
     data: str,
     distance_metric: str,
     index_directory: str,
+    compressed_dir: str,
     sample_dir : str,
     beam_width: int,
     graph_degree: int,

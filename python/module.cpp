@@ -37,8 +37,6 @@ PYBIND11_MAKE_OPAQUE(std::vector<uint8_t>);
 namespace py = pybind11;
 using namespace pybind11::literals;
 
-// using NeighborsAndDistances = std::pair<py::array_t<unsigned int, py::array::c_style | py::array::forcecast>, py::array_t<float, py::array::c_style | py::array::forcecast>>;
-
 struct Variant
 {
     std::string builder_name;
@@ -58,12 +56,12 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
 {
 
     m.def(variant.builder_name.c_str(), build_vamana_index<T, Point>, "distance_metric"_a,
-          "data_file_path"_a, "sample_path"_a, "index_output_path"_a, "secondary_index_path"_a, "secondary_gt_path"_a, 
+          "data_file_path"_a, "sample_path"_a, "compressed_vectors_path"_a, "index_output_path"_a, "secondary_index_path"_a, "secondary_gt_path"_a, 
           "graph_degree"_a, "beam_width"_a, "alpha"_a, "two_pass"_a);
 
     py::class_<VamanaIndex<T, Point>>(m, variant.index_name.c_str())
-        .def(py::init<std::string &, std::string &, std::string &, std::string &, std::string &, size_t, size_t>(),
-             "index_path"_a, "sample_path"_a, "secondary_index_path"_a, "secondary_gt_path"_a, "data_path"_a, "num_points"_a, "dimensions"_a) //maybe these last two are unnecessary?
+        .def(py::init<std::string&, std::string&, std::string &, std::string &, std::string &, std::string &, size_t, size_t>(),
+             "index_path"_a, "compressed_path"_a, "sample_path"_a, "secondary_index_path"_a, "secondary_gt_path"_a, "data_path"_a, "num_points"_a, "dimensions"_a) //maybe these last two are unnecessary?
         //do we want to add options like visited limit, or leave those as defaults?
         .def("batch_search", &VamanaIndex<T, Point>::batch_search, "queries"_a, "num_queries"_a, "knn"_a,
              "beam_width"_a)
@@ -87,8 +85,8 @@ PYBIND11_MODULE(_ParlayANNpy, m)
     py::module_ default_values = m.def_submodule(
         "defaults");
 
-    default_values.attr("METRIC") = "Euclidian";
-    default_values.attr("ALPHA") = 1.2;
+    default_values.attr("METRIC") = "mips";
+    default_values.attr("ALPHA") = 1.0;
     default_values.attr("GRAPH_DEGREE") = 64;
     default_values.attr("BEAMWIDTH") = 128;
 

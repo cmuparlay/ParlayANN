@@ -170,7 +170,7 @@ void search_and_parse(Graph_ G_, Graph<indexType> &G, PointRange &FP_Base_Points
   QP.limit = (long) G.size();
   QP.degree_limit = (long) G.max_degree();
   beams = {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 24, 26, 28, 30, 32, 
-          34, 36, 38, 40, 45, 50, 55, 60, 65, 70, 80, 90, 100, 120, 140, 160, 
+          34, 36, 38, 40, 45, 50, 55, 60, 65, 70, 71, 72, 73, 74, 75, 80, 90, 100, 105, 110, 115, 120, 140, 160, 
           180, 200, 225, 250, 275, 300, 375, 500, 750, 1000}; 
   if(k==0) allr = {10};
   else allr = {k};

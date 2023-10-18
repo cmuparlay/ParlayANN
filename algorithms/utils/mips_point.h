@@ -45,9 +45,17 @@
   float mips_distance(const uint8_t *p, const uint8_t *q, unsigned d) {
     int result = 0;
     for (int i = 0; i < (int) d; i++) {
-      result += ((int32_t)q[i]) * ((int32_t)p[i]);
+      result += ((int64_t)q[i]) * ((int64_t)p[i]);
     }
     return -((float)result);
+  }
+
+  float mips_distance(const uint16_t *p, const uint16_t *q, unsigned d) {
+    int result = 0;
+    for (int i = 0; i < (int) d; i++) {
+      result += ((int32_t)q[i]) * ((int32_t)p[i]);
+    }
+    return -(static_cast<float>(result));
   }
 
   float mips_distance(const int8_t *p, const int8_t *q, unsigned d) {
@@ -70,6 +78,7 @@ template<typename T>
 struct Mips_Point {
   using distanceType = float; 
   template<class C> friend struct Quantized_Mips_Point;
+  friend struct T2I_Point;
   
   static distanceType d_min() {return -std::numeric_limits<float>::max();}
   static bool is_metric() {return false;}
@@ -99,6 +108,7 @@ struct Mips_Point {
     return true;
   }
 
+
 private:
   const T* values;
   unsigned int d;
@@ -113,7 +123,8 @@ struct Quantized_Mips_Point{
   static distanceType d_min() {return -std::numeric_limits<float>::max();}
   static bool is_metric() {return false;}
   
-//   T operator [] (long j) {if(j >= d) abort(); return *(values+j);}
+  T operator [] (long j) {if(j >= quantized_d) abort(); return *(values+j);}
+
 
   float distance(Mips_Point<float> x) {
     return mips_distance(decode(this->values, d, quantized_d, max_coord, min_coord, bits).begin(), x.values, d);
@@ -148,11 +159,67 @@ struct Quantized_Mips_Point{
     return true;
   }
 
-  //TEMPORARY
-  T operator [] (long i){return *(values+i);}
 
 private:
   const T* values;
+  unsigned int d;
+  unsigned int aligned_d;
+  unsigned int quantized_d;
+  long id_;
+  float min_coord;
+  float max_coord;
+  int bits;
+};
+
+
+
+struct T2I_Point{
+  using distanceType = float;
+
+  
+  static distanceType d_min() {return -std::numeric_limits<float>::max();}
+  static bool is_metric() {return false;}
+  
+  uint16_t operator [] (long j) {if(j >= quantized_d) abort(); return *(values+j);}
+
+
+  float distance(Mips_Point<float> x) {
+    return wildly_optimized_mips_distance(this->values, x.values, max_coord, min_coord);
+  }
+
+  
+  //hack for compatibility
+  float distance(Mips_Point<uint8_t> x) {return 0;}
+  float distance(Mips_Point<int8_t> x) {return 0;}
+  float distance(Euclidian_Point<uint8_t> x) {return 0;}
+  float distance(Euclidian_Point<int8_t> x) {return 0;}
+  float distance(Euclidian_Point<float> x) {return 0;}
+  float distance(T2I_Point x){return 0;}
+
+  void prefetch() {
+    int l = (aligned_d * sizeof(uint16_t))/64;
+    for (int i=0; i < l; i++)
+      __builtin_prefetch((char*) values + i* 64);
+  }
+
+  long id() {return id_;}
+
+  T2I_Point(const uint16_t* values, unsigned int d, unsigned int qd, unsigned int ad, long id, float max_coord, float min_coord, int bits)
+    : values(values), d(d), quantized_d(qd), aligned_d(ad), id_(id), max_coord(max_coord), min_coord(min_coord), bits(bits) {;
+    }
+
+  bool operator==(T2I_Point q){
+    for (int i = 0; i < d; i++) {
+      if (values[i] != q.values[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+
+private:
+  const uint16_t* values;
   unsigned int d;
   unsigned int aligned_d;
   unsigned int quantized_d;
