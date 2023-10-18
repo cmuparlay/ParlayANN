@@ -12,11 +12,11 @@ def build_vamana_index(metric, dtype, data_dir, sample_dir, compressed_dir, inde
             raise Exception('Invalid data type ' + dtype)
     elif metric == 'mips':
         if dtype == 'uint8':
-            build_vamana_uint8_mips_index(metric, data_dir, sample_dir, index_dir, compressed_dir, secondary_index_dir, secondary_gt_dir, R, L, alpha, two_pass)
+            build_vamana_uint8_mips_index(metric, data_dir, sample_dir, compressed_dir, index_dir, secondary_index_dir, secondary_gt_dir, R, L, alpha, two_pass)
         elif dtype == 'int8':
-            build_vamana_int8_mips_index(metric, data_dir, sample_dir, index_dir, compressed_dir, secondary_index_dir, secondary_gt_dir, R, L, alpha, two_pass)
+            build_vamana_int8_mips_index(metric, data_dir, sample_dir,  compressed_dir,index_dir, secondary_index_dir, secondary_gt_dir, R, L, alpha, two_pass)
         elif dtype == 'float':
-            build_vamana_float_mips_index(metric, data_dir, sample_dir, index_dir, compressed_dir, secondary_index_dir, secondary_gt_dir, R, L, alpha, two_pass)
+            build_vamana_float_mips_index(metric, data_dir, sample_dir, compressed_dir, index_dir, secondary_index_dir, secondary_gt_dir, R, L, alpha, two_pass)
         else:
             raise Exception('Invalid data type ' + dtype)
     else:
