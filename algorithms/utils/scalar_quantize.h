@@ -333,7 +333,6 @@ struct QuantizedPointRange{
         writer.write((char*)quantization_info.begin(), 2 * sizeof(float));
         writer.write((char*)data.begin(), n*quantized_dims*sizeof(T));
         writer.close();
-        std::cout << "Finished writing compressed data to " << std::string(save_path) << std::endl;
     }
 
     private:
