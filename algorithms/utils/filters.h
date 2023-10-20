@@ -15,10 +15,7 @@ The fact that we use int32 for one of the indices and require transposes means w
 #include <utility>
 #include <stdint.h>
 
-/* leetcode-core double pointers sorted array join 
-
-Once saw someone refer to this algorithm as having constant space, which is kind of obviously not true but not morally wrong.
-*/
+/* Sorted array join (with pointers)*/
 template <typename T>
 parlay::sequence<T> join(T* a, size_t len_a, T* b, size_t len_b){
     parlay::sequence<T> output = parlay::sequence<T>();
@@ -38,6 +35,12 @@ parlay::sequence<T> join(T* a, size_t len_a, T* b, size_t len_b){
         }
     }
     return output;
+}
+
+/* Sorted array join (with sequences) */
+template <typename T>
+parlay::sequence<T> join(const parlay::sequence<T>& a, const parlay::sequence<T>& b) {
+    return join(a.begin(), a.size(), b.begin(), b.size()); // hopefully this is virtually free
 }
 
 

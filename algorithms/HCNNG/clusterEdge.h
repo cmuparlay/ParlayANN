@@ -161,6 +161,16 @@ struct cluster {
   }
 
   template <typename F>
+  void active_indices_rcw(GraphI &G, PR &Points, parlay::sequence<indexType> active_indices,
+                          size_t cluster_size, F f, long MSTDeg) {
+    std::random_device rd;
+    std::mt19937 rng(rd());
+    std::uniform_int_distribution<int> uni(0, Points.size());
+    parlay::random rnd(uni(rng));
+    random_clustering(G, Points, active_indices, rnd, cluster_size, f, MSTDeg);
+  }
+
+  template <typename F>
   void multiple_clustertrees(GraphI &G, PR &Points,
                              long cluster_size, long num_clusters, F f,
                              long MSTDeg) {

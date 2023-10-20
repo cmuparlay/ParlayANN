@@ -16,3 +16,9 @@ http_archive(
     strip_prefix = "googletest-release-1.11.0",
     urls = ["https://github.com/google/googletest/archive/release-1.11.0.tar.gz"],
 )
+
+http_archive(
+    name = "benchmark",
+    urls = ["https://github.com/google/benchmark/archive/v1.8.3.tar.gz"],
+    strip_prefix = "benchmark-1.8.3",
+)
