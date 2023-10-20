@@ -51,7 +51,7 @@ void build_vamana_index(std::string metric, std::string &vector_bin_path, std::s
     stats<unsigned int> BuildStats(G.size());
     I.build_index(G, Points, BuildStats);
 
-    if(sample_bin_path.data() != nullptr){
+    if(sample_bin_path != ""){
         PointRange<T, Point> Sample_Points = PointRange<T, Point>(sample_bin_path.data());
         Graph G_S = Graph<unsigned int>(32, Sample_Points.size());
         BuildParams BP_S(32, 500, 1.0, true);
@@ -74,7 +74,7 @@ void build_vamana_index(std::string metric, std::string &vector_bin_path, std::s
         GT.save(secondary_gt_path.data());
     }
 
-    if(compressed_vectors_path.data() != nullptr){
+    if(compressed_vectors_path != ""){
         //compute quantization and save
         int bits = 10;
         using QPR = QuantizedPointRange<T2I_Point, uint16_t>;

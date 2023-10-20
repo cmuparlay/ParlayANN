@@ -55,13 +55,19 @@ struct VamanaIndex{
                 std::string &index_path, std::string& secondary_index_path, std::string& secondary_gt_path, 
                 size_t num_points, size_t dimensions){
         G = Graph<unsigned int>(index_path.data());
-        G_S = Graph<unsigned int>(secondary_index_path.data());
         Points = PointRange<T, Point>(data_path.data());
-        Quantized_Points = QPR(compressed_vectors_path.data());
-        Sample_Points = PointRange<T, Point>(sample_path.data());
-        Sample_GT = groundTruth<unsigned int>(secondary_gt_path.data());
-        assert(num_points == Points.size());
-        assert(dimensions == Points.dimension());
+        if(compressed_vectors_path != "") Quantized_Points = QPR(compressed_vectors_path.data());
+        else Quantized_Points = QPR(nullptr);
+        if(sample_path != ""){
+            G_S = Graph<unsigned int>(secondary_index_path.data());
+            Sample_Points = PointRange<T, Point>(sample_path.data());
+            Sample_GT = groundTruth<unsigned int>(secondary_gt_path.data());
+        }else{
+            G_S = Graph<unsigned int>(nullptr);
+            Sample_Points = PointRange<T, Point>(nullptr);
+            Sample_GT = groundTruth<unsigned int>(nullptr);
+        }
+        
     }
 
     parlay::sequence<unsigned int> generate_start_points(Point q){
