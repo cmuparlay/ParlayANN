@@ -128,6 +128,9 @@ struct Graph{
     }
 
     Graph(char* gFile){
+        if(gFile == nullptr){
+            n=0; maxDeg=0;
+        }
         std::ifstream reader(gFile);
         assert(reader.is_open());
 
