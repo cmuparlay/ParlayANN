@@ -17,7 +17,7 @@ The fact that we use int32 for one of the indices and require transposes means w
 
 /* Sorted array join (with pointers)*/
 template <typename T>
-parlay::sequence<T> join(T* a, size_t len_a, T* b, size_t len_b){
+parlay::sequence<T> join(const T* a, size_t len_a, const T* b, size_t len_b){
     parlay::sequence<T> output = parlay::sequence<T>();
     size_t i = 0;
     size_t j = 0;
@@ -40,7 +40,7 @@ parlay::sequence<T> join(T* a, size_t len_a, T* b, size_t len_b){
 /* Sorted array join (with sequences) */
 template <typename T>
 parlay::sequence<T> join(const parlay::sequence<T>& a, const parlay::sequence<T>& b) {
-    return join(a.begin(), a.size(), b.begin(), b.size()); // hopefully this is virtually free
+    return join<T>(a.begin(), a.size(), b.begin(), b.size()); // hopefully this is virtually free
 }
 
 

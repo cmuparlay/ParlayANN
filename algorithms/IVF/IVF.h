@@ -492,7 +492,7 @@ Meant to be used for the points associated with small filters */
 
 template<typename T, class Point>
 struct ArrayIndex : MatchingPoints<T, Point> {
-    const parlay::sequence<index_type> indices;
+    parlay::sequence<index_type> indices;
 
     ArrayIndex(const index_type* start, const index_type* end) {
         this->indices = parlay::sequence<index_type>(start, end);
@@ -525,7 +525,7 @@ struct PostingListIndex : MatchingPoints<T, Point>{
 
 
     template<typename Clusterer>
-    PostingListIndex(const PointRange<T, Point>* points, const index_type* start, const index_type* end, Clusterer clusterer) {
+    PostingListIndex(PointRange<T, Point>* points, const index_type* start, const index_type* end, Clusterer clusterer) {
         auto indices = parlay::sequence<index_type>(start, end);
 
         this->points = points;
@@ -538,17 +538,22 @@ struct PostingListIndex : MatchingPoints<T, Point>{
 
         this->centroid_data = std::make_unique<T[]>(this->clusters.size() * this->aligned_dim);
 
+        if (this->clusters.size() == 0){
+            throw std::runtime_error("PostingListIndex: no clusters generated");
+        }
+
         for (size_t i=0; i<this->clusters.size(); i++){
             size_t offset = i * this->aligned_dim;
+            parlay::sequence<double> tmp_centroid(this->dim);
             for (size_t p=0; p < this->clusters[i].size(); p++){ // for each point in this cluster
-                const T* data = (*points)[this->clusters[i][p]].get(); 
+                T* data = (*points)[this->clusters[i][p]].get(); 
                 for (size_t d=0; d < this->dim; d++){ // for each dimension
-                    this->centroid_data[offset + d] += data[d];
+                    tmp_centroid[d] += data[d];
                 }
             }
-            // divide by the number of points in the cluster
+            // divide by the number of points in the cluster and assign to centroid data
             for (size_t d=0; d < this->dim; d++){ // for each dimension
-                this->centroid_data[offset + d] /= this->clusters[i].size();
+                this->centroid_data[offset + d] = static_cast<T>(std::round(tmp_centroid[d] / this->clusters[i].size()));
             }
 
             this->centroids.push_back(Point(this->centroid_data.get() + offset, this->dim, this->aligned_dim, i));
@@ -560,7 +565,7 @@ struct PostingListIndex : MatchingPoints<T, Point>{
         this->n_target_points = n;
     }
 
-    parlay::sequence<unsigned int> sorted_near(Point query) const override {
+    parlay::sequence<index_type> sorted_near(Point query) const override {
         parlay::sequence<std::pair<index_type, float>> nearest_centroids = parlay::sequence<std::pair<index_type, float>>::uninitialized(this->clusters.size());
         for (size_t i=0; i<this->clusters.size(); i++){
             float dist = query.distance(this->centroids[i]);
@@ -571,7 +576,7 @@ struct PostingListIndex : MatchingPoints<T, Point>{
             return a.second < b.second;
         });
 
-        auto result = parlay::sequence<unsigned int>();
+        auto result = parlay::sequence<index_type>();
         size_t i = 0;
         do {
             result.append(this->clusters[nearest_centroids[i].first]);
@@ -600,7 +605,8 @@ struct IVF_Squared {
         filters.transpose_inplace();
         this->points = points;
         this->posting_lists = parlay::sequence<std::unique_ptr<MatchingPoints<T, Point>>>::uninitialized(filters.n_points);
-        auto clusterer = HCNNGClusterer<Point, PointRange<T, Point>, index_type>(cluster_size);
+        // auto clusterer = HCNNGClusterer<Point, PointRange<T, Point>, index_type>(cluster_size);
+        auto clusterer = KMeansClusterer<T, Point, index_type>(cluster_size);
 
         for (size_t i=0; i<filters.n_points; i++){
             if (filters.point_count(i) > cutoff){ // The name of this method is so bad that it accidentally describes what it's doing
@@ -609,6 +615,15 @@ struct IVF_Squared {
                 this->posting_lists[i] = std::make_unique<ArrayIndex<T, Point>>(filters.row_indices.get() + filters.row_offsets[i], filters.row_indices.get() + filters.row_offsets[i + 1]);
             }
         }
+    }
+
+    void fit_from_filename(std::string filename, std::string filter_filename, size_t cutoff=10000, size_t cluster_size=1000){
+        PointRange<T, Point> points(filename.c_str());
+        std::cout << "IVF^2: points loaded" << std::endl;
+        csr_filters filters(filter_filename.c_str());
+        std::cout << "IVF^2: filters loaded" << std::endl;
+        this->fit(points, filters, cutoff, cluster_size);
+        std::cout << "IVF^2: fit completed" << std::endl;
     }
 
     void set_target_points(size_t n) {
@@ -626,7 +641,7 @@ struct IVF_Squared {
             Point q = Point(queries.data(i), this->points.dimension(), this->points.aligned_dimension(), i);
             const QueryFilter& filter = filters[i];
             
-            parlay::sequence<unsigned int> indices;
+            parlay::sequence<index_type> indices;
 
             if (filter.is_and()) {
                 indices = join(this->posting_lists[filter.a]->sorted_near(q), 
@@ -635,7 +650,7 @@ struct IVF_Squared {
                 indices = this->posting_lists[filter.a]->sorted_near(q);
             }
 
-            parlay::sequence<std::pair<unsigned int, float>> frontier = parlay::sequence<std::pair<unsigned int, float>>(knn, std::make_pair(std::numeric_limits<unsigned int>().max(), std::numeric_limits<float>().max()));
+            parlay::sequence<std::pair<index_type, float>> frontier = parlay::sequence<std::pair<index_type, float>>(knn, std::make_pair(std::numeric_limits<index_type>().max(), std::numeric_limits<float>().max()));
 
             for (size_t j=0; j<indices.size(); j++){ // for each match
                 float dist = this->points[indices[j]].distance(q); // compute the distance to query
@@ -643,7 +658,7 @@ struct IVF_Squared {
                 if (dist < frontier[knn-1].second){ // if it's closer than the furthest point in the frontier (maybe this should be a variable we compare to)
                     frontier.pop_back(); // remove the furthest point
                     frontier.push_back(std::make_pair(indices[j], dist)); // add the new point to the frontier
-                    std::sort(frontier.begin(), frontier.end(), [&] (std::pair<unsigned int, float> a, std::pair<unsigned int, float> b) {
+                    std::sort(frontier.begin(), frontier.end(), [&] (std::pair<index_type, float> a, std::pair<index_type, float> b) {
                         return a.second < b.second;
                     }); // sort the frontier
                 }
@@ -651,7 +666,7 @@ struct IVF_Squared {
             }
 
             for (unsigned int j=0; j<knn; j++){
-                ids.mutable_data(i)[j] = frontier[j].first;
+                ids.mutable_data(i)[j] = static_cast<unsigned int>(frontier[j].first);
                 dists.mutable_data(i)[j] = frontier[j].second;
             }
         });

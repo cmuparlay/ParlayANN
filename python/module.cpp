@@ -97,9 +97,16 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
     py::class_<FilteredIVF2Stage<T, Point, filtered_posting_list_t<T, Point>>>(m, ("Filtered2Stage" + variant.ivf_name).c_str())
         .def(py::init())
         .def("fit", &FilteredIVF2Stage<T, Point, filtered_posting_list_t<T, Point>>::fit, "points"_a, "filters"_a, "cluster_size"_a)
-        .def("fit_from_filename", &FilteredIVF2Stage<T, Point, filtered_posting_list_t<T, Point>>::fit_from_filename, "filename"_a, "cluster_size"_a, "filters"_a)
+        .def("fit_from_filename", &FilteredIVF2Stage<T, Point, filtered_posting_list_t<T, Point>>::fit_from_filename, "filename"_a, "cluster_size"_a, "filters"_a) // this is wrong, but somehow the code has worked???
         .def("batch_search", &FilteredIVF2Stage<T, Point, filtered_posting_list_t<T, Point>>::batch_filter_search, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a, "n_lists"_a, "threshold"_a)
         .def("print_stats", &FilteredIVF2Stage<T, Point, filtered_posting_list_t<T, Point>>::print_stats);
+
+    py::class_<IVF_Squared<T, Point>>(m, ("Squared" + variant.ivf_name).c_str())
+        .def(py::init())
+        .def("fit", &IVF_Squared<T, Point>::fit, "points"_a, "filters"_a, "cutoff"_a, "cluster_size"_a) 
+        .def("fit_from_filename", &IVF_Squared<T, Point>::fit_from_filename, "filename"_a, "filter_filename"_a, "cutoff"_a, "cluster_size"_a)
+        .def("batch_filter_search", &IVF_Squared<T, Point>::batch_filter_search, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a)
+        .def("set_target_points", &IVF_Squared<T, Point>::set_target_points, "target_points"_a);
 }
 
 PYBIND11_MODULE(_ParlayANNpy, m)

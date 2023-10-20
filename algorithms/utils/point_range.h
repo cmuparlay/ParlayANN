@@ -52,8 +52,8 @@ long dim_round_up(long dim, long tp_size){
 template<typename T, class Point>
 struct PointRange{
 
-  long dimension(){return dims;}
-  long aligned_dimension(){return aligned_dims;}
+  long dimension() const {return dims;}
+  long aligned_dimension() const {return aligned_dims;}
 
   PointRange(){}
 
