@@ -59,6 +59,7 @@ struct VamanaIndex{
         if(compressed_vectors_path != "") Quantized_Points = QPR(compressed_vectors_path.data());
         else Quantized_Points = QPR(nullptr);
         if(sample_path != ""){
+            std::cout << "Sample path: " << sample_path << std::endl;
             G_S = Graph<unsigned int>(secondary_index_path.data());
             Sample_Points = PointRange<T, Point>(sample_path.data());
             Sample_GT = groundTruth<unsigned int>(secondary_gt_path.data());
