@@ -130,7 +130,7 @@ struct HCNNGClusterer {
         // clusters = parlay::filter(clusters, [&] (parlay::sequence<index_type> cluster) {return cluster.size() > 0;});
         clusters = parlay::filter(clusters, [&] (std::pair<index_type*, index_type> cluster) {return cluster.second > 0;});
         parlay::sequence<parlay::sequence<index_type>> result(clusters.size());
-        
+
         for (size_t i = 0; i < clusters.size(); i++) {
             result[i] = parlay::sequence<index_type>(clusters[i].first, clusters[i].first + clusters[i].second);
         }
@@ -159,6 +159,7 @@ struct KMeansClusterer {
     KMeansClusterer(size_t n_clusters) : n_clusters(n_clusters) {}
 
     parlay::sequence<parlay::sequence<index_type>> cluster(PointRange<T, Point> points, parlay::sequence<index_type> indices) {
+
         size_t num_points = indices.size();
         size_t dim = points.dimension();
         size_t aligned_dim = points.aligned_dimension();

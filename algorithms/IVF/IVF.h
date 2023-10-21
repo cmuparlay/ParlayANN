@@ -606,15 +606,18 @@ struct IVF_Squared {
         this->points = points;
         this->posting_lists = parlay::sequence<std::unique_ptr<MatchingPoints<T, Point>>>::uninitialized(filters.n_points);
         // auto clusterer = HCNNGClusterer<Point, PointRange<T, Point>, index_type>(cluster_size);
-        auto clusterer = KMeansClusterer<T, Point, index_type>(cluster_size);
 
-        for (size_t i=0; i<filters.n_points; i++){
+        if (cluster_size <= 0){
+            throw std::runtime_error("IVF^2: cluster size must be positive");
+        }
+
+        parlay::parallel_for(0, filters.n_points, [&](size_t i) {
             if (filters.point_count(i) > cutoff){ // The name of this method is so bad that it accidentally describes what it's doing
-                this->posting_lists[i] = std::make_unique<PostingListIndex<T, Point>>(&points, filters.row_indices.get() + filters.row_offsets[i], filters.row_indices.get() + filters.row_offsets[i + 1], clusterer);
+                this->posting_lists[i] = std::make_unique<PostingListIndex<T, Point>>(&points, filters.row_indices.get() + filters.row_offsets[i], filters.row_indices.get() + filters.row_offsets[i + 1], KMeansClusterer<T, Point, index_type>(filters.point_count(i) / cluster_size));
             } else {
                 this->posting_lists[i] = std::make_unique<ArrayIndex<T, Point>>(filters.row_indices.get() + filters.row_offsets[i], filters.row_indices.get() + filters.row_offsets[i + 1]);
             }
-        }
+        });
     }
 
     void fit_from_filename(std::string filename, std::string filter_filename, size_t cutoff=10000, size_t cluster_size=1000){
@@ -637,7 +640,7 @@ struct IVF_Squared {
         py::array_t<unsigned int> ids({num_queries, knn});
         py::array_t<float> dists({num_queries, knn});
 
-        parlay::parallel_for(0, filters.size(), [&] (size_t i) {
+        parlay::parallel_for(0, num_queries, [&] (size_t i) {
             Point q = Point(queries.data(i), this->points.dimension(), this->points.aligned_dimension(), i);
             const QueryFilter& filter = filters[i];
             

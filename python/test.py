@@ -60,6 +60,50 @@ DATA_DIR = FERN_DATA_DIR
 # print(neighbors[:10, :])
 # print(distances[:10, :])
 
+print("----- Building Squared IVF index... -----")
+
+CUTOFF = 20_000
+CLUSTER_SIZE = 1000
+
+start = time.time()
+
+index = wp.init_squared_ivf_index("Euclidian", "uint8")
+index.fit_from_filename(DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat', CUTOFF, CLUSTER_SIZE)
+
+print(f"Time taken: {time.time() - start:.2f}s")
+
+print("----- Querying Squared IVF Index... -----")
+start = time.time()
+NQ = 10_000
+
+X = np.fromfile(DATA_DIR + "data/yfcc100M/query.public.100K.u8bin", dtype=np.uint8)[8:].reshape((100_000, 192))
+filters = read_sparse_matrix(DATA_DIR + 'data/yfcc100M/query.metadata.public.100K.spmat')
+
+rows, cols = filters.nonzero()
+filter_dict = defaultdict(list)
+
+for row, col in zip(rows, cols):
+    filter_dict[row].append(col)
+
+# filters = [wp.QueryFilter(*filters[i]) for i in filters.keys()]
+filters = [None] * len(filter_dict.keys())
+for i in filter_dict.keys():
+    filters[i] = wp.QueryFilter(*filter_dict[i])
+
+if NQ < 10:
+    print(filters[:NQ])
+
+index.set_target_points(5000)
+
+neighbors, distances = index.batch_filter_search(X, filters, NQ, 10)
+print(neighbors.shape)
+print(neighbors[:10, :])
+print(distances[:10, :])
+
+elapsed = time.time() - start
+print(f"Time taken: {elapsed:.2f}s")
+
+
 print("----- Building 2 Stage Filtered IVF... -----")
 start = time.time()
 
@@ -106,6 +150,8 @@ elapsed = time.time() - start
 print(f"Time taken: {elapsed:.2f}s")
 print(f"QPS: {NQ / elapsed:.2f}s")
 
+
+
 print("----- Building IVF Index... -----")
 start = time.time()
 
@@ -113,6 +159,8 @@ ivf = wp.init_ivf_index("Euclidian", "uint8")
 # ivf.fit_from_filename(DATA_DIR + "base.1B.u8bin.crop_nb_1000000", 1000)
 ivf.fit_from_filename(DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", 1000)
 ivf.print_stats()
+
+
 
 # # neighbors, distances = Index.batch_search_from_string(DATA_DIR + "query.public.10K.u8bin", 10000, 10, 100)
 
