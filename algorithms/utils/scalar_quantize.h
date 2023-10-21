@@ -245,7 +245,7 @@ struct QuantizedPointRange{
         return Point(values+i*aligned_dims, dims, quantized_dims, aligned_dims, i, max_coord, min_coord, bits);
     }
 
-    QuantizedPointRange(){}
+    QuantizedPointRange(){n=0;}
 
     template<typename PointRange>
     QuantizedPointRange(PointRange &Points, int bits) : bits(bits) {

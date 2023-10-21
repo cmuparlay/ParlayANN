@@ -121,7 +121,7 @@ struct Graph{
     long max_degree(){return maxDeg;}
     size_t size(){return n;}
 
-    Graph(){}
+    Graph(){n=0;}
 
     Graph(long maxDeg, size_t n) : maxDeg(maxDeg), n(n) {
         graph = parlay::sequence<indexType>(n*(maxDeg+1),0);
