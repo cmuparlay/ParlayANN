@@ -279,6 +279,9 @@ struct FilteredIVFIndex : IVFIndex<T, Point, PostingList> {
     py::array_t<unsigned int> ids({num_queries, knn});
     py::array_t<float> dists({num_queries, knn});
 
+    // TODO(blandrum): does using a granularity of 1 in the following
+    // parallel-for help? It might if the number of queries in the
+    // batch is small.
     parlay::parallel_for(0, num_queries, [&](unsigned int i) {
       Point q = Point(queries.data(i), this->dim, this->dim, i);
       const QueryFilter& filter = filters[i];
