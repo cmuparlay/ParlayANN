@@ -20,6 +20,8 @@
 template <typename Point, typename PointRange, typename indexType>
 using cluster_struct = cluster<Point, PointRange, indexType>;
 
+#define MAX_ITERS 1
+
 // using index_type = int32_t;
 
 template <class Point, class PointRange, typename index_type>
@@ -122,7 +124,7 @@ template <typename T, class Point, typename index_type>
 struct KMeansClusterer {
   size_t n_clusters = 1000;
 
-  size_t max_iters = 10; // Change or parametrize later. Hard-coded for now.
+  size_t max_iters = MAX_ITERS; // Change or parametrize later. Hard-coded for now.
 
   KMeansClusterer() {}
 

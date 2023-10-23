@@ -23,6 +23,9 @@
 #include "pybind11/numpy.h"
 #include "pybind11/stl.h"
 
+
+#define TINY_CASE_CUTOFF 5000 // when we do tiny x large instead of small x large
+
 namespace py = pybind11;
 using NeighborsAndDistances =
    std::pair<py::array_t<unsigned int>, py::array_t<float>>;
@@ -175,7 +178,7 @@ struct IVF_Squared {
   PointRange<T, Point> points;   // hosting here for posting lists to use
   // TODO: uncomment the below;
   // This could be a hash-table per CSR.
-  // csr_filters filters; // probably not actually needed after construction
+  csr_filters filters; // probably not actually needed after construction
   parlay::sequence<std::unique_ptr<MatchingPoints<T, Point>>>
      posting_lists;   // array of posting lists where indices correspond to
                       // filters
@@ -198,7 +201,7 @@ struct IVF_Squared {
    * */
   void fit(PointRange<T, Point> points, csr_filters& filters,
            size_t cutoff = 10000, size_t cluster_size = 1000) {
-    // TODO: this->filters = filters
+    this->filters = filters; // rn we will not bother storing the filter sizes because it's one cache miss and a subtraction to compute one at query time
     filters.transpose_inplace();
     this->points = points;
     this->posting_lists =
@@ -282,8 +285,32 @@ struct IVF_Squared {
       // No distance comparisons yet other than looking at the
       // centroids.
       if (filter.is_and()) {
-        indices = join(this->posting_lists[filter.a]->sorted_near(q),
-                       this->posting_lists[filter.b]->sorted_near(q));
+        auto a_size = this->filters.point_count(filter.a);
+        auto b_size = this->filters.point_count(filter.b);
+        // we xor below on matching the tiny case cutoff because if both are tiny we would rather just join them.
+        // TODO: It's probable we actually would want to join in the tiny x small case as well
+        if (a_size <= TINY_CASE_CUTOFF ^ b_size <= TINY_CASE_CUTOFF) {
+          if (a_size <= TINY_CASE_CUTOFF) {
+            indices = parlay::filter(
+               this->posting_lists[filter.a]->sorted_near(q), 
+               [&](index_type i) {
+                 return this->filters.match(i, filter.b);
+               }
+            );
+          } else {
+            indices = parlay::filter(
+               this->posting_lists[filter.b]->sorted_near(q),
+               [&](index_type i) {
+                 return this->filters.match(i, filter.a);
+               }
+            );
+          }
+        } else {
+          indices = this->posting_lists[filter.a]->sorted_near(q);
+          indices = join(indices,
+                         this->posting_lists[filter.b]->sorted_near(q));
+        }
+        
       } else {
         indices = this->posting_lists[filter.a]->sorted_near(q);
       }

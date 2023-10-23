@@ -146,7 +146,10 @@ struct csr_filters{
         printf("n_nonzeros: %ld\n", n_nonzero);
     }
 
-    /* Returns true if p matches filter f, which is equivalent to row p column i being nonzero */
+    /* Returns true if p matches filter f, which is equivalent to row p column f being nonzero 
+    
+    Uses linear scan
+    */
     bool match(int64_t p, int64_t f) const {
         // if (transposed) {
         //     std::swap(p, f);
@@ -159,6 +162,28 @@ struct csr_filters{
         for (int64_t i = start; i < end; i++) {
             if (row_indices[i] == f) {
                 return true;
+            }
+        }
+        return false;
+    }
+
+    /* Returns true if p matches filter f, which is equivalent to row p column f being nonzero 
+    
+    Uses binary search
+    */
+    bool bin_match(int64_t p, int64_t f) const {
+        int64_t start =  row_offsets[p];
+        int64_t end = row_offsets[p + 1];
+
+        // binary search over row to see if f is in it
+        while (start < end) {
+            int64_t mid = (start + end) / 2;
+            if (row_indices[mid] == f) {
+                return true;
+            } else if (row_indices[mid] < f) {
+                start = mid + 1;
+            } else {
+                end = mid - 1;
             }
         }
         return false;
