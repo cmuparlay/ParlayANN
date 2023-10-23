@@ -122,9 +122,18 @@ template <typename T, class Point, typename index_type>
 struct KMeansClusterer {
   size_t n_clusters = 1000;
 
+  size_t max_iters = 10; // Change or parametrize later. Hard-coded for now.
+
   KMeansClusterer() {}
 
   KMeansClusterer(size_t n_clusters) : n_clusters(n_clusters) {}
+
+  parlay::sequence<parlay::sequence<size_t>> get_clusters(parlay::sequence<size_t>& cluster_assignments) {
+    auto pairs = parlay::tabulate(cluster_assignments.size(), [&] (size_t i) {
+      return std::make_pair(cluster_assignments[i], i);
+    });
+    return parlay::group_by_index(pairs, n_clusters);
+  }
 
   parlay::sequence<parlay::sequence<index_type>> cluster(
      PointRange<T, Point> points, parlay::sequence<index_type> indices) {
@@ -134,10 +143,10 @@ struct KMeansClusterer {
     size_t num_points = indices.size();
     size_t dim = points.dimension();
     size_t aligned_dim = points.aligned_dimension();
-    std::unique_ptr<T[]> centroid_data =
-       std::make_unique<T[]>(n_clusters * aligned_dim);
+    std::cout << "KMeans run on: " << num_points << " many points to obtain: " << n_clusters << " many clusters." << std::endl;
+    auto centroid_data = parlay::sequence<T>(n_clusters * aligned_dim);
     auto centroids = parlay::tabulate(n_clusters, [&](size_t i) {
-      return Point(centroid_data.get() + i * aligned_dim, dim, aligned_dim, i);
+      return Point(centroid_data.begin() + i * aligned_dim, dim, aligned_dim, i);
     });
 
     // initially run HCNNGClusterer to get initial set of clusters
@@ -187,15 +196,18 @@ struct KMeansClusterer {
       num_iters++;
       not_converged = false;
 
+      auto new_clusters = get_clusters(cluster_assignments);
+
       // compute new centroids
-      parlay::parallel_for(0, n_clusters, [&](size_t i) {
+      parlay::parallel_for(0, new_clusters.size(), [&](size_t i) {
         size_t offset = i * aligned_dim;
         parlay::sequence<double> centroid(dim);
-        for (size_t j = 0; j < clusters[i].size(); j++) {
+        auto clust_size = new_clusters[i].size();
+        for (size_t j = 0; j < clust_size; j++) {
+          auto pt = points[indices[new_clusters[i][j]]].get();
           for (size_t d = 0; d < dim; d++) {
             centroid[d] +=
-               static_cast<double>(points[clusters[i][j]].get()[d]) /
-               clusters[i].size();
+               static_cast<double>(pt[d]) / clust_size;
           }
         }
         for (size_t d = 0; d < dim; d++) {
@@ -218,7 +230,7 @@ struct KMeansClusterer {
         }
         cluster_assignments[i] = min_index;
       });
-    } while (not_converged);
+    } while (not_converged && num_iters < max_iters);
 
     auto output = parlay::tabulate(num_points, [&](size_t i) {
       return std::make_pair(cluster_assignments[i], indices[i]);
