@@ -183,7 +183,7 @@ struct KMeansClusterer {
       for (size_t d = 0; d < dim; d++) {
         centroid_data[offset + d] = static_cast<T>(std::round(centroid[d]));
       }
-    });
+    }, 100000000000);
 
     parlay::sequence<size_t> cluster_assignments =
        parlay::sequence<size_t>::uninitialized(num_points);

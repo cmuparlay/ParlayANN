@@ -211,6 +211,13 @@ struct IVF_Squared {
       throw std::runtime_error("IVF^2: cluster size must be positive");
     }
 
+    auto above_cutoff = parlay::delayed_seq<size_t>(filters.n_points, [&] (size_t i) {
+      return filters.point_count(i) > cutoff;
+    });
+
+    size_t num_above_cutoff = parlay::reduce(above_cutoff);
+    std::cout << "Num above cutoff = " << num_above_cutoff << std::endl;
+
     parlay::parallel_for(0, filters.n_points, [&](size_t i) {
       if (filters.point_count(i) >
           cutoff) {   // The name of this method is so bad that it accidentally
@@ -225,7 +232,7 @@ struct IVF_Squared {
            filters.row_indices.get() + filters.row_offsets[i],
            filters.row_indices.get() + filters.row_offsets[i + 1]);
       }
-    }, 1);  // run in parallel
+    }, 100000000000);  // run in parallel
   }
 
   void fit_from_filename(std::string filename, std::string filter_filename,
