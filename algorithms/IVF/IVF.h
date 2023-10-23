@@ -23,8 +23,12 @@
 #include "pybind11/numpy.h"
 #include "pybind11/stl.h"
 
+#ifdef COUNTERS
+#include "../utils/threadlocal.h"
+#endif
 
-#define TINY_CASE_CUTOFF 5000 // when we do tiny x large instead of small x large
+
+#define TINY_CASE_CUTOFF 5000 // when we do tiny x large instead of small x large (default value)
 
 namespace py = pybind11;
 using NeighborsAndDistances =
@@ -178,13 +182,43 @@ struct IVF_Squared {
   PointRange<T, Point> points;   // hosting here for posting lists to use
   // TODO: uncomment the below;
   // This could be a hash-table per CSR.
-  csr_filters filters; // probably not actually needed after construction
+  csr_filters filters; 
+  csr_filters filters_transpose;// probably not actually needed after construction
   parlay::sequence<std::unique_ptr<MatchingPoints<T, Point>>>
      posting_lists;   // array of posting lists where indices correspond to
                       // filters
 
+  size_t cutoff;
   size_t target_points = 10000;   // number of points for each filter to return
   size_t tiny_cutoff = TINY_CASE_CUTOFF;   // cutoff below which we use the tiny case
+
+  #ifdef COUNTERS
+  // number of queries in each case
+  threadlocal::accumulator<size_t> largexlarge{}; // most vexing parse???
+  threadlocal::accumulator<size_t> largexsmall{};
+  threadlocal::accumulator<size_t> smallxsmall{};
+  threadlocal::accumulator<size_t> tinyxlarge{}; // also technically tinyxsmall
+  threadlocal::accumulator<size_t> large{}; // these are for non-and queries
+  threadlocal::accumulator<size_t> small{};
+
+  // distance comparisons for each case
+  // note that this is being done in a way that will not be robust to clever centroid bucketing
+  threadlocal::accumulator<size_t> largexlarge_dcmp{};
+  threadlocal::accumulator<size_t> largexsmall_dcmp{};
+  threadlocal::accumulator<size_t> smallxsmall_dcmp{};
+  threadlocal::accumulator<size_t> tinyxlarge_dcmp{};
+  threadlocal::accumulator<size_t> large_dcmp{};
+  threadlocal::accumulator<size_t> small_dcmp{};
+
+  // time spent in each case
+  threadlocal::accumulator<double> largexlarge_time{};
+  threadlocal::accumulator<double> largexsmall_time{};
+  threadlocal::accumulator<double> smallxsmall_time{};
+  threadlocal::accumulator<double> tinyxlarge_time{};
+  threadlocal::accumulator<double> large_time{};
+  threadlocal::accumulator<double> small_time{};
+
+  #endif
 
   IVF_Squared() {
     std::cout << "===Running IVF_Squared" << std::endl;
@@ -204,12 +238,14 @@ struct IVF_Squared {
            size_t cutoff = 10000, size_t cluster_size = 1000) {
     this->filters = filters; // rn we will not bother storing the filter sizes because it's one cache miss and a subtraction to compute one at query time
     filters.transpose_inplace();
+    this->filters_transpose = filters;
     this->points = points;
     this->posting_lists =
        parlay::sequence<std::unique_ptr<MatchingPoints<T, Point>>>::
           uninitialized(filters.n_points);
     // auto clusterer = HCNNGClusterer<Point, PointRange<T, Point>,
     // index_type>(cluster_size);
+    this->cutoff = cutoff;
 
     if (cluster_size <= 0) {
       throw std::runtime_error("IVF^2: cluster size must be positive");
@@ -221,7 +257,7 @@ struct IVF_Squared {
 
     size_t num_above_cutoff = parlay::reduce(above_cutoff);
     std::cout << "Num above cutoff = " << num_above_cutoff << " filters.n_points = " << filters.n_points << std::endl;
-		std::atomic<int> ctr = 0;
+		// std::atomic<int> ctr = 0;
 
     parlay::parallel_for(0, filters.n_points, [&](size_t i) {
       if (filters.point_count(i) >
@@ -232,8 +268,8 @@ struct IVF_Squared {
            filters.row_indices.get() + filters.row_offsets[i + 1],
            KMeansClusterer<T, Point, index_type>(filters.point_count(i) /
                                                  cluster_size));
-				ctr += 1;
-				std::cout << "Finished: " << ctr << " calls." << std::endl;
+				// ctr += 1;
+				// std::cout << "Finished: " << ctr << " calls." << std::endl;
       } else {
         this->posting_lists[i] = std::make_unique<ArrayIndex<T, Point>>(
            filters.row_indices.get() + filters.row_offsets[i],
@@ -266,14 +302,59 @@ struct IVF_Squared {
 
       parlay::sequence<index_type> indices;
 
+      #ifdef COUNTERS
+
+      parlay::internal::timer t;
+
+      threadlocal::accumulator<double>* time_acc; // to add the time/distance to at the end
+      threadlocal::accumulator<size_t>* dcmp_acc; 
+
+      t.start();
+      #endif
+
       // We may want two different cutoffs for query / build.
 
       // Notice that this code doesn't care about the cutoff.
       // No distance comparisons yet other than looking at the
       // centroids.
       if (filter.is_and()) {
-        auto a_size = this->filters.point_count(filter.a);
-        auto b_size = this->filters.point_count(filter.b);
+        #ifdef COUNTERS
+        size_t bigger = std::max(this->filters_transpose.point_count(filter.a), this->filters_transpose.point_count(filter.b));
+        size_t smaller = std::min(this->filters_transpose.point_count(filter.a), this->filters_transpose.point_count(filter.b));
+        if (smaller > this->cutoff){
+          time_acc = &largexlarge_time;
+          dcmp_acc = &largexlarge_dcmp;
+          largexlarge.increment();
+        } else if (bigger > this->cutoff){
+            if (smaller > this->tiny_cutoff){
+              time_acc = &largexsmall_time;
+              dcmp_acc = &largexsmall_dcmp;
+              largexsmall.increment();
+            } else {
+              time_acc = &tinyxlarge_time;
+              dcmp_acc = &tinyxlarge_dcmp;
+              tinyxlarge.increment();
+            }
+        } else {
+          time_acc = &smallxsmall_time;
+          dcmp_acc = &smallxsmall_dcmp;
+          smallxsmall.increment();
+        }
+
+        // here we assume we're doing a distance comparison to every centroid
+        // (this is not robust to clever centroid bucketing)
+
+        if (this->filters_transpose.point_count(filter.a) > this->cutoff){
+
+          dcmp_acc->add(static_cast<PostingListIndex<T, Point>*>(this->posting_lists[filter.a].get())->centroids.size()); // valid??? might be smarter to use dynamic_cast
+        } 
+        if (this->filters.point_count(filter.b) > this->cutoff){
+          dcmp_acc->add(static_cast<PostingListIndex<T, Point>*>(this->posting_lists[filter.b].get())->centroids.size());
+        }
+        #endif
+
+        auto a_size = this->filters_transpose.point_count(filter.a);
+        auto b_size = this->filters_transpose.point_count(filter.b);
         // we xor below on matching the tiny case cutoff because if both are tiny we would rather just join them.
         // TODO: It's probable we actually would want to join in the tiny x small case as well
         if (a_size <= this->tiny_cutoff ^ b_size <= this->tiny_cutoff) {
@@ -288,7 +369,7 @@ struct IVF_Squared {
             indices = parlay::filter(
                this->posting_lists[filter.b]->sorted_near(q),
                [&](index_type i) {
-                 return this->filters.match(i, filter.a);
+                 return this->filters.bin_match(i, filter.a);
                }
             );
           }
@@ -298,8 +379,30 @@ struct IVF_Squared {
                          this->posting_lists[filter.b]->sorted_near(q));
         }
       } else {
+        #ifdef COUNTERS
+
+        if (this->filters_transpose.point_count(filter.a) > this->cutoff){
+          time_acc = &large_time;
+          dcmp_acc = &large_dcmp;
+          large.increment();
+
+          dcmp_acc->add(static_cast<PostingListIndex<T, Point>*>(this->posting_lists[filter.a].get())->centroids.size()); 
+        } else {
+          time_acc = &small_time;
+          dcmp_acc = &small_dcmp;
+          small.increment();
+        }
+
+        #endif
+
         indices = this->posting_lists[filter.a]->sorted_near(q);
       }
+
+      #ifdef COUNTERS
+
+      dcmp_acc->add(indices.size());
+
+      #endif
 
       parlay::sequence<std::pair<index_type, float>> frontier =
          parlay::sequence<std::pair<index_type, float>>(
@@ -325,6 +428,12 @@ struct IVF_Squared {
         }
       }
 
+      #ifdef COUNTERS
+
+      time_acc->add(t.stop());
+
+      #endif
+
       for (unsigned int j = 0; j < knn; j++) {
         ids.mutable_data(i)[j] = static_cast<unsigned int>(frontier[j].first);
         dists.mutable_data(i)[j] = frontier[j].second;
@@ -344,6 +453,46 @@ struct IVF_Squared {
   void set_tiny_cutoff(size_t n) { this->tiny_cutoff = n; }
 
   void set_max_iter(size_t n) { max_iter = n; }
+
+  void reset() {
+    #ifdef COUNTERS
+
+    largexlarge.reset();
+    largexsmall.reset();
+    smallxsmall.reset();
+    tinyxlarge.reset();
+    large.reset();
+    small.reset();
+
+    largexlarge_dcmp.reset();
+    largexsmall_dcmp.reset();
+    smallxsmall_dcmp.reset();
+    tinyxlarge_dcmp.reset();
+    large_dcmp.reset();
+    small_dcmp.reset();
+
+    largexlarge_time.reset();
+    largexsmall_time.reset();
+    smallxsmall_time.reset();
+    tinyxlarge_time.reset();
+    large_time.reset();
+    small_time.reset();
+
+    #endif
+  }
+
+  void print_stats() {
+    #ifdef COUNTERS
+
+    std::cout << "Case       \tqueries\tavg. dc\tavg. time\ttotal dc\ttotal time" << std::endl;
+    std::cout << "largexlarge\t" << largexlarge.total() << "\t" << largexlarge_dcmp.total() / std::max(largexlarge.total(), (size_t) 1) << "\t" << largexlarge_time.total() / std::max(largexlarge.total(), (size_t) 1) << "\t" << largexlarge_dcmp.total() << "\t" << largexlarge_time.total() << std::endl;
+    std::cout << "largexsmall\t" << largexsmall.total() << "\t" << largexsmall_dcmp.total() / std::max(largexsmall.total(), (size_t) 1) << "\t" << largexsmall_time.total() / std::max(largexsmall.total(), (size_t) 1) << "\t" << largexsmall_dcmp.total() << "\t" << largexsmall_time.total() << std::endl;
+    std::cout << "smallxsmall\t" << smallxsmall.total() << "\t" << smallxsmall_dcmp.total() / std::max(smallxsmall.total(), (size_t) 1) << "\t" << smallxsmall_time.total() / std::max(smallxsmall.total(), (size_t) 1) << "\t" << smallxsmall_dcmp.total() << "\t" << smallxsmall_time.total() << std::endl;
+    std::cout << "tinyxlarge \t" << tinyxlarge.total() << "\t" << tinyxlarge_dcmp.total() / std::max(tinyxlarge.total(), (size_t) 1) << "\t" << tinyxlarge_time.total() / std::max(tinyxlarge.total(), (size_t) 1) << "\t" << tinyxlarge_dcmp.total() << "\t" << tinyxlarge_time.total() << std::endl;
+    std::cout << "large      \t" << large.total() << "\t" << large_dcmp.total() / std::max(large.total(), (size_t) 1) << "\t" << large_time.total() / std::max(large.total(), (size_t) 1) << "\t" << large_dcmp.total() << "\t" << large_time.total() << std::endl;
+    std::cout << "small      \t" << small.total() << "\t" << small_dcmp.total() / std::max(small.total(), (size_t) 1) << "\t" << small_time.total() / std::max(small.total(), (size_t) 1) << "\t" << small_dcmp.total() << "\t" << small_time.total() << std::endl;
+    #endif
+  }
 };
 
 #endif   // IVF_H

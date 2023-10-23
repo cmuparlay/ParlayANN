@@ -165,7 +165,7 @@ struct KMeansClusterer {
     size_t num_points = indices.size();
     size_t dim = points.dimension();
     size_t aligned_dim = points.aligned_dimension();
-    std::cout << "KMeans run on: " << num_points << " many points to obtain: " << n_clusters << " many clusters." << std::endl;
+    // std::cout << "KMeans run on: " << num_points << " many points to obtain: " << n_clusters << " many clusters." << std::endl;
     auto centroid_data = parlay::sequence<T>(n_clusters * aligned_dim);
     auto centroids = parlay::tabulate(n_clusters, [&](size_t i) {
       return Point(centroid_data.begin() + i * aligned_dim, dim, aligned_dim, i);
@@ -253,7 +253,7 @@ struct KMeansClusterer {
         cluster_assignments[i] = min_index;
       });
     } while (not_converged && num_iters < max_iters);
-    std::cout << "Finished running." << std::endl;
+    // std::cout << "Finished running." << std::endl;
 
     num_points = input_indices.size();
     parlay::sequence<size_t> all_cluster_assignments =
@@ -276,10 +276,10 @@ struct KMeansClusterer {
       return std::make_pair(all_cluster_assignments[i], input_indices[i]);
     });
 
-    std::cout << "Num KMeans Iters:" << num_iters << " on: " << num_points << " points." << std::endl;
-    std::cout << "KMeansClustering Time: " << t.stop() << std::endl;
+    // std::cout << "Num KMeans Iters:" << num_iters << " on: " << num_points << " points." << std::endl;
+    // std::cout << "KMeansClustering Time: " << t.stop() << std::endl;
     auto ret_clusters = parlay::group_by_index(output, n_clusters);
-		cluster_stats(ret_clusters);
+		// cluster_stats(ret_clusters);
 		return ret_clusters;
   }
 };

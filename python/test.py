@@ -64,6 +64,8 @@ print("----- Building Squared IVF index... -----")
 
 CUTOFF = 20_000
 CLUSTER_SIZE = 1000
+NQ = 100_000
+TARGET_POINTS = 5000
 
 start = time.time()
 
@@ -74,7 +76,6 @@ print(f"Time taken: {time.time() - start:.2f}s")
 
 print("----- Querying Squared IVF Index... -----")
 start = time.time()
-NQ = 10_000
 
 X = np.fromfile(DATA_DIR + "data/yfcc100M/query.public.100K.u8bin", dtype=np.uint8)[8:].reshape((100_000, 192))
 filters = read_sparse_matrix(DATA_DIR + 'data/yfcc100M/query.metadata.public.100K.spmat')
@@ -93,9 +94,12 @@ for i in filter_dict.keys():
 if NQ < 10:
     print(filters[:NQ])
 
-index.set_target_points(5000)
+index.set_target_points(TARGET_POINTS)
 
 neighbors, distances = index.batch_filter_search(X, filters, NQ, 10)
+
+index.print_stats()
+
 print(neighbors.shape)
 print(neighbors[:10, :])
 print(distances[:10, :])

@@ -108,7 +108,9 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
         .def("batch_filter_search", &IVF_Squared<T, Point>::batch_filter_search, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a)
         .def("set_target_points", &IVF_Squared<T, Point>::set_target_points, "target_points"_a)
         .def("set_tiny_cutoff", &IVF_Squared<T, Point>::set_tiny_cutoff, "tiny_cutoff"_a)
-        .def("set_max_iter", &IVF_Squared<T, Point>::set_max_iter, "max_iter"_a);
+        .def("set_max_iter", &IVF_Squared<T, Point>::set_max_iter, "max_iter"_a)
+        .def("reset", &IVF_Squared<T, Point>::reset)
+        .def("print_stats", &IVF_Squared<T, Point>::print_stats);
 }
 
 PYBIND11_MODULE(_ParlayANNpy, m)
