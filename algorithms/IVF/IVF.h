@@ -232,7 +232,7 @@ struct IVF_Squared {
            filters.row_indices.get() + filters.row_offsets[i],
            filters.row_indices.get() + filters.row_offsets[i + 1]);
       }
-    }, 100000000000);  // run in parallel
+    }, 1);  // run in parallel
   }
 
   void fit_from_filename(std::string filename, std::string filter_filename,
