@@ -198,7 +198,7 @@ struct IVF_Squared {
    * otherwise it gets an array that's "global" (just stores all
    * points that match that filter).
    *
-   * Later, in batch_filter_search 
+   * Later, in batch_filter_search
    * */
   void fit(PointRange<T, Point> points, csr_filters& filters,
            size_t cutoff = 10000, size_t cluster_size = 1000) {
@@ -266,13 +266,6 @@ struct IVF_Squared {
 
       parlay::sequence<index_type> indices;
 
-      // TODO: optimize for the case where one is very small, the
-      // other requires checking the IVF. We can just brute-force
-      // this case.
-      // We can get perfect recall for this case, but we currently
-      // don't, since it depends on the id popping up in the join,
-      // which it could not.
-
       // We may want two different cutoffs for query / build.
 
       // Notice that this code doesn't care about the cutoff.
@@ -284,9 +277,9 @@ struct IVF_Squared {
         // we xor below on matching the tiny case cutoff because if both are tiny we would rather just join them.
         // TODO: It's probable we actually would want to join in the tiny x small case as well
         if (a_size <= this->tiny_cutoff ^ b_size <= this->tiny_cutoff) {
-          if (a_size <= this->tiny_cutoff) {
+          if (a_size <= b_size) {
             indices = parlay::filter(
-               this->posting_lists[filter.a]->sorted_near(q), 
+               this->posting_lists[filter.a]->sorted_near(q),
                [&](index_type i) {
                  return this->filters.bin_match(i, filter.b);
                }
@@ -304,7 +297,6 @@ struct IVF_Squared {
           indices = join(indices,
                          this->posting_lists[filter.b]->sorted_near(q));
         }
-        
       } else {
         indices = this->posting_lists[filter.a]->sorted_near(q);
       }

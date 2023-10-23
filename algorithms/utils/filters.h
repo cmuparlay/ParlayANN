@@ -1,4 +1,4 @@
-/* interface for point filters represented in CSR format 
+/* interface for point filters represented in CSR format
 
 The fact that we use int32 for one of the indices and require transposes means we realistically are only going to be able to handle 2^31 points and 2^31 filters, but that's probably fine for now.
 */
@@ -65,7 +65,7 @@ struct csr_filters{
     std::unique_ptr<int64_t[]> row_offsets; // indices into data
     std::unique_ptr<int32_t[]> row_indices; // the indices of the nonzero entries, which is actually all we need
     bool transposed = false;
-    
+
     csr_filters() = default;
 
     /* mmaps filter data in csr form from filename */
@@ -146,8 +146,8 @@ struct csr_filters{
         printf("n_nonzeros: %ld\n", n_nonzero);
     }
 
-    /* Returns true if p matches filter f, which is equivalent to row p column f being nonzero 
-    
+    /* Returns true if p matches filter f, which is equivalent to row p column f being nonzero
+
     Uses linear scan
     */
     bool match(int64_t p, int64_t f) const {
@@ -157,18 +157,15 @@ struct csr_filters{
 
         int64_t start = row_offsets[p];
         int64_t end = row_offsets[p + 1];
-        
+
         // linear scan over row to see if f is in it, which should be fast since rows are short but vectorization or binary search could be worth it
-        for (int64_t i = start; i < end; i++) {
-            if (row_indices[i] == f) {
-                return true;
-            }
-        }
-        return false;
+        auto index_slice = parlay::make_slice(row_indices.get() + start, row_indices.get() + end);
+        auto ind = parlay::internal::binary_search(index_slice, f, std::less<int32_t>());
+        return (ind < end) && (row_indices[ind] == f);
     }
 
-    /* Returns true if p matches filter f, which is equivalent to row p column f being nonzero 
-    
+    /* Returns true if p matches filter f, which is equivalent to row p column f being nonzero
+
     Uses binary search
     */
     bool bin_match(int64_t p, int64_t f) const {
@@ -189,7 +186,7 @@ struct csr_filters{
         return false;
     }
 
-    /* returns indices of points matching QueryFilter 
+    /* returns indices of points matching QueryFilter
     */
     parlay::sequence<int32_t> query_matches(QueryFilter q) const {
         if (not transposed) {
@@ -347,7 +344,7 @@ struct csr_filters{
     }
 
     /* Copies to a new csr_filters with only the specified filters (columns)
-    
+
     As written preserves the number of the filters (or points if transposed), which should be much easier to work with
      */
     csr_filters subset_filters(parlay::sequence<int32_t> filters) const {
@@ -402,12 +399,12 @@ struct csr_filters{
         return out;
     }
 
-    /* 
+    /*
     This abominably named function does 3 things:
         - subsets the rows based on the indices
         - transposes the result
         - renames the columns to match the indices
-    
+
     Internally, the implementation does not do all 3 of these things independently, but the result should be the same.
 
     sorts the indices just in case they aren't already sorted
@@ -481,7 +478,7 @@ struct csr_filters{
 //     int64_t* row_offsets; // indices into data
 //     int32_t* row_indices; // the indices of the nonzero entries
 //     float* values; // the values of the nonzero entries
-    
+
 //     /* mmaps filter data in csr form from filename */
 //     csr_filters(char* filename) {
 //         // opening file stream
