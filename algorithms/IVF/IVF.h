@@ -217,6 +217,7 @@ struct IVF_Squared {
 
     size_t num_above_cutoff = parlay::reduce(above_cutoff);
     std::cout << "Num above cutoff = " << num_above_cutoff << std::endl;
+		std::atomic<int> ctr = 0;
 
     parlay::parallel_for(0, filters.n_points, [&](size_t i) {
       if (filters.point_count(i) >
@@ -227,6 +228,8 @@ struct IVF_Squared {
            filters.row_indices.get() + filters.row_offsets[i + 1],
            KMeansClusterer<T, Point, index_type>(filters.point_count(i) /
                                                  cluster_size));
+				ctr += 1;
+				std::cout << "Finished: " << ctr << " calls." << std::endl;
       } else {
         this->posting_lists[i] = std::make_unique<ArrayIndex<T, Point>>(
            filters.row_indices.get() + filters.row_offsets[i],
