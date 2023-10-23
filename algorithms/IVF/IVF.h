@@ -184,6 +184,7 @@ struct IVF_Squared {
                       // filters
 
   size_t target_points = 10000;   // number of points for each filter to return
+  size_t tiny_cutoff = TINY_CASE_CUTOFF;   // cutoff below which we use the tiny case
 
   IVF_Squared() {
     std::cout << "===Running IVF_Squared" << std::endl;
@@ -251,13 +252,6 @@ struct IVF_Squared {
     std::cout << "IVF^2: fit completed" << std::endl;
   }
 
-  void set_target_points(size_t n) {
-    this->target_points = n;
-    for (size_t i = 0; i < this->posting_lists.size(); i++) {
-      this->posting_lists[i]->set_n_target_points(n);
-    }
-  }
-
   NeighborsAndDistances batch_filter_search(
      py::array_t<T, py::array::c_style | py::array::forcecast>& queries,
      const std::vector<QueryFilter>& filters, uint64_t num_queries,
@@ -289,12 +283,12 @@ struct IVF_Squared {
         auto b_size = this->filters.point_count(filter.b);
         // we xor below on matching the tiny case cutoff because if both are tiny we would rather just join them.
         // TODO: It's probable we actually would want to join in the tiny x small case as well
-        if (a_size <= TINY_CASE_CUTOFF ^ b_size <= TINY_CASE_CUTOFF) {
-          if (a_size <= TINY_CASE_CUTOFF) {
+        if (a_size <= this->tiny_cutoff ^ b_size <= this->tiny_cutoff) {
+          if (a_size <= this->tiny_cutoff) {
             indices = parlay::filter(
                this->posting_lists[filter.a]->sorted_near(q), 
                [&](index_type i) {
-                 return this->filters.match(i, filter.b);
+                 return this->filters.bin_match(i, filter.b);
                }
             );
           } else {
@@ -347,6 +341,15 @@ struct IVF_Squared {
 
     return std::make_pair(std::move(ids), std::move(dists));
   }
+
+  void set_target_points(size_t n) {
+    this->target_points = n;
+    for (size_t i = 0; i < this->posting_lists.size(); i++) {
+      this->posting_lists[i]->set_n_target_points(n);
+    }
+  }
+
+  void set_tiny_cutoff(size_t n) { this->tiny_cutoff = n; }
 };
 
 #endif   // IVF_H
