@@ -342,6 +342,8 @@ struct IVF_Squared {
   }
 
   void set_tiny_cutoff(size_t n) { this->tiny_cutoff = n; }
+
+  void set_max_iter(size_t n) { max_iter = n; }
 };
 
 #endif   // IVF_H

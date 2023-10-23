@@ -20,7 +20,7 @@
 template <typename Point, typename PointRange, typename indexType>
 using cluster_struct = cluster<Point, PointRange, indexType>;
 
-#define MAX_ITERS 20
+extern size_t max_iter = 20;
 
 // using index_type = int32_t;
 
@@ -124,12 +124,14 @@ template <typename T, class Point, typename index_type>
 struct KMeansClusterer {
   size_t n_clusters = 1000;
 
-  size_t max_iters = MAX_ITERS; // Change or parametrize later. Hard-coded for now.
+  size_t max_iters; 
   size_t subsample = 50; // Subsample rate.
 
   KMeansClusterer() {}
 
-  KMeansClusterer(size_t n_clusters) : n_clusters(n_clusters) {}
+  KMeansClusterer(size_t n_clusters) : n_clusters(n_clusters) {
+    this->max_iters = max_iter;
+  }
 
   parlay::sequence<parlay::sequence<size_t>> get_clusters(parlay::sequence<size_t>& cluster_assignments) {
     auto pairs = parlay::tabulate(cluster_assignments.size(), [&] (size_t i) {
