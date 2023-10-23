@@ -236,7 +236,7 @@ struct KMeansClusterer {
       return std::make_pair(cluster_assignments[i], indices[i]);
     });
 
-    std::cout << "Num KMeans Iters:" << num_iters << std::endl;
+    std::cout << "Num KMeans Iters:" << num_iters << " on: " << num_points << " points." << std::endl;
     std::cout << "KMeansClustering Time: " << t.stop() << std::endl;
     return parlay::group_by_index(output, n_clusters);
   }
