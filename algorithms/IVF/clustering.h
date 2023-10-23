@@ -20,7 +20,7 @@
 template <typename Point, typename PointRange, typename indexType>
 using cluster_struct = cluster<Point, PointRange, indexType>;
 
-#define MAX_ITERS 1
+#define MAX_ITERS 20
 
 // using index_type = int32_t;
 
@@ -125,6 +125,7 @@ struct KMeansClusterer {
   size_t n_clusters = 1000;
 
   size_t max_iters = MAX_ITERS; // Change or parametrize later. Hard-coded for now.
+  size_t subsample = 50; // Subsample rate.
 
   KMeansClusterer() {}
 
@@ -150,9 +151,14 @@ struct KMeansClusterer {
 	}
 
   parlay::sequence<parlay::sequence<index_type>> cluster(
-     PointRange<T, Point> points, parlay::sequence<index_type> indices) {
+     PointRange<T, Point> points, parlay::sequence<index_type> input_indices) {
     parlay::internal::timer  t;
     t.start();
+
+    auto permuted_indices = parlay::random_shuffle(input_indices);
+    auto indices = parlay::tabulate(input_indices.size() / subsample, [&] (size_t i) {
+      return permuted_indices[i];
+    });
 
     size_t num_points = indices.size();
     size_t dim = points.dimension();
@@ -166,7 +172,7 @@ struct KMeansClusterer {
     // initially run HCNNGClusterer to get initial set of clusters
     auto clusters = HCNNGClusterer<Point, PointRange<T, Point>, index_type>(
                        num_points / n_clusters)
-                       .cluster(points, indices);
+                       .cluster(points, input_indices);
 
     parlay::sort(clusters, [&](parlay::sequence<index_type> a,
                                parlay::sequence<index_type> b) {
@@ -245,11 +251,28 @@ struct KMeansClusterer {
         cluster_assignments[i] = min_index;
       });
     } while (not_converged && num_iters < max_iters);
+    std::cout << "Finished running." << std::endl;
 
-    auto output = parlay::tabulate(num_points, [&](size_t i) {
-      return std::make_pair(cluster_assignments[i], indices[i]);
+    num_points = input_indices.size();
+    parlay::sequence<size_t> all_cluster_assignments =
+       parlay::sequence<size_t>::uninitialized(num_points);
+
+    parlay::parallel_for(0, num_points, [&](size_t i) {
+      double min_dist = std::numeric_limits<double>::max();
+      size_t min_index = 0;
+      for (size_t j = 0; j < n_clusters; j++) {
+        double dist = points[input_indices[i]].distance(centroids[j]);
+        if (dist < min_dist) {
+          min_dist = dist;
+          min_index = j;
+        }
+      }
+      all_cluster_assignments[i] = min_index;
     });
 
+    auto output = parlay::tabulate(num_points, [&](size_t i) {
+      return std::make_pair(all_cluster_assignments[i], input_indices[i]);
+    });
 
     std::cout << "Num KMeans Iters:" << num_iters << " on: " << num_points << " points." << std::endl;
     std::cout << "KMeansClustering Time: " << t.stop() << std::endl;

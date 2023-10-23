@@ -219,7 +219,7 @@ struct IVF_Squared {
     });
 
     size_t num_above_cutoff = parlay::reduce(above_cutoff);
-    std::cout << "Num above cutoff = " << num_above_cutoff << std::endl;
+    std::cout << "Num above cutoff = " << num_above_cutoff << " filters.n_points = " << filters.n_points << std::endl;
 		std::atomic<int> ctr = 0;
 
     parlay::parallel_for(0, filters.n_points, [&](size_t i) {
@@ -238,7 +238,7 @@ struct IVF_Squared {
            filters.row_indices.get() + filters.row_offsets[i],
            filters.row_indices.get() + filters.row_offsets[i + 1]);
       }
-    }, 1);  // run in parallel
+    }, 100000000000); // sequentially for now.
   }
 
   void fit_from_filename(std::string filename, std::string filter_filename,
