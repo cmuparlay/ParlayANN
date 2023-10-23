@@ -66,6 +66,7 @@ CUTOFF = 20_000
 CLUSTER_SIZE = 1000
 NQ = 100_000
 TARGET_POINTS = 5000
+SQ_TARGET_POINTS = 500
 
 start = time.time()
 
@@ -95,6 +96,7 @@ if NQ < 10:
     print(filters[:NQ])
 
 index.set_target_points(TARGET_POINTS)
+index.set_sq_target_points(SQ_TARGET_POINTS)
 
 neighbors, distances = index.batch_filter_search(X, filters, NQ, 10)
 
@@ -106,6 +108,7 @@ print(distances[:10, :])
 
 elapsed = time.time() - start
 print(f"Time taken: {elapsed:.2f}s")
+print(f"QPS: {NQ / elapsed:,.2f}")
 
 #print("----- Building 2 Stage Filtered IVF... -----")
 #start = time.time()

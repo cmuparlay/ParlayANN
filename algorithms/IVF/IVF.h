@@ -57,8 +57,7 @@ template <typename T, class Point>
 struct MatchingPoints {
   // target points should probably be some multiple of the cutoff for
   // constructing a posting list
-  virtual parlay::sequence<index_type> sorted_near(Point query) const = 0;
-  virtual void set_n_target_points(size_t n) = 0;
+  virtual parlay::sequence<index_type> sorted_near(Point query, int target_points) const = 0;
 };
 
 /* An "index" which just stores an array of indices to matching points.
@@ -73,11 +72,10 @@ struct ArrayIndex : MatchingPoints<T, Point> {
     this->indices = parlay::sequence<index_type>(start, end);
   }
 
-  parlay::sequence<index_type> sorted_near(Point query) const override {
+  parlay::sequence<index_type> sorted_near(Point query, int target_points) const override {
     return this->indices;   // does/should this copy?
   }
 
-  void set_n_target_points(size_t n) override {}
 };
 
 /* An extremely minimal IVF index which only returns full posting lists-worth of
@@ -101,8 +99,7 @@ struct PostingListIndex : MatchingPoints<T, Point> {
   size_t aligned_dim;
   size_t n;   // n points in the index
 
-  size_t n_target_points = 10000;   // number of points to try to return
-
+  
   template <typename Clusterer>
   PostingListIndex(PointRange<T, Point>* points, const index_type* start,
                    const index_type* end, Clusterer clusterer) {
@@ -145,9 +142,7 @@ struct PostingListIndex : MatchingPoints<T, Point> {
     }
   }
 
-  void set_n_target_points(size_t n) override { this->n_target_points = n; }
-
-  parlay::sequence<index_type> sorted_near(Point query) const override {
+  parlay::sequence<index_type> sorted_near(Point query, int target_points) const override {
     parlay::sequence<std::pair<index_type, float>> nearest_centroids =
        parlay::sequence<std::pair<index_type, float>>::uninitialized(
           this->clusters.size());
@@ -167,7 +162,7 @@ struct PostingListIndex : MatchingPoints<T, Point> {
     do {
       result.append(this->clusters[nearest_centroids[i].first]);
       i++;
-    } while (result.size() < this->n_target_points &&
+    } while (result.size() < target_points &&
              i < this->clusters.size());
 
     std::sort(result.begin(), result.end());
@@ -191,6 +186,7 @@ struct IVF_Squared {
   size_t cutoff;
   size_t target_points = 10000;   // number of points for each filter to return
   size_t tiny_cutoff = TINY_CASE_CUTOFF;   // cutoff below which we use the tiny case
+  size_t sq_target_points = 500; // number of points for each filter to return when not doing an and
 
   #ifdef COUNTERS
   // number of queries in each case
@@ -362,23 +358,23 @@ struct IVF_Squared {
         if (a_size <= this->tiny_cutoff ^ b_size <= this->tiny_cutoff) {
           if (a_size <= b_size) {
             indices = parlay::filter(
-               this->posting_lists[filter.a]->sorted_near(q),
+               this->posting_lists[filter.a]->sorted_near(q, this->target_points),
                [&](index_type i) {
                  return this->filters.bin_match(i, filter.b);
                }
             );
           } else {
             indices = parlay::filter(
-               this->posting_lists[filter.b]->sorted_near(q),
+               this->posting_lists[filter.b]->sorted_near(q, this->target_points),
                [&](index_type i) {
                  return this->filters.bin_match(i, filter.a);
                }
             );
           }
         } else {
-          indices = this->posting_lists[filter.a]->sorted_near(q);
+          indices = this->posting_lists[filter.a]->sorted_near(q, this->target_points);
           indices = join(indices,
-                         this->posting_lists[filter.b]->sorted_near(q));
+                         this->posting_lists[filter.b]->sorted_near(q, this->target_points));
         }
       } else {
         #ifdef COUNTERS
@@ -397,7 +393,7 @@ struct IVF_Squared {
 
         #endif
 
-        indices = this->posting_lists[filter.a]->sorted_near(q);
+        indices = this->posting_lists[filter.a]->sorted_near(q, this->sq_target_points);
       }
 
       #ifdef COUNTERS
@@ -447,9 +443,10 @@ struct IVF_Squared {
 
   void set_target_points(size_t n) {
     this->target_points = n;
-    for (size_t i = 0; i < this->posting_lists.size(); i++) {
-      this->posting_lists[i]->set_n_target_points(n);
-    }
+  }
+
+  void set_sq_target_points(size_t n) {
+    this->sq_target_points = n;
   }
 
   void set_tiny_cutoff(size_t n) { this->tiny_cutoff = n; }
