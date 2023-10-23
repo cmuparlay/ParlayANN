@@ -15,6 +15,19 @@ The fact that we use int32 for one of the indices and require transposes means w
 #include <utility>
 #include <stdint.h>
 
+template <class IndType, class IdType>
+void insert_into(parlay::sequence<std::pair<IndType, float>>& frontier,
+                 std::pair<IdType, float> val) {
+  long cur = frontier.size() - 1;
+  if (val.second < frontier[cur].second) {
+    frontier[cur] = val;
+  }
+  --cur;
+  while (cur >= 0 && frontier[cur].second > frontier[cur+1].second) {
+    std::swap(frontier[cur], frontier[cur+1]);
+  }
+}
+
 /* Sorted array join (with pointers)*/
 template <typename T>
 parlay::sequence<T> join(const T* a, size_t len_a, const T* b, size_t len_b){

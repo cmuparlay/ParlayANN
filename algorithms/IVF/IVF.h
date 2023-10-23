@@ -310,19 +310,7 @@ struct IVF_Squared {
         float dist = this->points[indices[j]].distance(
            q);   // compute the distance to query
         // these steps would be very slightly faster if reordered
-        if (dist <
-            frontier[knn - 1].second) {   // if it's closer than the furthest
-                                          // point in the frontier (maybe this
-                                          // should be a variable we compare to)
-          frontier.pop_back();            // remove the furthest point
-          frontier.push_back(std::make_pair(
-             indices[j], dist));   // add the new point to the frontier
-          std::sort(frontier.begin(), frontier.end(),
-                    [&](std::pair<index_type, float> a,
-                        std::pair<index_type, float> b) {
-                      return a.second < b.second;
-                    });   // sort the frontier
-        }
+        insert_into(frontier,std::make_pair(indices[j], dist));   // add the new point to the frontier
       }
 
       for (unsigned int j = 0; j < knn; j++) {
