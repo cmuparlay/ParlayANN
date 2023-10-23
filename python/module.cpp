@@ -70,36 +70,36 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
     m.def(variant.builder_name.c_str(), build_vamana_index<T, Point>, "distance_metric"_a,
           "data_file_path"_a, "index_output_path"_a, "graph_degree"_a, "beam_width"_a, "alpha"_a);
 
-    py::class_<VamanaIndex<T, Point>>(m, variant.index_name.c_str())
-        .def(py::init<std::string &, std::string &, size_t, size_t>(),
-             "index_path"_a, "data_path"_a, "num_points"_a, "dimensions"_a) //maybe these last two are unnecessary?
-        //do we want to add options like visited limit, or leave those as defaults?
-        .def("batch_search", &VamanaIndex<T, Point>::batch_search, "queries"_a, "num_queries"_a, "knn"_a,
-             "beam_width"_a)
-        .def("batch_search_from_string", &VamanaIndex<T, Point>::batch_search_from_string, "queries"_a, "num_queries"_a, "knn"_a,
-             "beam_width"_a)
-        .def("check_recall", &VamanaIndex<T, Point>::check_recall, "gFile"_a, "neighbors"_a, "k"_a);
-
-    py::class_<IVFIndex<T, Point, NaivePostingList<T, Point>>>(m, variant.ivf_name.c_str())
-        .def(py::init())
-        .def("fit", &IVFIndex<T, Point, NaivePostingList<T, Point>>::fit, "points"_a, "cluster_size"_a)
-        .def("fit_from_filename", &IVFIndex<T, Point, NaivePostingList<T, Point>>::fit_from_filename, "filename"_a, "cluster_size"_a)
-        .def("batch_search", &IVFIndex<T, Point, NaivePostingList<T, Point>>::batch_search, "queries"_a, "num_queries"_a, "knn"_a, "n_lists"_a)
-        .def("print_stats", &IVFIndex<T, Point, NaivePostingList<T, Point>>::print_stats);
-
-    py::class_<FilteredIVFIndex<T, Point, filtered_posting_list_t<T, Point>>>(m, ("Filtered" + variant.ivf_name).c_str())
-        .def(py::init())
-        .def("fit", &FilteredIVFIndex<T, Point, filtered_posting_list_t<T, Point>>::fit, "points"_a, "filters"_a, "cluster_size"_a)
-        .def("fit_from_filename", &FilteredIVFIndex<T, Point, filtered_posting_list_t<T, Point>>::fit_from_filename, "filename"_a, "cluster_size"_a, "filters"_a)
-        .def("batch_search", &FilteredIVFIndex<T, Point, filtered_posting_list_t<T, Point>>::batch_filter_search, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a, "n_lists"_a)
-        .def("print_stats", &FilteredIVFIndex<T, Point, filtered_posting_list_t<T, Point>>::print_stats);
-    
-    py::class_<FilteredIVF2Stage<T, Point, filtered_posting_list_t<T, Point>>>(m, ("Filtered2Stage" + variant.ivf_name).c_str())
-        .def(py::init())
-        .def("fit", &FilteredIVF2Stage<T, Point, filtered_posting_list_t<T, Point>>::fit, "points"_a, "filters"_a, "cluster_size"_a)
-        .def("fit_from_filename", &FilteredIVF2Stage<T, Point, filtered_posting_list_t<T, Point>>::fit_from_filename, "filename"_a, "cluster_size"_a, "filters"_a) // this is wrong, but somehow the code has worked???
-        .def("batch_search", &FilteredIVF2Stage<T, Point, filtered_posting_list_t<T, Point>>::batch_filter_search, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a, "n_lists"_a, "threshold"_a)
-        .def("print_stats", &FilteredIVF2Stage<T, Point, filtered_posting_list_t<T, Point>>::print_stats);
+//    py::class_<VamanaIndex<T, Point>>(m, variant.index_name.c_str())
+//        .def(py::init<std::string &, std::string &, size_t, size_t>(),
+//             "index_path"_a, "data_path"_a, "num_points"_a, "dimensions"_a) //maybe these last two are unnecessary?
+//        //do we want to add options like visited limit, or leave those as defaults?
+//        .def("batch_search", &VamanaIndex<T, Point>::batch_search, "queries"_a, "num_queries"_a, "knn"_a,
+//             "beam_width"_a)
+//        .def("batch_search_from_string", &VamanaIndex<T, Point>::batch_search_from_string, "queries"_a, "num_queries"_a, "knn"_a,
+//             "beam_width"_a)
+//        .def("check_recall", &VamanaIndex<T, Point>::check_recall, "gFile"_a, "neighbors"_a, "k"_a);
+//
+//    py::class_<IVFIndex<T, Point, NaivePostingList<T, Point>>>(m, variant.ivf_name.c_str())
+//        .def(py::init())
+//        .def("fit", &IVFIndex<T, Point, NaivePostingList<T, Point>>::fit, "points"_a, "cluster_size"_a)
+//        .def("fit_from_filename", &IVFIndex<T, Point, NaivePostingList<T, Point>>::fit_from_filename, "filename"_a, "cluster_size"_a)
+//        .def("batch_search", &IVFIndex<T, Point, NaivePostingList<T, Point>>::batch_search, "queries"_a, "num_queries"_a, "knn"_a, "n_lists"_a)
+//        .def("print_stats", &IVFIndex<T, Point, NaivePostingList<T, Point>>::print_stats);
+//
+//    py::class_<FilteredIVFIndex<T, Point, filtered_posting_list_t<T, Point>>>(m, ("Filtered" + variant.ivf_name).c_str())
+//        .def(py::init())
+//        .def("fit", &FilteredIVFIndex<T, Point, filtered_posting_list_t<T, Point>>::fit, "points"_a, "filters"_a, "cluster_size"_a)
+//        .def("fit_from_filename", &FilteredIVFIndex<T, Point, filtered_posting_list_t<T, Point>>::fit_from_filename, "filename"_a, "cluster_size"_a, "filters"_a)
+//        .def("batch_search", &FilteredIVFIndex<T, Point, filtered_posting_list_t<T, Point>>::batch_filter_search, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a, "n_lists"_a)
+//        .def("print_stats", &FilteredIVFIndex<T, Point, filtered_posting_list_t<T, Point>>::print_stats);
+//    
+//    py::class_<FilteredIVF2Stage<T, Point, filtered_posting_list_t<T, Point>>>(m, ("Filtered2Stage" + variant.ivf_name).c_str())
+//        .def(py::init())
+//        .def("fit", &FilteredIVF2Stage<T, Point, filtered_posting_list_t<T, Point>>::fit, "points"_a, "filters"_a, "cluster_size"_a)
+//        .def("fit_from_filename", &FilteredIVF2Stage<T, Point, filtered_posting_list_t<T, Point>>::fit_from_filename, "filename"_a, "cluster_size"_a, "filters"_a) // this is wrong, but somehow the code has worked???
+//        .def("batch_search", &FilteredIVF2Stage<T, Point, filtered_posting_list_t<T, Point>>::batch_filter_search, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a, "n_lists"_a, "threshold"_a)
+//        .def("print_stats", &FilteredIVF2Stage<T, Point, filtered_posting_list_t<T, Point>>::print_stats);
 
     py::class_<IVF_Squared<T, Point>>(m, ("Squared" + variant.ivf_name).c_str())
         .def(py::init())

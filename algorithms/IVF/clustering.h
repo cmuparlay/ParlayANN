@@ -128,6 +128,8 @@ struct KMeansClusterer {
 
   parlay::sequence<parlay::sequence<index_type>> cluster(
      PointRange<T, Point> points, parlay::sequence<index_type> indices) {
+    parlay::internal::timer  t;
+    t.start();
 
     size_t num_points = indices.size();
     size_t dim = points.dimension();
@@ -180,7 +182,9 @@ struct KMeansClusterer {
 
     // now run k-means
     bool not_converged;
+    size_t num_iters = 0;
     do {
+      num_iters++;
       not_converged = false;
 
       // compute new centroids
@@ -220,6 +224,8 @@ struct KMeansClusterer {
       return std::make_pair(cluster_assignments[i], indices[i]);
     });
 
+    std::cout << "Num KMeans Iters:" << num_iters << std::endl;
+    std::cout << "KMeansClustering Time: " << t.stop() << std::endl;
     return parlay::group_by_index(output, n_clusters);
   }
 };
