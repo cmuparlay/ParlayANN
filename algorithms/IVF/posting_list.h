@@ -72,8 +72,16 @@ struct NaivePostingList {
     float farthest = result[result.size() - 1].second;
     for (unsigned int i = 0; i < indices.size(); i++) {
       float dist = points[indices[i]].distance(query);
-      insert_into(result, std::make_pair(indices[i], dist));
-      farthest = result[result.size() - 1].second;
+      if (dist < farthest) {
+        result.push_back(std::make_pair(indices[i], dist));
+        std::sort(result.begin(), result.end(),
+                  [](std::pair<unsigned int, float> a,
+                     std::pair<unsigned int, float> b) {
+                    return a.second < b.second;
+                  });
+        result.pop_back();
+        farthest = result[result.size() - 1].second;
+      }
     }
   }
 
@@ -150,8 +158,16 @@ class FilteredPostingList : public NaivePostingList<T, Point> {
     float farthest = result[result.size() - 1].second;
     for (unsigned int i = 0; i < matches.size(); i++) {
       float dist = this->points[matches[i]].distance(query);
-      insert_into(result, std::make_pair(matches[i], dist));
-      farthest = result[result.size() - 1].second;
+      if (dist < farthest) {
+        result.push_back(std::make_pair(matches[i], dist));
+        std::sort(result.begin(), result.end(),
+                  [](std::pair<unsigned int, float> a,
+                     std::pair<unsigned int, float> b) {
+                    return a.second < b.second;
+                  });
+        result.pop_back();
+        farthest = result[result.size() - 1].second;
+      }
     }
   }
 };
