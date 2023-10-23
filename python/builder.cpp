@@ -41,6 +41,14 @@ void build_vamana_index(std::string metric, std::string &vector_bin_path, std::s
 
     //use file parsers to create Point object
     PointRange<T, Point> Points = PointRange<T, Point>(vector_bin_path.data());
+
+    if(compressed_vectors_path != ""){
+        //compute quantization and save
+        int bits = 10;
+        using QPR = QuantizedPointRange<T2I_Point, uint16_t>;
+        QPR Quantized_Points = QPR(Points, bits);
+        Quantized_Points.save(compressed_vectors_path.data());
+    }
     
     //use max degree info to create Graph object
     Graph<unsigned int> G = Graph<unsigned int>(graph_degree, Points.size());
@@ -72,14 +80,6 @@ void build_vamana_index(std::string metric, std::string &vector_bin_path, std::s
         G_S.save(secondary_output_path.data());
         groundTruth<unsigned int> GT(neighbors_in_G);
         GT.save(secondary_gt_path.data());
-    }
-
-    if(compressed_vectors_path != ""){
-        //compute quantization and save
-        int bits = 10;
-        using QPR = QuantizedPointRange<T2I_Point, uint16_t>;
-        QPR Quantized_Points = QPR(Points, bits);
-        Quantized_Points.save(compressed_vectors_path.data());
     }
 
     //save the graph object
