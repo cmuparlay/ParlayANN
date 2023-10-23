@@ -135,6 +135,18 @@ struct KMeansClusterer {
     return parlay::group_by_index(pairs, n_clusters);
   }
 
+	void cluster_stats(parlay::sequence<parlay::sequence<index_type>>& clusters) {
+		auto sizes = parlay::delayed_seq<size_t>(clusters.size(), [&] (size_t i) {
+			return clusters[i].size();
+		});
+		size_t num_points = parlay::reduce(sizes);
+		size_t num_clusters = clusters.size();
+		size_t min_size = parlay::reduce(sizes, parlay::minm<size_t>());
+		size_t max_size = parlay::reduce(sizes, parlay::maxm<size_t>());
+		size_t avg_size = num_points / num_clusters;
+		std::cout << "ClusterStats: num_points: " << num_points << " num_clusters: " << num_clusters << " Min: " << min_size << " Max: " << max_size << " Avg: " << avg_size << std::endl;
+	}
+
   parlay::sequence<parlay::sequence<index_type>> cluster(
      PointRange<T, Point> points, parlay::sequence<index_type> indices) {
     parlay::internal::timer  t;
@@ -236,9 +248,12 @@ struct KMeansClusterer {
       return std::make_pair(cluster_assignments[i], indices[i]);
     });
 
+
     std::cout << "Num KMeans Iters:" << num_iters << " on: " << num_points << " points." << std::endl;
     std::cout << "KMeansClustering Time: " << t.stop() << std::endl;
-    return parlay::group_by_index(output, n_clusters);
+    auto ret_clusters = parlay::group_by_index(output, n_clusters);
+		cluster_stats(ret_clusters);
+		return ret_clusters;
   }
 };
 
