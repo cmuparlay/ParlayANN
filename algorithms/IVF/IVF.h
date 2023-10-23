@@ -257,7 +257,7 @@ struct IVF_Squared {
 
     size_t num_above_cutoff = parlay::reduce(above_cutoff);
     std::cout << "Num above cutoff = " << num_above_cutoff << " filters.n_points = " << filters.n_points << std::endl;
-		// std::atomic<int> ctr = 0;
+		std::atomic<int> ctr = 0;
 
     parlay::parallel_for(0, filters.n_points, [&](size_t i) {
       if (filters.point_count(i) >
@@ -268,8 +268,10 @@ struct IVF_Squared {
            filters.row_indices.get() + filters.row_offsets[i + 1],
            KMeansClusterer<T, Point, index_type>(filters.point_count(i) /
                                                  cluster_size));
-				// ctr += 1;
-				// std::cout << "Finished: " << ctr << " calls." << std::endl;
+				ctr += 1;
+				if (ctr % 100 == 0) {
+          std::cout << "IVF^2: " << ctr << " / " << num_above_cutoff << " PostingListIndex objects created" << std::endl;
+        }
       } else {
         this->posting_lists[i] = std::make_unique<ArrayIndex<T, Point>>(
            filters.row_indices.get() + filters.row_offsets[i],
@@ -485,12 +487,12 @@ struct IVF_Squared {
     #ifdef COUNTERS
 
     std::cout << "Case       \tqueries\tavg. dc\tavg. time\ttotal dc\ttotal time" << std::endl;
-    std::cout << "largexlarge\t" << largexlarge.total() << "\t" << largexlarge_dcmp.total() / std::max(largexlarge.total(), (size_t) 1) << "\t" << largexlarge_time.total() / std::max(largexlarge.total(), (size_t) 1) << "\t" << largexlarge_dcmp.total() << "\t" << largexlarge_time.total() << std::endl;
-    std::cout << "largexsmall\t" << largexsmall.total() << "\t" << largexsmall_dcmp.total() / std::max(largexsmall.total(), (size_t) 1) << "\t" << largexsmall_time.total() / std::max(largexsmall.total(), (size_t) 1) << "\t" << largexsmall_dcmp.total() << "\t" << largexsmall_time.total() << std::endl;
-    std::cout << "smallxsmall\t" << smallxsmall.total() << "\t" << smallxsmall_dcmp.total() / std::max(smallxsmall.total(), (size_t) 1) << "\t" << smallxsmall_time.total() / std::max(smallxsmall.total(), (size_t) 1) << "\t" << smallxsmall_dcmp.total() << "\t" << smallxsmall_time.total() << std::endl;
-    std::cout << "tinyxlarge \t" << tinyxlarge.total() << "\t" << tinyxlarge_dcmp.total() / std::max(tinyxlarge.total(), (size_t) 1) << "\t" << tinyxlarge_time.total() / std::max(tinyxlarge.total(), (size_t) 1) << "\t" << tinyxlarge_dcmp.total() << "\t" << tinyxlarge_time.total() << std::endl;
-    std::cout << "large      \t" << large.total() << "\t" << large_dcmp.total() / std::max(large.total(), (size_t) 1) << "\t" << large_time.total() / std::max(large.total(), (size_t) 1) << "\t" << large_dcmp.total() << "\t" << large_time.total() << std::endl;
-    std::cout << "small      \t" << small.total() << "\t" << small_dcmp.total() / std::max(small.total(), (size_t) 1) << "\t" << small_time.total() / std::max(small.total(), (size_t) 1) << "\t" << small_dcmp.total() << "\t" << small_time.total() << std::endl;
+    std::cout << "largexlarge\t" << largexlarge.total() << "\t" << largexlarge_dcmp.total() / std::max(largexlarge.total(), (size_t) 1) << "\t" << largexlarge_time.total() / std::max(largexlarge.total(), (size_t) 1) << "\t" << largexlarge_dcmp.total() << "  \t" << largexlarge_time.total() << std::endl;
+    std::cout << "largexsmall\t" << largexsmall.total() << "\t" << largexsmall_dcmp.total() / std::max(largexsmall.total(), (size_t) 1) << "\t" << largexsmall_time.total() / std::max(largexsmall.total(), (size_t) 1) << "\t" << largexsmall_dcmp.total() << "  \t" << largexsmall_time.total() << std::endl;
+    std::cout << "smallxsmall\t" << smallxsmall.total() << "\t" << smallxsmall_dcmp.total() / std::max(smallxsmall.total(), (size_t) 1) << "\t" << smallxsmall_time.total() / std::max(smallxsmall.total(), (size_t) 1) << "\t" << smallxsmall_dcmp.total() << "  \t" << smallxsmall_time.total() << std::endl;
+    std::cout << "tinyxlarge \t" << tinyxlarge.total() << "\t" << tinyxlarge_dcmp.total() / std::max(tinyxlarge.total(), (size_t) 1) << "\t" << tinyxlarge_time.total() / std::max(tinyxlarge.total(), (size_t) 1) << "\t" << tinyxlarge_dcmp.total() << "  \t" << tinyxlarge_time.total() << std::endl;
+    std::cout << "large      \t" << large.total() << "\t" << large_dcmp.total() / std::max(large.total(), (size_t) 1) << "\t" << large_time.total() / std::max(large.total(), (size_t) 1) << "\t" << large_dcmp.total() << "  \t" << large_time.total() << std::endl;
+    std::cout << "small      \t" << small.total() << "\t" << small_dcmp.total() / std::max(small.total(), (size_t) 1) << "\t" << small_time.total() / std::max(small.total(), (size_t) 1) << "\t" << small_dcmp.total() << "  \t" << small_time.total() << std::endl;
     #endif
   }
 };
