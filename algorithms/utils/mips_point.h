@@ -77,7 +77,7 @@
 template<typename T>
 struct Mips_Point {
   using distanceType = float; 
-  template<class C> friend struct Quantized_Mips_Point;
+  template<class C, class D> friend struct Quantized_Mips_Point;
   friend struct T2I_Point;
   
   static distanceType d_min() {return -std::numeric_limits<float>::max();}
@@ -116,9 +116,9 @@ private:
   long id_;
 };
 
-template<typename T>
+template<typename T, typename U>
 struct Quantized_Mips_Point{
-    using distanceType = float; 
+  using distanceType = float; 
   
   static distanceType d_min() {return -std::numeric_limits<float>::max();}
   static bool is_metric() {return false;}
@@ -126,17 +126,13 @@ struct Quantized_Mips_Point{
   T operator [] (long j) {if(j >= quantized_d) abort(); return *(values+j);}
 
 
-  float distance(Mips_Point<float> x) {
-    return mips_distance(decode(this->values, d, quantized_d, max_coord, min_coord, bits).begin(), x.values, d);
+  float distance(Mips_Point<T> x) {
+    return mips_distance(decode<T, U>(this->values, d, quantized_d, max_coord, min_coord, bits).begin(), x.values, d);
   }
 
-  float distance(Quantized_Mips_Point<T> x){
-    return mips_distance(decode(this->values, d, quantized_d, max_coord, min_coord, bits).begin(), decode<T>(x.values, d, quantized_d, max_coord, min_coord, bits).begin(), d);
+  float distance(Quantized_Mips_Point<T, U> x){
+    return mips_distance(decode<T, U>(this->values, d, quantized_d, max_coord, min_coord, bits).begin(), decode<T, U>(x.values, d, quantized_d, max_coord, min_coord, bits).begin(), d);
   }
-
-  //hack for compatibility
-  float distance(Mips_Point<uint8_t> x) {return 0;}
-  float distance(Mips_Point<int8_t> x) {return 0;}
 
   void prefetch() {
     int l = (aligned_d * sizeof(T))/64;
@@ -150,7 +146,7 @@ struct Quantized_Mips_Point{
     : values(values), d(d), quantized_d(qd), aligned_d(ad), id_(id), max_coord(max_coord), min_coord(min_coord), bits(bits) {;
     }
 
-  bool operator==(Quantized_Mips_Point<T> q){
+  bool operator==(Quantized_Mips_Point<T, U> q){
     for (int i = 0; i < d; i++) {
       if (values[i] != q.values[i]) {
         return false;

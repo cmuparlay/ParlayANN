@@ -12,5 +12,8 @@ crop : crop.cpp
 random_sample : random_sample.cpp
 	$(CC) $(CFLAGS) -o random_sample random_sample.cpp $(LFLAGS) 
 
+quantize : quantize.cpp
+	$(CC) $(CFLAGS) -o quantize quantize.cpp $(LFLAGS) 
+
 intersect_nbh : intersect_nbh.cpp
 	$(CC) $(CFLAGS) -o intersect_nbh intersect_nbh.cpp $(LFLAGS) 

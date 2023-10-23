@@ -30,6 +30,7 @@
 #include "parlay/internal/file_map.h"
 #include "../bench/parse_command_line.h"
 #include "NSGDist.h"
+#include "scalar_quantize.h"
 
 #include "../bench/parse_command_line.h"
 #include "types.h"
@@ -67,6 +68,7 @@ float euclidian_distance(const float *p, const float *q, unsigned d) {
 template<typename T>
 struct Euclidian_Point {
   using distanceType = float;
+  template<class C, class D> friend struct Quantized_Euclidian_Point;
 
   static distanceType d_min() {return 0;}
   static bool is_metric() {return true;}
@@ -101,5 +103,53 @@ private:
   unsigned int d;
   unsigned int aligned_d;
   long id_;
+};
+
+template<typename T, typename U>
+struct Quantized_Euclidian_Point{
+  using distanceType = float; 
+  
+  static distanceType d_min() {return -std::numeric_limits<float>::max();}
+  static bool is_metric() {return false;}
+  
+  T operator [] (long j) {if(j >= quantized_d) abort(); return *(values+j);}
+
+  float distance(Quantized_Euclidian_Point<T, U> x){
+    return euclidian_distance(decode<T, U>(this->values, d, quantized_d, max_coord, min_coord, bits).begin(), decode<T, U>(x.values, d, quantized_d, max_coord, min_coord, bits).begin(), d);
+  }
+
+  float distance(Euclidian_Point<U> x) {return euclidian_distance(decode<T, U>(this->values, d, quantized_d, max_coord, min_coord, bits).begin(), x.values, d);}
+
+  void prefetch() {
+    int l = (aligned_d * sizeof(T))/64;
+    for (int i=0; i < l; i++)
+      __builtin_prefetch((char*) values + i* 64);
+  }
+
+  long id() {return id_;}
+
+  Quantized_Euclidian_Point(const T* values, unsigned int d, unsigned int qd, unsigned int ad, long id, float max_coord, float min_coord, int bits)
+    : values(values), d(d), quantized_d(qd), aligned_d(ad), id_(id), max_coord(max_coord), min_coord(min_coord), bits(bits) {;
+    }
+
+  bool operator==(Quantized_Euclidian_Point<T, U> q){
+    for (int i = 0; i < d; i++) {
+      if (values[i] != q.values[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+
+private:
+  const T* values;
+  unsigned int d;
+  unsigned int aligned_d;
+  unsigned int quantized_d;
+  long id_;
+  float min_coord;
+  float max_coord;
+  int bits;
 };
 

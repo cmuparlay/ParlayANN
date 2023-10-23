@@ -112,8 +112,8 @@ parlay::sequence<T> unpack(parlay::sequence<T> to_unpack, int bits, int d){
 template<typename PointRange, typename Point, typename T>
 std::pair<parlay::sequence<T>, std::pair<float, float>> scalar_quantize_float_coarse(PointRange &Points, int bits, int qd){
     if(std::ceil(bits/8) > sizeof(T)) abort();
-    float min_coord = std::numeric_limits<float>::max();
-    float max_coord = -std::numeric_limits<float>::min();
+    float min_coord = std::numeric_limits<T>::max();
+    float max_coord = -std::numeric_limits<T>::min();
     for(long i=0; i<Points.dimension(); i++){
         auto vals = parlay::tabulate(Points.size(), [&] (size_t j) {
             return (Points[j])[i];
@@ -123,20 +123,22 @@ std::pair<parlay::sequence<T>, std::pair<float, float>> scalar_quantize_float_co
         if(vals[vals.size()-1] > max_coord) max_coord = vals[vals.size()-1];
     }
     std::cout << "Maximum coord: " << max_coord << ", Min coord: " << min_coord << std::endl;
-    T maxval = static_cast<T>((((size_t) 1) << bits)-1);
+    float maxval = static_cast<T>((((size_t) 1) << bits)-1);
     std::cout << "Max val: " << maxval << std::endl;
     int d = Points.dimension();
     auto quantized_data = parlay::flatten(parlay::tabulate(Points.size(), [&] (size_t i){
         parlay::sequence<T> quantized_vals = parlay::tabulate(Points.dimension(), [&] (size_t j){
-            return static_cast<T>(floor(maxval * (Points[i][j] - min_coord)/(max_coord-min_coord)));
+            return static_cast<T>(floor(maxval * ((float) Points[i][j] - min_coord)/(max_coord-min_coord)));
         });
         return pack<T>(quantized_vals, bits, qd);
-        // return quantized_vals;
     }));
-    return std::make_pair(quantized_data, std::make_pair(max_coord, min_coord));
+    std::cout << "Finished quantization" << std::endl;
+    return std::make_pair(std::move(quantized_data), std::make_pair(max_coord, min_coord));
 }
 
-template<typename T>
+//T is type of quantized vals
+//U is type of decoded vals
+template<typename T, typename U>
 parlay::sequence<float> decode(const T* vals, unsigned int d, unsigned int qd, float max_coord, float min_coord, int bits){
     parlay::sequence<T> unpacked = unpack<T>(parlay::tabulate(qd, [&] (size_t i){return vals[i];}), bits, d);
     parlay::sequence<float> decoded(d);
@@ -144,7 +146,7 @@ parlay::sequence<float> decode(const T* vals, unsigned int d, unsigned int qd, f
     float delta = max_coord - min_coord;
     float mult = delta/maxval;
     for(int i=0; i<d; i++){
-        decoded[i] = static_cast<float>(unpacked[i])*mult + min_coord;
+        decoded[i] = static_cast<U>(static_cast<float>(unpacked[i])*mult + min_coord);
     }
     return decoded;
 }
