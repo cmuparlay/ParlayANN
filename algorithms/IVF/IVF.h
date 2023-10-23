@@ -36,7 +36,9 @@ struct IVFIndex {
   size_t dim;
   size_t aligned_dim;
 
-  IVFIndex() {}
+  IVFIndex() {
+    std::cout << "===Running IVF Index" << std::endl;
+  }
 
   // IVFIndex(PointRange<T, Point> points) : points(points) {}
 
@@ -193,7 +195,9 @@ template <typename T, typename Point, typename PostingList>
 struct FilteredIVFIndex : IVFIndex<T, Point, PostingList> {
   csr_filters filters;
 
-  FilteredIVFIndex() {}
+  FilteredIVFIndex() {
+    std::cout << "===Running FilteredIVFIndex" << std::endl;
+  }
 
   void fit(PointRange<T, Point> points, csr_filters& filters,
            size_t cluster_size = 1000) {
@@ -325,7 +329,9 @@ struct FilteredIVF2Stage {
   std::unique_ptr<int32_t[]>
      filter_counts;   // can be cheaply computed with transposed filters
 
-  FilteredIVF2Stage() {}
+  FilteredIVF2Stage() {
+    std::cout << "===Running FilteredIVF2Stage" << std::endl;
+  }
 
   void fit(PointRange<T, Point> points, csr_filters& filters,
            size_t cluster_size = 1000) {
@@ -744,6 +750,8 @@ struct PostingListIndex : MatchingPoints<T, Point> {
 template <typename T, typename Point>
 struct IVF_Squared {
   PointRange<T, Point> points;   // hosting here for posting lists to use
+  // TODO: uncomment the below;
+  // This could be a hash-table per CSR.
   // csr_filters filters; // probably not actually needed after construction
   parlay::sequence<std::unique_ptr<MatchingPoints<T, Point>>>
      posting_lists;   // array of posting lists where indices correspond to
@@ -751,10 +759,23 @@ struct IVF_Squared {
 
   size_t target_points = 10000;   // number of points for each filter to return
 
-  IVF_Squared() {}
+  IVF_Squared() {
+    std::cout << "===Running IVF_Squared" << std::endl;
+  }
 
+  /*
+   * Creates a sequence of posting lists; MatchingPoints pointers.
+   * - n_points here is the number of filters (need to refactor this).
+   * This happens at build time, but it's important for queries.
+   * If a filter is above the cutoff, it gets an array index,
+   * otherwise it gets an array that's "global" (just stores all
+   * points that match that filter).
+   *
+   * Later, in batch_filter_search 
+   * */
   void fit(PointRange<T, Point> points, csr_filters& filters,
            size_t cutoff = 10000, size_t cluster_size = 1000) {
+    // TODO: this->filters = filters
     filters.transpose_inplace();
     this->points = points;
     this->posting_lists =
@@ -815,6 +836,18 @@ struct IVF_Squared {
 
       parlay::sequence<index_type> indices;
 
+      // TODO: optimize for the case where one is very small, the
+      // other requires checking the IVF. We can just brute-force
+      // this case.
+      // We can get perfect recall for this case, but we currently
+      // don't, since it depends on the id popping up in the join,
+      // which it could not.
+
+      // We may want two different cutoffs for query / build.
+
+      // Notice that this code doesn't care about the cutoff.
+      // No distance comparisons yet other than looking at the
+      // centroids.
       if (filter.is_and()) {
         indices = join(this->posting_lists[filter.a]->sorted_near(q),
                        this->posting_lists[filter.b]->sorted_near(q));
