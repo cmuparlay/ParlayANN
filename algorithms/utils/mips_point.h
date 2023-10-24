@@ -126,7 +126,7 @@ struct Quantized_Mips_Point{
   T operator [] (long j) {if(j >= quantized_d) abort(); return *(values+j);}
 
 
-  float distance(Mips_Point<T> x) {
+  float distance(Mips_Point<U> x) {
     return mips_distance(decode<T, U>(this->values, d, quantized_d, max_coord, min_coord, bits).begin(), x.values, d);
   }
 
