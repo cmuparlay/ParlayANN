@@ -66,7 +66,8 @@ CUTOFF = 20_000
 CLUSTER_SIZE = 1000
 NQ = 100_000
 TARGET_POINTS = 5000
-SQ_TARGET_POINTS = 500
+SQ_TARGET_POINTS = 5000
+TINY_CUTOFF = 1000
 
 start = time.time()
 
@@ -97,14 +98,15 @@ if NQ < 10:
 
 index.set_target_points(TARGET_POINTS)
 index.set_sq_target_points(SQ_TARGET_POINTS)
+index.set_tiny_cutoff(TINY_CUTOFF)
 
 neighbors, distances = index.batch_filter_search(X, filters, NQ, 10)
 
 index.print_stats()
 
-print(neighbors.shape)
-print(neighbors[:10, :])
-print(distances[:10, :])
+# print(neighbors.shape)
+# print(neighbors[:10, :])
+# print(distances[:10, :])
 
 elapsed = time.time() - start
 print(f"Time taken: {elapsed:.2f}s")
