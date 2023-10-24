@@ -453,7 +453,7 @@ struct IVF_Squared {
 
   void set_max_iter(size_t n) { max_iter = n; }
 
-  void reset() {
+  void reset() const {
     #ifdef COUNTERS
 
     largexlarge.reset();
@@ -480,7 +480,7 @@ struct IVF_Squared {
     #endif
   }
 
-  void print_stats() {
+  void print_stats() const {
     #ifdef COUNTERS
 
     std::cout << "Case       \tqueries\tavg. dc\tavg. time\ttotal dc\ttotal time\tQPS on 8c" << std::endl;
