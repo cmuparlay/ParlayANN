@@ -115,7 +115,7 @@ struct VamanaIndex{
             //search with quantized distances
             std::pair<parlay::sequence<pid>, parlay::sequence<pid>> pairElts;
             if(Quantized_Points.size() > 0){
-                pairElts = (beam_search<Point, QPR, unsigned int>(q, G, Points, start_points, QP)).first;
+                pairElts = (beam_search<Point, PointRange<T, Point>, unsigned int>(q, G, Points, start_points, QP)).first;
                 //rerank
                 auto [frontier, visited] = pairElts;
                 auto less = [&] (pid a, pid b) {return a.second < b.second;};
