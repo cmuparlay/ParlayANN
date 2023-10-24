@@ -55,7 +55,7 @@ struct VamanaIndex{
                 std::string &index_path, std::string& secondary_index_path, std::string& secondary_gt_path, 
                 size_t num_points, size_t dimensions){
         G = Graph<unsigned int>(index_path.data());
-        Points = PointRange<T, Point>(data_path.data());
+        // Points = PointRange<T, Point>(data_path.data());
         if(compressed_vectors_path != ""){ 
             Quantized_Points = QPR(compressed_vectors_path.data());
         }
@@ -115,20 +115,20 @@ struct VamanaIndex{
             //search with quantized distances
             std::pair<parlay::sequence<pid>, parlay::sequence<pid>> pairElts;
             if(Quantized_Points.size() > 0){
-                pairElts = (beam_search<Point, PointRange<T, Point>, unsigned int>(q, G, Points, start_points, QP)).first;
+                pairElts = (beam_search<Point, QPR, unsigned int>(q, G, Quantized_Points, start_points, QP)).first;
                 //rerank
                 auto [frontier, visited] = pairElts;
-                auto less = [&] (pid a, pid b) {return a.second < b.second;};
-                int sort_range = std::min<int>(2*QP.k, frontier.size());
-                auto reranked_points = parlay::tabulate(sort_range, [&] (size_t j){
-                    unsigned int index = frontier[j].first;
-                    float dist = q.distance(Points[index]);
-                    return std::make_pair(index, dist);
-                });
-                std::sort(reranked_points.begin(), reranked_points.end(), less);
+                // auto less = [&] (pid a, pid b) {return a.second < b.second;};
+                // int sort_range = std::min<int>(2*QP.k, frontier.size());
+                // auto reranked_points = parlay::tabulate(sort_range, [&] (size_t j){
+                //     unsigned int index = frontier[j].first;
+                //     float dist = q.distance(Points[index]);
+                //     return std::make_pair(index, dist);
+                // });
+                // std::sort(reranked_points.begin(), reranked_points.end(), less);
                 for(int j=0; j<knn; j++){
-                    ids.mutable_data(i)[j] = reranked_points[j].first;
-                    dists.mutable_data(i)[j] = reranked_points[j].second;
+                    ids.mutable_data(i)[j] = frontier[j].first;
+                    dists.mutable_data(i)[j] = frontier[j].second;
                 }
             } else {
                 pairElts = (beam_search<Point, PointRange<T, Point>, unsigned int>(q, G, Points, start_points, QP)).first;
