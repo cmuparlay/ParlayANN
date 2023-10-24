@@ -336,12 +336,22 @@ struct QuantizedPointRange{
                     << std::endl;
         parlay::sequence<unsigned int> preamble = {static_cast<unsigned int>(n), dims, quantized_dims, static_cast<unsigned int>(bits)};
         parlay::sequence<float> quantization_info = {max_coord, min_coord};
-        auto vals = parlay::tabulate(n, [&] (size_t i){
-            return parlay::tabulate(quantized_dims, [&] (size_t j){
-                return values[aligned_dims*i+j];
+        parlay::sequence<T> data(n*quantized_dims);
+        size_t BLOCK_SIZE = 1000000;
+        size_t index = 0; 
+        while(index < n){
+            size_t floor = index;
+            size_t ceiling = index+BLOCK_SIZE <= n ? index+BLOCK_SIZE : n;
+            parlay::parallel_for(floor, ceiling, [&] (size_t i){
+                auto to_write = parlay::tabulate(quantized_dims, [&] (size_t j){
+                    return values[aligned_dims*i+j];
+                });
+                for(size_t j=0; j<quantized_dims; j++){
+                    data[i*quantized_dims+j] = to_write[j];
+                }
             });
-        });
-        parlay::sequence<T> data = parlay::flatten(vals);
+            index = ceiling;
+        }
         std::ofstream writer;
         writer.open(save_path, std::ios::binary | std::ios::out);
         writer.write((char*)preamble.begin(), 4 * sizeof(unsigned int));
