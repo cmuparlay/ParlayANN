@@ -126,12 +126,25 @@ std::pair<parlay::sequence<T>, std::pair<float, float>> scalar_quantize_float_co
     float maxval = static_cast<T>((((size_t) 1) << bits)-1);
     std::cout << "Max val: " << maxval << std::endl;
     int d = Points.dimension();
-    auto quantized_data = parlay::flatten(parlay::tabulate(Points.size(), [&] (size_t i){
-        parlay::sequence<T> quantized_vals = parlay::tabulate(Points.dimension(), [&] (size_t j){
-            return static_cast<T>(floor(maxval * ((float) Points[i][j] - min_coord)/(max_coord-min_coord)));
+    parlay::sequence<T> quantized_data = parlay::sequence<T>(qd*Points.size());
+    size_t BLOCK_SIZE = 1000000;
+    size_t index = 0;
+    size_t n = Points.size();
+    while(index<n){
+        size_t fl = index;
+        size_t ceiling = index+BLOCK_SIZE <= n ? index+BLOCK_SIZE : n;
+        parlay::parallel_for(fl, ceiling, [&] (size_t i){
+            parlay::sequence<T> quantized_vals = parlay::tabulate(Points.dimension(), [&] (size_t j){
+                T ex = static_cast<T>(floor(maxval * ((float) Points[i][j] - min_coord)/(max_coord-min_coord)));
+                return ex;
+            });
+            parlay::sequence<T> packed_vals = pack<T>(quantized_vals, bits, qd);
+            for(size_t j=0; j<packed_vals.size(); j++){
+                quantized_data[i*qd+j] = packed_vals[j];
+            }
         });
-        return pack<T>(quantized_vals, bits, qd);
-    }));
+        index = ceiling;
+    }
     std::cout << "Finished quantization" << std::endl;
     return std::make_pair(std::move(quantized_data), std::make_pair(max_coord, min_coord));
 }
