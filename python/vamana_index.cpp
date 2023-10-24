@@ -53,13 +53,13 @@ struct VamanaIndex{
 
     VamanaIndex(std::string &data_path, std::string &compressed_vectors_path, std::string& sample_path, 
                 std::string &index_path, std::string& secondary_index_path, std::string& secondary_gt_path, 
-                size_t num_points, size_t dimensions){
-        G = Graph<unsigned int>(index_path.data());
+                size_t num_points, size_t dimensions){ 
         Points = PointRange<T, Point>(data_path.data());
         if(compressed_vectors_path != ""){ 
             // Quantized_Points = QPR(compressed_vectors_path.data());
             Quantized_Points = QPR(Points, 16); //quantize to 16 bits
         }
+        G = Graph<unsigned int>(index_path.data());
         if(sample_path != ""){
             G_S = Graph<unsigned int>(secondary_index_path.data());
             Sample_Points = PointRange<T, Point>(sample_path.data());
