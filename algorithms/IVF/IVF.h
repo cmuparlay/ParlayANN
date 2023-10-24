@@ -453,7 +453,7 @@ struct IVF_Squared {
 
   void set_max_iter(size_t n) { max_iter = n; }
 
-  void reset() const {
+  void reset() {
     #ifdef COUNTERS
 
     largexlarge.reset();

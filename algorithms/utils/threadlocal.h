@@ -43,7 +43,7 @@ struct accumulator {
         counts[parlay::worker_id()*width] -= val;
     }
 
-    T total(){
+    T total() const {
         return parlay::reduce(counts, parlay::addm<T>());
     }
 
