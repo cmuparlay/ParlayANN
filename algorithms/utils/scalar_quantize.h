@@ -345,7 +345,7 @@ struct QuantizedPointRange{
         while(index < n){
             size_t floor = index;
             size_t ceiling = index+BLOCK_SIZE <= n ? index+BLOCK_SIZE : n;
-            parlay::sequence<T> data((floor-ceiling)*quantized_dims);
+            parlay::sequence<T> data((ceiling-floor)*quantized_dims);
             parlay::parallel_for(floor, ceiling, [&] (size_t i){
                 auto to_write = parlay::tabulate(quantized_dims, [&] (size_t j){
                     return values[aligned_dims*i+j];
@@ -355,7 +355,7 @@ struct QuantizedPointRange{
                 }
             });
             index = ceiling;
-            writer.write((char*)data.begin(), (floor-ceiling)*quantized_dims*sizeof(T));
+            writer.write((char*)data.begin(), (ceiling-floor)*quantized_dims*sizeof(T));
         }
         writer.close();
         std::cout << "Wrote quantized data" << std::endl;
