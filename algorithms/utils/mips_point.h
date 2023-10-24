@@ -134,12 +134,12 @@ struct Quantized_Mips_Point{
     return mips_distance(decode<T, U>(this->values, d, quantized_d, max_coord, min_coord, bits).begin(), decode<T, U>(x.values, d, quantized_d, max_coord, min_coord, bits).begin(), d);
   }
 
-  //hack for compatibility
-  float distance(Euclidian_Point<uint8_t> x) {return 0;}
-  float distance(Euclidian_Point<int8_t> x) {return 0;}
-  float distance(Euclidian_Point<float> x) {return 0;}
-  float distance(Mips_Point<uint8_t> x) {return 0;}
-  float distance(Mips_Point<int8_t> x) {return 0;}
+  // //hack for compatibility
+  // float distance(Euclidian_Point<uint8_t> x) {return 0;}
+  // float distance(Euclidian_Point<int8_t> x) {return 0;}
+  // float distance(Euclidian_Point<float> x) {return 0;}
+  // float distance(Mips_Point<uint8_t> x) {return 0;}
+  // float distance(Mips_Point<int8_t> x) {return 0;}
 
   void prefetch() {
     int l = (aligned_d * sizeof(T))/64;
@@ -191,13 +191,13 @@ struct T2I_Point{
   }
 
   
-  //hack for compatibility
-  float distance(Mips_Point<uint8_t> x) {return 0;}
-  float distance(Mips_Point<int8_t> x) {return 0;}
-  float distance(Euclidian_Point<uint8_t> x) {return 0;}
-  float distance(Euclidian_Point<int8_t> x) {return 0;}
-  float distance(Euclidian_Point<float> x) {return 0;}
-  float distance(T2I_Point x){return 0;}
+  // //hack for compatibility
+  // float distance(Mips_Point<uint8_t> x) {return 0;}
+  // float distance(Mips_Point<int8_t> x) {return 0;}
+  // float distance(Euclidian_Point<uint8_t> x) {return 0;}
+  // float distance(Euclidian_Point<int8_t> x) {return 0;}
+  // float distance(Euclidian_Point<float> x) {return 0;}
+  // float distance(T2I_Point x){return 0;}
 
   void prefetch() {
     int l = (aligned_d * sizeof(uint16_t))/64;

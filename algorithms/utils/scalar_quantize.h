@@ -159,7 +159,7 @@ parlay::sequence<U> decode(const T* vals, unsigned int d, unsigned int qd, float
     float delta = max_coord - min_coord;
     float mult = delta/maxval;
     for(int i=0; i<d; i++){
-        decoded[i] = static_cast<U>(static_cast<float>(vals[i])*mult + min_coord);
+        decoded[i] = static_cast<float>(vals[i])*mult + min_coord;
     }
     return decoded;
 }
