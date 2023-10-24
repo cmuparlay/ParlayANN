@@ -46,7 +46,7 @@ struct VamanaIndex{
     PointRange<T, Point> Points;
     PointRange<T, Point> Sample_Points;
     groundTruth<unsigned int> Sample_GT;
-    using QPR = QuantizedPointRange<T2I_Point, uint16_t>;
+    using QPR = QuantizedPointRange<Quantized_Mips_Point<uint16_t, float>, uint16_t>;
     QPR Quantized_Points;
     using pid = std::pair<unsigned int, float>;
     
@@ -57,7 +57,8 @@ struct VamanaIndex{
         G = Graph<unsigned int>(index_path.data());
         // Points = PointRange<T, Point>(data_path.data());
         if(compressed_vectors_path != ""){ 
-            Quantized_Points = QPR(compressed_vectors_path.data());
+            // Quantized_Points = QPR(compressed_vectors_path.data());
+            Quantized_Points = QPR(Points, 16); //quantize to 16 bits
         }
         if(sample_path != ""){
             G_S = Graph<unsigned int>(secondary_index_path.data());

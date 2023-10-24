@@ -134,6 +134,13 @@ struct Quantized_Mips_Point{
     return mips_distance(decode<T, U>(this->values, d, quantized_d, max_coord, min_coord, bits).begin(), decode<T, U>(x.values, d, quantized_d, max_coord, min_coord, bits).begin(), d);
   }
 
+  //hack for compatibility
+  float distance(Euclidian_Point<uint8_t> x) {return 0;}
+  float distance(Euclidian_Point<int8_t> x) {return 0;}
+  float distance(Euclidian_Point<float> x) {return 0;}
+  float distance(Mips_Point<uint8_t> x) {return 0;}
+  float distance(Mips_Point<int8_t> x) {return 0;}
+
   void prefetch() {
     int l = (aligned_d * sizeof(T))/64;
     for (int i=0; i < l; i++)

@@ -152,14 +152,14 @@ std::pair<parlay::sequence<T>, std::pair<float, float>> scalar_quantize_float_co
 //T is type of quantized vals
 //U is type of decoded vals
 template<typename T, typename U>
-parlay::sequence<float> decode(const T* vals, unsigned int d, unsigned int qd, float max_coord, float min_coord, int bits){
-    parlay::sequence<T> unpacked = unpack<T>(parlay::tabulate(qd, [&] (size_t i){return vals[i];}), bits, d);
-    parlay::sequence<float> decoded(d);
+parlay::sequence<U> decode(const T* vals, unsigned int d, unsigned int qd, float max_coord, float min_coord, int bits){
+    // parlay::sequence<T> unpacked = unpack<T>(parlay::tabulate(qd, [&] (size_t i){return vals[i];}), bits, d);
+    parlay::sequence<U> decoded(d);
     float maxval = static_cast<float>(static_cast<T>((((size_t) 1) << bits)-1));
     float delta = max_coord - min_coord;
     float mult = delta/maxval;
     for(int i=0; i<d; i++){
-        decoded[i] = static_cast<U>(static_cast<float>(unpacked[i])*mult + min_coord);
+        decoded[i] = static_cast<U>(static_cast<float>(vals[i])*mult + min_coord);
     }
     return decoded;
 }
@@ -267,7 +267,7 @@ struct QuantizedPointRange{
         n = Points.size();
         dims = Points.dimension();
         std::cout << "Detected " << n << " points with dimension " << dims << std::endl;
-        quantized_dims = compute_packed_dim<T>(dims, bits);
+        quantized_dims = dims;
         auto [quantized_data, quantization_vals] = scalar_quantize_float_coarse<PointRange, Point, T>(Points, bits, quantized_dims);
         auto [maxc, minc] = quantization_vals;
         max_coord = maxc;
