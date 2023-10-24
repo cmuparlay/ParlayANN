@@ -85,7 +85,7 @@ struct VamanaIndex{
         auto starting_candidates_rd = parlay::remove_duplicates(starting_candidates);
         auto starting_candidates_sorted = parlay::tabulate(starting_candidates_rd.size(), [&] (size_t j){
             unsigned int index = starting_candidates_rd[j];
-            float dist = q.distance(Points[index]);
+            float dist = Quantized_Points[index].distance(q);
             return std::make_pair(index, dist);
         });
         std::sort(starting_candidates_sorted.begin(), starting_candidates_sorted.end(), less);

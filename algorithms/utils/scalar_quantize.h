@@ -336,28 +336,29 @@ struct QuantizedPointRange{
                     << std::endl;
         parlay::sequence<unsigned int> preamble = {static_cast<unsigned int>(n), dims, quantized_dims, static_cast<unsigned int>(bits)};
         parlay::sequence<float> quantization_info = {max_coord, min_coord};
-        parlay::sequence<T> data(n*quantized_dims);
+        std::ofstream writer;
+        writer.open(save_path, std::ios::binary | std::ios::out);
+        writer.write((char*)preamble.begin(), 4 * sizeof(unsigned int));
+        writer.write((char*)quantization_info.begin(), 2 * sizeof(float));
         size_t BLOCK_SIZE = 1000000;
         size_t index = 0; 
         while(index < n){
             size_t floor = index;
             size_t ceiling = index+BLOCK_SIZE <= n ? index+BLOCK_SIZE : n;
+            parlay::sequence<T> data((floor-ceiling)*quantized_dims);
             parlay::parallel_for(floor, ceiling, [&] (size_t i){
                 auto to_write = parlay::tabulate(quantized_dims, [&] (size_t j){
                     return values[aligned_dims*i+j];
                 });
                 for(size_t j=0; j<quantized_dims; j++){
-                    data[i*quantized_dims+j] = to_write[j];
+                    data[(i-floor)*quantized_dims+j] = to_write[j];
                 }
             });
             index = ceiling;
+            writer.write((char*)data.begin(), (floor-ceiling)*quantized_dims*sizeof(T));
         }
-        std::ofstream writer;
-        writer.open(save_path, std::ios::binary | std::ios::out);
-        writer.write((char*)preamble.begin(), 4 * sizeof(unsigned int));
-        writer.write((char*)quantization_info.begin(), 2 * sizeof(float));
-        writer.write((char*)data.begin(), n*quantized_dims*sizeof(T));
         writer.close();
+        std::cout << "Wrote quantized data" << std::endl;
     }
 
     private:
