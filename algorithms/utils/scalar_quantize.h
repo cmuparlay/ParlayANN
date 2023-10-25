@@ -112,8 +112,8 @@ parlay::sequence<T> unpack(parlay::sequence<T> to_unpack, int bits, int d){
 template<typename PointRange, typename Point, typename T>
 std::pair<parlay::sequence<T>, std::pair<float, float>> scalar_quantize_float_coarse(PointRange &Points, int bits, int qd){
     if(std::ceil(bits/8) > sizeof(T)) abort();
-    float min_coord = std::numeric_limits<T>::max();
-    float max_coord = -std::numeric_limits<T>::min();
+    float min_coord = std::numeric_limits<float>::max();
+    float max_coord = -std::numeric_limits<float>::min();
     for(long i=0; i<Points.dimension(); i++){
         auto vals = parlay::tabulate(Points.size(), [&] (size_t j) {
             return (Points[j])[i];
@@ -123,24 +123,23 @@ std::pair<parlay::sequence<T>, std::pair<float, float>> scalar_quantize_float_co
         if(vals[vals.size()-1] > max_coord) max_coord = vals[vals.size()-1];
     }
     std::cout << "Maximum coord: " << max_coord << ", Min coord: " << min_coord << std::endl;
-    float maxval = static_cast<T>((((size_t) 1) << bits)-1);
+    T maxval = static_cast<T>((((size_t) 1) << bits)-1);
     std::cout << "Max val: " << maxval << std::endl;
     int d = Points.dimension();
-    parlay::sequence<T> quantized_data = parlay::sequence<T>(qd*Points.size());
+    size_t n = Points.size();
+    parlay::sequence<T> quantized_data(n*qd);
     size_t BLOCK_SIZE = 1000000;
     size_t index = 0;
-    size_t n = Points.size();
-    while(index<n){
+    while(index < n){
         size_t fl = index;
         size_t ceiling = index+BLOCK_SIZE <= n ? index+BLOCK_SIZE : n;
         parlay::parallel_for(fl, ceiling, [&] (size_t i){
             parlay::sequence<T> quantized_vals = parlay::tabulate(Points.dimension(), [&] (size_t j){
-                T ex = static_cast<T>(floor(maxval * ((float) Points[i][j] - min_coord)/(max_coord-min_coord)));
-                return ex;
+                return static_cast<T>(floor(maxval * (Points[i][j] - min_coord)/(max_coord-min_coord)));
             });
-            parlay::sequence<T> packed_vals = pack<T>(quantized_vals, bits, qd);
-            for(size_t j=0; j<packed_vals.size(); j++){
-                quantized_data[i*qd+j] = packed_vals[j];
+            parlay::sequence<T> packed = pack<T>(quantized_vals, bits, qd);
+            for(size_t j=0; j<qd; j++){
+                quantized_data[i*qd+j]=packed[j];
             }
         });
         index = ceiling;
@@ -149,17 +148,15 @@ std::pair<parlay::sequence<T>, std::pair<float, float>> scalar_quantize_float_co
     return std::make_pair(std::move(quantized_data), std::make_pair(max_coord, min_coord));
 }
 
-//T is type of quantized vals
-//U is type of decoded vals
-template<typename T, typename U>
-parlay::sequence<U> decode(const T* vals, unsigned int d, unsigned int qd, float max_coord, float min_coord, int bits){
-    // parlay::sequence<T> unpacked = unpack<T>(parlay::tabulate(qd, [&] (size_t i){return vals[i];}), bits, d);
-    parlay::sequence<U> decoded(d);
+template<typename T>
+parlay::sequence<float> decode(const T* vals, unsigned int d, unsigned int qd, float max_coord, float min_coord, int bits){
+    parlay::sequence<T> unpacked = unpack<T>(parlay::tabulate(qd, [&] (size_t i){return vals[i];}), bits, d);
+    parlay::sequence<float> decoded(d);
     float maxval = static_cast<float>(static_cast<T>((((size_t) 1) << bits)-1));
     float delta = max_coord - min_coord;
     float mult = delta/maxval;
     for(int i=0; i<d; i++){
-        decoded[i] = static_cast<float>(vals[i])*mult + min_coord;
+        decoded[i] = static_cast<float>(unpacked[i])*mult + min_coord;
     }
     return decoded;
 }
@@ -260,14 +257,14 @@ struct QuantizedPointRange{
         return Point(values+i*aligned_dims, dims, quantized_dims, aligned_dims, i, max_coord, min_coord, bits);
     }
 
-    QuantizedPointRange(){n=0;}
+    QuantizedPointRange(){}
 
     template<typename PointRange>
     QuantizedPointRange(PointRange &Points, int bits) : bits(bits) {
         n = Points.size();
         dims = Points.dimension();
         std::cout << "Detected " << n << " points with dimension " << dims << std::endl;
-        quantized_dims = dims;
+        quantized_dims = compute_packed_dim<T>(dims, bits);
         auto [quantized_data, quantization_vals] = scalar_quantize_float_coarse<PointRange, Point, T>(Points, bits, quantized_dims);
         auto [maxc, minc] = quantization_vals;
         max_coord = maxc;
@@ -340,25 +337,25 @@ struct QuantizedPointRange{
         writer.open(save_path, std::ios::binary | std::ios::out);
         writer.write((char*)preamble.begin(), 4 * sizeof(unsigned int));
         writer.write((char*)quantization_info.begin(), 2 * sizeof(float));
+        
         size_t BLOCK_SIZE = 1000000;
-        size_t index = 0; 
+        size_t index = 0;
         while(index < n){
             size_t floor = index;
             size_t ceiling = index+BLOCK_SIZE <= n ? index+BLOCK_SIZE : n;
-            parlay::sequence<T> data((ceiling-floor)*quantized_dims);
+            auto data = parlay::sequence<T>((ceiling-floor)*quantized_dims);
             parlay::parallel_for(floor, ceiling, [&] (size_t i){
-                auto to_write = parlay::tabulate(quantized_dims, [&] (size_t j){
+                parlay::sequence<T> vals = parlay::tabulate(quantized_dims, [&] (size_t j){
                     return values[aligned_dims*i+j];
                 });
                 for(size_t j=0; j<quantized_dims; j++){
-                    data[(i-floor)*quantized_dims+j] = to_write[j];
+                    data[(i-floor)*quantized_dims+j] = vals[j];
                 }
             });
-            index = ceiling;
             writer.write((char*)data.begin(), (ceiling-floor)*quantized_dims*sizeof(T));
+            index = ceiling;
         }
         writer.close();
-        std::cout << "Wrote quantized data" << std::endl;
     }
 
     private:

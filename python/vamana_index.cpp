@@ -46,18 +46,17 @@ struct VamanaIndex{
     PointRange<T, Point> Points;
     PointRange<T, Point> Sample_Points;
     groundTruth<unsigned int> Sample_GT;
-    using QPR = QuantizedPointRange<Quantized_Mips_Point<uint16_t, float>, uint16_t>;
+    using QPR = QuantizedPointRange<T2I_Point, uint16_t>;
     QPR Quantized_Points;
     using pid = std::pair<unsigned int, float>;
     
 
     VamanaIndex(std::string &data_path, std::string &compressed_vectors_path, std::string& sample_path, 
                 std::string &index_path, std::string& secondary_index_path, std::string& secondary_gt_path, 
-                size_t num_points, size_t dimensions){ 
+                size_t num_points, size_t dimensions){
         Points = PointRange<T, Point>(data_path.data());
         if(compressed_vectors_path != ""){ 
-            // Quantized_Points = QPR(compressed_vectors_path.data());
-            Quantized_Points = QPR(Points, 16); //quantize to 16 bits
+            Quantized_Points = QPR(compressed_vectors_path.data());
         }
         G = Graph<unsigned int>(index_path.data());
         if(sample_path != ""){
@@ -65,7 +64,6 @@ struct VamanaIndex{
             Sample_Points = PointRange<T, Point>(sample_path.data());
             Sample_GT = groundTruth<unsigned int>(secondary_gt_path.data());
         }
-        
     }
 
     parlay::sequence<unsigned int> generate_start_points(Point q){
@@ -86,7 +84,7 @@ struct VamanaIndex{
         auto starting_candidates_rd = parlay::remove_duplicates(starting_candidates);
         auto starting_candidates_sorted = parlay::tabulate(starting_candidates_rd.size(), [&] (size_t j){
             unsigned int index = starting_candidates_rd[j];
-            float dist = Quantized_Points[index].distance(q);
+            float dist = q.distance(Points[index]);
             return std::make_pair(index, dist);
         });
         std::sort(starting_candidates_sorted.begin(), starting_candidates_sorted.end(), less);
@@ -109,38 +107,23 @@ struct VamanaIndex{
 
         parlay::parallel_for(0, num_queries, [&] (size_t i){
             Point q = Point(queries.data(i), Points.dimension(), Points.aligned_dimension(), i);
-            parlay::sequence<unsigned int> start_points;
-            if(Sample_Points.size() > 0){
-                start_points = generate_start_points(q);
-            } else start_points = {0};
+            auto start_points = generate_start_points(q);
             //search with quantized distances
-            std::pair<parlay::sequence<pid>, parlay::sequence<pid>> pairElts;
-            if(Quantized_Points.size() > 0){
-                pairElts = (beam_search<Point, QPR, unsigned int>(q, G, Quantized_Points, start_points, QP)).first;
-                //rerank
-                auto [frontier, visited] = pairElts;
-                // auto less = [&] (pid a, pid b) {return a.second < b.second;};
-                // int sort_range = std::min<int>(2*QP.k, frontier.size());
-                // auto reranked_points = parlay::tabulate(sort_range, [&] (size_t j){
-                //     unsigned int index = frontier[j].first;
-                //     float dist = q.distance(Points[index]);
-                //     return std::make_pair(index, dist);
-                // });
-                // std::sort(reranked_points.begin(), reranked_points.end(), less);
-                for(int j=0; j<knn; j++){
-                    ids.mutable_data(i)[j] = frontier[j].first;
-                    dists.mutable_data(i)[j] = frontier[j].second;
-                }
-            } else {
-                pairElts = (beam_search<Point, PointRange<T, Point>, unsigned int>(q, G, Points, start_points, QP)).first;
-                //rerank
-                auto [frontier, visited] = pairElts;
-                for(int j=0; j<knn; j++){
-                    ids.mutable_data(i)[j] = frontier[j].first;
-                    dists.mutable_data(i)[j] = frontier[j].second;
-                }
+            auto [pairElts, dist_cmps] = beam_search<Point, QPR, unsigned int>(q, G, Quantized_Points, start_points, QP);
+            //rerank
+            auto [frontier, visited] = pairElts;
+            auto less = [&] (pid a, pid b) {return a.second < b.second;};
+            int sort_range = std::min<int>(2*QP.k, frontier.size());
+            auto reranked_points = parlay::tabulate(sort_range, [&] (size_t j){
+                unsigned int index = frontier[j].first;
+                float dist = q.distance(Points[index]);
+                return std::make_pair(index, dist);
+            });
+            std::sort(reranked_points.begin(), reranked_points.end(), less);
+            for(int j=0; j<knn; j++){
+                ids.mutable_data(i)[j] = reranked_points[j].first;
+                dists.mutable_data(i)[j] = reranked_points[j].second;
             }
-            
         });
         return std::make_pair(std::move(ids), std::move(dists));
     }
