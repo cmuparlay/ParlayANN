@@ -107,23 +107,38 @@ struct VamanaIndex{
 
         parlay::parallel_for(0, num_queries, [&] (size_t i){
             Point q = Point(queries.data(i), Points.dimension(), Points.aligned_dimension(), i);
-            auto start_points = generate_start_points(q);
+            parlay::sequence<unsigned int> start_points;
+            if(Sample_Points.size() > 0){
+                start_points = generate_start_points(q);
+            } else start_points = {0};
             //search with quantized distances
-            auto [pairElts, dist_cmps] = beam_search<Point, QPR, unsigned int>(q, G, Quantized_Points, start_points, QP);
-            //rerank
-            auto [frontier, visited] = pairElts;
-            auto less = [&] (pid a, pid b) {return a.second < b.second;};
-            int sort_range = std::min<int>(2*QP.k, frontier.size());
-            auto reranked_points = parlay::tabulate(sort_range, [&] (size_t j){
-                unsigned int index = frontier[j].first;
-                float dist = q.distance(Points[index]);
-                return std::make_pair(index, dist);
-            });
-            std::sort(reranked_points.begin(), reranked_points.end(), less);
-            for(int j=0; j<knn; j++){
-                ids.mutable_data(i)[j] = reranked_points[j].first;
-                dists.mutable_data(i)[j] = reranked_points[j].second;
+            std::pair<parlay::sequence<pid>, parlay::sequence<pid>> pairElts;
+            if(Quantized_Points.size() > 0){
+                pairElts = (beam_search<Point, PointRange<T, Point>, unsigned int>(q, G, Points, start_points, QP)).first;
+                //rerank
+                auto [frontier, visited] = pairElts;
+                auto less = [&] (pid a, pid b) {return a.second < b.second;};
+                int sort_range = std::min<int>(2*QP.k, frontier.size());
+                auto reranked_points = parlay::tabulate(sort_range, [&] (size_t j){
+                    unsigned int index = frontier[j].first;
+                    float dist = q.distance(Points[index]);
+                    return std::make_pair(index, dist);
+                });
+                std::sort(reranked_points.begin(), reranked_points.end(), less);
+                for(int j=0; j<knn; j++){
+                    ids.mutable_data(i)[j] = reranked_points[j].first;
+                    dists.mutable_data(i)[j] = reranked_points[j].second;
+                }
+            } else {
+                pairElts = (beam_search<Point, PointRange<T, Point>, unsigned int>(q, G, Points, start_points, QP)).first;
+                //rerank
+                auto [frontier, visited] = pairElts;
+                for(int j=0; j<knn; j++){
+                    ids.mutable_data(i)[j] = frontier[j].first;
+                    dists.mutable_data(i)[j] = frontier[j].second;
+                }
             }
+            
         });
         return std::make_pair(std::move(ids), std::move(dists));
     }
