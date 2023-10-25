@@ -1,9 +1,12 @@
-import _ParlayANNpy as pann
-import wrapper as wp
-import numpy as np
 import time
-from scipy.sparse import csr_matrix
 from collections import defaultdict
+
+import os
+import _ParlayANNpy as pann
+import numpy as np
+import wrapper as wp
+from scipy.sparse import csr_matrix
+
 
 def mmap_sparse_matrix_fields(fname):
     """ mmap the fields of a CSR matrix without instanciating it """
@@ -59,7 +62,7 @@ DATA_DIR = FERN_DATA_DIR
 # print(neighbors.shape)
 # print(neighbors[:10, :])
 # print(distances[:10, :])
-
+#                           UNCOMMENT
 print("----- Building Squared IVF index... -----")
 
 CUTOFF = 20_000
@@ -103,6 +106,7 @@ index.set_tiny_cutoff(TINY_CUTOFF)
 neighbors, distances = index.batch_filter_search(X, filters, NQ, 10)
 
 index.print_stats()
+#                           UNCOMMENT
 
 # print(neighbors.shape)
 # print(neighbors[:10, :])
@@ -111,6 +115,36 @@ index.print_stats()
 elapsed = time.time() - start
 print(f"Time taken: {elapsed:.2f}s")
 print(f"QPS: {NQ / elapsed:,.2f}")
+
+# Calculate and print average recall
+GROUND_TRUTH_DIR = DATA_DIR + "data/yfcc100M/GT.public.ibin"
+
+def retrieve_ground_truth(fname):
+    n, d = map(int, np.fromfile(fname, dtype="uint32", count=2))
+    assert os.stat(fname).st_size == 8 + n * d * (4 + 4)
+    f = open(fname, "rb")
+    f.seek(4+4)
+    I = np.fromfile(f, dtype="int32", count=n * d).reshape(n, d)
+    D = np.fromfile(f, dtype="float32", count=n * d).reshape(n, d)
+    return I, D
+
+I, D = retrieve_ground_truth(GROUND_TRUTH_DIR)
+print(len(I))
+print(len(D))
+
+total_recall = 0.0
+for i in range(100000):
+    ground_truth = set()
+    ann = set()
+    for j in range(10):
+        ground_truth.add(I[i][j])
+        ann.add(neighbors[i][j])
+    local_recall = len(ground_truth & ann)
+    total_recall += local_recall/10
+avg_recall = total_recall / 100000
+
+print(f"Average recall is {100*avg_recall:.2f}%.")
+
 
 #print("----- Building 2 Stage Filtered IVF... -----")
 #start = time.time()
