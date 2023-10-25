@@ -114,8 +114,8 @@ struct edgeRange{
 
 template<typename indexType>
 struct Graph{
-    long max_degree(){return maxDeg;}
-    size_t size(){return n;}
+    long max_degree() const {return maxDeg;}
+    size_t size() const {return n;}
 
     Graph(){}
 
@@ -171,7 +171,7 @@ struct Graph{
         delete[] degrees_start;
     }
 
-    void save(char* oFile){
+    void save(char* oFile) {
         std::cout << "Writing graph with " << n << " points and max degree " << maxDeg
                     << std::endl;
         parlay::sequence<indexType> preamble = {static_cast<indexType>(n), static_cast<indexType>(maxDeg)};
@@ -195,7 +195,7 @@ struct Graph{
         writer.close();
     }
 
-    edgeRange<indexType> operator [] (indexType i) {return edgeRange<indexType>(graph.begin()+i*(maxDeg+1), graph.begin()+(i+1)*(maxDeg+1), i);}
+    edgeRange<indexType> operator [](indexType i) {return edgeRange<indexType>(graph.begin()+i*(maxDeg+1), graph.begin()+(i+1)*(maxDeg+1), i);}
 
     private:
         size_t n;

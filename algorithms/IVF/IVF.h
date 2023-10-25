@@ -7,9 +7,12 @@
 #include "parlay/primitives.h"
 #include "parlay/sequence.h"
 
+#include "../vamana/index.h"
 #include "../HCNNG/clusterEdge.h"
 #include "../utils/point_range.h"
 #include "../utils/types.h"
+#include "../utils/graph.h"
+#include "../utils/beamSearch.h"
 #include "clustering.h"
 #include "posting_list.h"
 
@@ -29,6 +32,11 @@
 
 
 #define TINY_CASE_CUTOFF 5000 // when we do tiny x large instead of small x large (default value)
+
+// cutoffs for the different sets of query/build params
+#define L_CUTOFF 300'000
+#define M_CUTOFF 50'000
+// s is implicitly anything below M_CUTOFF
 
 namespace py = pybind11;
 using NeighborsAndDistances =
@@ -58,6 +66,7 @@ struct MatchingPoints {
   // target points should probably be some multiple of the cutoff for
   // constructing a posting list
   virtual parlay::sequence<index_type> sorted_near(Point query, int target_points) const = 0;
+  virtual parlay::sequence<std::pair<index_type, float>> knn (Point query, int k) = 0;
 };
 
 /* An "index" which just stores an array of indices to matching points.
@@ -76,6 +85,20 @@ struct ArrayIndex : MatchingPoints<T, Point> {
     return this->indices;   // does/should this copy?
   }
 
+  parlay::sequence<std::pair<index_type, float>> knn (Point query, int k) override {
+    parlay::sequence<std::pair<index_type, float>> frontier(k);
+    for (size_t i = 0; i < indices.size(); i++){
+      float dist = query.distance(query);
+      if (dist < frontier[k - 1].second){
+        frontier.pop_back();
+        frontier.push_back(std::make_pair(indices[i], dist));
+        std::sort(frontier.begin(), frontier.end(), [&](std::pair<index_type, float> a, std::pair<index_type, float> b) {
+          return a.second < b.second;
+        });
+      }
+    }
+    return frontier;
+  }
 };
 
 /* An extremely minimal IVF index which only returns full posting lists-worth of
@@ -99,15 +122,21 @@ struct PostingListIndex : MatchingPoints<T, Point> {
   size_t aligned_dim;
   size_t n;   // n points in the index
 
+  Graph<index_type> index_graph; // the vamana graph we do single search over
+  QueryParams *QP;
+  index_type start_point;
+  SubsetPointRange<T, Point> subset_points;
   
   template <typename Clusterer>
   PostingListIndex(PointRange<T, Point>* points, const index_type* start,
-                   const index_type* end, Clusterer clusterer) {
+                   const index_type* end, Clusterer clusterer, BuildParams BP, QueryParams *QP) : subset_points(points, parlay::sequence<index_type>(start, end)) {
     auto indices = parlay::sequence<index_type>(start, end);
 
     this->points = points;
     this->dim = points->dimension();
     this->aligned_dim = points->aligned_dimension();
+    this->QP = QP;
+    // this->subset_points = SubsetPointRange<T, Point>(points, indices);
 
     this->n = indices.size();
 
@@ -140,6 +169,18 @@ struct PostingListIndex : MatchingPoints<T, Point> {
       this->centroids.push_back(Point(this->centroid_data.get() + offset,
                                       this->dim, this->aligned_dim, i));
     }
+
+    // build the vamana graph
+
+    this->start_point = indices[0];
+    knn_index<Point, SubsetPointRange<T, Point>, index_type> I(BP);
+    stats<index_type> BuildStats(this->points->size());
+
+    // TODO: modify index.h to make it feasible to uncomment the below
+    // this->index_graph = Graph<index_type>(BP.R, this->n);
+    this->index_graph = Graph<index_type>(BP.R, indices.size());
+    I.build_index(this->index_graph, this->subset_points, BuildStats);
+
   }
 
   parlay::sequence<index_type> sorted_near(Point query, int target_points) const override {
@@ -169,6 +210,17 @@ struct PostingListIndex : MatchingPoints<T, Point> {
 
     return result;
   }
+
+  parlay::sequence<std::pair<index_type, float>> knn(Point query, int k) override {
+    // will have to come back to do something clever with the distance comparisons, perhaps track the comparisons for the single case inside the posting lists
+    auto [pairElts, dist_cmps] = beam_search<Point, PointRange<T, Point>, index_type>(query, this->index_graph, *const_cast<PointRange<T, Point>*>(this->points), start_point, *(this->QP));
+    auto frontier = pairElts.first;
+    
+    return parlay::map(frontier, [&] (std::pair<index_type, float> p) {
+      return std::make_pair(this->subset_points.real_index(p.first), p.second);
+    });
+  }
+
 };
 
 /* The IVF^2 index the above structs are for */
@@ -187,6 +239,12 @@ struct IVF_Squared {
   size_t target_points = 10000;   // number of points for each filter to return
   size_t tiny_cutoff = TINY_CASE_CUTOFF;   // cutoff below which we use the tiny case
   size_t sq_target_points = 500; // number of points for each filter to return when not doing an and
+
+// these will eventually need to be specified in the config, which will be painfully verbose
+  QueryParams QP[3] = {QueryParams(10, 100, 1.35, M_CUTOFF, 16), QueryParams(10, 100, 1.35, L_CUTOFF, 32), QueryParams(10, 100, 1.35, 3'000'000, 64)};
+  // TODO: increase L_build to 500 once we don't care about the build time and/or are saving these graphs
+  // TODO: modify build to do two passes once we have all the time in the world
+  BuildParams BP[3] = {BuildParams(16, 100, 1.2), BuildParams(32, 100, 1.2), BuildParams(64, 100, 1.2)};
 
   #ifdef COUNTERS
   // number of queries in each case
@@ -259,11 +317,19 @@ struct IVF_Squared {
       if (filters.point_count(i) >
           cutoff) {   // The name of this method is so bad that it accidentally
                       // describes what it's doing
+        // weight classes here being the s, m, l cutoffs
+        int weight_class = 0;
+        if (filters.point_count(i) > L_CUTOFF){
+            int weight_class = 2;
+        } else if (filters.point_count(i) > M_CUTOFF){
+            int weight_class = 1;
+        }
+
         this->posting_lists[i] = std::make_unique<PostingListIndex<T, Point>>(
            &points, filters.row_indices.get() + filters.row_offsets[i],
            filters.row_indices.get() + filters.row_offsets[i + 1],
            KMeansClusterer<T, Point, index_type>(filters.point_count(i) /
-                                                 cluster_size));
+                                                 cluster_size), BP[weight_class], QP + weight_class);
 				ctr += 1;
 				if (ctr % 100 == 0) {
           std::cout << "IVF^2: " << ctr << " / " << num_above_cutoff << " PostingListIndex objects created" << std::endl;
@@ -393,7 +459,20 @@ struct IVF_Squared {
 
         #endif
 
-        indices = this->posting_lists[filter.a]->sorted_near(q, this->sq_target_points);
+        // indices = this->posting_lists[filter.a]->sorted_near(q, this->sq_target_points);
+        auto frontier = this->posting_lists[filter.a]->knn(q, 10);
+
+        #ifdef COUNTERS
+
+        time_acc->add(t.stop());
+
+        #endif
+
+        for (unsigned int j = 0; j < knn; j++) {
+        ids.mutable_data(i)[j] = static_cast<unsigned int>(frontier[j].first);
+        dists.mutable_data(i)[j] = frontier[j].second;
+      }
+        return;
       }
 
       #ifdef COUNTERS

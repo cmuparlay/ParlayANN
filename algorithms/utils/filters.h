@@ -39,7 +39,7 @@ parlay::sequence<T> join(const T* a, size_t len_a, const T* b, size_t len_b){
 
 /* Sorted array join (with sequences) */
 template <typename T>
-parlay::sequence<T> join(const parlay::sequence<T>& a, const parlay::sequence<T>& b) {
+inline parlay::sequence<T> join(const parlay::sequence<T>& a, const parlay::sequence<T>& b) {
     return join<T>(a.begin(), a.size(), b.begin(), b.size()); // hopefully this is virtually free
 }
 

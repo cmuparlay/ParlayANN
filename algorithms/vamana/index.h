@@ -120,11 +120,13 @@ struct knn_index {
     return robustPrune(p, cc, G, Points, add);
   }
 
-  void build_index(GraphI &G, PR &Points, stats<indexType> &BuildStats){
+  void build_index(GraphI &G, PR &Points, stats<indexType> &BuildStats, parlay::sequence<indexType> inserts=parlay::sequence<indexType>()) {
     std::cout << "Building graph..." << std::endl;
-    start_point = 0;
-    parlay::sequence<indexType> inserts = parlay::tabulate(Points.size(), [&] (size_t i){
-					    return static_cast<indexType>(i);});
+    if (inserts.size() == 0) {
+      inserts = parlay::tabulate(G.size(), [&](indexType i) { return i; });
+    }
+    start_point = inserts[0];
+
     batch_insert(inserts, G, Points, BuildStats, true, 2, .02);
     parlay::parallel_for (0, G.size(), [&] (long i) {
       auto less = [&] (indexType j, indexType k) {
@@ -211,7 +213,7 @@ struct knn_index {
                     bool random_order = false, double base = 2,
                     double max_fraction = .02, bool print=true) {
     for(int p : inserts){
-      if(p < 0 || p > (int) G.size()){
+      if(p < 0 || p > (int) Points.size()){
         std::cout << "ERROR: invalid or already inserted point "
                   << p << " given to batch_insert" << std::endl;
         abort();

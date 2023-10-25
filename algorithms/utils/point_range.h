@@ -112,7 +112,7 @@ struct PointRange{
 	//       << " points with dimension " << dims << std::endl;
   // }
 
-  size_t size() { return n; }
+  size_t size() const { return n; }
   
   Point operator [] (long i) {
     return Point(values+i*aligned_dims, dims, aligned_dims, i);
@@ -123,4 +123,48 @@ private:
   unsigned int dims;
   unsigned int aligned_dims;
   size_t n;
+};
+
+/* a wrapper around PointRange which uses only a subset of the points
+
+  Note that when indexing into the subset, the indices are relative to the included points, not the actual indices of the points in the original PointRange
+ */
+template<typename T, class Point>
+struct SubsetPointRange {
+    PointRange<T, Point> *pr;
+    parlay::sequence<int32_t> subset;
+    std::unordered_map<int32_t, int32_t> real_to_subset;
+    size_t n;
+    unsigned int dims;
+    unsigned int aligned_dims;
+
+
+    SubsetPointRange(PointRange<T, Point> *pr, parlay::sequence<int32_t> subset) : pr(pr), subset(subset) {
+      n = subset.size();
+      dims = pr->dimension();
+      aligned_dims = pr->aligned_dimension();
+
+      real_to_subset = std::unordered_map<int32_t, int32_t>();
+      real_to_subset.reserve(n);
+      for(int32_t i=0; i<n; i++) {
+        real_to_subset[subset[i]] = i;
+      }
+    }
+  
+    size_t size() const { return n; }
+  
+    Point operator [] (long i) {
+      return pr->operator[](subset[i]);
+    }
+
+    long dimension() const {return dims;}
+    long aligned_dimension() const {return aligned_dims;}
+
+    int32_t real_index(int32_t i) const {
+      return subset[i];
+    }
+
+    int32_t subset_index(int32_t i) const {
+      return real_to_subset.at(i);
+    }
 };
