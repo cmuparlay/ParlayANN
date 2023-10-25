@@ -29,6 +29,7 @@ cc_library(
         "@parlaylib//parlay:parallel",
         "@parlaylib//parlay:primitives",
         "@parlaylib//parlay:random",
+        ":graph",
         ":types",
         ":NSGDist",
     ],
