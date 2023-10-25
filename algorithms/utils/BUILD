@@ -41,6 +41,7 @@ cc_library(
     deps = [
         "@parlaylib//parlay:parallel",
         "@parlaylib//parlay:primitives",
+        ":graph",
     ],
 )
 

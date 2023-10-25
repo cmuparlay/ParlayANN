@@ -23,6 +23,7 @@
 #pragma once
 
 #include <algorithm>
+#include <fstream>
 #include <iostream>
 
 #include "parlay/parallel.h"
