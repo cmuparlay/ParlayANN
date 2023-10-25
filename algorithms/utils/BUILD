@@ -30,8 +30,8 @@ cc_library(
         "@parlaylib//parlay:primitives",
         "@parlaylib//parlay:random",
         ":graph",
+        ":stats",
         ":types",
-        ":NSGDist",
     ],
 )
 
