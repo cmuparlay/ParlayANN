@@ -159,7 +159,9 @@ PYBIND11_MODULE(_ParlayANNpy, m)
         })
         .def("__str__", [](const QueryFilter &f) {
             return "(" + std::to_string(f.a) + ", " + std::to_string(f.b) + ")";
-        });
+        })
+        .def_readonly("a", &QueryFilter::a)
+        .def_readonly("b", &QueryFilter::b);
 
 
 }
