@@ -66,7 +66,7 @@ struct MatchingPoints {
   // target points should probably be some multiple of the cutoff for
   // constructing a posting list
   virtual parlay::sequence<index_type> sorted_near(Point query, int target_points) const = 0;
-  virtual parlay::sequence<std::pair<index_type, float>> knn (Point query, int k) = 0;
+  virtual std::pair<parlay::sequence<std::pair<index_type, float>>, size_t> knn (Point query, int k) = 0;
 };
 
 /* An "index" which just stores an array of indices to matching points.
@@ -85,7 +85,7 @@ struct ArrayIndex : MatchingPoints<T, Point> {
     return this->indices;   // does/should this copy?
   }
 
-  parlay::sequence<std::pair<index_type, float>> knn (Point query, int k) override {
+  std::pair<parlay::sequence<std::pair<index_type, float>>, size_t> knn (Point query, int k) override {
     parlay::sequence<std::pair<index_type, float>> frontier(k);
     for (size_t i = 0; i < indices.size(); i++){
       float dist = query.distance(query);
@@ -97,7 +97,7 @@ struct ArrayIndex : MatchingPoints<T, Point> {
         });
       }
     }
-    return frontier;
+    return std::make_pair(frontier, this->indices.size());
   }
 };
 
@@ -124,7 +124,7 @@ struct PostingListIndex : MatchingPoints<T, Point> {
 
   Graph<index_type> index_graph; // the vamana graph we do single search over
   QueryParams *QP;
-  index_type start_point;
+  // index_type start_point;
   SubsetPointRange<T, Point> subset_points;
   
   template <typename Clusterer>
@@ -172,14 +172,21 @@ struct PostingListIndex : MatchingPoints<T, Point> {
 
     // build the vamana graph
 
-    this->start_point = indices[0];
+    // this->start_point = indices[0];
     knn_index<Point, SubsetPointRange<T, Point>, index_type> I(BP);
     stats<index_type> BuildStats(this->points->size());
 
-    // TODO: modify index.h to make it feasible to uncomment the below
-    // this->index_graph = Graph<index_type>(BP.R, this->n);
+    // std::cout << "This filter has " << indices.size() << " points" << std::endl;
+
     this->index_graph = Graph<index_type>(BP.R, indices.size());
     I.build_index(this->index_graph, this->subset_points, BuildStats);
+
+    // confirming the graph is real by printing the out neighbors of the first point
+    std::cout << "first point has " << this->index_graph[0].size() << "/" << this->index_graph.max_degree() <<" out neighbors:" << std::endl;
+    for (size_t i = 0; i < this->index_graph[0].size(); i++){
+      std::cout << this->index_graph[0][i] << " ";
+    }
+    std::cout << std::endl;
 
   }
 
@@ -211,14 +218,19 @@ struct PostingListIndex : MatchingPoints<T, Point> {
     return result;
   }
 
-  parlay::sequence<std::pair<index_type, float>> knn(Point query, int k) override {
+  std::pair<parlay::sequence<std::pair<index_type, float>>, size_t> knn(Point query, int k) override {
     // will have to come back to do something clever with the distance comparisons, perhaps track the comparisons for the single case inside the posting lists
-    auto [pairElts, dist_cmps] = beam_search<Point, PointRange<T, Point>, index_type>(query, this->index_graph, *const_cast<PointRange<T, Point>*>(this->points), start_point, *(this->QP));
+    auto [pairElts, dist_cmps] = beam_search<Point, PointRange<T, Point>, index_type>(query, this->index_graph, *const_cast<PointRange<T, Point>*>(this->points), 0, *(this->QP));
     auto frontier = pairElts.first;
+
+    for (size_t i = 0; i < frontier.size(); i++){
+      std::cout << " (" << frontier[i].first << ", " << frontier[i].second << ") ";
+    }
+    std::cout << std::endl;
     
-    return parlay::map(frontier, [&] (std::pair<index_type, float> p) {
+    return std::make_pair(parlay::map(frontier, [&] (std::pair<index_type, float> p) {
       return std::make_pair(this->subset_points.real_index(p.first), p.second);
-    });
+    }), dist_cmps);
   }
 
 };
@@ -244,7 +256,7 @@ struct IVF_Squared {
   QueryParams QP[3] = {QueryParams(10, 100, 1.35, M_CUTOFF, 16), QueryParams(10, 100, 1.35, L_CUTOFF, 32), QueryParams(10, 100, 1.35, 3'000'000, 64)};
   // TODO: increase L_build to 500 once we don't care about the build time and/or are saving these graphs
   // TODO: modify build to do two passes once we have all the time in the world
-  BuildParams BP[3] = {BuildParams(16, 100, 1.2), BuildParams(32, 100, 1.2), BuildParams(64, 100, 1.2)};
+  BuildParams BP[3] = {BuildParams(16, 500, 1.175), BuildParams(32, 500, 1.175), BuildParams(64, 500, 1.175)};
 
   #ifdef COUNTERS
   // number of queries in each case
@@ -320,10 +332,12 @@ struct IVF_Squared {
         // weight classes here being the s, m, l cutoffs
         int weight_class = 0;
         if (filters.point_count(i) > L_CUTOFF){
-            int weight_class = 2;
+            weight_class = 2;
         } else if (filters.point_count(i) > M_CUTOFF){
-            int weight_class = 1;
+            weight_class = 1;
         }
+
+        std::cout << "Filter with " << filters.point_count(i) << " points has weight class " << weight_class << std::endl;
 
         this->posting_lists[i] = std::make_unique<PostingListIndex<T, Point>>(
            &points, filters.row_indices.get() + filters.row_offsets[i],
@@ -339,7 +353,7 @@ struct IVF_Squared {
            filters.row_indices.get() + filters.row_offsets[i],
            filters.row_indices.get() + filters.row_offsets[i + 1]);
       }
-    }, 100000000000); // sequentially for now.
+    }, 10'000'000); // sequentially for now.
   }
 
   void fit_from_filename(std::string filename, std::string filter_filename,
@@ -360,6 +374,7 @@ struct IVF_Squared {
     py::array_t<float> dists({num_queries, knn});
 
     parlay::parallel_for(0, num_queries, [&](size_t i) {
+    // for (size_t i = 0; i < num_queries; i++) {
       Point q = Point(queries.data(i), this->points.dimension(),
                       this->points.aligned_dimension(), i);
       const QueryFilter& filter = filters[i];
@@ -460,10 +475,11 @@ struct IVF_Squared {
         #endif
 
         // indices = this->posting_lists[filter.a]->sorted_near(q, this->sq_target_points);
-        auto frontier = this->posting_lists[filter.a]->knn(q, 10);
+        auto [frontier, cmps] = this->posting_lists[filter.a]->knn(q, 10);
 
         #ifdef COUNTERS
 
+        dcmp_acc->add(cmps);
         time_acc->add(t.stop());
 
         #endif
@@ -516,6 +532,7 @@ struct IVF_Squared {
         dists.mutable_data(i)[j] = frontier[j].second;
       }
     });
+    // }
 
     return std::make_pair(std::move(ids), std::move(dists));
   }

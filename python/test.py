@@ -96,7 +96,7 @@ filters = [None] * len(filter_dict.keys())
 for i in filter_dict.keys():
     filters[i] = wp.QueryFilter(*filter_dict[i])
 
-if NQ < 10:
+if NQ <= 10:
     print(filters[:NQ])
 
 index.set_target_points(TARGET_POINTS)
@@ -108,9 +108,9 @@ neighbors, distances = index.batch_filter_search(X, filters, NQ, 10)
 index.print_stats()
 #                           UNCOMMENT
 
-# print(neighbors.shape)
-# print(neighbors[:10, :])
-# print(distances[:10, :])
+print(neighbors.shape)
+print(neighbors[:10, :])
+print(distances[:10, :])
 
 elapsed = time.time() - start
 print(f"Time taken: {elapsed:.2f}s")
