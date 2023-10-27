@@ -119,6 +119,11 @@ struct PointRange{
     return Point(values+i*aligned_dims, dims, aligned_dims, i);
   }
 
+  ~PointRange(){
+    std::cout << "Freeing point range" << std::endl;
+    std::free(values);
+  }
+
 private:
   T* values;
   unsigned int dims;
