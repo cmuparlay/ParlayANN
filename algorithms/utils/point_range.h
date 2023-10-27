@@ -118,8 +118,6 @@ struct PointRange{
   // }
 
   size_t size() { return n; }
-
-  ~PointRange(){std::cout << "freeing point range" << std::endl;}
   
   Point operator [] (long i) {
     return Point(values.get()+i*aligned_dims, dims, aligned_dims, i);

@@ -358,11 +358,6 @@ struct QuantizedPointRange{
         writer.close();
     }
 
-
-    ~QuantizedPointRange(){
-        std::cout << "Freeing quantized points" << std::endl;
-    }
-
     private:
         std::shared_ptr<T[]> values;
         unsigned int dims;

@@ -50,9 +50,6 @@ struct VamanaIndex{
     QPR Quantized_Points;
     using pid = std::pair<unsigned int, float>;
     
-    ~VamanaIndex(){
-        std::cout << "Destructing vamana index" << std::endl;
-    }
 
     VamanaIndex(std::string &data_path, std::string &compressed_vectors_path, std::string& sample_path, 
                 std::string &index_path, std::string& secondary_index_path, std::string& secondary_gt_path, 
