@@ -55,7 +55,7 @@ struct PointRange{
   long dimension(){return dims;}
   long aligned_dimension(){return aligned_dims;}
 
-  PointRange(){n=0; values = (T*) aligned_alloc(64,64);}
+  PointRange(){n=0; values = nullptr;}
 
   PointRange(char* filename){
       if(filename == NULL) {
@@ -121,7 +121,10 @@ struct PointRange{
 
   ~PointRange(){
     std::cout << "Freeing point range" << std::endl;
-    std::free(values);
+    if(values != nullptr){
+          std::free(values);
+          values = nullptr;
+      }
   }
 
 private:
