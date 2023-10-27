@@ -68,14 +68,14 @@ print("----- Building Squared IVF index... -----")
 CUTOFF = 20_000
 CLUSTER_SIZE = 1000
 NQ = 100_000
-TARGET_POINTS = 5000
+TARGET_POINTS = 20_000
 SQ_TARGET_POINTS = 5000
 TINY_CUTOFF = 1000
 
 start = time.time()
 
 index = wp.init_squared_ivf_index("Euclidian", "uint8")
-index.fit_from_filename(DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat', CUTOFF, CLUSTER_SIZE)
+index.fit_from_filename(DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat', CUTOFF, CLUSTER_SIZE, "index_cache/")
 
 print(f"Time taken: {time.time() - start:.2f}s")
 
@@ -96,8 +96,17 @@ filters = [None] * len(filter_dict.keys())
 for i in filter_dict.keys():
     filters[i] = wp.QueryFilter(*filter_dict[i])
 
+all_filters = wp.csr_filters(DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat').transpose()
+
 if NQ <= 10:
     print(filters[:NQ])
+
+    print([(all_filters.point_count(i.a), all_filters.point_count(i.b)) if i.is_and() else all_filters.point_count(i.a) for i in filters[:NQ]])
+else:
+    print(filters[:10])
+
+    print([(all_filters.point_count(i.a), all_filters.point_count(i.b)) if i.is_and() else all_filters.point_count(i.a) for i in filters[:10]])
+
 
 index.set_target_points(TARGET_POINTS)
 index.set_sq_target_points(SQ_TARGET_POINTS)

@@ -454,7 +454,7 @@ struct IVF_Squared {
    * Later, in batch_filter_search
    * */
   void fit(PointRange<T, Point> points, csr_filters& filters,
-           size_t cutoff = 10000, size_t cluster_size = 1000) {
+           size_t cutoff = 10000, size_t cluster_size = 1000, std::string cache_path="index_cache/") {
     this->filters = filters; // rn we will not bother storing the filter sizes because it's one cache miss and a subtraction to compute one at query time
     filters.transpose_inplace();
     this->filters_transpose = filters;
@@ -496,7 +496,7 @@ struct IVF_Squared {
            this->points, filters.row_indices.get() + filters.row_offsets[i],
            filters.row_indices.get() + filters.row_offsets[i + 1],
            KMeansClusterer<T, Point, index_type>(filters.point_count(i) /
-                                                 cluster_size), BP[weight_class], QP + weight_class, i);
+                                                 cluster_size), BP[weight_class], QP + weight_class, i, cache_path);
 				ctr += 1;
 				if (ctr % 100 == 0) {
           std::cout << "IVF^2: " << ctr << " / " << num_above_cutoff << " PostingListIndex objects created" << std::endl;
@@ -511,12 +511,12 @@ struct IVF_Squared {
   }
 
   void fit_from_filename(std::string filename, std::string filter_filename,
-                         size_t cutoff = 10000, size_t cluster_size = 1000) {
+                         size_t cutoff = 10000, size_t cluster_size = 1000, std::string cache_path="") {
     PointRange<T, Point> points(filename.c_str());
     std::cout << "IVF^2: points loaded" << std::endl;
     csr_filters filters(filter_filename.c_str());
     std::cout << "IVF^2: filters loaded" << std::endl;
-    this->fit(points, filters, cutoff, cluster_size);
+    this->fit(points, filters, cutoff, cluster_size, cache_path);
     std::cout << "IVF^2: fit completed" << std::endl;
   }
 

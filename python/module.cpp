@@ -67,8 +67,8 @@ const Variant Int8MipsVariant{"build_vamana_int8_mips_index", "VamanaInt8MipsInd
 template <typename T, typename Point> inline void add_variant(py::module_ &m, const Variant &variant)
 {
 
-    m.def(variant.builder_name.c_str(), build_vamana_index<T, Point>, "distance_metric"_a,
-          "data_file_path"_a, "index_output_path"_a, "graph_degree"_a, "beam_width"_a, "alpha"_a);
+    // m.def(variant.builder_name.c_str(), build_vamana_index<T, Point>, "distance_metric"_a,
+    //       "data_file_path"_a, "index_output_path"_a, "graph_degree"_a, "beam_width"_a, "alpha"_a);
 
 //    py::class_<VamanaIndex<T, Point>>(m, variant.index_name.c_str())
 //        .def(py::init<std::string &, std::string &, size_t, size_t>(),
@@ -103,8 +103,9 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
 
     py::class_<IVF_Squared<T, Point>>(m, ("Squared" + variant.ivf_name).c_str())
         .def(py::init())
-        .def("fit", &IVF_Squared<T, Point>::fit, "points"_a, "filters"_a, "cutoff"_a, "cluster_size"_a) 
-        .def("fit_from_filename", &IVF_Squared<T, Point>::fit_from_filename, "filename"_a, "filter_filename"_a, "cutoff"_a, "cluster_size"_a)
+        .def("fit", &IVF_Squared<T, Point>::fit, "points"_a, "filters"_a, "cutoff"_a, "cluster_size"_a, py::arg("cache_path") = "") 
+        .def("fit_from_filename", &IVF_Squared<T, Point>::fit_from_filename, "filename"_a, "filter_filename"_a, "cutoff"_a, "cluster_size"_a, "cache_path"_a)
+        // .def("fit_from_filename", &IVF_Squared<T, Point>::fit_from_filename, "filename"_a, "cutoff"_a, "cluster_size"_a, "cache_path"_a)
         .def("batch_filter_search", &IVF_Squared<T, Point>::batch_filter_search, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a)
         .def("set_target_points", &IVF_Squared<T, Point>::set_target_points, "target_points"_a)
         .def("set_sq_target_points", &IVF_Squared<T, Point>::set_sq_target_points, "sq_target_points"_a)
