@@ -101,6 +101,10 @@ struct BuildParams{
     if(alg_type == "HCNNG") return num_clusters*MST_deg;
     else return R;
   }
+
+  std::string toStringVamana() {
+    return "R_" + std::to_string(R) + "_L_" + std::to_string(L) + "_a_" + std::to_string(std::round(alpha*100)/100);
+  }
 };
 
 

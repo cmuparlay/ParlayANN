@@ -22,6 +22,7 @@
 #include <string.h>
 #include <utility>
 #include <vector>
+#include <filesystem>
 
 #include "pybind11/numpy.h"
 #include "pybind11/stl.h"
@@ -76,8 +77,9 @@ Meant to be used for the points associated with small filters */
 template <typename T, class Point>
 struct ArrayIndex : MatchingPoints<T, Point> {
   parlay::sequence<index_type> indices;
+  PointRange<T, Point> &points;
 
-  ArrayIndex(const index_type* start, const index_type* end) {
+  ArrayIndex(const index_type* start, const index_type* end, PointRange<T, Point> &points) : points(points) {
     this->indices = parlay::sequence<index_type>(start, end);
   }
 
@@ -88,7 +90,7 @@ struct ArrayIndex : MatchingPoints<T, Point> {
   std::pair<parlay::sequence<std::pair<index_type, float>>, size_t> knn (Point query, int k) override {
     parlay::sequence<std::pair<index_type, float>> frontier(k);
     for (size_t i = 0; i < indices.size(); i++){
-      float dist = query.distance(query);
+      float dist = query.distance(this->points[this->indices[i]]);
       if (dist < frontier[k - 1].second){
         frontier.pop_back();
         frontier.push_back(std::make_pair(indices[i], dist));
@@ -112,7 +114,7 @@ struct ArrayIndex : MatchingPoints<T, Point> {
 */
 template <typename T, typename Point>
 struct PostingListIndex : MatchingPoints<T, Point> {
-  const PointRange<T, Point>* points;
+  PointRange<T, Point> &points;
   parlay::sequence<parlay::sequence<index_type>> clusters;
   parlay::sequence<Point> centroids;
   std::unique_ptr<T[]>
@@ -121,26 +123,41 @@ struct PostingListIndex : MatchingPoints<T, Point> {
   size_t dim;
   size_t aligned_dim;
   size_t n;   // n points in the index
+  index_type id;   // id of this index
 
   Graph<index_type> index_graph; // the vamana graph we do single search over
   QueryParams *QP;
+  BuildParams BP;
   // index_type start_point;
   SubsetPointRange<T, Point> subset_points;
+
+  PostingListIndex(PostingListIndex<T, Point> &&other) {
+    std::cout << "Move constructor called" << std::endl;
+  };
   
   template <typename Clusterer>
-  PostingListIndex(PointRange<T, Point>* points, const index_type* start,
-                   const index_type* end, Clusterer clusterer, BuildParams BP, QueryParams *QP) : subset_points(points, parlay::sequence<index_type>(start, end)) {
+  PostingListIndex(PointRange<T, Point> &points, const index_type* start,
+                   const index_type* end, Clusterer clusterer, BuildParams BP, QueryParams *QP, index_type id, std::string graph_prefix="graphs/") : id(id), points(points), subset_points(points, parlay::sequence<index_type>(start, end)) {
     auto indices = parlay::sequence<index_type>(start, end);
 
-    this->points = points;
-    this->dim = points->dimension();
-    this->aligned_dim = points->aligned_dimension();
+    Point p = this->subset_points[0];
+    Point q = this->points[0];
+
+    std::cout << "p " << p.get()[0] << std::endl;
+    std::cout << "q " << q.get()[0] << std::endl;
+
+    std::cout << "subset points size " << this->subset_points.size() << std::endl;
+    std::cout << "points size " << this->points.size() << std::endl;
+
+    // this->points = points;
+    this->dim = points.dimension();
+    this->aligned_dim = points.aligned_dimension();
     this->QP = QP;
-    // this->subset_points = SubsetPointRange<T, Point>(points, indices);
+    this->BP = BP;
 
     this->n = indices.size();
 
-    this->clusters = clusterer.cluster(*points, indices);
+    this->clusters = clusterer.cluster(points, indices);
 
     this->centroid_data =
        std::make_unique<T[]>(this->clusters.size() * this->aligned_dim);
@@ -154,7 +171,7 @@ struct PostingListIndex : MatchingPoints<T, Point> {
       parlay::sequence<double> tmp_centroid(this->dim);
       for (size_t p = 0; p < this->clusters[i].size();
            p++) {   // for each point in this cluster
-        T* data = (*points)[this->clusters[i][p]].get();
+        T* data = points[this->clusters[i][p]].get();
         for (size_t d = 0; d < this->dim; d++) {   // for each dimension
           tmp_centroid[d] += data[d];
         }
@@ -172,19 +189,34 @@ struct PostingListIndex : MatchingPoints<T, Point> {
 
     // build the vamana graph
 
-    // this->start_point = indices[0];
-    knn_index<Point, SubsetPointRange<T, Point>, index_type> I(BP);
-    stats<index_type> BuildStats(this->points->size());
+    if (graph_prefix != "" && std::filesystem::exists(this->graph_filename(graph_prefix))){
+      std::string filename = this->graph_filename(graph_prefix);
+      this->index_graph = Graph<index_type>(filename.data());
+    } else {
+      // this->start_point = indices[0];
+      knn_index<Point, SubsetPointRange<T, Point>, index_type> I(BP);
+      stats<index_type> BuildStats(this->points.size());
 
-    // std::cout << "This filter has " << indices.size() << " points" << std::endl;
+      // std::cout << "This filter has " << indices.size() << " points" << std::endl;
 
-    this->index_graph = Graph<index_type>(BP.R, indices.size());
-    I.build_index(this->index_graph, this->subset_points, BuildStats);
+      this->index_graph = Graph<index_type>(BP.R, indices.size());
+      I.build_index(this->index_graph, this->subset_points, BuildStats);
 
+      if (graph_prefix != ""){
+        this->save_graph(graph_prefix);
+      }
+    }
     // confirming the graph is real by printing the out neighbors of the first point
     std::cout << "first point has " << this->index_graph[0].size() << "/" << this->index_graph.max_degree() <<" out neighbors:" << std::endl;
     for (size_t i = 0; i < this->index_graph[0].size(); i++){
       std::cout << this->index_graph[0][i] << " ";
+    }
+    std::cout << std::endl;
+
+    auto [pairs, _] = this->knn(this->subset_points[0], 10);
+
+    for (size_t i = 0; i < pairs.size(); i++){
+      std::cout << " (" << pairs[i].first << ", " << pairs[i].second << ") ";
     }
     std::cout << std::endl;
 
@@ -220,7 +252,18 @@ struct PostingListIndex : MatchingPoints<T, Point> {
 
   std::pair<parlay::sequence<std::pair<index_type, float>>, size_t> knn(Point query, int k) override {
     // will have to come back to do something clever with the distance comparisons, perhaps track the comparisons for the single case inside the posting lists
-    auto [pairElts, dist_cmps] = beam_search<Point, PointRange<T, Point>, index_type>(query, this->index_graph, *const_cast<PointRange<T, Point>*>(this->points), 0, *(this->QP));
+    // std::cout << this->index_graph[0][0] << " " << this->index_graph[500][10] << std::endl;
+
+    // Point p = this->subset_points[0];
+
+    // std::cout << "p " << p.get()[0] << std::endl;
+
+    // std::cout << "subset points size " << this->subset_points.size() << std::endl;
+    // std::cout << "query point dcmp " << query.distance(this->subset_points[0]) << std::endl;
+    // Point r = ((this->subset_points).pr).operator[](0);
+    // std::cout << " whatever " << query.distance(r) << std::endl;
+    // std::cout << "query point dcmp " << query.distance(this->points[0]) << std::endl;
+    auto [pairElts, dist_cmps] = beam_search<Point, SubsetPointRange<T, Point>, index_type>(query, this->index_graph, this->subset_points, 0, *(this->QP));
     auto frontier = pairElts.first;
 
     for (size_t i = 0; i < frontier.size(); i++){
@@ -231,6 +274,18 @@ struct PostingListIndex : MatchingPoints<T, Point> {
     return std::make_pair(parlay::map(frontier, [&] (std::pair<index_type, float> p) {
       return std::make_pair(this->subset_points.real_index(p.first), p.second);
     }), dist_cmps);
+  }
+
+  std::string graph_filename(std::string filename_prefix) {
+    return filename_prefix + std::to_string(this->id) + "_graph_" + std::to_string(this->BP.R) + "_" + std::to_string(this->BP.L) + "_" + std::to_string(this->BP.alpha) + ".bin";
+  }
+
+  /* Saves the graph to a file named based on the build params
+  
+  Note that the prefix should include  */
+  void save_graph(std::string filename_prefix) {
+    std::string filename = this->graph_filename(filename_prefix);
+    this->index_graph.save(filename.data());
   }
 
 };
@@ -340,10 +395,10 @@ struct IVF_Squared {
         std::cout << "Filter with " << filters.point_count(i) << " points has weight class " << weight_class << std::endl;
 
         this->posting_lists[i] = std::make_unique<PostingListIndex<T, Point>>(
-           &points, filters.row_indices.get() + filters.row_offsets[i],
+           this->points, filters.row_indices.get() + filters.row_offsets[i],
            filters.row_indices.get() + filters.row_offsets[i + 1],
            KMeansClusterer<T, Point, index_type>(filters.point_count(i) /
-                                                 cluster_size), BP[weight_class], QP + weight_class);
+                                                 cluster_size), BP[weight_class], QP + weight_class, i);
 				ctr += 1;
 				if (ctr % 100 == 0) {
           std::cout << "IVF^2: " << ctr << " / " << num_above_cutoff << " PostingListIndex objects created" << std::endl;
@@ -351,7 +406,8 @@ struct IVF_Squared {
       } else {
         this->posting_lists[i] = std::make_unique<ArrayIndex<T, Point>>(
            filters.row_indices.get() + filters.row_offsets[i],
-           filters.row_indices.get() + filters.row_offsets[i + 1]);
+           filters.row_indices.get() + filters.row_offsets[i + 1],
+           this->points);
       }
     }, 10'000'000); // sequentially for now.
   }
@@ -373,8 +429,8 @@ struct IVF_Squared {
     py::array_t<unsigned int> ids({num_queries, knn});
     py::array_t<float> dists({num_queries, knn});
 
-    parlay::parallel_for(0, num_queries, [&](size_t i) {
-    // for (size_t i = 0; i < num_queries; i++) {
+    // parlay::parallel_for(0, num_queries, [&](size_t i) {
+    for (size_t i = 0; i < num_queries; i++) {
       Point q = Point(queries.data(i), this->points.dimension(),
                       this->points.aligned_dimension(), i);
       const QueryFilter& filter = filters[i];
@@ -488,7 +544,7 @@ struct IVF_Squared {
         ids.mutable_data(i)[j] = static_cast<unsigned int>(frontier[j].first);
         dists.mutable_data(i)[j] = frontier[j].second;
       }
-        return;
+        // return;
       }
 
       #ifdef COUNTERS
@@ -531,8 +587,8 @@ struct IVF_Squared {
         ids.mutable_data(i)[j] = static_cast<unsigned int>(frontier[j].first);
         dists.mutable_data(i)[j] = frontier[j].second;
       }
-    });
-    // }
+    // });
+    }
 
     return std::make_pair(std::move(ids), std::move(dists));
   }
