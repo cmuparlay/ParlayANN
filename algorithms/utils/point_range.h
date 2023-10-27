@@ -119,6 +119,8 @@ struct PointRange{
     return Point(values+i*aligned_dims, dims, aligned_dims, i);
   }
 
+  PointRange(PointRange&& other){std::cout << "Moving pr" << std::endl;}
+
   ~PointRange(){
     std::cout << "Freeing point range" << std::endl;
     if(values != nullptr){

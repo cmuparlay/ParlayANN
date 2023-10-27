@@ -358,6 +358,8 @@ struct QuantizedPointRange{
         writer.close();
     }
 
+    QuantizedPointRange(QuantizedPointRange&& other){std::cout << "moving qpr" << std::endl;}
+
     ~QuantizedPointRange(){
         std::cout << "Freeing quantized points" << std::endl;
         if(values != nullptr){
