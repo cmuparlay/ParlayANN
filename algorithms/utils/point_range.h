@@ -55,7 +55,7 @@ struct PointRange{
   long dimension(){return dims;}
   long aligned_dimension(){return aligned_dims;}
 
-  PointRange(){n=0;}
+  PointRange(){n=0; values = (T*) aligned_alloc(64,64);}
 
   PointRange(char* filename){
       if(filename == NULL) {
