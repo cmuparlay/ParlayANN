@@ -254,13 +254,13 @@ struct QuantizedPointRange{
     float min(){return min_coord;}
 
     Point operator [] (long i) {
-        return Point(values+i*aligned_dims, dims, quantized_dims, aligned_dims, i, max_coord, min_coord, bits);
+        return Point(values.get()+i*aligned_dims, dims, quantized_dims, aligned_dims, i, max_coord, min_coord, bits);
     }
 
-    QuantizedPointRange(){values = nullptr; n=0;}
+    QuantizedPointRange() : values(std::shared_ptr<T[]>(nullptr, std::free)){n=0;}
 
     template<typename PointRange>
-    QuantizedPointRange(PointRange &Points, int bits) : bits(bits) {
+    QuantizedPointRange(PointRange &Points, int bits) : bits(bits), values(std::shared_ptr<T[]>(nullptr, std::free)) {
         n = Points.size();
         dims = Points.dimension();
         std::cout << "Detected " << n << " points with dimension " << dims << std::endl;
@@ -271,7 +271,7 @@ struct QuantizedPointRange{
         min_coord = minc;
         aligned_dims =  dim_round_up(quantized_dims, sizeof(T));
         if(aligned_dims != quantized_dims) std::cout << "Aligning quantized dimension to " << aligned_dims << std::endl;
-        values = (T*) aligned_alloc(64, n*aligned_dims*sizeof(T));
+        values = std::shared_ptr<T[]>((T*) aligned_alloc(64, n*aligned_dims*sizeof(T)), std::free);
         size_t BLOCK_SIZE = 1000000;
         size_t index = 0;
         while(index < n){
@@ -279,13 +279,13 @@ struct QuantizedPointRange{
             size_t ceiling = index+BLOCK_SIZE <= n ? index+BLOCK_SIZE : n;
             int data_bytes = quantized_dims*sizeof(T);
             parlay::parallel_for(floor, ceiling, [&] (size_t i){
-                std::memmove(values + i*aligned_dims, quantized_data.begin() + i*quantized_dims, data_bytes);
+                std::memmove(values.get() + i*aligned_dims, quantized_data.begin() + i*quantized_dims, data_bytes);
             });
             index = ceiling;
         }
     }
 
-    QuantizedPointRange(char* filename){
+    QuantizedPointRange(char* filename) : values(std::shared_ptr<T[]>(nullptr, std::free)){
         if(filename == NULL) {
             n = 0;
             dims = 0;
@@ -309,7 +309,7 @@ struct QuantizedPointRange{
         std::cout << "Max coord: " << max_coord << ", Min coord: " << min_coord << std::endl;
         aligned_dims =  dim_round_up(quantized_dims, sizeof(T));
         if(aligned_dims != quantized_dims) std::cout << "Aligning dimension to " << aligned_dims << std::endl;
-        values = (T*) aligned_alloc(64, n*aligned_dims*sizeof(T));
+        values = std::shared_ptr<T[]>((T*) aligned_alloc(64, n*aligned_dims*sizeof(T)), std::free);
         size_t BLOCK_SIZE = 1000000;
         size_t index = 0;  
         while(index < n){
@@ -321,7 +321,7 @@ struct QuantizedPointRange{
             parlay::slice<T*, T*> data = parlay::make_slice(data_start, data_end);
             int data_bytes = quantized_dims*sizeof(T);
             parlay::parallel_for(floor, ceiling, [&] (size_t i){
-                std::memmove(values + i*aligned_dims, data.begin() + (i-floor)*quantized_dims, data_bytes);
+                std::memmove(values.get() + i*aligned_dims, data.begin() + (i-floor)*quantized_dims, data_bytes);
             });
             delete[] data_start;
             index = ceiling;
@@ -346,7 +346,7 @@ struct QuantizedPointRange{
             auto data = parlay::sequence<T>((ceiling-floor)*quantized_dims);
             parlay::parallel_for(floor, ceiling, [&] (size_t i){
                 parlay::sequence<T> vals = parlay::tabulate(quantized_dims, [&] (size_t j){
-                    return values[aligned_dims*i+j];
+                    return values.get()[aligned_dims*i+j];
                 });
                 for(size_t j=0; j<quantized_dims; j++){
                     data[(i-floor)*quantized_dims+j] = vals[j];
@@ -358,18 +358,13 @@ struct QuantizedPointRange{
         writer.close();
     }
 
-    QuantizedPointRange(QuantizedPointRange&& other){std::cout << "moving qpr" << std::endl;}
 
     ~QuantizedPointRange(){
         std::cout << "Freeing quantized points" << std::endl;
-        if(values != nullptr){
-            std::free(values);
-            values = nullptr;
-        }
     }
 
     private:
-        T* values;
+        std::shared_ptr<T[]> values;
         unsigned int dims;
         unsigned int quantized_dims;
         unsigned int aligned_dims;

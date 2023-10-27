@@ -49,15 +49,20 @@ long dim_round_up(long dim, long tp_size){
   else return ((qt+1)*64)/tp_size;
 }
 
+struct free_delete
+{
+    void operator()(void* x) { std::free(x); }
+};
+
 template<typename T, class Point>
 struct PointRange{
 
   long dimension(){return dims;}
   long aligned_dimension(){return aligned_dims;}
 
-  PointRange(){n=0; values = nullptr;}
+  PointRange() : values(std::shared_ptr<T[]>(nullptr, std::free)) {n=0;}
 
-  PointRange(char* filename){
+  PointRange(char* filename) : values(std::shared_ptr<T[]>(nullptr, std::free)){
       if(filename == NULL) {
         n = 0;
         dims = 0;
@@ -76,7 +81,7 @@ struct PointRange{
       std::cout << "Detected " << num_points << " points with dimension " << d << std::endl;
       aligned_dims =  dim_round_up(dims, sizeof(T));
       if(aligned_dims != dims) std::cout << "Aligning dimension to " << aligned_dims << std::endl;
-      values = (T*) aligned_alloc(64, n*aligned_dims*sizeof(T));
+      values = std::shared_ptr<T[]>((T*) aligned_alloc(64, n*aligned_dims*sizeof(T)), std::free);
       size_t BLOCK_SIZE = 1000000;
       size_t index = 0;
       while(index < n){
@@ -88,7 +93,7 @@ struct PointRange{
           parlay::slice<T*, T*> data = parlay::make_slice(data_start, data_end);
           int data_bytes = dims*sizeof(T);
           parlay::parallel_for(floor, ceiling, [&] (size_t i){
-            std::memmove(values + i*aligned_dims, data.begin() + (i-floor)*dims, data_bytes);
+            std::memmove(values.get() + i*aligned_dims, data.begin() + (i-floor)*dims, data_bytes);
           });
           delete[] data_start;
           index = ceiling;
@@ -114,23 +119,14 @@ struct PointRange{
 
   size_t size() { return n; }
 
+  ~PointRange(){std::cout << "freeing point range" << std::endl;}
   
   Point operator [] (long i) {
-    return Point(values+i*aligned_dims, dims, aligned_dims, i);
-  }
-
-  PointRange(PointRange&& other){std::cout << "Moving pr" << std::endl;}
-
-  ~PointRange(){
-    std::cout << "Freeing point range" << std::endl;
-    if(values != nullptr){
-          std::free(values);
-          values = nullptr;
-      }
+    return Point(values.get()+i*aligned_dims, dims, aligned_dims, i);
   }
 
 private:
-  T* values;
+  std::shared_ptr<T[]> values;
   unsigned int dims;
   unsigned int aligned_dims;
   size_t n;
