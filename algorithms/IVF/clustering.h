@@ -118,6 +118,8 @@ struct HCNNGClusterer {
        parlay::tabulate(points.size(), [&](index_type i) { return i; });
     return this->cluster(points, active_indices);
   }
+
+  std::pair<size_t, size_t> get_build_params() const { return std::make_pair(cluster_size, 0); }
 };
 
 template <typename T, class Point, typename index_type>
@@ -125,7 +127,7 @@ struct KMeansClusterer {
   size_t n_clusters = 1000;
 
   size_t max_iters; 
-  size_t subsample = 50; // Subsample rate.
+  size_t subsample = 5; // Subsample rate.
 
   KMeansClusterer() {}
 
@@ -282,6 +284,8 @@ struct KMeansClusterer {
 		// cluster_stats(ret_clusters);
 		return ret_clusters;
   }
+
+  std::pair<size_t, size_t> get_build_params() const { return std::make_pair(n_clusters, subsample); }
 };
 
 #endif   // CLUSTERING_H

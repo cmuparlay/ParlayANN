@@ -23,6 +23,7 @@
 #include <utility>
 #include <vector>
 #include <filesystem>
+#include <fstream>
 
 #include "pybind11/numpy.h"
 #include "pybind11/stl.h"
@@ -124,6 +125,7 @@ struct PostingListIndex : MatchingPoints<T, Point> {
   size_t aligned_dim;
   size_t n;   // n points in the index
   index_type id;   // id of this index
+  std::pair<size_t, size_t> cluster_params;   // build params for the clustering
 
   Graph<index_type> index_graph; // the vamana graph we do single search over
   QueryParams *QP;
@@ -137,17 +139,17 @@ struct PostingListIndex : MatchingPoints<T, Point> {
   
   template <typename Clusterer>
   PostingListIndex(PointRange<T, Point> &points, const index_type* start,
-                   const index_type* end, Clusterer clusterer, BuildParams BP, QueryParams *QP, index_type id, std::string graph_prefix="graphs/") : id(id), points(points), subset_points(points, parlay::sequence<index_type>(start, end)) {
+                   const index_type* end, Clusterer clusterer, BuildParams BP, QueryParams *QP, index_type id, std::string cache_path="index_cache/") : id(id), points(points), subset_points(points, parlay::sequence<index_type>(start, end)) {
     auto indices = parlay::sequence<index_type>(start, end);
 
-    Point p = this->subset_points[0];
-    Point q = this->points[0];
+    // Point p = this->subset_points[0];
+    // Point q = this->points[0];
 
-    std::cout << "p " << p.get()[0] << std::endl;
-    std::cout << "q " << q.get()[0] << std::endl;
+    // std::cout << "p " << p.get()[0] << std::endl;
+    // std::cout << "q " << q.get()[0] << std::endl;
 
-    std::cout << "subset points size " << this->subset_points.size() << std::endl;
-    std::cout << "points size " << this->points.size() << std::endl;
+    // std::cout << "subset points size " << this->subset_points.size() << std::endl;
+    // std::cout << "points size " << this->points.size() << std::endl;
 
     // this->points = points;
     this->dim = points.dimension();
@@ -156,43 +158,57 @@ struct PostingListIndex : MatchingPoints<T, Point> {
     this->BP = BP;
 
     this->n = indices.size();
+    this->cluster_params = clusterer.get_build_params();
 
-    this->clusters = clusterer.cluster(points, indices);
+    if (cache_path != "" && std::filesystem::exists(this->pl_filename(cache_path))){
+      std::cout << "Loading posting list" << std::endl;
+      this->load_posting_list(cache_path);
+    } else {
+      std::cout << "Building posting list" << std::endl;
 
-    this->centroid_data =
-       std::make_unique<T[]>(this->clusters.size() * this->aligned_dim);
+      this->clusters = clusterer.cluster(points, indices);
 
-    if (this->clusters.size() == 0) {
-      throw std::runtime_error("PostingListIndex: no clusters generated");
-    }
+      this->centroid_data =
+        std::make_unique<T[]>(this->clusters.size() * this->aligned_dim);
 
-    for (size_t i = 0; i < this->clusters.size(); i++) {
-      size_t offset = i * this->aligned_dim;
-      parlay::sequence<double> tmp_centroid(this->dim);
-      for (size_t p = 0; p < this->clusters[i].size();
-           p++) {   // for each point in this cluster
-        T* data = points[this->clusters[i][p]].get();
-        for (size_t d = 0; d < this->dim; d++) {   // for each dimension
-          tmp_centroid[d] += data[d];
+      if (this->clusters.size() == 0) {
+        throw std::runtime_error("PostingListIndex: no clusters generated");
+      }
+
+      for (size_t i = 0; i < this->clusters.size(); i++) {
+        size_t offset = i * this->aligned_dim;
+        parlay::sequence<double> tmp_centroid(this->dim);
+        for (size_t p = 0; p < this->clusters[i].size();
+            p++) {   // for each point in this cluster
+          T* data = points[this->clusters[i][p]].get();
+          for (size_t d = 0; d < this->dim; d++) {   // for each dimension
+            tmp_centroid[d] += data[d];
+          }
         }
-      }
-      // divide by the number of points in the cluster and assign to centroid
-      // data
-      for (size_t d = 0; d < this->dim; d++) {   // for each dimension
-        this->centroid_data[offset + d] = static_cast<T>(
-           std::round(tmp_centroid[d] / this->clusters[i].size()));
-      }
+        // divide by the number of points in the cluster and assign to centroid
+        // data
+        for (size_t d = 0; d < this->dim; d++) {   // for each dimension
+          this->centroid_data[offset + d] = static_cast<T>(
+            std::round(tmp_centroid[d] / this->clusters[i].size()));
+        }
 
-      this->centroids.push_back(Point(this->centroid_data.get() + offset,
-                                      this->dim, this->aligned_dim, i));
+        this->centroids.push_back(Point(this->centroid_data.get() + offset,
+                                        this->dim, this->aligned_dim, i));
     }
 
+    if (cache_path != ""){
+      this->save_posting_list(cache_path);
+    }
+  }
     // build the vamana graph
 
-    if (graph_prefix != "" && std::filesystem::exists(this->graph_filename(graph_prefix))){
-      std::string filename = this->graph_filename(graph_prefix);
+    if (cache_path != "" && std::filesystem::exists(this->graph_filename(cache_path))){
+      std::cout << "Loading graph" << std::endl;
+
+      std::string filename = this->graph_filename(cache_path);
       this->index_graph = Graph<index_type>(filename.data());
     } else {
+      // std::cout << "Building graph" << std::endl;
       // this->start_point = indices[0];
       knn_index<Point, SubsetPointRange<T, Point>, index_type> I(BP);
       stats<index_type> BuildStats(this->points.size());
@@ -202,23 +218,23 @@ struct PostingListIndex : MatchingPoints<T, Point> {
       this->index_graph = Graph<index_type>(BP.R, indices.size());
       I.build_index(this->index_graph, this->subset_points, BuildStats);
 
-      if (graph_prefix != ""){
-        this->save_graph(graph_prefix);
+      if (cache_path != ""){
+        this->save_graph(cache_path);
       }
     }
     // confirming the graph is real by printing the out neighbors of the first point
-    std::cout << "first point has " << this->index_graph[0].size() << "/" << this->index_graph.max_degree() <<" out neighbors:" << std::endl;
-    for (size_t i = 0; i < this->index_graph[0].size(); i++){
-      std::cout << this->index_graph[0][i] << " ";
-    }
-    std::cout << std::endl;
+    // std::cout << "first point has " << this->index_graph[0].size() << "/" << this->index_graph.max_degree() <<" out neighbors:" << std::endl;
+    // for (size_t i = 0; i < this->index_graph[0].size(); i++){
+    //   std::cout << this->index_graph[0][i] << " ";
+    // }
+    // std::cout << std::endl;
 
-    auto [pairs, _] = this->knn(this->subset_points[0], 10);
+    // auto [pairs, _] = this->knn(this->subset_points[0], 10);
 
-    for (size_t i = 0; i < pairs.size(); i++){
-      std::cout << " (" << pairs[i].first << ", " << pairs[i].second << ") ";
-    }
-    std::cout << std::endl;
+    // for (size_t i = 0; i < pairs.size(); i++){
+    //   std::cout << " (" << pairs[i].first << ", " << pairs[i].second << ") ";
+    // }
+    // std::cout << std::endl;
 
   }
 
@@ -266,10 +282,10 @@ struct PostingListIndex : MatchingPoints<T, Point> {
     auto [pairElts, dist_cmps] = beam_search<Point, SubsetPointRange<T, Point>, index_type>(query, this->index_graph, this->subset_points, 0, *(this->QP));
     auto frontier = pairElts.first;
 
-    for (size_t i = 0; i < frontier.size(); i++){
-      std::cout << " (" << frontier[i].first << ", " << frontier[i].second << ") ";
-    }
-    std::cout << std::endl;
+    // for (size_t i = 0; i < frontier.size(); i++){
+    //   std::cout << " (" << frontier[i].first << ", " << frontier[i].second << ") ";
+    // }
+    // std::cout << std::endl;
     
     return std::make_pair(parlay::map(frontier, [&] (std::pair<index_type, float> p) {
       return std::make_pair(this->subset_points.real_index(p.first), p.second);
@@ -282,10 +298,92 @@ struct PostingListIndex : MatchingPoints<T, Point> {
 
   /* Saves the graph to a file named based on the build params
   
-  Note that the prefix should include  */
+  Note that the prefix should include a trailing slash if it's a directory */
   void save_graph(std::string filename_prefix) {
     std::string filename = this->graph_filename(filename_prefix);
     this->index_graph.save(filename.data());
+  }
+
+  std::string pl_filename(std::string filename_prefix) {
+    return filename_prefix + std::to_string(this->id) + "_postingList_" + std::to_string(this->cluster_params.first) + "_" + std::to_string(this->cluster_params.second) + ".bin";
+  }
+
+  /* Saves the posting list to a file named based on the cluster params */
+  void save_posting_list(const std::string& filename_prefix) {
+    std::string filename = pl_filename(filename_prefix);
+    std::ofstream output(filename, std::ios::binary);
+
+    if (!output.is_open()) {
+      throw std::runtime_error("PostingListIndex: could not open file " + filename);
+    }
+
+    // Write number of centroids/posting lists
+    size_t num_centroids = this->clusters.size();
+    output.write(reinterpret_cast<const char*>(&num_centroids), sizeof(size_t));
+
+    // Write centroids
+    size_t centroid_bytes = sizeof(T) * num_centroids * this->aligned_dim;
+    output.write(reinterpret_cast<const char*>(this->centroid_data.get()), centroid_bytes);
+
+    // For CSR-like format
+    parlay::sequence<index_type> indices = parlay::sequence<index_type>::uninitialized(this->n);
+    parlay::sequence<index_type> indptr(1, 0);  // Start with an initial zero
+    indptr.reserve(num_centroids + 1);
+    
+    for (const auto& list : this->clusters) {
+      memcpy(indices.data() + indptr.back(), list.data(), sizeof(index_type) * list.size());
+      indptr.push_back(indptr.back() + list.size());
+    }
+
+    // Write indptr array
+    output.write(reinterpret_cast<const char*>(indptr.data()), sizeof(index_type) * indptr.size());
+
+    // Write indices array
+    output.write(reinterpret_cast<const char*>(indices.data()), sizeof(index_type) * indices.size());
+
+    output.close();
+}
+
+  /* Loads the posting list from a file named based on the cluster params */
+  void load_posting_list(std::string filename_prefix) {
+    std::string filename = pl_filename(filename_prefix);
+    std::ifstream input(filename, std::ios::binary);
+
+    if (!input.is_open()) {
+      throw std::runtime_error("PostingListIndex: could not open file " + filename);
+    }
+
+    // Read number of centroids/posting lists
+    size_t num_centroids;
+    input.read(reinterpret_cast<char*>(&num_centroids), sizeof(size_t));
+
+    // Read centroids
+    size_t centroid_bytes = sizeof(T) * num_centroids * this->aligned_dim;
+    this->centroid_data = std::make_unique<T[]>(num_centroids * this->aligned_dim);
+    input.read(reinterpret_cast<char*>(this->centroid_data.get()), centroid_bytes);
+
+    for (size_t i = 0; i < num_centroids; i++) {
+      this->centroids.push_back(Point(this->centroid_data.get() + i * this->aligned_dim, this->dim, this->aligned_dim, i));
+    }
+    // Read indptr array
+    parlay::sequence<index_type> indptr(num_centroids + 1);
+    input.read(reinterpret_cast<char*>(indptr.data()), sizeof(index_type) * indptr.size());
+
+    // Read indices array
+    parlay::sequence<index_type> indices(indptr.back());
+    input.read(reinterpret_cast<char*>(indices.data()), sizeof(index_type) * indices.size());
+
+    input.close();
+
+    // Convert indptr and indices to CSR-like format
+    this->clusters = parlay::sequence<parlay::sequence<index_type>>(num_centroids); // should in theory be ininitialized but that causes a segfault
+    for (size_t i = 0; i < num_centroids; i++) {
+      this->clusters[i].reserve(indptr[i + 1] - indptr[i]);
+      // this is heinous hopefully this is not needed
+      for (size_t j = indptr[i]; j < indptr[i + 1]; j++) {
+        this->clusters[i].push_back(indices[j]);
+      }
+    }
   }
 
 };
@@ -429,8 +527,8 @@ struct IVF_Squared {
     py::array_t<unsigned int> ids({num_queries, knn});
     py::array_t<float> dists({num_queries, knn});
 
-    // parlay::parallel_for(0, num_queries, [&](size_t i) {
-    for (size_t i = 0; i < num_queries; i++) {
+    parlay::parallel_for(0, num_queries, [&](size_t i) {
+    // for (size_t i = 0; i < num_queries; i++) {
       Point q = Point(queries.data(i), this->points.dimension(),
                       this->points.aligned_dimension(), i);
       const QueryFilter& filter = filters[i];
@@ -544,7 +642,7 @@ struct IVF_Squared {
         ids.mutable_data(i)[j] = static_cast<unsigned int>(frontier[j].first);
         dists.mutable_data(i)[j] = frontier[j].second;
       }
-        // return;
+        return;
       }
 
       #ifdef COUNTERS
@@ -587,8 +685,8 @@ struct IVF_Squared {
         ids.mutable_data(i)[j] = static_cast<unsigned int>(frontier[j].first);
         dists.mutable_data(i)[j] = frontier[j].second;
       }
-    // });
-    }
+    });
+    // }
 
     return std::make_pair(std::move(ids), std::move(dists));
   }
