@@ -494,9 +494,9 @@ struct IVF_Squared {
                       // describes what it's doing
         // weight classes here being the s, m, l cutoffs
         int weight_class = 0;
-        if (filters.point_count(i) > L_CUTOFF){
+        if (filters.point_count(i) > this->large_cutoff){
             weight_class = 2;
-        } else if (filters.point_count(i) > M_CUTOFF){
+        } else if (filters.point_count(i) > this->medium_cutoff){
             weight_class = 1;
         }
 

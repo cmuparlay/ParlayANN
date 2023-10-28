@@ -74,8 +74,10 @@ TINY_CUTOFF = 1000
 
 start = time.time()
 
+os.mkdir("index_cache/")
+
 index = wp.init_squared_ivf_index("Euclidian", "uint8")
-index.fit_from_filename(DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat', CUTOFF, CLUSTER_SIZE, "index_cache/", (75_000, 400_000))
+index.fit_from_filename(DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat', CUTOFF, CLUSTER_SIZE, "index_cache/", (150_000, 400_000))
 
 print(f"Time taken: {time.time() - start:.2f}s")
 
@@ -104,8 +106,10 @@ index.set_tiny_cutoff(TINY_CUTOFF)
 
 neighbors, distances = index.batch_filter_search(X, filters, NQ, 10)
 
+elapsed = time.time() - start
+
 index.print_stats()
-#                           UNCOMMENT
+
 all_filters = wp.csr_filters(DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat').transpose()
 
 if NQ <= 10:
@@ -121,7 +125,6 @@ print(neighbors.shape)
 print(neighbors[:10, :])
 print(distances[:10, :])
 
-elapsed = time.time() - start
 print(f"Time taken: {elapsed:.2f}s")
 print(f"QPS: {NQ / elapsed:,.2f}")
 
