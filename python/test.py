@@ -75,7 +75,7 @@ TINY_CUTOFF = 1000
 start = time.time()
 
 index = wp.init_squared_ivf_index("Euclidian", "uint8")
-index.fit_from_filename(DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat', CUTOFF, CLUSTER_SIZE, "index_cache/")
+index.fit_from_filename(DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat', CUTOFF, CLUSTER_SIZE, "index_cache/", (75_000, 400_000))
 
 print(f"Time taken: {time.time() - start:.2f}s")
 
@@ -96,16 +96,6 @@ filters = [None] * len(filter_dict.keys())
 for i in filter_dict.keys():
     filters[i] = wp.QueryFilter(*filter_dict[i])
 
-all_filters = wp.csr_filters(DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat').transpose()
-
-if NQ <= 10:
-    print(filters[:NQ])
-
-    print([(all_filters.point_count(i.a), all_filters.point_count(i.b)) if i.is_and() else all_filters.point_count(i.a) for i in filters[:NQ]])
-else:
-    print(filters[:10])
-
-    print([(all_filters.point_count(i.a), all_filters.point_count(i.b)) if i.is_and() else all_filters.point_count(i.a) for i in filters[:10]])
 
 
 index.set_target_points(TARGET_POINTS)
@@ -116,6 +106,16 @@ neighbors, distances = index.batch_filter_search(X, filters, NQ, 10)
 
 index.print_stats()
 #                           UNCOMMENT
+all_filters = wp.csr_filters(DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat').transpose()
+
+if NQ <= 10:
+    print(filters[:NQ])
+
+    print([(all_filters.point_count(i.a), all_filters.point_count(i.b)) if i.is_and() else all_filters.point_count(i.a) for i in filters[:NQ]])
+else:
+    print(filters[:10])
+
+    print([(all_filters.point_count(i.a), all_filters.point_count(i.b)) if i.is_and() else all_filters.point_count(i.a) for i in filters[:10]])
 
 print(neighbors.shape)
 print(neighbors[:10, :])

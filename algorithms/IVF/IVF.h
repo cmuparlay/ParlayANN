@@ -6,6 +6,7 @@
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 #include "parlay/sequence.h"
+#include "parlay/slice.h"
 
 #include "../vamana/index.h"
 #include "../HCNNG/clusterEdge.h"
@@ -24,6 +25,7 @@
 #include <vector>
 #include <filesystem>
 #include <fstream>
+#include <variant>
 
 #include "pybind11/numpy.h"
 #include "pybind11/stl.h"
@@ -43,6 +45,9 @@
 namespace py = pybind11;
 using NeighborsAndDistances =
    std::pair<py::array_t<unsigned int>, py::array_t<float>>;
+
+template<typename T>
+using Seq_variant = std::variant<parlay::sequence<T>, parlay::slice<T*, T*>>;
 
 /* A posting list of sorts which has an index over its elements.
 
@@ -73,7 +78,10 @@ struct MatchingPoints {
 
 /* An "index" which just stores an array of indices to matching points.
 
-Meant to be used for the points associated with small filters */
+Meant to be used for the points associated with small filters
+
+  TODO: make this not hold anything but the pointers, adjusting join accordingly, use a slice with a template parameter for the sequence.
+ */
 
 template <typename T, class Point>
 struct ArrayIndex : MatchingPoints<T, Point> {
@@ -85,11 +93,11 @@ struct ArrayIndex : MatchingPoints<T, Point> {
   }
 
   parlay::sequence<index_type> sorted_near(Point query, int target_points) const override {
-    return this->indices;   // does/should this copy?
+    return this->indices;   // this copies !!!
   }
 
   std::pair<parlay::sequence<std::pair<index_type, float>>, size_t> knn (Point query, int k) override {
-    parlay::sequence<std::pair<index_type, float>> frontier(k);
+    parlay::sequence<std::pair<index_type, float>> frontier(k, std::make_pair(0, std::numeric_limits<float>::max()));
     for (size_t i = 0; i < indices.size(); i++){
       float dist = query.distance(this->points[this->indices[i]]);
       if (dist < frontier[k - 1].second){
@@ -405,7 +413,11 @@ struct IVF_Squared {
   size_t tiny_cutoff = TINY_CASE_CUTOFF;   // cutoff below which we use the tiny case
   size_t sq_target_points = 500; // number of points for each filter to return when not doing an and
 
-// these will eventually need to be specified in the config, which will be painfully verbose
+  size_t large_cutoff = L_CUTOFF; // cutoff for large case
+  size_t medium_cutoff = M_CUTOFF; // cutoff for medium case
+  // small case is anything below large
+
+// TODO: update these when we receive the weight classes from the constructor
   QueryParams QP[3] = {QueryParams(10, 100, 1.35, M_CUTOFF, 16), QueryParams(10, 100, 1.35, L_CUTOFF, 32), QueryParams(10, 100, 1.35, 3'000'000, 64)};
   // TODO: increase L_build to 500 once we don't care about the build time and/or are saving these graphs
   // TODO: modify build to do two passes once we have all the time in the world
@@ -450,8 +462,6 @@ struct IVF_Squared {
    * If a filter is above the cutoff, it gets an array index,
    * otherwise it gets an array that's "global" (just stores all
    * points that match that filter).
-   *
-   * Later, in batch_filter_search
    * */
   void fit(PointRange<T, Point> points, csr_filters& filters,
            size_t cutoff = 10000, size_t cluster_size = 1000, std::string cache_path="index_cache/") {
@@ -507,15 +517,20 @@ struct IVF_Squared {
            filters.row_indices.get() + filters.row_offsets[i + 1],
            this->points);
       }
-    }, 10'000'000); // sequentially for now.
+    }); // sequentially for now. (sike)
   }
 
   void fit_from_filename(std::string filename, std::string filter_filename,
-                         size_t cutoff = 10000, size_t cluster_size = 1000, std::string cache_path="") {
+                         size_t cutoff = 10000, size_t cluster_size = 1000, std::string cache_path="", std::pair<size_t, size_t> weight_classes=std::make_pair(M_CUTOFF, L_CUTOFF)) {
+    this->medium_cutoff = weight_classes.first;
+    this->large_cutoff = weight_classes.second;
+
     PointRange<T, Point> points(filename.c_str());
     std::cout << "IVF^2: points loaded" << std::endl;
+
     csr_filters filters(filter_filename.c_str());
     std::cout << "IVF^2: filters loaded" << std::endl;
+
     this->fit(points, filters, cutoff, cluster_size, cache_path);
     std::cout << "IVF^2: fit completed" << std::endl;
   }
@@ -741,6 +756,14 @@ struct IVF_Squared {
     std::cout << "large      \t" << large.total() << "\t" << large_dcmp.total() / std::max(large.total(), (size_t) 1) << "\t" << large_time.total() / std::max(large.total(), (size_t) 1) << "\t" << large_dcmp.total() << "  \t" << large_time.total() << "    \t" << large.total() / std::max(large_time.total() / 8, (double) 1.) << std::endl;
     std::cout << "small      \t" << small.total() << "\t" << small_dcmp.total() / std::max(small.total(), (size_t) 1) << "\t" << small_time.total() / std::max(small.total(), (size_t) 1) << "\t" << small_dcmp.total() << "  \t" << small_time.total() << "    \t" << small.total() / std::max(small_time.total() / 8, (double) 1.) << std::endl;
     #endif
+  }
+
+  void set_query_params(QueryParams qp, size_t weight_class){
+    this->QP[weight_class] = qp;
+  }
+
+  void set_build_params(BuildParams bp, size_t weight_class){
+    this->BP[weight_class] = bp;
   }
 };
 

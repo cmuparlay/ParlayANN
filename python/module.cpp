@@ -31,6 +31,7 @@
 #include "../algorithms/IVF/IVF.h"
 #include "../algorithms/IVF/posting_list.h"
 #include "../algorithms/utils/filters.h"
+#include "../algorithms/utils/types.h"
 
 PYBIND11_MAKE_OPAQUE(std::vector<uint32_t>);
 PYBIND11_MAKE_OPAQUE(std::vector<float>);
@@ -104,7 +105,7 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
     py::class_<IVF_Squared<T, Point>>(m, ("Squared" + variant.ivf_name).c_str())
         .def(py::init())
         .def("fit", &IVF_Squared<T, Point>::fit, "points"_a, "filters"_a, "cutoff"_a, "cluster_size"_a, py::arg("cache_path") = "") 
-        .def("fit_from_filename", &IVF_Squared<T, Point>::fit_from_filename, "filename"_a, "filter_filename"_a, "cutoff"_a, "cluster_size"_a, "cache_path"_a)
+        .def("fit_from_filename", &IVF_Squared<T, Point>::fit_from_filename, "filename"_a, "filter_filename"_a, "cutoff"_a, "cluster_size"_a, "cache_path"_a, "weight_classes"_a)
         // .def("fit_from_filename", &IVF_Squared<T, Point>::fit_from_filename, "filename"_a, "cutoff"_a, "cluster_size"_a, "cache_path"_a)
         .def("batch_filter_search", &IVF_Squared<T, Point>::batch_filter_search, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a)
         .def("set_target_points", &IVF_Squared<T, Point>::set_target_points, "target_points"_a)
@@ -112,7 +113,9 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
         .def("set_tiny_cutoff", &IVF_Squared<T, Point>::set_tiny_cutoff, "tiny_cutoff"_a)
         .def("set_max_iter", &IVF_Squared<T, Point>::set_max_iter, "max_iter"_a)
         .def("reset", &IVF_Squared<T, Point>::reset)
-        .def("print_stats", &IVF_Squared<T, Point>::print_stats);
+        .def("print_stats", &IVF_Squared<T, Point>::print_stats)
+        .def("set_query_params", &IVF_Squared<T, Point>::set_query_params, "params"_a, "weight_class"_a)
+        .def("set_build_params", &IVF_Squared<T, Point>::set_build_params, "params"_a, "weight_class"_a);
 }
 
 PYBIND11_MODULE(_ParlayANNpy, m)
@@ -164,5 +167,10 @@ PYBIND11_MODULE(_ParlayANNpy, m)
         .def_readonly("a", &QueryFilter::a)
         .def_readonly("b", &QueryFilter::b);
 
+    py::class_<QueryParams>(m, "QueryParams")
+        .def(py::init<long, long, double, long, long>(), "k"_a, "beam_width"_a, "cut"_a, "limit"_a, "degree_limit"_a);
+
+    py::class_<BuildParams>(m, "BuildParams")
+        .def(py::init<long, long, double>(), "max_degree"_a, "limit"_a, "alpha"_a);
 
 }
