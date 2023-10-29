@@ -619,7 +619,7 @@ struct IVF_Squared {
             indices.reserve(a_size);
             for (int j = 0; j < this->filters_transpose.point_count(filter.a); j++) {
               index_type point = this->filters_transpose.row_indices[this->filters_transpose.row_offsets[filter.a] + j];
-              if (this->filters.bin_match(point, filter.b)) {
+              if (this->filters.match(point, filter.b)) {
                 indices.push_back(point);
               }
             }
@@ -628,7 +628,7 @@ struct IVF_Squared {
             indices.reserve(b_size);
             for (int j = 0; j < this->filters_transpose.point_count(filter.b); j++) {
               index_type point = this->filters_transpose.row_indices[this->filters_transpose.row_offsets[filter.b] + j];
-              if (this->filters.bin_match(point, filter.a)) {
+              if (this->filters.match(point, filter.a)) {
                 indices.push_back(point);
               }
             }

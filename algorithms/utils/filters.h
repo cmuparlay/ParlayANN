@@ -247,7 +247,7 @@ struct csr_filters{
 
     /* transposes the filters in place */
     void transpose_inplace() {
-        std::cout << "Transposing (inplace)..." << std::endl;
+        // std::cout << "Transposing (inplace)..." << std::endl;
 
         std::unique_ptr<int64_t[]> new_row_offsets = std::make_unique<int64_t[]>(n_filters + 1);
         std::unique_ptr<int32_t[]> new_row_indices = std::make_unique<int32_t[]>(n_nonzero);
@@ -263,7 +263,7 @@ struct csr_filters{
         for (int64_t i = 1; i < n_filters + 1; i++) {
             new_row_offsets[i] += new_row_offsets[i - 1];
         }
-        std::cout << "Offsets computed" << std::endl;
+        // std::cout << "Offsets computed" << std::endl;
 
         // int64_t* tmp_offset = (int64_t*) malloc(n_filters * sizeof(int64_t)); // temporary array to keep track of where to put the next point in each filter
         std::unique_ptr<int64_t[]> tmp_offset = std::make_unique<int64_t[]>(n_filters);

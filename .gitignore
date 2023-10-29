@@ -2,8 +2,5 @@ pyann/_ParlayANNpy.cpython-310-x86_64-linux-gnu.so
 pyann/builder.cpython-310-x86_64-linux-gnu.so
 
 python/index_cache/*
-python/logs/cutoff20000_clustersize1000_targetpoints20000_tinycutoff1000_weightclasses50000-100000.csv
-python/logs/cutoff20000_clustersize1000_targetpoints20000_tinycutoff1000_weightclasses50000-4000000.csv
-python/logs/cutoff20000_clustersize1000_targetpoints20000_tinycutoff1000_weightclasses150000-400000.csv
-python/logs/cutoff20000_clustersize1000_targetpoints20000_tinycutoff1000_weightclasses500000-1000000_28 23:52:11.csv
-python/logs/cutoff20000_clustersize1000_targetpoints20000_tinycutoff1000_weightclasses500000-1000000.csv
+python/logs/*
+python/index_cache

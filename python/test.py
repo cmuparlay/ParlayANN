@@ -1,3 +1,5 @@
+import pandas as pd
+from datetime import datetime
 import time
 from collections import defaultdict
 
@@ -14,12 +16,14 @@ def mmap_sparse_matrix_fields(fname):
         sizes = np.fromfile(f, dtype='int64', count=3)
         nrow, ncol, nnz = sizes
     ofs = sizes.nbytes
-    indptr = np.memmap(fname, dtype='int64', mode='r', offset=ofs, shape=nrow + 1)
+    indptr = np.memmap(fname, dtype='int64', mode='r',
+                       offset=ofs, shape=nrow + 1)
     ofs += indptr.nbytes
     indices = np.memmap(fname, dtype='int32', mode='r', offset=ofs, shape=nnz)
     ofs += indices.nbytes
     data = np.memmap(fname, dtype='float32', mode='r', offset=ofs, shape=nnz)
     return data, indices, indptr, ncol
+
 
 def read_sparse_matrix_fields(fname):
     """ read the fields of a CSR matrix without instanciating it """
@@ -33,6 +37,7 @@ def read_sparse_matrix_fields(fname):
         data = np.fromfile(f, dtype='float32', count=nnz)
         return data, indices, indptr, ncol
 
+
 def read_sparse_matrix(fname, do_mmap=False):
     """ read a CSR matrix in spmat format, optionally mmapping it instead """
     if not do_mmap:
@@ -41,6 +46,7 @@ def read_sparse_matrix(fname, do_mmap=False):
         data, indices, indptr, ncol = mmap_sparse_matrix_fields(fname)
 
     return csr_matrix((data, indices, indptr), shape=(len(indptr) - 1, ncol))
+
 
 print(dir(pann))
 
@@ -69,10 +75,10 @@ CUTOFF = 20_000
 CLUSTER_SIZE = 1000
 NQ = 100_000
 TARGET_POINTS = 20_000
-SQ_TARGET_POINTS = 5000
-TINY_CUTOFF = 1000
-WEIGHT_CLASSES = (5000_000, 10_000_000)
-MAX_DEGREES = (12, 16, 32)
+
+TINY_CUTOFF = 500
+WEIGHT_CLASSES = (50_000, 400_000)
+MAX_DEGREES = (8, 10, 12)
 
 start = time.time()
 
@@ -85,15 +91,18 @@ index = wp.init_squared_ivf_index("Euclidian", "uint8")
 for i in range(3):
     index.set_build_params(wp.BuildParams(MAX_DEGREES[i], 500, 1.175), i)
 
-index.fit_from_filename(DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat', CUTOFF, CLUSTER_SIZE, "index_cache/", WEIGHT_CLASSES)
+index.fit_from_filename(DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR +
+                        'data/yfcc100M/base.metadata.10M.spmat', CUTOFF, CLUSTER_SIZE, "index_cache/", WEIGHT_CLASSES)
 
 print(f"Time taken: {time.time() - start:.2f}s")
 
 print("----- Querying Squared IVF Index... -----")
 start = time.time()
 
-X = np.fromfile(DATA_DIR + "data/yfcc100M/query.public.100K.u8bin", dtype=np.uint8)[8:].reshape((100_000, 192))
-filters = read_sparse_matrix(DATA_DIR + 'data/yfcc100M/query.metadata.public.100K.spmat')
+X = np.fromfile(DATA_DIR + "data/yfcc100M/query.public.100K.u8bin",
+                dtype=np.uint8)[8:].reshape((100_000, 192))
+filters = read_sparse_matrix(
+    DATA_DIR + 'data/yfcc100M/query.metadata.public.100K.spmat')
 
 rows, cols = filters.nonzero()
 filter_dict = defaultdict(list)
@@ -107,9 +116,8 @@ for i in filter_dict.keys():
     filters[i] = wp.QueryFilter(*filter_dict[i])
 
 
-
 index.set_target_points(TARGET_POINTS)
-index.set_sq_target_points(SQ_TARGET_POINTS)
+# index.set_sq_target_points(SQ_TARGET_POINTS)
 index.set_tiny_cutoff(TINY_CUTOFF)
 
 neighbors, distances = index.batch_filter_search(X, filters, NQ, 10)
@@ -118,16 +126,19 @@ elapsed = time.time() - start
 
 index.print_stats()
 
-all_filters = wp.csr_filters(DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat').transpose()
+all_filters = wp.csr_filters(
+    DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat').transpose()
 
 if NQ <= 10:
     print(filters[:NQ])
 
-    print([(all_filters.point_count(i.a), all_filters.point_count(i.b)) if i.is_and() else all_filters.point_count(i.a) for i in filters[:NQ]])
+    print([(all_filters.point_count(i.a), all_filters.point_count(i.b))
+          if i.is_and() else all_filters.point_count(i.a) for i in filters[:NQ]])
 else:
     print(filters[:10])
 
-    print([(all_filters.point_count(i.a), all_filters.point_count(i.b)) if i.is_and() else all_filters.point_count(i.a) for i in filters[:10]])
+    print([(all_filters.point_count(i.a), all_filters.point_count(i.b))
+          if i.is_and() else all_filters.point_count(i.a) for i in filters[:10]])
 
 print(neighbors.shape)
 print(neighbors[:10, :])
@@ -139,6 +150,7 @@ print(f"QPS: {NQ / elapsed:,.2f}")
 # Calculate and print average recall for each case
 GROUND_TRUTH_DIR = DATA_DIR + "data/yfcc100M/GT.public.ibin"
 
+
 def retrieve_ground_truth(fname):
     n, d = map(int, np.fromfile(fname, dtype="uint32", count=2))
     assert os.stat(fname).st_size == 8 + n * d * (4 + 4)
@@ -147,6 +159,7 @@ def retrieve_ground_truth(fname):
     I = np.fromfile(f, dtype="int32", count=n * d).reshape(n, d)
     D = np.fromfile(f, dtype="float32", count=n * d).reshape(n, d)
     return I, D
+
 
 I, D = retrieve_ground_truth(GROUND_TRUTH_DIR)
 print(len(I))
@@ -161,6 +174,8 @@ filters2.transpose_inplace()
 case_sort_map = {"t": 0, "s": 1, "l": 2}
 
 query_recall = [0] * NQ
+
+cases_list = []
 
 for i in range(NQ):
     ground_truth = set()
@@ -181,22 +196,43 @@ for i in range(NQ):
         filter_a_size, filter_b_size = filter_b_size, filter_a_size
 
     # build case string
-    if filter_a_size <= TINY_CUTOFF: case += "tiny"
-    elif filter_a_size <= CUTOFF: case += "small"
-    else: case += "large"
+    if filter_a_size <= TINY_CUTOFF:
+        case += "tiny"
+    elif filter_a_size <= CUTOFF:
+        case += "small"
+    else:
+        case += "large"
 
     if filters[i].b != -1:
-        if filter_b_size <= TINY_CUTOFF: case += "xtiny"
-        elif filter_b_size <= CUTOFF: case += "xsmall"
-        else: case += "xlarge"
+        if filter_b_size <= TINY_CUTOFF:
+            case += "xtiny"
+        elif filter_b_size <= CUTOFF:
+            case += "xsmall"
+        else:
+            case += "xlarge"
 
     # tinyxsmall is the same as tinyxlarge
-    if case == "tinyxsmall": 
+    if case == "tinyxsmall" or case == "smallxtiny" or case == "largextiny":
         case = "tinyxlarge"
+
+    # tinyxtiny is the same as smallxsmall
+    if case == "tinyxtiny":
+        case = "smallxsmall"
+
+    # casing on weight classes
+    if case == "large":
+        if filter_a_size <= WEIGHT_CLASSES[0]:
+            case += "_" + str(MAX_DEGREES[0])
+        elif filter_a_size <= WEIGHT_CLASSES[1]:
+            case += "_" + str(MAX_DEGREES[1])
+        else:
+            case += "_" + str(MAX_DEGREES[2])
 
     # investigating
     # if local_recall < 5:
     #     print(f"Query {i} has recall {local_recall} and case {case}.")
+
+    cases_list.append((case, local_recall))
 
     query_cases[case] += local_recall/10
     case_counts[case] += 1
@@ -204,28 +240,34 @@ for i in range(NQ):
     total_recall += local_recall/10
 avg_recall = total_recall / NQ
 
+print()
+print(case_counts)
 print(f"Average total recall is {100*avg_recall:.2f}%.")
 print()
 
-# print the average recall for each case in a readable order
-lst = []
-for case, total_recall in query_cases.items():
-    lst.append((case, 100*query_cases[case]/case_counts[case]))
-lst.sort(key=lambda x: case_sort_map[x[0][0]])
-for case, recall in lst:
-    print(f"{case} average recall is {recall:.2f}%, case count is {case_counts[case]}.")
+# print the average recall for each case in a readable format
 
-    
-from datetime import datetime
+lst = []
+for case, v in case_counts.items():
+    lst.append((case, 100*query_cases[case]/v))
+
+# sorting by case size makes more sense than what I had in mind
+lst.sort(key=lambda x: case_counts[x[0]], reverse=True)
+
+print(f"{'Case':>12}  {'Average Recall':>16} {'Case Count':>12}")
+for case, recall in lst:
+    print(
+        f"{case:>12} {recall:>16.2f}% {case_counts[case]:>12,}")
+
 
 if not os.path.exists("logs/"):
     os.mkdir("logs/")
 
 CSV_PATH = f"logs/cutoff{CUTOFF}_clustersize{CLUSTER_SIZE}_targetpoints{TARGET_POINTS}_tinycutoff{TINY_CUTOFF}_weightclasses{WEIGHT_CLASSES[0]}-{WEIGHT_CLASSES[1]}.csv"
 
-log = index.get_log() # should be a list of (id, comparisons, time) tuples
+log = index.get_log()  # should be a list of (id, comparisons, time) tuples
 
-print(log[:10])
+# print(log[:10])
 
 # building a list of dictionary that can be trivially converted to a pandas dataframe
 log_dicts = []
@@ -237,12 +279,12 @@ for i in range(len(log)):
         "time": log[i][2],
         "filter_count_a": all_filters.point_count(filters[i].a),
         "filter_count_b": all_filters.point_count(filters[i].b) if filters[i].is_and() else 0,
-        "recall": query_recall[i]
+        "recall": query_recall[i],
+        "case": cases_list[i][0],
     })
 
-print(log_dicts[:10])
+# print(log_dicts[:10])
 
-import pandas as pd
 
 df = pd.DataFrame(log_dicts)
 
@@ -253,117 +295,117 @@ else:
 
 print(df.head())
 
-#print("----- Building 2 Stage Filtered IVF... -----")
-#start = time.time()
+# print("----- Building 2 Stage Filtered IVF... -----")
+# start = time.time()
 #
-#fivf2 = wp.init_2_stage_filtered_ivf_index("Euclidian", "uint8")
-#fivf2.fit_from_filename(DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat', 1000)
+# fivf2 = wp.init_2_stage_filtered_ivf_index("Euclidian", "uint8")
+# fivf2.fit_from_filename(DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat', 1000)
 #
-#print(f"Time taken: {time.time() - start:.2f}s")
+# print(f"Time taken: {time.time() - start:.2f}s")
 #
-#print("----- Querying 2 Stage Filtered IVF Index... -----")
-#start = time.time()
+# print("----- Querying 2 Stage Filtered IVF Index... -----")
+# start = time.time()
 #
-#NQ = 10_000
+# NQ = 10_000
 #
-#X = np.fromfile(DATA_DIR + "data/yfcc100M/query.public.100K.u8bin", dtype=np.uint8)[8:].reshape((100_000, 192))
-#filters = read_sparse_matrix(DATA_DIR + 'data/yfcc100M/query.metadata.public.100K.spmat')
+# X = np.fromfile(DATA_DIR + "data/yfcc100M/query.public.100K.u8bin", dtype=np.uint8)[8:].reshape((100_000, 192))
+# filters = read_sparse_matrix(DATA_DIR + 'data/yfcc100M/query.metadata.public.100K.spmat')
 #
-#rows, cols = filters.nonzero()
-#filter_dict = defaultdict(list)
+# rows, cols = filters.nonzero()
+# filter_dict = defaultdict(list)
 #
-#for row, col in zip(rows, cols):
+# for row, col in zip(rows, cols):
 #    filter_dict[row].append(col)
 #
-## filters = [wp.QueryFilter(*filters[i]) for i in filters.keys()]
-#filters = [None] * len(filter_dict.keys())
-#for i in filter_dict.keys():
+# filters = [wp.QueryFilter(*filters[i]) for i in filters.keys()]
+# filters = [None] * len(filter_dict.keys())
+# for i in filter_dict.keys():
 #    filters[i] = wp.QueryFilter(*filter_dict[i])
 #
-#if NQ < 10:
+# if NQ < 10:
 #    print(filters[:NQ])
 #
 #
-#N_LISTS = 100
-#CUTOFF = 20_000
+# N_LISTS = 100
+# CUTOFF = 20_000
 #
-#print(f"n_lists: {N_LISTS:,}")
-#print(f"cutoff: {CUTOFF:,}")
+# print(f"n_lists: {N_LISTS:,}")
+# print(f"cutoff: {CUTOFF:,}")
 #
-#neighbors, distances = fivf2.batch_search(X, filters, NQ, 10, N_LISTS, CUTOFF)
-#print(neighbors.shape)
-#print(neighbors[:10, :])
-#print(distances[:10, :])
+# neighbors, distances = fivf2.batch_search(X, filters, NQ, 10, N_LISTS, CUTOFF)
+# print(neighbors.shape)
+# print(neighbors[:10, :])
+# print(distances[:10, :])
 #
-#elapsed = time.time() - start
-#print(f"Time taken: {elapsed:.2f}s")
-#print(f"QPS: {NQ / elapsed:.2f}s")
-#
-#
-#
-#print("----- Building IVF Index... -----")
-#start = time.time()
-#
-#ivf = wp.init_ivf_index("Euclidian", "uint8")
-## ivf.fit_from_filename(DATA_DIR + "base.1B.u8bin.crop_nb_1000000", 1000)
-#ivf.fit_from_filename(DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", 1000)
-#ivf.print_stats()
+# elapsed = time.time() - start
+# print(f"Time taken: {elapsed:.2f}s")
+# print(f"QPS: {NQ / elapsed:.2f}s")
 #
 #
 #
-## # neighbors, distances = Index.batch_search_from_string(DATA_DIR + "query.public.10K.u8bin", 10000, 10, 100)
+# print("----- Building IVF Index... -----")
+# start = time.time()
 #
-## query = np.fromfile(DATA_DIR + "query.public.10K.u8bin", dtype=np.uint8)[8:].reshape((10000, 128))
-## print(query.shape)
-## neighbors, distances = ivf.batch_search(query, 10000, 10, 100)
+# ivf = wp.init_ivf_index("Euclidian", "uint8")
+# ivf.fit_from_filename(DATA_DIR + "base.1B.u8bin.crop_nb_1000000", 1000)
+# ivf.fit_from_filename(DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", 1000)
+# ivf.print_stats()
 #
-## print(neighbors.shape)
-## print(neighbors[:10, :])
-## print(distances[:10, :])
-## # Index.check_recall(DATA_DIR + "bigann-1M", neighbors, 10)
 #
-#print("----- Testing Filters... -----")
+#
+# neighbors, distances = Index.batch_search_from_string(DATA_DIR + "query.public.10K.u8bin", 10000, 10, 100)
+#
+# query = np.fromfile(DATA_DIR + "query.public.10K.u8bin", dtype=np.uint8)[8:].reshape((10000, 128))
+# print(query.shape)
+# neighbors, distances = ivf.batch_search(query, 10000, 10, 100)
+#
+# print(neighbors.shape)
+# print(neighbors[:10, :])
+# print(distances[:10, :])
+# Index.check_recall(DATA_DIR + "bigann-1M", neighbors, 10)
+#
+# print("----- Testing Filters... -----")
 #
 # filters = wp.csr_filters(DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat')
 #
-#print(filters.first_label(42))
-#print(filters.match(42, 6))
-#print(filters.match(42, 2))
+# print(filters.first_label(42))
+# print(filters.match(42, 6))
+# print(filters.match(42, 2))
 #
-#print(f"Point count of filter 23: {filters.filter_count(23):,}")
+# print(f"Point count of filter 23: {filters.filter_count(23):,}")
 #
-#print(f"Filter count of point 42: {filters.point_count(42):,}")
-#print(f"Point count of filter 6: {filters.filter_count(6):,}")
+# print(f"Filter count of point 42: {filters.point_count(42):,}")
+# print(f"Point count of filter 6: {filters.filter_count(6):,}")
 #
-#print("Transposing... (from python)")
+# print("Transposing... (from python)")
 #
-#filters.transpose_inplace()
-#filters_t = filters
+# filters.transpose_inplace()
+# filters_t = filters
 #
-## filters_t = filters.transpose()
+# filters_t = filters.transpose()
 #
-#print("Transposed! (from python)")
+# print("Transposed! (from python)")
 #
-#print(filters_t.first_label(6)) # should be 42
-#print(filters_t.match(6, 42)) # should be True
-#print(filters_t.match(2, 42)) # should be False
+# print(filters_t.first_label(6)) # should be 42
+# print(filters_t.match(6, 42)) # should be True
+# print(filters_t.match(2, 42)) # should be False
 #
-#print(f"Filter count of point 42: {filters_t.filter_count(42):,}")
-#print(f"Point count of filter 6: {filters_t.point_count(6):,}")
+# print(f"Filter count of point 42: {filters_t.filter_count(42):,}")
+# print(f"Point count of filter 6: {filters_t.point_count(6):,}")
 #
-## wp.build_vamana_index("Euclidian", "uint8", DATA_DIR + "base.1B.u8bin.crop_nb_1000000", DATA_DIR + "outputs/parlayann", 64, 128, 1.2)
+# wp.build_vamana_index("Euclidian", "uint8", DATA_DIR + "base.1B.u8bin.crop_nb_1000000", DATA_DIR + "outputs/parlayann", 64, 128, 1.2)
 #
-## Index = wp.load_vamana_index("Euclidian", "uint8", DATA_DIR + "base.1B.u8bin.crop_nb_1000000", DATA_DIR + "outputs/parlayann", 1000000, 128)
+# Index = wp.load_vamana_index("Euclidian", "uint8", DATA_DIR + "base.1B.u8bin.crop_nb_1000000", DATA_DIR + "outputs/parlayann", 1000000, 128)
 #
 #
 #
-## print("Filter Query")
+# print("Filter Query")
 #
-## query_a = wp.QueryFilter(1)
-## query_b = wp.QueryFilter(1, 2)
+# query_a = wp.QueryFilter(1)
+# query_b = wp.QueryFilter(1, 2)
 #
-## print(query_a.is_and()) # should be False
-## print(query_b.is_and()) # should be True
+# print(query_a.is_and()) # should be False
+# print(query_b.is_and()) # should be True
 #
 #
 #
