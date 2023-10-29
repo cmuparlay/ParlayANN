@@ -71,13 +71,20 @@ NQ = 100_000
 TARGET_POINTS = 20_000
 SQ_TARGET_POINTS = 5000
 TINY_CUTOFF = 1000
-WEIGHT_CLASSES = (150_000, 400_000)
+WEIGHT_CLASSES = (5000_000, 10_000_000)
+MAX_DEGREES = (12, 16, 32)
 
 start = time.time()
 
-# os.mkdir("index_cache/")
+if not os.path.exists("index_cache/"):
+    os.mkdir("index_cache/")
+
 
 index = wp.init_squared_ivf_index("Euclidian", "uint8")
+
+for i in range(3):
+    index.set_build_params(wp.BuildParams(MAX_DEGREES[i], 500, 1.175), i)
+
 index.fit_from_filename(DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat', CUTOFF, CLUSTER_SIZE, "index_cache/", WEIGHT_CLASSES)
 
 print(f"Time taken: {time.time() - start:.2f}s")
@@ -162,7 +169,11 @@ avg_recall = total_recall / NQ
 
 print(f"Average recall is {100*avg_recall:.2f}%.")
 
-# os.mkdir("logs/")
+from datetime import datetime
+
+if not os.path.exists("logs/"):
+    os.mkdir("logs/")
+
 CSV_PATH = f"logs/cutoff{CUTOFF}_clustersize{CLUSTER_SIZE}_targetpoints{TARGET_POINTS}_tinycutoff{TINY_CUTOFF}_weightclasses{WEIGHT_CLASSES[0]}-{WEIGHT_CLASSES[1]}.csv"
 
 log = index.get_log() # should be a list of (id, comparisons, time) tuples
@@ -188,7 +199,10 @@ import pandas as pd
 
 df = pd.DataFrame(log_dicts)
 
-df.to_csv(CSV_PATH)
+if os.path.exists(CSV_PATH):
+    df.to_csv(CSV_PATH, mode='a', header=False)
+else:
+    df.to_csv(CSV_PATH)
 
 print(df.head())
 
