@@ -134,7 +134,7 @@ struct Graph{
         n = num_points;
         reader.read((char*)(&max_deg), sizeof(indexType));
         maxDeg = max_deg;
-        std::cout << "Detected " << num_points << " points with max degree " << max_deg << std::endl;
+        // std::cout << "Detected " << num_points << " points with max degree " << max_deg << std::endl;
 
         //read degrees and perform scan to find offsets
         indexType* degrees_start = new indexType[n];
