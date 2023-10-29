@@ -72,13 +72,17 @@ DATA_DIR = FERN_DATA_DIR
 print("----- Building Squared IVF index... -----")
 
 CUTOFF = 20_000
-CLUSTER_SIZE = 1000
+CLUSTER_SIZE = 2500
 NQ = 100_000
-TARGET_POINTS = 20_000
+WEIGHT_CLASSES = (100_000, 400_000)
+MAX_DEGREES = (8, 10, 12)
 
 TINY_CUTOFF = 500
-WEIGHT_CLASSES = (50_000, 400_000)
-MAX_DEGREES = (8, 10, 12)
+TARGET_POINTS = 15_000
+BEAM_WIDTHS = (90, 90, 90)
+SEARCH_LIMITS = (int(WEIGHT_CLASSES[0] * 0.2), int(WEIGHT_CLASSES[1] * 0.5), int(3_000_000 * 0.5))
+
+ALPHA = 1.175
 
 start = time.time()
 
@@ -89,7 +93,8 @@ if not os.path.exists("index_cache/"):
 index = wp.init_squared_ivf_index("Euclidian", "uint8")
 
 for i in range(3):
-    index.set_build_params(wp.BuildParams(MAX_DEGREES[i], 500, 1.175), i)
+    index.set_build_params(wp.BuildParams(MAX_DEGREES[i], 500, ALPHA), i)
+    index.set_query_params(wp.QueryParams(10, BEAM_WIDTHS[i], 1.35, SEARCH_LIMITS[i], MAX_DEGREES[i]), i)
 
 index.fit_from_filename(DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR +
                         'data/yfcc100M/base.metadata.10M.spmat', CUTOFF, CLUSTER_SIZE, "index_cache/", WEIGHT_CLASSES)
@@ -129,20 +134,20 @@ index.print_stats()
 all_filters = wp.csr_filters(
     DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat').transpose()
 
-if NQ <= 10:
-    print(filters[:NQ])
+# if NQ <= 10:
+#     print(filters[:NQ])
 
-    print([(all_filters.point_count(i.a), all_filters.point_count(i.b))
-          if i.is_and() else all_filters.point_count(i.a) for i in filters[:NQ]])
-else:
-    print(filters[:10])
+#     print([(all_filters.point_count(i.a), all_filters.point_count(i.b))
+#           if i.is_and() else all_filters.point_count(i.a) for i in filters[:NQ]])
+# else:
+#     print(filters[:10])
 
-    print([(all_filters.point_count(i.a), all_filters.point_count(i.b))
-          if i.is_and() else all_filters.point_count(i.a) for i in filters[:10]])
+#     print([(all_filters.point_count(i.a), all_filters.point_count(i.b))
+#           if i.is_and() else all_filters.point_count(i.a) for i in filters[:10]])
 
-print(neighbors.shape)
-print(neighbors[:10, :])
-print(distances[:10, :])
+# print(neighbors.shape)
+# print(neighbors[:10, :])
+# print(distances[:10, :])
 
 print(f"Time taken: {elapsed:.2f}s")
 print(f"QPS: {NQ / elapsed:,.2f}")
@@ -162,8 +167,8 @@ def retrieve_ground_truth(fname):
 
 
 I, D = retrieve_ground_truth(GROUND_TRUTH_DIR)
-print(len(I))
-print(len(D))
+# print(len(I))
+# print(len(D))
 
 total_recall = 0.0
 query_cases = defaultdict(float)
@@ -171,11 +176,15 @@ case_counts = defaultdict(int)
 filters2 = wp.csr_filters(DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat')
 filters2.transpose_inplace()
 
+case_comparisons = defaultdict(int)
+case_time = defaultdict(float)
+
 case_sort_map = {"t": 0, "s": 1, "l": 2}
 
 query_recall = [0] * NQ
 
 cases_list = []
+log = index.get_log()  # should be a list of (id, comparisons, time) tuples
 
 for i in range(NQ):
     ground_truth = set()
@@ -234,6 +243,9 @@ for i in range(NQ):
 
     cases_list.append((case, local_recall))
 
+    case_comparisons[case] += log[i][1]
+    case_time[case] += log[i][2]
+
     query_cases[case] += local_recall/10
     case_counts[case] += 1
     query_recall[i] = local_recall
@@ -241,7 +253,6 @@ for i in range(NQ):
 avg_recall = total_recall / NQ
 
 print()
-print(case_counts)
 print(f"Average total recall is {100*avg_recall:.2f}%.")
 print()
 
@@ -254,10 +265,10 @@ for case, v in case_counts.items():
 # sorting by case size makes more sense than what I had in mind
 lst.sort(key=lambda x: case_counts[x[0]], reverse=True)
 
-print(f"{'Case':>12}  {'Average Recall':>16} {'Case Count':>12}")
+print(f"{'Case':>12}  {'Average Recall':>16} {'Case Count':>12} {'Total Comparisons':>17} {'Total Time':>11} {'Avg. Comparisons':>16} {'Avg. QPS':>10}")
 for case, recall in lst:
     print(
-        f"{case:>12} {recall:>16.2f}% {case_counts[case]:>12,}")
+        f"{case:>12} {recall:>16.2f}% {case_counts[case]:>12,} {case_comparisons[case]:>17,} {case_time[case]:>10.2f}s {case_comparisons[case]/case_counts[case]:>16,.2f} {case_counts[case] / case_time[case]:>10.2f}")
 
 
 if not os.path.exists("logs/"):
@@ -265,7 +276,6 @@ if not os.path.exists("logs/"):
 
 CSV_PATH = f"logs/cutoff{CUTOFF}_clustersize{CLUSTER_SIZE}_targetpoints{TARGET_POINTS}_tinycutoff{TINY_CUTOFF}_weightclasses{WEIGHT_CLASSES[0]}-{WEIGHT_CLASSES[1]}.csv"
 
-log = index.get_log()  # should be a list of (id, comparisons, time) tuples
 
 # print(log[:10])
 
@@ -294,6 +304,24 @@ else:
     df.to_csv(CSV_PATH)
 
 print(df.head())
+
+build_config = f"""{{"cluster_size": {CLUSTER_SIZE}, 
+              "T": 8,
+              "cutoff": {CUTOFF},
+              "max_iter": 40,
+              "weight_classes": [{WEIGHT_CLASSES[0]}, {WEIGHT_CLASSES[1]}],
+              "build_params": [{{"max_degree": {MAX_DEGREES[0]},
+                                "limit": 500,
+                                "alpha": 1.175}},
+                              {{"max_degree": {MAX_DEGREES[1]},
+                               "limit": 500,
+                               "alpha": 1.175}},
+                              {{"max_degree": {MAX_DEGREES[2]},
+                               "limit": 500,
+                               "alpha": 1.175}}]
+            }}"""
+
+print(build_config)
 
 # print("----- Building 2 Stage Filtered IVF... -----")
 # start = time.time()
