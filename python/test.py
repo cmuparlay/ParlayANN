@@ -62,7 +62,7 @@ DATA_DIR = FERN_DATA_DIR
 # print(neighbors.shape)
 # print(neighbors[:10, :])
 # print(distances[:10, :])
-#                           UNCOMMENT
+
 print("----- Building Squared IVF index... -----")
 
 CUTOFF = 20_000
@@ -70,11 +70,11 @@ CLUSTER_SIZE = 1000
 NQ = 100_000
 TARGET_POINTS = 20_000
 SQ_TARGET_POINTS = 5000
-TINY_CUTOFF = 1000
+TINY_CUTOFF = 0
 
 start = time.time()
 
-os.mkdir("index_cache/")
+# os.mkdir("index_cache/")
 
 index = wp.init_squared_ivf_index("Euclidian", "uint8")
 index.fit_from_filename(DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat', CUTOFF, CLUSTER_SIZE, "index_cache/", (150_000, 400_000))
@@ -128,7 +128,7 @@ print(distances[:10, :])
 print(f"Time taken: {elapsed:.2f}s")
 print(f"QPS: {NQ / elapsed:,.2f}")
 
-# Calculate and print average recall
+# Calculate and print average recall for each case
 GROUND_TRUTH_DIR = DATA_DIR + "data/yfcc100M/GT.public.ibin"
 
 def retrieve_ground_truth(fname):
@@ -145,18 +145,63 @@ print(len(I))
 print(len(D))
 
 total_recall = 0.0
-for i in range(100000):
+query_cases = defaultdict(float)
+case_counts = defaultdict(int)
+filters2 = wp.csr_filters(DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat')
+filters2.transpose_inplace()
+
+case_sort_map = {"t": 0, "s": 1, "l": 2}
+for i in range(NQ):
     ground_truth = set()
     ann = set()
     for j in range(10):
         ground_truth.add(I[i][j])
         ann.add(neighbors[i][j])
     local_recall = len(ground_truth & ann)
+
+    case = ""
+
+    # sort size to get smaller filter first
+    filter_a_size = filters2.point_count(filters[i].a)
+    filter_b_size = 0
+    if filters[i].b != -1:
+        filter_b_size = filters2.point_count(filters[i].b)
+    if filter_b_size > filter_a_size:
+        filter_a_size, filter_b_size = filter_b_size, filter_a_size
+
+    # build case string
+    if filter_a_size <= TINY_CUTOFF: case += "tiny"
+    elif filter_a_size <= CUTOFF: case += "small"
+    else: case += "large"
+
+    if filters[i].b != -1:
+        if filter_b_size <= TINY_CUTOFF: case += "xtiny"
+        elif filter_b_size <= CUTOFF: case += "xsmall"
+        else: case += "xlarge"
+
+    # tinyxsmall is the same as tinyxlarge
+    if case == "tinyxsmall": 
+        case = "tinyxlarge"
+
+    # investigating
+    # if local_recall < 5:
+    #     print(f"Query {i} has recall {local_recall} and case {case}.")
+
+    query_cases[case] += local_recall/10
+    case_counts[case] += 1
     total_recall += local_recall/10
-avg_recall = total_recall / 100000
+avg_recall = total_recall / NQ
 
-print(f"Average recall is {100*avg_recall:.2f}%.")
+print(f"Average total recall is {100*avg_recall:.2f}%.")
+print()
 
+# print the average recall for each case in a readable order
+lst = []
+for case, total_recall in query_cases.items():
+    lst.append((case, 100*query_cases[case]/case_counts[case]))
+lst.sort(key=lambda x: case_sort_map[x[0][0]])
+for case, recall in lst:
+    print(f"{case} average recall is {recall:.2f}%, case count is {case_counts[case]}.")
 
 #print("----- Building 2 Stage Filtered IVF... -----")
 #start = time.time()
@@ -229,7 +274,7 @@ print(f"Average recall is {100*avg_recall:.2f}%.")
 #
 #print("----- Testing Filters... -----")
 #
-#filters = wp.csr_filters(DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat')
+# filters = wp.csr_filters(DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat')
 #
 #print(filters.first_label(42))
 #print(filters.match(42, 6))
