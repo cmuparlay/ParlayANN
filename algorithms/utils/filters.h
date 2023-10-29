@@ -83,16 +83,18 @@ struct csr_filters{
         fread(&n_nonzero, sizeof(int64_t), 1, fp);
 
         // reading in row offsets
-        // row_offsets = (int64_t*) malloc((n_points + 1) * sizeof(int64_t));
         row_offsets = std::make_unique<int64_t[]>(n_points + 1);
         fread(row_offsets.get(), sizeof(int64_t), n_points + 1, fp);
 
-        // reading in row lengths
-        // row_indices = (int32_t*) malloc(n_nonzero * sizeof(int32_t));
+        // reading in row indices
         row_indices = std::make_unique<int32_t[]>(n_nonzero);
         fread(row_indices.get(), sizeof(int32_t), n_nonzero, fp);
 
         fclose(fp);
+
+        for (int64_t i = 0; i < n_points; i++) {
+            std::sort(row_indices.get() + row_offsets[i], row_indices.get() + row_offsets[i + 1]);
+        }
     }
 
     // /* constructs csr_filters with all the values already provided as arguments (should probably be protected)*/
@@ -159,9 +161,12 @@ struct csr_filters{
         int64_t end = row_offsets[p + 1];
 
         // linear scan over row to see if f is in it, which should be fast since rows are short but vectorization or binary search could be worth it
-        auto index_slice = parlay::make_slice(row_indices.get() + start, row_indices.get() + end);
-        auto ind = parlay::internal::binary_search(index_slice, f, std::less<int32_t>());
-        return (ind < end) && (row_indices[ind] == f);
+        for (int64_t i = start; i < end; i++) {
+            if (row_indices[i] == f) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /* Returns true if p matches filter f, which is equivalent to row p column f being nonzero
