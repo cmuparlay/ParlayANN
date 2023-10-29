@@ -170,7 +170,7 @@ log = index.get_log() # should be a list of (id, comparisons, time) tuples
 print(log[:10])
 
 # building a list of dictionary that can be trivially converted to a pandas dataframe
-log_dicts = [None] * len(log)
+log_dicts = []
 
 for i in range(len(log)):
     log_dicts.append({
