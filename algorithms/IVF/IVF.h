@@ -169,10 +169,10 @@ struct PostingListIndex : MatchingPoints<T, Point> {
     this->cluster_params = clusterer.get_build_params();
 
     if (cache_path != "" && std::filesystem::exists(this->pl_filename(cache_path))){
-      std::cout << "Loading posting list" << std::endl;
+      // std::cout << "Loading posting list" << std::endl;
       this->load_posting_list(cache_path);
     } else {
-      std::cout << "Building posting list" << std::endl;
+      // std::cout << "Building posting list" << std::endl;
 
       this->clusters = clusterer.cluster(points, indices);
 
@@ -211,7 +211,7 @@ struct PostingListIndex : MatchingPoints<T, Point> {
     // build the vamana graph
 
     if (cache_path != "" && std::filesystem::exists(this->graph_filename(cache_path))){
-      std::cout << "Loading graph" << std::endl;
+      // std::cout << "Loading graph" << std::endl;
 
       std::string filename = this->graph_filename(cache_path);
       this->index_graph = Graph<index_type>(filename.data());
@@ -507,7 +507,7 @@ struct IVF_Squared {
             weight_class = 1;
         }
 
-        std::cout << "Filter with " << filters.point_count(i) << " points has weight class " << weight_class << std::endl;
+        // std::cout << "Filter with " << filters.point_count(i) << " points has weight class " << weight_class << std::endl;
 
         this->posting_lists[i] = std::make_unique<PostingListIndex<T, Point>>(
            this->points, filters.row_indices.get() + filters.row_offsets[i],
@@ -615,19 +615,23 @@ struct IVF_Squared {
         // TODO: It's probable we actually would want to join in the tiny x small case as well
         if (a_size <= this->tiny_cutoff ^ b_size <= this->tiny_cutoff) {
           if (a_size <= b_size) {
-            indices = parlay::filter(
-               this->posting_lists[filter.a]->sorted_near(q, this->target_points),
-               [&](index_type i) {
-                 return this->filters.bin_match(i, filter.b);
-               }
-            );
+            // indices = parlay::sequence<index_type>(); // probably not needed
+            indices.reserve(a_size);
+            for (int j = 0; j < this->filters_transpose.point_count(filter.a); j++) {
+              index_type point = this->filters_transpose.row_indices[this->filters_transpose.row_offsets[filter.a] + j];
+              if (this->filters.bin_match(point, filter.b)) {
+                indices.push_back(point);
+              }
+            }
           } else {
-            indices = parlay::filter(
-               this->posting_lists[filter.b]->sorted_near(q, this->target_points),
-               [&](index_type i) {
-                 return this->filters.bin_match(i, filter.a);
-               }
-            );
+            // indices = parlay::sequence<index_type>(); // probably not needed
+            indices.reserve(b_size);
+            for (int j = 0; j < this->filters_transpose.point_count(filter.b); j++) {
+              index_type point = this->filters_transpose.row_indices[this->filters_transpose.row_offsets[filter.b] + j];
+              if (this->filters.bin_match(point, filter.a)) {
+                indices.push_back(point);
+              }
+            }
           }
         } else {
           indices = this->posting_lists[filter.a]->sorted_near(q, this->target_points);
