@@ -71,13 +71,14 @@ NQ = 100_000
 TARGET_POINTS = 20_000
 SQ_TARGET_POINTS = 5000
 TINY_CUTOFF = 1000
+WEIGHT_CLASSES = (150_000, 400_000)
 
 start = time.time()
 
-os.mkdir("index_cache/")
+# os.mkdir("index_cache/")
 
 index = wp.init_squared_ivf_index("Euclidian", "uint8")
-index.fit_from_filename(DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat', CUTOFF, CLUSTER_SIZE, "index_cache/", (150_000, 400_000))
+index.fit_from_filename(DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat', CUTOFF, CLUSTER_SIZE, "index_cache/", WEIGHT_CLASSES)
 
 print(f"Time taken: {time.time() - start:.2f}s")
 
@@ -145,18 +146,51 @@ print(len(I))
 print(len(D))
 
 total_recall = 0.0
-for i in range(100000):
+
+query_recall = [0] * NQ
+
+for i in range(NQ):
     ground_truth = set()
     ann = set()
     for j in range(10):
         ground_truth.add(I[i][j])
         ann.add(neighbors[i][j])
     local_recall = len(ground_truth & ann)
+    query_recall[i] = local_recall
     total_recall += local_recall/10
-avg_recall = total_recall / 100000
+avg_recall = total_recall / NQ
 
 print(f"Average recall is {100*avg_recall:.2f}%.")
 
+# os.mkdir("logs/")
+CSV_PATH = f"logs/cutoff{CUTOFF}_clustersize{CLUSTER_SIZE}_targetpoints{TARGET_POINTS}_tinycutoff{TINY_CUTOFF}_weightclasses{WEIGHT_CLASSES[0]}-{WEIGHT_CLASSES[1]}.csv"
+
+log = index.get_log() # should be a list of (id, comparisons, time) tuples
+
+print(log[:10])
+
+# building a list of dictionary that can be trivially converted to a pandas dataframe
+log_dicts = [None] * len(log)
+
+for i in range(len(log)):
+    log_dicts.append({
+        "id": log[i][0],
+        "comparisons": log[i][1],
+        "time": log[i][2],
+        "filter_count_a": all_filters.point_count(filters[i].a),
+        "filter_count_b": all_filters.point_count(filters[i].b) if filters[i].is_and() else 0,
+        "recall": query_recall[i]
+    })
+
+print(log_dicts[:10])
+
+import pandas as pd
+
+df = pd.DataFrame(log_dicts)
+
+df.to_csv(CSV_PATH)
+
+print(df.head())
 
 #print("----- Building 2 Stage Filtered IVF... -----")
 #start = time.time()
