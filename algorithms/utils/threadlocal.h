@@ -53,154 +53,139 @@ struct accumulator {
 };
 
 
-// template <typename T, >
-// struct accumulator {
+template <typename T, size_t pad_bytes = 128, size_t threads = 192>
+struct minimizer {
+    static const size_t width = pad_bytes / sizeof(T);
+    T counts[width * threads];
 
-//     size_t width = BUFFER_ACC / sizeof(T);
-//     parlay::sequence<T> counts;
+    minimizer() {
+        std::fill(counts, counts + width * threads, std::numeric_limits<T>::max());
+    }
 
-//     accumulator() {
-//         // if (sizeof(T) < 8) {
-//         //     width /= 2;
-//         // }
+    void update(T val){
+        counts[parlay::worker_id()*width] = std::min(counts[parlay::worker_id()*width], val);
+    }
 
-//         counts = parlay::sequence<T>(parlay::num_workers() * width, (T)0);
-//     }
+    T total() const {
+        return parlay::reduce(counts, parlay::minm<T>());
+    }
 
-//     void increment(){
-//         counts[parlay::worker_id()*width]++;
-//     }
+    void reset() {
+        std::fill(counts, counts + width * threads, (T)0);
+    }
+};
 
-//     void decrement(){
-//         // probably not really valid on unsigned types but as long as the total is positive overflow should in theory make this work as intented anyways
-//         counts[parlay::worker_id()*width]--;
-//     }
+template <typename T, size_t pad_bytes = 128, size_t threads = 192>
+struct maximizer {
+    static const size_t width = pad_bytes / sizeof(T);
+    T counts[width * threads];
 
-//     void add(T val){
-//         counts[parlay::worker_id()*width] += val;
-//     }
+    maximizer() {
+        std::fill(counts, counts + width * threads, std::numeric_limits<T>::min());
+    }
 
-//     void subtract(T val){
-//         counts[parlay::worker_id()*width] -= val;
-//     }
+    void update(T val){
+        counts[parlay::worker_id()*width] = std::max(counts[parlay::worker_id()*width], val);
+    }
 
-//     T total(){
-//         return parlay::reduce(counts);
-//     }
+    T total() const {
+        return parlay::reduce(counts, parlay::maxm<T>());
+    }
 
-//     void reset(){
-//         std::fill(counts.begin(), counts.end(), (T)0);
-//     }
-// };
+    void reset() {
+        std::fill(counts, counts + width * threads, (T)0);
+    }
+};
 
-// template <typename T>
-// struct minimizer {
+template <typename T, size_t pad_bytes = 128, size_t threads = 192>
+struct extremeizer {
+    static const size_t width = pad_bytes / sizeof(std::pair<T, T>);
+    T counts[width * threads];
 
-//     size_t width = BUFFER_ACC / sizeof(T);
-//     parlay::sequence<T> counts;
-
-//     minimizer(T init) {
-//         counts = parlay::sequence<T>(parlay::num_workers() * width, (T)init);
-//     }
-
-//     void update(T val){
-//         counts[parlay::worker_id()*width] = std::min(counts[parlay::worker_id()*width], val);
-//     }
-
-//     T total(){
-//         return parlay::reduce(counts, parlay::minm<T>());
-//     }
-
-//     void reset(){
-//         counts = parlay::sequence<T>(parlay::num_workers() * width, (T)0);
-//     }
-// };
-
-// template <typename T>
-// struct maximizer {
-
-//         size_t width = BUFFER_ACC / sizeof(T);
-//         parlay::sequence<T> counts;
-
-//         maximizer(T init) {
-//             counts = parlay::sequence<T>(parlay::num_workers() * width, (T)init);
-//         }
-    
-//         void update(T val){
-//             counts[parlay::worker_id()*width] = std::max(counts[parlay::worker_id()*width], val);
-//         }
-    
-//         T total(){
-//             return parlay::reduce(counts, parlay::maxm<T>());
-//         }
-    
-//         void reset(){
-//             counts = parlay::sequence<T>(parlay::num_workers() * width, (T)0);
-//         }
-//     };
-
-// // TODO: write a general thread local reducer that takes a binary function and a neutral element
-
-// // TODO: write a thread local average-er that computes minimally lossy averages with small types
-// // (floats are going to be too small for large n)
-
-// /* 
-//     Provides a thread local scratch buffer for copying data into.
-
-//     as-is will probably break if T is int8_t or uint8_t
-//  */
-// template <typename T>
-// struct buffer {
-//     const size_t padding = PADDING / sizeof(T);
-//     size_t length;
-//     T* data;
-
-//     /* 
-//     args:
-//         length: the length of the buffer (the number of elements it can hold)
-//      */
-//     buffer(size_t length) : length(length) {
-//         data = new T[(length + padding) * parlay::num_workers()];
-//     }
-
-//     ~buffer() {
-//         delete[] data;
-//     }
-
-//     void write(T* src) {
-//         size_t id = parlay::worker_id();
-//         size_t offset = id * (length + padding);
-//         std::memcpy(data + offset, src, length * sizeof(T));
-//     }
+    extremeizer() {
+        std::fill(counts, counts + width * threads, std::make_pair(std::numeric_limits<T>::max(), std::numeric_limits<T>::min()));
+    }
 
     
-//     void write(int8_t* src) {
-//         size_t id = parlay::worker_id();
-//         size_t offset = id * (length + padding);
-//         for (size_t i = 0; i < length; i++) {
-//             data[offset + i] = static_cast<T>(src[i]);
-//         }
-//     }
-    
+    void update(T val){
+        auto& pair = counts[parlay::worker_id()*width];
+        if (val < pair.first) {
+            counts[parlay::worker_id()*width].first = val;
+        }
+        if (val > counts[parlay::worker_id()*width].second) {
+            counts[parlay::worker_id()*width].second = val;
+        }
+    }
 
-//     void write(uint8_t* src) {
-//         size_t id = parlay::worker_id();
-//         size_t offset = id * (length + padding);
-//         for (size_t i = 0; i < length; i++) {
-//             data[offset + i] = static_cast<T>(src[i]);
-//         }
-//     }
-    
+    std::pair<T, T> total() const {
+        T min = std::numeric_limits<T>::max();
+        T max = std::numeric_limits<T>::min();
+        for (size_t t = 0; t < threads; t++) {
+            auto& pair = counts[t*width];
+            if (pair.first < min) {
+                min = pair.first;
+            }
+            if (pair.second > max) {
+                max = pair.second;
+            }
+        }
 
-//     T* begin() {
-//         return data + parlay::worker_id() * (length + padding);
-//     }
+        return std::make_pair(min, max);
+    }
 
-//     size_t size() {
-//         return length;
-//     }
-// };
-// TODO: write tests to benchmark the above
+    void reset() {
+        std::fill(counts, counts + width * threads, std::make_pair(std::numeric_limits<T>::max(), std::numeric_limits<T>::min()));
+    }
+};
 
+/* not sure this is even benefiting much from being spaced out  
+
+T is going to end up being a length 3 or 4 tuple*/
+template <typename T, size_t pad_bytes = 128, size_t threads = 192>
+struct logger {
+    static const size_t width = pad_bytes / sizeof(T);
+    parlay::sequence<parlay::sequence<T>> counts;
+
+    logger() {
+        counts = parlay::sequence<parlay::sequence<T>>::uninitialized(width * threads);
+
+        for (size_t i = 0; i < threads; i++) {
+            counts[i] = parlay::sequence<T>();
+        }
+    }
+
+    void reserve(size_t n) {
+        for (size_t i = 0; i < threads; i++) {
+            counts[i].reserve(n / threads + 1);
+        }
+    }
+
+    void update(T val){
+        counts[parlay::worker_id()*width].push_back(val);
+    }
+
+    parlay::sequence<T> get() const {
+        int total_size = 0;
+        for (size_t i = 0; i < threads; i++) {
+            total_size += counts[i * width].size();
+        }
+
+        parlay::sequence<T> result = parlay::sequence<T>::uninitialized(total_size);
+        size_t offset = 0;
+        for (size_t i = 0; i < threads; i++) {
+            size_t size = counts[i * width].size();
+            std::memcpy(result.begin() + offset, counts[i * width].begin(), size * sizeof(T));
+            offset += size;
+        }
+
+        return result;
+    }
+
+    void reset() {
+        std::fill(counts, counts + width * threads, (T)0);
+    }
+};
 }
+
+
 #endif

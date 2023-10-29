@@ -70,14 +70,22 @@ CLUSTER_SIZE = 1000
 NQ = 100_000
 TARGET_POINTS = 20_000
 SQ_TARGET_POINTS = 5000
-TINY_CUTOFF = 0
+TINY_CUTOFF = 1000
+WEIGHT_CLASSES = (5000_000, 10_000_000)
+MAX_DEGREES = (12, 16, 32)
 
 start = time.time()
 
-# os.mkdir("index_cache/")
+if not os.path.exists("index_cache/"):
+    os.mkdir("index_cache/")
+
 
 index = wp.init_squared_ivf_index("Euclidian", "uint8")
-index.fit_from_filename(DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat', CUTOFF, CLUSTER_SIZE, "index_cache/", (150_000, 400_000))
+
+for i in range(3):
+    index.set_build_params(wp.BuildParams(MAX_DEGREES[i], 500, 1.175), i)
+
+index.fit_from_filename(DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat', CUTOFF, CLUSTER_SIZE, "index_cache/", WEIGHT_CLASSES)
 
 print(f"Time taken: {time.time() - start:.2f}s")
 
@@ -151,6 +159,9 @@ filters2 = wp.csr_filters(DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat')
 filters2.transpose_inplace()
 
 case_sort_map = {"t": 0, "s": 1, "l": 2}
+
+query_recall = [0] * NQ
+
 for i in range(NQ):
     ground_truth = set()
     ann = set()
@@ -189,6 +200,7 @@ for i in range(NQ):
 
     query_cases[case] += local_recall/10
     case_counts[case] += 1
+    query_recall[i] = local_recall
     total_recall += local_recall/10
 avg_recall = total_recall / NQ
 
@@ -202,6 +214,44 @@ for case, total_recall in query_cases.items():
 lst.sort(key=lambda x: case_sort_map[x[0][0]])
 for case, recall in lst:
     print(f"{case} average recall is {recall:.2f}%, case count is {case_counts[case]}.")
+
+    
+from datetime import datetime
+
+if not os.path.exists("logs/"):
+    os.mkdir("logs/")
+
+CSV_PATH = f"logs/cutoff{CUTOFF}_clustersize{CLUSTER_SIZE}_targetpoints{TARGET_POINTS}_tinycutoff{TINY_CUTOFF}_weightclasses{WEIGHT_CLASSES[0]}-{WEIGHT_CLASSES[1]}.csv"
+
+log = index.get_log() # should be a list of (id, comparisons, time) tuples
+
+print(log[:10])
+
+# building a list of dictionary that can be trivially converted to a pandas dataframe
+log_dicts = []
+
+for i in range(len(log)):
+    log_dicts.append({
+        "id": log[i][0],
+        "comparisons": log[i][1],
+        "time": log[i][2],
+        "filter_count_a": all_filters.point_count(filters[i].a),
+        "filter_count_b": all_filters.point_count(filters[i].b) if filters[i].is_and() else 0,
+        "recall": query_recall[i]
+    })
+
+print(log_dicts[:10])
+
+import pandas as pd
+
+df = pd.DataFrame(log_dicts)
+
+if os.path.exists(CSV_PATH):
+    df.to_csv(CSV_PATH, mode='a', header=False)
+else:
+    df.to_csv(CSV_PATH)
+
+print(df.head())
 
 #print("----- Building 2 Stage Filtered IVF... -----")
 #start = time.time()

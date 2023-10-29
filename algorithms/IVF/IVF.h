@@ -449,7 +449,14 @@ struct IVF_Squared {
   threadlocal::accumulator<double> large_time{};
   threadlocal::accumulator<double> small_time{};
 
+    #ifdef LUMBERJACK // a play on logger
+
+    threadlocal::logger<std::tuple<size_t, size_t, double>> logger{};
+
+    #endif
+
   #endif
+
 
   IVF_Squared() {
     std::cout << "===Running IVF_Squared" << std::endl;
@@ -558,6 +565,7 @@ struct IVF_Squared {
       threadlocal::accumulator<size_t>* dcmp_acc; 
 
       t.start();
+
       #endif
 
       // We may want two different cutoffs for query / build.
@@ -648,8 +656,16 @@ struct IVF_Squared {
 
         #ifdef COUNTERS
 
+        double elapsed = t.stop();
+
         dcmp_acc->add(cmps);
-        time_acc->add(t.stop());
+        time_acc->add(elapsed);
+
+          #ifdef LUMBERJACK 
+
+          logger.update(std::make_tuple(i, cmps, elapsed));
+
+          #endif
 
         #endif
 
@@ -692,7 +708,15 @@ struct IVF_Squared {
 
       #ifdef COUNTERS
 
-      time_acc->add(t.stop());
+      double elapsed = t.stop();
+
+      time_acc->add(elapsed);
+
+      #ifdef LUMBERJACK
+
+      logger.update(std::make_tuple(i, indices.size(), elapsed));
+
+      #endif
 
       #endif
 
@@ -764,6 +788,25 @@ struct IVF_Squared {
 
   void set_build_params(BuildParams bp, size_t weight_class){
     this->BP[weight_class] = bp;
+  }
+
+  std::vector<py::tuple> get_log() const {
+    #ifdef LUMBERJACK
+
+    auto log = logger.get();
+    auto out = std::vector<py::tuple>(log.size());
+
+    for (size_t i = 0; i < log.size(); i++){
+      out[i] = py::cast(log[i]);
+    }
+
+    return out;
+
+    #else
+
+    return std::vector<py::tuple>();
+
+    #endif
   }
 };
 
