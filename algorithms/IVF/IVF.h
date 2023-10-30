@@ -45,7 +45,7 @@
 #define M_CUTOFF 50'000
 // s is implicitly anything below M_CUTOFF
 
-#define BITVECTOR_CUTOFF 15000
+#define BITVECTOR_CUTOFF 10000
 
 namespace py = pybind11;
 using NeighborsAndDistances =
@@ -1319,6 +1319,10 @@ struct IVF_Squared {
               << small.total() / std::max(small_time.total() / 8, (double)1.)
               << std::endl;
 #endif
+  }
+
+  void set_bitvector_cutoff(size_t n) {
+    this->bitvector_cutoff = n;
   }
 
   void set_query_params(QueryParams qp, size_t weight_class) {

@@ -107,7 +107,7 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
         .def("fit", &IVF_Squared<T, Point>::fit, "points"_a, "filters"_a, "cutoff"_a, "cluster_size"_a, py::arg("cache_path") = "") 
         .def("fit_from_filename", &IVF_Squared<T, Point>::fit_from_filename, "filename"_a, "filter_filename"_a, "cutoff"_a, "cluster_size"_a, "cache_path"_a, "weight_classes"_a)
         // .def("fit_from_filename", &IVF_Squared<T, Point>::fit_from_filename, "filename"_a, "cutoff"_a, "cluster_size"_a, "cache_path"_a)
-        .def("batch_filter_search", &IVF_Squared<T, Point>::semisorted_batch_filter_search, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a)
+        .def("batch_filter_search", &IVF_Squared<T, Point>::sorted_batch_filter_search, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a)
         .def("set_target_points", &IVF_Squared<T, Point>::set_target_points, "target_points"_a)
         .def("set_sq_target_points", &IVF_Squared<T, Point>::set_sq_target_points, "sq_target_points"_a)
         .def("set_tiny_cutoff", &IVF_Squared<T, Point>::set_tiny_cutoff, "tiny_cutoff"_a)
@@ -116,6 +116,7 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
         .def("print_stats", &IVF_Squared<T, Point>::print_stats)
         .def("set_query_params", &IVF_Squared<T, Point>::set_query_params, "params"_a, "weight_class"_a)
         .def("set_build_params", &IVF_Squared<T, Point>::set_build_params, "params"_a, "weight_class"_a)
+        .def("set_bitvector_cutoff", &IVF_Squared<T, Point>::set_bitvector_cutoff, "bitvector_cutoff"_a)
         .def("get_log", &IVF_Squared<T, Point>::get_log, py::return_value_policy::copy);
 }
 
