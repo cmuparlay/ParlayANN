@@ -79,10 +79,12 @@ MAX_DEGREES = (8, 10, 12)
 
 TINY_CUTOFF = 500
 TARGET_POINTS = 15_000
-BEAM_WIDTHS = (90, 90, 90)
+BEAM_WIDTHS = (85, 85, 85)
 SEARCH_LIMITS = (int(WEIGHT_CLASSES[0] * 0.2), int(WEIGHT_CLASSES[1] * 0.5), int(3_000_000 * 0.5))
 
 ALPHA = 1.175
+
+
 
 start = time.time()
 
@@ -167,8 +169,9 @@ def retrieve_ground_truth(fname):
 
 
 I, D = retrieve_ground_truth(GROUND_TRUTH_DIR)
-# print(len(I))
+print(len(I))
 # print(len(D))
+print(I[:10, :])
 
 total_recall = 0.0
 query_cases = defaultdict(float)
@@ -185,6 +188,8 @@ query_recall = [0] * NQ
 
 cases_list = []
 log = index.get_log()  # should be a list of (id, comparisons, time) tuples
+
+print(len(log))
 
 for i in range(NQ):
     ground_truth = set()

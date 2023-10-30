@@ -34,7 +34,7 @@ parlay::sequence<T> join(const T* a, size_t len_a, const T* b, size_t len_b){
             j++;
         }
     }
-    return output;
+    return std::move(output);
 }
 
 /* Sorted array join (with sequences) */
