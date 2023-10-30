@@ -256,8 +256,8 @@ struct knn_index {
         auto ind = frac * n;
         if (floor <= ind && ceiling > ind) {
           frac += progress_inc;
-          std::cout << "Index build " << 100 * frac << "% complete"
-                    << std::endl;
+          // std::cout << "Index build " << 100 * frac << "% complete"
+          //           << std::endl;
         }
       }
       parlay::sequence<parlay::sequence<indexType>> new_out_(ceiling-floor);
