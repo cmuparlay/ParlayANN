@@ -16,6 +16,7 @@
 #include "../utils/beamSearch.h"
 #include "clustering.h"
 #include "posting_list.h"
+#include "bitvector.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -41,6 +42,8 @@
 #define L_CUTOFF 300'000
 #define M_CUTOFF 50'000
 // s is implicitly anything below M_CUTOFF
+
+#define BITVECTOR_CUTOFF 15000
 
 namespace py = pybind11;
 using NeighborsAndDistances =
@@ -74,6 +77,7 @@ struct MatchingPoints {
   // constructing a posting list
   virtual parlay::sequence<index_type> sorted_near(Point query, int target_points) const = 0;
   virtual std::pair<parlay::sequence<std::pair<index_type, float>>, size_t> knn (Point query, int k) = 0;
+  virtual bool bitmatch(index_type i) const = 0;
 };
 
 /* An "index" which just stores an array of indices to matching points.
@@ -87,9 +91,16 @@ template <typename T, class Point>
 struct ArrayIndex : MatchingPoints<T, Point> {
   parlay::sequence<index_type> indices;
   PointRange<T, Point> &points;
+  Bits* bitvector;
 
-  ArrayIndex(const index_type* start, const index_type* end, PointRange<T, Point> &points) : points(points) {
+  ArrayIndex(const index_type* start, const index_type* end, PointRange<T, Point> &points, int32_t ds_size=0) : points(points) {
     this->indices = parlay::sequence<index_type>(start, end);
+    if (ds_size){
+      this->bitvector = new Bits(ds_size);
+      for (size_t i = 0; i < this->indices.size(); i++){
+        this->bitvector->set_bit(this->indices[i]);
+      }
+    }
   }
 
   parlay::sequence<index_type> sorted_near(Point query, int target_points) const override {
@@ -109,6 +120,21 @@ struct ArrayIndex : MatchingPoints<T, Point> {
       }
     }
     return std::make_pair(frontier, this->indices.size());
+  }
+
+  bool bitmatch(index_type i) const override {
+    if (this->bitvector){
+      return this->bitvector->is_bit_set(i);
+    } else {
+      std::cout << "!!! bitvector is null !!!" << std::endl;
+      return std::binary_search(this->indices.begin(), this->indices.end(), i);
+    }
+  }
+
+  ~ArrayIndex(){
+    if (this->bitvector){
+      delete this->bitvector;
+    }
   }
 };
 
@@ -141,23 +167,16 @@ struct PostingListIndex : MatchingPoints<T, Point> {
   // index_type start_point;
   SubsetPointRange<T, Point> subset_points;
 
+  Bits bitvector;
+
   PostingListIndex(PostingListIndex<T, Point> &&other) {
     std::cout << "Move constructor called" << std::endl;
   };
   
   template <typename Clusterer>
   PostingListIndex(PointRange<T, Point> &points, const index_type* start,
-                   const index_type* end, Clusterer clusterer, BuildParams BP, QueryParams *QP, index_type id, std::string cache_path="index_cache/") : id(id), points(points), subset_points(points, parlay::sequence<index_type>(start, end)) {
+                   const index_type* end, Clusterer clusterer, BuildParams BP, QueryParams *QP, index_type id, std::string cache_path="index_cache/", index_type ds_size=10'000'000) : id(id), points(points), subset_points(points, parlay::sequence<index_type>(start, end)), bitvector(ds_size) {
     auto indices = parlay::sequence<index_type>(start, end);
-
-    // Point p = this->subset_points[0];
-    // Point q = this->points[0];
-
-    // std::cout << "p " << p.get()[0] << std::endl;
-    // std::cout << "q " << q.get()[0] << std::endl;
-
-    // std::cout << "subset points size " << this->subset_points.size() << std::endl;
-    // std::cout << "points size " << this->points.size() << std::endl;
 
     // this->points = points;
     this->dim = points.dimension();
@@ -243,6 +262,10 @@ struct PostingListIndex : MatchingPoints<T, Point> {
     //   std::cout << " (" << pairs[i].first << ", " << pairs[i].second << ") ";
     // }
     // std::cout << std::endl;
+
+    for (size_t i = 0; i < indices.size(); i++){
+      this->bitvector.set_bit(indices[i]);
+    }
 
   }
 
@@ -394,6 +417,10 @@ struct PostingListIndex : MatchingPoints<T, Point> {
     }
   }
 
+  bool bitmatch(index_type i) const override {
+    return this->bitvector.is_bit_set(i);
+  }
+
 };
 
 /* The IVF^2 index the above structs are for */
@@ -422,6 +449,8 @@ struct IVF_Squared {
   // TODO: increase L_build to 500 once we don't care about the build time and/or are saving these graphs
   // TODO: modify build to do two passes once we have all the time in the world
   BuildParams BP[3] = {BuildParams(16, 500, 1.175), BuildParams(32, 500, 1.175), BuildParams(64, 500, 1.175)};
+
+  index_type bitvector_cutoff = BITVECTOR_CUTOFF;
 
   #ifdef COUNTERS
   // number of queries in each case
@@ -513,7 +542,7 @@ struct IVF_Squared {
            this->points, filters.row_indices.get() + filters.row_offsets[i],
            filters.row_indices.get() + filters.row_offsets[i + 1],
            KMeansClusterer<T, Point, index_type>(filters.point_count(i) /
-                                                 cluster_size), BP[weight_class], QP + weight_class, i, cache_path);
+                                                 cluster_size), BP[weight_class], QP + weight_class, i, cache_path, filters.n_filters);
 				ctr += 1;
 				if (ctr % 100 == 0) {
           std::cout << "IVF^2: " << ctr << " / " << num_above_cutoff << " PostingListIndex objects created" << std::endl;
@@ -522,7 +551,7 @@ struct IVF_Squared {
         this->posting_lists[i] = std::make_unique<ArrayIndex<T, Point>>(
            filters.row_indices.get() + filters.row_offsets[i],
            filters.row_indices.get() + filters.row_offsets[i + 1],
-           this->points);
+           this->points, (filters.point_count(i) >= this->bitvector_cutoff ? filters.n_filters : 0));
       }
     }); // sequentially for now. (sike)
   }
@@ -615,21 +644,37 @@ struct IVF_Squared {
         // TODO: It's probable we actually would want to join in the tiny x small case as well
         if (a_size <= this->tiny_cutoff ^ b_size <= this->tiny_cutoff) {
           if (a_size <= b_size) {
-            // indices = parlay::sequence<index_type>(); // probably not needed
             indices.reserve(a_size);
-            for (int j = 0; j < this->filters_transpose.point_count(filter.a); j++) {
-              index_type point = this->filters_transpose.row_indices[this->filters_transpose.row_offsets[filter.a] + j];
-              if (this->filters.match(point, filter.b)) {
-                indices.push_back(point);
+            if (b_size >= this->bitvector_cutoff) {
+              for (int j = 0; j < a_size; j++) {
+                index_type point = this->filters_transpose.row_indices[this->filters_transpose.row_offsets[filter.a] + j];
+                if (this->posting_lists[filter.b]->bitmatch(point)) {
+                  indices.push_back(point);
+                }
+              }
+            } else {
+              for (int j = 0; j < a_size; j++) {
+                index_type point = this->filters_transpose.row_indices[this->filters_transpose.row_offsets[filter.a] + j];
+                if (this->filters.match(point, filter.b)) {
+                  indices.push_back(point);
+                }
               }
             }
           } else {
-            // indices = parlay::sequence<index_type>(); // probably not needed
             indices.reserve(b_size);
-            for (int j = 0; j < this->filters_transpose.point_count(filter.b); j++) {
-              index_type point = this->filters_transpose.row_indices[this->filters_transpose.row_offsets[filter.b] + j];
-              if (this->filters.match(point, filter.a)) {
-                indices.push_back(point);
+            if (b_size >= this->bitvector_cutoff) {
+              for (int j = 0; j < b_size; j++) {
+                index_type point = this->filters_transpose.row_indices[this->filters_transpose.row_offsets[filter.b] + j];
+                if (this->posting_lists[filter.a]->bitmatch(point)) {
+                  indices.push_back(point);
+                }
+              }
+            } else {
+              for (int j = 0; j < b_size; j++) {
+                index_type point = this->filters_transpose.row_indices[this->filters_transpose.row_offsets[filter.b] + j];
+                if (this->filters.match(point, filter.a)) {
+                  indices.push_back(point);
+                }
               }
             }
           }
