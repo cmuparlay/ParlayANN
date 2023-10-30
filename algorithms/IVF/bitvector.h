@@ -7,6 +7,9 @@
 // currently not using CAS so concurrent calls should be avoided.
 struct Bits {
  public:
+
+  Bits() { }
+
   // n: number of points
   Bits(size_t n) {
     // Calculate the number of 64-bit words needed
@@ -25,7 +28,7 @@ struct Bits {
   }
 
   // Return true iff the index-th bit is set.
-  bool is_bit_set(size_t index) const {
+  inline bool is_bit_set(size_t index) const {
     uint64_t cur_word = bits[get_word(index)];
     size_t bit_pos = get_bit_pos(index);
     return (cur_word >> bit_pos) & 1;
@@ -38,7 +41,7 @@ struct Bits {
   constexpr inline size_t get_word(size_t index) const { return index / 64; }
   // The bit position in the word for this index.
   constexpr inline size_t get_bit_pos(size_t index) const {
-    return index - (get_word(index) * 64);
+    return index - ((index / 64) * 64);
   }
   parlay::sequence<uint64_t> bits;
 };

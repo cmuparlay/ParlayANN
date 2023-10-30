@@ -91,14 +91,14 @@ template <typename T, class Point>
 struct ArrayIndex : MatchingPoints<T, Point> {
   parlay::sequence<index_type> indices;
   PointRange<T, Point> &points;
-  Bits* bitvector;
+  Bits bitvector;
 
   ArrayIndex(const index_type* start, const index_type* end, PointRange<T, Point> &points, int32_t ds_size=0) : points(points) {
     this->indices = parlay::sequence<index_type>(start, end);
-    if (ds_size){
-      this->bitvector = new Bits(ds_size);
+    if (ds_size) {
+      this->bitvector = Bits(ds_size);
       for (size_t i = 0; i < this->indices.size(); i++){
-        this->bitvector->set_bit(this->indices[i]);
+        this->bitvector.set_bit(this->indices[i]);
       }
     }
   }
@@ -123,18 +123,7 @@ struct ArrayIndex : MatchingPoints<T, Point> {
   }
 
   bool bitmatch(index_type i) const override {
-    if (this->bitvector){
-      return this->bitvector->is_bit_set(i);
-    } else {
-      std::cout << "!!! bitvector is null !!!" << std::endl;
-      return std::binary_search(this->indices.begin(), this->indices.end(), i);
-    }
-  }
-
-  ~ArrayIndex(){
-    if (this->bitvector){
-      delete this->bitvector;
-    }
+    return this->bitvector.is_bit_set(i);
   }
 };
 
