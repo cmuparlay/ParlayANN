@@ -7,6 +7,7 @@
 #include "parlay/primitives.h"
 #include "parlay/sequence.h"
 #include "parlay/slice.h"
+// #include "parlay/group_by.h"
 
 #include "../HCNNG/clusterEdge.h"
 #include "../utils/beamSearch.h"
@@ -51,6 +52,16 @@ using NeighborsAndDistances =
 
 template <typename T>
 using Seq_variant = std::variant<parlay::sequence<T>, parlay::slice<T*, T*>>;
+
+index_type largest_filter_size(const csr_filters& filters,const QueryFilter& f) {
+  if (f.is_and()) {
+    index_type a_size = filters.point_count(f.a);
+    index_type b_size = filters.point_count(f.b);
+    return std::max(a_size, b_size);
+  } else {
+    return filters.point_count(f.a);
+  }
+}
 
 /* A posting list of sorts which has an index over its elements.
 
@@ -659,7 +670,7 @@ struct IVF_Squared {
       }
     }
 
-    return std::make_pair(indices, dist_cmps);
+    return std::make_pair(std::move(indices), dist_cmps);
   }
 
   NeighborsAndDistances batch_filter_search(
@@ -826,6 +837,199 @@ struct IVF_Squared {
 
     return std::make_pair(std::move(ids), std::move(dists));
   }
+
+
+  NeighborsAndDistances sorted_batch_filter_search(
+     py::array_t<T, py::array::c_style | py::array::forcecast>& queries,
+     const std::vector<QueryFilter>& filters, uint64_t num_queries,
+     uint64_t knn) {
+    py::array_t<unsigned int> ids({num_queries, knn});
+    py::array_t<float> dists({num_queries, knn});
+
+    // we want to create a sequence of indices corresponding to an ordering which groups the queries by their largest filter
+    // we can then iterate through this sequence and do the queries in that order
+
+    // parlay::sequence<size_t> query_ordering = parlay::tabulate(
+      //  num_queries, [&](size_t i) { return i; });   // initialize to iota
+
+  // large to small
+  // this should probably be parlay::rank
+    parlay::sequence<size_t> query_ordering = parlay::sort(parlay::iota(num_queries), [&] (index_type x, index_type y) {
+      return largest_filter_size(this->filters_transpose, filters[x]) > largest_filter_size(this->filters_transpose, filters[y]);
+    } );
+
+    parlay::parallel_for(0, num_queries, [&] (index_type j) {
+      index_type i = query_ordering[j]; // where we're applying this sort
+
+      Point q = Point(queries.data(i), this->points.dimension(),
+                      this->points.aligned_dimension(), i);
+      const QueryFilter& filter = filters[i];
+
+      parlay::sequence<index_type> indices;
+      size_t dist_cmps = 0;
+
+      #ifdef COUNTERS
+
+      parlay::internal::timer t;
+
+      threadlocal::accumulator<double>*
+         time_acc;   // to add the time/distance to at the end
+      threadlocal::accumulator<size_t>* dcmp_acc;
+
+      t.start();
+
+#endif
+
+      // We may want two different cutoffs for query / build.
+
+      // Notice that this code doesn't care about the cutoff.
+      // No distance comparisons yet other than looking at the
+      // centroids.
+      if (filter.is_and()) {
+#ifdef COUNTERS
+        size_t bigger = std::max(this->filters_transpose.point_count(filter.a),
+                                 this->filters_transpose.point_count(filter.b));
+        size_t smaller =
+           std::min(this->filters_transpose.point_count(filter.a),
+                    this->filters_transpose.point_count(filter.b));
+        if (smaller > this->cutoff) {
+          time_acc = &largexlarge_time;
+          dcmp_acc = &largexlarge_dcmp;
+          largexlarge.increment();
+        } else if (bigger > this->cutoff) {
+          if (smaller > this->tiny_cutoff) {
+            time_acc = &largexsmall_time;
+            dcmp_acc = &largexsmall_dcmp;
+            largexsmall.increment();
+          } else {
+            time_acc = &tinyxlarge_time;
+            dcmp_acc = &tinyxlarge_dcmp;
+            tinyxlarge.increment();
+          }
+        } else {
+          time_acc = &smallxsmall_time;
+          dcmp_acc = &smallxsmall_dcmp;
+          smallxsmall.increment();
+        }
+
+        // here we assume we're doing a distance comparison to every centroid
+        // (this is not robust to clever centroid bucketing)
+
+#endif
+        auto tmp = this->and_query(q, filter);
+        indices = tmp.first;
+        dist_cmps = tmp.second;
+
+      } else {
+#ifdef COUNTERS
+
+        if (this->filters_transpose.point_count(filter.a) > this->cutoff) {
+          time_acc = &large_time;
+          dcmp_acc = &large_dcmp;
+          large.increment();
+
+        } else {
+          time_acc = &small_time;
+          dcmp_acc = &small_dcmp;
+          small.increment();
+        }
+
+#endif
+
+        // indices = this->posting_lists[filter.a]->sorted_near(q,
+        // this->sq_target_points);
+        auto [frontier, cmps] = this->posting_lists[filter.a]->knn(q, 10);
+
+#ifdef COUNTERS
+
+        double elapsed = t.stop();
+
+        dcmp_acc->add(cmps);
+        time_acc->add(elapsed);
+
+#ifdef LUMBERJACK
+
+        logger.update(std::make_tuple(i, cmps, elapsed));
+
+#endif
+
+#endif
+
+        for (unsigned int j = 0; j < knn; j++) {
+          ids.mutable_data(i)[j] = static_cast<unsigned int>(frontier[j].first);
+          dists.mutable_data(i)[j] = frontier[j].second;
+        }
+        return;
+      }
+
+#ifdef COUNTERS
+
+      dist_cmps += indices.size();
+
+#endif
+
+      parlay::sequence<std::pair<index_type, float>> frontier =
+         parlay::sequence<std::pair<index_type, float>>(
+            knn, std::make_pair(std::numeric_limits<index_type>().max(),
+                                std::numeric_limits<float>().max()));
+
+      for (size_t j = 0; j < indices.size(); j++) {   // for each match
+        float dist = this->points[indices[j]].distance(
+           q);   // compute the distance to query
+        // these steps would be very slightly faster if reordered
+        if (dist <
+            frontier[knn - 1].second) {   // if it's closer than the furthest
+                                          // point in the frontier (maybe this
+                                          // should be a variable we compare to)
+          frontier.pop_back();            // remove the furthest point
+          frontier.push_back(std::make_pair(
+             indices[j], dist));   // add the new point to the frontier
+          std::sort(frontier.begin(), frontier.end(),
+                    [&](std::pair<index_type, float> a,
+                        std::pair<index_type, float> b) {
+                      return a.second < b.second;
+                    });   // sort the frontier
+        }
+      }
+
+#ifdef COUNTERS
+
+      double elapsed = t.stop();
+      time_acc->add(elapsed);
+      dcmp_acc->add(dist_cmps);
+
+
+#ifdef LUMBERJACK
+
+      logger.update(std::make_tuple(i, dist_cmps, elapsed));
+
+#endif
+
+#endif
+
+      for (unsigned int j = 0; j < knn; j++) {
+        ids.mutable_data(i)[j] = static_cast<unsigned int>(frontier[j].first);
+        dists.mutable_data(i)[j] = frontier[j].second;
+      }
+      return;
+    });
+
+    return std::make_pair(std::move(ids), std::move(dists));
+  }
+  
+  // NeighborsAndDistances semisorted_batch_filter_search(
+  //    py::array_t<T, py::array::c_style | py::array::forcecast>& queries,
+  //    const std::vector<QueryFilter>& filters, uint64_t num_queries,
+  //    uint64_t knn) {
+  //   py::array_t<unsigned int> ids({num_queries, knn});
+  //   py::array_t<float> dists({num_queries, knn});
+
+  //   // we want to group the queries by their largest filter (using size as a proxy for filter)
+  //   // we can then make a parallel job for each group
+
+  //   // large to small
+  //   auto parlay::group_by_key()
+  // }
 
   void set_target_points(size_t n) {
     this->target_points = n;
