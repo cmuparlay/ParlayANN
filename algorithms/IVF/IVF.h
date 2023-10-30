@@ -852,10 +852,16 @@ struct IVF_Squared {
     // parlay::sequence<size_t> query_ordering = parlay::tabulate(
       //  num_queries, [&](size_t i) { return i; });   // initialize to iota
 
-  // large to small
+  // large to small, with ands coming first within each size
   // this should probably be parlay::rank
     parlay::sequence<size_t> query_ordering = parlay::sort(parlay::iota(num_queries), [&] (index_type x, index_type y) {
-      return largest_filter_size(this->filters_transpose, filters[x]) > largest_filter_size(this->filters_transpose, filters[y]);
+      index_type lfs_x = largest_filter_size(this->filters_transpose, filters[x]);
+      index_type lfs_y = largest_filter_size(this->filters_transpose, filters[y]);
+      if (lfs_x == lfs_y) {
+        return filters[x].is_and() && !filters[y].is_and(); // this might be backwards
+      } else {
+        return lfs_x > lfs_y;
+      }
     } );
 
     parlay::parallel_for(0, num_queries, [&] (index_type j) {
