@@ -35,8 +35,8 @@
 #include "../utils/threadlocal.h"
 #endif
 
-#define TINY_CASE_CUTOFF \
-  5000   // when we do tiny x large instead of small x large (default value)
+// when we do tiny x large instead of small x large (default value)
+#define TINY_CASE_CUTOFF 1000   
 
 // cutoffs for the different sets of query/build params
 #define L_CUTOFF 300'000
@@ -613,6 +613,55 @@ struct IVF_Squared {
     std::cout << "IVF^2: fit completed" << std::endl;
   }
 
+
+  std::pair<parlay::sequence<index_type> /*indices*/, size_t /*dist_cmps*/> and_query(Point q, QueryFilter f) {
+    index_type a = f.a;
+    index_type b = f.b;
+    index_type a_size = this->filters_transpose.point_count(a);
+    index_type b_size = this->filters_transpose.point_count(b);
+
+    parlay::sequence<index_type> indices;
+    size_t dist_cmps = 0;
+
+    // a will always be the smaller filter
+    if (b_size < a_size) {
+      std::swap(a, b);
+      std::swap(a_size, b_size);
+    }
+
+    
+
+    if (a_size > this->tiny_cutoff || (a_size <= this->tiny_cutoff & b_size <= this->bitvector_cutoff) ) { // large x large and small x large and small x small
+      indices = join(this->posting_lists[a]->sorted_near(q, this->target_points),
+                     this->posting_lists[b]->sorted_near(q, this->target_points));
+
+      #ifdef COUNTERS
+      if (b_size > this->cutoff) {
+        dist_cmps += static_cast<PostingListIndex<T, Point>*>(
+                           this->posting_lists[b].get())
+                           ->centroids.size();
+      }
+      if (a_size > this->cutoff) {
+        dist_cmps += static_cast<PostingListIndex<T, Point>*>(
+                           this->posting_lists[a].get())
+                           ->centroids.size();
+      }
+      #endif
+    } else { // tiny x small (above bitvector cutoff) and tiny x large
+      indices.reserve(a_size);
+
+      for (index_type i = 0; i < a_size; i++) {
+        const index_type point =
+           this->filters_transpose.row_indices[this->filters_transpose.row_offsets[a] + i];
+        if (this->posting_lists[b]->bitmatch(point)) {
+          indices.push_back(point);
+        }
+      }
+    }
+
+    return std::make_pair(indices, dist_cmps);
+  }
+
   NeighborsAndDistances batch_filter_search(
      py::array_t<T, py::array::c_style | py::array::forcecast>& queries,
      const std::vector<QueryFilter>& filters, uint64_t num_queries,
@@ -627,6 +676,7 @@ struct IVF_Squared {
       const QueryFilter& filter = filters[i];
 
       parlay::sequence<index_type> indices;
+      size_t dist_cmps = 0;
 
 #ifdef COUNTERS
 
@@ -675,77 +725,11 @@ struct IVF_Squared {
         // here we assume we're doing a distance comparison to every centroid
         // (this is not robust to clever centroid bucketing)
 
-        if (this->filters_transpose.point_count(filter.a) > this->cutoff) {
-
-          dcmp_acc->add(
-             static_cast<PostingListIndex<T, Point>*>(
-                this->posting_lists[filter.a].get())
-                ->centroids
-                .size());   // valid??? might be smarter to use dynamic_cast
-        }
-        if (this->filters.point_count(filter.b) > this->cutoff) {
-          dcmp_acc->add(static_cast<PostingListIndex<T, Point>*>(
-                           this->posting_lists[filter.b].get())
-                           ->centroids.size());
-        }
 #endif
+        auto tmp = this->and_query(q, filter);
+        indices = tmp.first;
+        dist_cmps = tmp.second;
 
-        auto a_size = this->filters_transpose.point_count(filter.a);
-        auto b_size = this->filters_transpose.point_count(filter.b);
-        // we xor below on matching the tiny case cutoff because if both are
-        // tiny we would rather just join them.
-        // TODO: It's probable we actually would want to join in the tiny x
-        // small case as well
-        if (a_size <= this->tiny_cutoff ^ b_size <= this->tiny_cutoff) {
-          if (a_size <= b_size) {
-            indices.reserve(a_size);
-            if (b_size >= this->bitvector_cutoff) {
-              for (int j = 0; j < a_size; j++) {
-                index_type point =
-                   this->filters_transpose.row_indices
-                      [this->filters_transpose.row_offsets[filter.a] + j];
-                if (this->posting_lists[filter.b]->bitmatch(point)) {
-                  indices.push_back(point);
-                }
-              }
-            } else {
-              for (int j = 0; j < a_size; j++) {
-                index_type point =
-                   this->filters_transpose.row_indices
-                      [this->filters_transpose.row_offsets[filter.a] + j];
-                if (this->filters.match(point, filter.b)) {
-                  indices.push_back(point);
-                }
-              }
-            }
-          } else {
-            indices.reserve(b_size);
-            if (b_size >= this->bitvector_cutoff) {
-              for (int j = 0; j < b_size; j++) {
-                index_type point =
-                   this->filters_transpose.row_indices
-                      [this->filters_transpose.row_offsets[filter.b] + j];
-                if (this->posting_lists[filter.a]->bitmatch(point)) {
-                  indices.push_back(point);
-                }
-              }
-            } else {
-              for (int j = 0; j < b_size; j++) {
-                index_type point =
-                   this->filters_transpose.row_indices
-                      [this->filters_transpose.row_offsets[filter.b] + j];
-                if (this->filters.match(point, filter.a)) {
-                  indices.push_back(point);
-                }
-              }
-            }
-          }
-        } else {
-          indices =
-             this->posting_lists[filter.a]->sorted_near(q, this->target_points);
-          indices = join(indices, this->posting_lists[filter.b]->sorted_near(
-                                     q, this->target_points));
-        }
       } else {
 #ifdef COUNTERS
 
@@ -754,9 +738,6 @@ struct IVF_Squared {
           dcmp_acc = &large_dcmp;
           large.increment();
 
-          dcmp_acc->add(static_cast<PostingListIndex<T, Point>*>(
-                           this->posting_lists[filter.a].get())
-                           ->centroids.size());
         } else {
           time_acc = &small_time;
           dcmp_acc = &small_dcmp;
@@ -793,7 +774,7 @@ struct IVF_Squared {
 
 #ifdef COUNTERS
 
-      dcmp_acc->add(indices.size());
+      dist_cmps += indices.size();
 
 #endif
 
@@ -824,12 +805,13 @@ struct IVF_Squared {
 #ifdef COUNTERS
 
       double elapsed = t.stop();
-
       time_acc->add(elapsed);
+      dcmp_acc->add(dist_cmps);
+
 
 #ifdef LUMBERJACK
 
-      logger.update(std::make_tuple(i, indices.size(), elapsed));
+      logger.update(std::make_tuple(i, dist_cmps, elapsed));
 
 #endif
 
