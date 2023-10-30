@@ -221,6 +221,8 @@ struct knn_index {
     float progress_inc = .1;
     size_t max_batch_size = std::min(
         static_cast<size_t>(max_fraction * static_cast<float>(n)), 1000000ul);
+    //fix bug where max batch size could be set to zero 
+    if(max_batch_size = 0) max_batch_size = n;
     parlay::sequence<int> rperm;
     if (random_order)
       rperm = parlay::random_permutation<int>(static_cast<int>(m));
