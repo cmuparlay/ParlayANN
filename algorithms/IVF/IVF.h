@@ -546,7 +546,7 @@ struct IVF_Squared {
    * */
   void fit(PointRange<T, Point> points, csr_filters& filters,
            size_t cutoff = 10000, size_t cluster_size = 1000,
-           std::string cache_path = "index_cache/") {
+           std::string cache_path = "index_cache/", bool parallel_build = false) {
     this->filters = filters;   // rn we will not bother storing the filter sizes
                                // because it's one cache miss and a subtraction
                                // to compute one at query time
@@ -607,14 +607,14 @@ struct IVF_Squared {
            (filters.point_count(i) >= this->bitvector_cutoff ? filters.n_filters
                                                              : 0));
       }
-    });   // sequentially for now. (sike)
+    }, (parallel_build ? 0 : 10'000'000)); 
   }
 
   void fit_from_filename(std::string filename, std::string filter_filename,
                          size_t cutoff = 10000, size_t cluster_size = 1000,
                          std::string cache_path = "",
                          std::pair<size_t, size_t> weight_classes =
-                            std::make_pair(M_CUTOFF, L_CUTOFF)) {
+                            std::make_pair(M_CUTOFF, L_CUTOFF), bool parallel_build = false) {
     this->medium_cutoff = weight_classes.first;
     this->large_cutoff = weight_classes.second;
 
@@ -624,7 +624,7 @@ struct IVF_Squared {
     csr_filters filters(filter_filename.c_str());
     std::cout << "IVF^2: filters loaded" << std::endl;
 
-    this->fit(points, filters, cutoff, cluster_size, cache_path);
+    this->fit(points, filters, cutoff, cluster_size, cache_path, parallel_build);
     std::cout << "IVF^2: fit completed" << std::endl;
   }
 
