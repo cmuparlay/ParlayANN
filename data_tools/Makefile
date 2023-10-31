@@ -8,3 +8,6 @@ compute_groundtruth : compute_groundtruth.cpp
 
 crop : crop.cpp
 	$(CC) $(CFLAGS) -o crop crop.cpp $(LFLAGS) 
+
+random_sample : random_sample.cpp
+	$(CC) $(CFLAGS) -o random_sample random_sample.cpp $(LFLAGS) 
