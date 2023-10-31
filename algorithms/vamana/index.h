@@ -121,7 +121,7 @@ struct knn_index {
   }
 
   void build_index(GraphI &G, PR &Points, stats<indexType> &BuildStats, parlay::sequence<indexType> inserts=parlay::sequence<indexType>()) {
-    std::cout << "Building graph..." << std::endl;
+    // std::cout << "Building graph..." << std::endl;
     if (inserts.size() == 0) {
       inserts = parlay::tabulate(G.size(), [&](indexType i) { return i; });
     }

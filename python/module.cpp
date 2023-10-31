@@ -138,12 +138,12 @@ PYBIND11_MODULE(_ParlayANNpy, m)
     default_values.attr("GRAPH_DEGREE") = 64;
     default_values.attr("BEAMWIDTH") = 128;
 
-    // add_variant<float, Euclidian_Point<float>>(m, FloatEuclidianVariant);
-    // add_variant<float, Mips_Point<float>>(m, FloatMipsVariant);
+    add_variant<float, Euclidian_Point<float>>(m, FloatEuclidianVariant);
+    add_variant<float, Mips_Point<float>>(m, FloatMipsVariant);
     add_variant<uint8_t, Euclidian_Point<uint8_t>>(m, UInt8EuclidianVariant);
-    // add_variant<uint8_t, Mips_Point<uint8_t>>(m, UInt8MipsVariant);
-    // add_variant<int8_t, Euclidian_Point<int8_t>>(m, Int8EuclidianVariant);
-    // add_variant<int8_t, Mips_Point<int8_t>>(m, Int8MipsVariant);
+    add_variant<uint8_t, Mips_Point<uint8_t>>(m, UInt8MipsVariant);
+    add_variant<int8_t, Euclidian_Point<int8_t>>(m, Int8EuclidianVariant);
+    add_variant<int8_t, Mips_Point<int8_t>>(m, Int8MipsVariant);
 
     py::class_<csr_filters>(m, "csr_filters")
         .def(py::init<std::string &>())
