@@ -52,7 +52,7 @@ def read_sparse_matrix(fname, do_mmap=False):
 # %%
 FERN_DATA_DIR = "/ssd1/anndata/bigann/"
 AWARE_DATA_DIR = "/ssd1/data/bigann/"
-AWS_DATA_DIR = "~/big-ann-benchmarks/"
+AWS_DATA_DIR = "../../big-ann-benchmarks/"
 
 DATA_DIR = AWS_DATA_DIR
 
