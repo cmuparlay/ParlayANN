@@ -663,11 +663,14 @@ struct IVF_Squared {
       }
       #endif
     } else { // tiny x small (above bitvector cutoff) and tiny x large
-      indices.reserve(a_size);
+      // indices.reserve(a_size);
 
-      for (index_type i = 0; i < a_size; i++) {
-        const index_type point =
-           this->filters_transpose.row_indices[this->filters_transpose.row_offsets[a] + i];
+      auto nearby = this->posting_lists[a]->sorted_near(q, this->target_points);
+
+      indices.reserve(nearby.size());
+
+      for (index_type i = 0; i < nearby.size(); i++) {
+        const index_type point = nearby[i];
         if (this->posting_lists[b]->bitmatch(point)) {
           indices.push_back(point);
         }
