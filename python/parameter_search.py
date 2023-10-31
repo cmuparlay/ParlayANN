@@ -75,7 +75,7 @@ if not os.path.exists("index_cache/"):
     os.mkdir("index_cache/")
 
 os.environ['PARLAY_NUM_THREADS'] = '8'
-INDEX_DIR = '../../big-ann-benchmarks/data/indices/filter/parlayivf/YFCC100MDataset-10000000/parlayivf_Euclidian_uint'
+INDEX_DIR = '../../big-ann-benchmarks/data/indices/filter/parlayivf/YFCC100MDataset-10000000/parlayivf_Euclidian_uint8'
 
 # %%
 def parse_framework_output(data):
@@ -228,7 +228,7 @@ def run_index(index, I_gt, nq, runs=4):
 
 # %%
 
-index = build_with_params(MAX_DEGREES, WEIGHT_CLASSES, CUTOFF, CLUSTER_SIZE, 10_000, MAX_ITER)
+index = build_with_params(MAX_DEGREES, WEIGHT_CLASSES, CUTOFF, CLUSTER_SIZE, 10_000, MAX_ITER, True)
 # %%
 def objective(trial):
     tiny_cutoff = trial.suggest_int('tiny_cutoff', 10_000, 100_000, step=5_000)
