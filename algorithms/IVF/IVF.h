@@ -597,8 +597,8 @@ struct IVF_Squared {
            filters.n_filters);
         ctr += 1;
         if (ctr % 100 == 0) {
-          std::cout << "IVF^2: " << ctr << " / " << num_above_cutoff
-                    << " PostingListIndex objects created" << std::endl;
+          std::cout << "===============  IVF^2: " << ctr << " / " << num_above_cutoff
+                    << " PostingListIndex objects created  ===============" << std::endl;
         }
       } else {
         this->posting_lists[i] = std::make_unique<ArrayIndex<T, Point>>(
