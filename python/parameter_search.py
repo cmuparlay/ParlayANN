@@ -54,7 +54,7 @@ FERN_DATA_DIR = "/ssd1/anndata/bigann/"
 AWARE_DATA_DIR = "/ssd1/data/bigann/"
 AWS_DATA_DIR = "~/big-ann-benchmarks/"
 
-DATA_DIR = FERN_DATA_DIR
+DATA_DIR = AWS_DATA_DIR
 
 CUTOFF = 10_000
 CLUSTER_SIZE = 5_000
@@ -75,7 +75,7 @@ if not os.path.exists("index_cache/"):
     os.mkdir("index_cache/")
 
 os.environ['PARLAY_NUM_THREADS'] = '8'
-INDEX_DIR = '/home/ben/big-ann-benchmarks/data/indices/filter/parlayivf/YFCC100MDataset-10000000/parlayivf_Euclidian_uint'
+INDEX_DIR = '../../big-ann-benchmarks/data/indices/filter/parlayivf/YFCC100MDataset-10000000/parlayivf_Euclidian_uint'
 
 # %%
 def parse_framework_output(data):
