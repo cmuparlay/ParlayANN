@@ -4,9 +4,10 @@
 #include "parlay/primitives.h"
 #include "parlay/io.h"
 #include "parlay/random.h"
-#include "utils/mmap.h"
-
+#include "utils/types.h"
 #include <random>
+
+
 
 template<typename T>
 void random_sample(char* iFile, int n, char* oFile){
@@ -18,7 +19,7 @@ void random_sample(char* iFile, int n, char* oFile){
     parlay::sequence<int> preamble = {n, dim};
 
     parlay::random_generator gen;
-    std::uniform_int_distribution<long> dis(0, fsize - 1);
+    std::uniform_int_distribution<long> dis(10000000, fsize - 1);
     auto indices = parlay::tabulate(n, [&](size_t i) {
         auto r = gen[i];
         return dis(r);

@@ -130,14 +130,10 @@ int main(int argc, char* argv[]) {
     if(df == "Euclidian"){
       PointRange<float, Euclidian_Point<float>> B = PointRange<float, Euclidian_Point<float>>(bFile);
       PointRange<float, Euclidian_Point<float>> Q = PointRange<float, Euclidian_Point<float>>(qFile);
-      std::cout << "Base file size " << B.size() << std::endl;
-      std::cout << "Query file size " << Q.size() << std::endl;
       answers = compute_groundtruth<PointRange<float, Euclidian_Point<float>>>(B, Q, k);
     } else if(df == "mips"){
       PointRange<float, Mips_Point<float>> B = PointRange<float, Mips_Point<float>>(bFile);
       PointRange<float, Mips_Point<float>> Q = PointRange<float, Mips_Point<float>>(qFile);
-      std::cout << "Base file size " << B.size() << std::endl;
-      std::cout << "Query file size " << Q.size() << std::endl;
       answers = compute_groundtruth<PointRange<float, Mips_Point<float>>>(B, Q, k);
     }
   }else if(tp == "uint8"){
@@ -145,14 +141,10 @@ int main(int argc, char* argv[]) {
     if(df == "Euclidian"){
       PointRange<uint8_t, Euclidian_Point<uint8_t>> B = PointRange<uint8_t, Euclidian_Point<uint8_t>>(bFile);
       PointRange<uint8_t, Euclidian_Point<uint8_t>> Q = PointRange<uint8_t, Euclidian_Point<uint8_t>>(qFile);
-      std::cout << "Base file size " << B.size() << std::endl;
-      std::cout << "Query file size " << Q.size() << std::endl;
       answers = compute_groundtruth<PointRange<uint8_t, Euclidian_Point<uint8_t>>>(B, Q, k);
     } else if(df == "mips"){
       PointRange<uint8_t, Mips_Point<uint8_t>> B = PointRange<uint8_t, Mips_Point<uint8_t>>(bFile);
       PointRange<uint8_t, Mips_Point<uint8_t>> Q = PointRange<uint8_t, Mips_Point<uint8_t>>(qFile);
-      std::cout << "Base file size " << B.size() << std::endl;
-      std::cout << "Query file size " << Q.size() << std::endl;
       answers = compute_groundtruth<PointRange<uint8_t, Mips_Point<uint8_t>>>(B, Q, k);
     }
   }else if(tp == "int8"){
@@ -160,14 +152,10 @@ int main(int argc, char* argv[]) {
     if(df == "Euclidian"){
       PointRange<int8_t, Euclidian_Point<int8_t>> B = PointRange<int8_t, Euclidian_Point<int8_t>>(bFile);
       PointRange<int8_t, Euclidian_Point<int8_t>> Q = PointRange<int8_t, Euclidian_Point<int8_t>>(qFile);
-      std::cout << "Base file size " << B.size() << std::endl;
-      std::cout << "Query file size " << Q.size() << std::endl;
       answers = compute_groundtruth<PointRange<int8_t, Euclidian_Point<int8_t>>>(B, Q, k);
     } else if(df == "mips"){
       PointRange<int8_t, Mips_Point<int8_t>> B = PointRange<int8_t, Mips_Point<int8_t>>(bFile);
       PointRange<int8_t, Mips_Point<int8_t>> Q = PointRange<int8_t, Mips_Point<int8_t>>(qFile);
-      std::cout << "Base file size " << B.size() << std::endl;
-      std::cout << "Query file size " << Q.size() << std::endl;
       answers = compute_groundtruth<PointRange<int8_t, Mips_Point<int8_t>>>(B, Q, k);
     }
   }
