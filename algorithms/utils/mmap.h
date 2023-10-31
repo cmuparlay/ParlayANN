@@ -25,9 +25,9 @@
 #include <algorithm>
 #include <iostream>
 
-#include "parlay/parallel.h"
-#include "parlay/primitives.h"
-#include "parlay/internal/file_map.h"
+#include "../vamana/parlay/parallel.h"
+#include "../vamana/parlay/primitives.h"
+#include "../vamana/parlay/internal/file_map.h"
 // #include "common/geometry.h"
 // #include "common/geometryIO.h"
 #include "../bench/parse_command_line.h"
