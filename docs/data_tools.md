@@ -40,7 +40,7 @@ Crop a file to the desired size:
 
 ```bash
 make crop
-./crop ../../data/sift/sift_learn.fbin 50000 float ../data/sift/sift_50K.fbin
+./crop ../data/sift/sift_learn.fbin 50000 float ../data/sift/sift_50K.fbin
 ```
 
 ## Random Sampling
@@ -49,7 +49,7 @@ Take a random sample of desired size from a file:
 
 ```bash
 make random_sample
-
+./random_sample ../data/sift/sift_learn.fbin 50000 float ../data/sift/sift_50K_random.fbin
 ```
 
 
