@@ -165,7 +165,7 @@ def build_with_params(max_degrees, weight_classes, cutoff, cluster_size, bitvect
     index.set_bitvector_cutoff(bitvector_cutoff)
     index.set_max_iter(max_iter)
     index.fit_from_filename(DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR +
-                        'data/yfcc100M/base.metadata.10M.spmat', cutoff, cluster_size, "index_cache/", weight_classes)
+                        'data/yfcc100M/base.metadata.10M.spmat', cutoff, cluster_size, "index_cache/", weight_classes, True)
     return index
 
 # %%
@@ -228,7 +228,7 @@ def run_index(index, I_gt, nq, runs=4):
 
 # %%
 
-index = build_with_params(MAX_DEGREES, WEIGHT_CLASSES, CUTOFF, CLUSTER_SIZE, 10_000, MAX_ITER, True)
+index = build_with_params(MAX_DEGREES, WEIGHT_CLASSES, CUTOFF, CLUSTER_SIZE, 10_000, MAX_ITER)
 # %%
 def objective(trial):
     tiny_cutoff = trial.suggest_int('tiny_cutoff', 10_000, 100_000, step=5_000)
