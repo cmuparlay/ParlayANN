@@ -224,7 +224,7 @@ def run_index(index, I_gt, nq, runs=4):
         index.reset()
         r = recall(I, I_gt)
         qps = nq / (end - start)
-        if r > 0.9 and dcmps < best_run[2]:
+        if r > 0.9 and qps > best_run[1]:
             best_run = (r, qps, dcmps)
         
     return best_run
