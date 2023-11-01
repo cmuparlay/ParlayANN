@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import re
 import wrapper as wp
-import os
+import os, sys
 import optuna
 from datetime import datetime
 import time
@@ -214,7 +214,7 @@ for i in filter_dict.keys():
     filters[i] = wp.QueryFilter(*filter_dict[i])
 
 # %%
-def run_index(index, I_gt, nq, runs=4):
+def run_index(index, I_gt, nq, runs=4, recall_cutoff=0.9):
     best_run = (0, 0, 0)
     for i in range(runs):
         start = time.time()
@@ -224,7 +224,7 @@ def run_index(index, I_gt, nq, runs=4):
         index.reset()
         r = recall(I, I_gt)
         qps = nq / (end - start)
-        if r > 0.9 and qps > best_run[1]:
+        if r > recall_cutoff and qps > best_run[1]:
             best_run = (r, qps, dcmps)
         
     return best_run
@@ -233,27 +233,35 @@ def run_index(index, I_gt, nq, runs=4):
 
 index = build_with_params(MAX_DEGREES, WEIGHT_CLASSES, CUTOFF, CLUSTER_SIZE, 10_000, MAX_ITER)
 # %%
-def objective(trial):
+def objective(trial, recall_cutoff=0.9):
     tiny_cutoff = trial.suggest_int('tiny_cutoff', 10_000, 100_000, step=1_000)
     target_points = trial.suggest_int('target_points', 5_000, 30_000, step=1_000)
-    beam_width_s = trial.suggest_int('beam_width_s', 30, 100)
-    beam_width_m = trial.suggest_int('beam_width_m', 30, 100)
-    beam_width_l = trial.suggest_int('beam_width_l', 30, 100)
-    search_limit = trial.suggest_int('search_limit', 30, 800)
+    beam_width_s = trial.suggest_int('beam_width_s', 30, 130, step=5)
+    beam_width_m = trial.suggest_int('beam_width_m', 30, 130, step=5)
+    beam_width_l = trial.suggest_int('beam_width_l', 30, 130, step=5)
+    search_limit = trial.suggest_int('search_limit', 30, 1000, step=5)
 
     update_search_params(index, target_points, tiny_cutoff, (beam_width_s, beam_width_m, beam_width_s), (search_limit, search_limit, search_limit))
 
     r, qps, dcmps = run_index(index, I, NQ, runs=4)
 
-    if r > 0.9:
+    if r > recall_cutoff:
         return round(qps) + r
     else:
         return 0
     
 # %%
-study = optuna.create_study(direction='maximize')
-# %%
-study.optimize(objective, n_trials=10_000)
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        recall_cutoff = float(sys.argv[1]) / 100
+    else:
+        recall_cutoff = 0.9
+    
+    print(f"Running with recall cutoff {recall_cutoff}")
+
+    study = optuna.create_study(direction='maximize')
+    study.optimize(lambda trial: objective(trial, recall_cutoff), n_trials=10_000)
 # %%
 # def build_objective(trial):
 #     max_degrees = (trial.suggest_int('max_degree_s', 5, 8), trial.suggest_int('max_degree_m', 6, 10), trial.suggest_int('max_degree_l', 6, 12))
