@@ -231,10 +231,12 @@ def run_index(index, I_gt, nq, runs=4):
 index = build_with_params(MAX_DEGREES, WEIGHT_CLASSES, CUTOFF, CLUSTER_SIZE, 10_000, MAX_ITER)
 # %%
 def objective(trial):
-    tiny_cutoff = trial.suggest_int('tiny_cutoff', 10_000, 100_000, step=5_000)
-    target_points = trial.suggest_int('target_points', 5_000, 30_000, step=2_500)
-    beam_width = trial.suggest_int('beam_width', 30, 150, step=5)
-    search_limit = trial.suggest_int('search_limit', 100, 500_000, log=True)
+    tiny_cutoff = trial.suggest_int('tiny_cutoff', 10_000, 100_000, step=1_000)
+    target_points = trial.suggest_int('target_points', 5_000, 30_000, step=1_000)
+    beam_width_s = trial.suggest_int('beam_width', 30, 100)
+    beam_width_m = trial.suggest_int('beam_width', 30, 100)
+    beam_width_l = trial.suggest_int('beam_width', 30, 100)
+    search_limit = trial.suggest_int('search_limit', 0, 500)
 
     update_search_params(index, target_points, tiny_cutoff, (beam_width, beam_width, beam_width), (search_limit, search_limit, search_limit))
 
@@ -248,5 +250,5 @@ def objective(trial):
 # %%
 study = optuna.create_study(direction='maximize')
 # %%
-study.optimize(objective, n_trials=300)
+study.optimize(objective, n_trials=800)
 # %%
