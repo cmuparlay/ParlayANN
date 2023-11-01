@@ -239,7 +239,7 @@ def objective(trial):
     beam_width_s = trial.suggest_int('beam_width_s', 30, 100)
     beam_width_m = trial.suggest_int('beam_width_m', 30, 100)
     beam_width_l = trial.suggest_int('beam_width_l', 30, 100)
-    search_limit = trial.suggest_int('search_limit', 30, 500)
+    search_limit = trial.suggest_int('search_limit', 30, 800)
 
     update_search_params(index, target_points, tiny_cutoff, (beam_width_s, beam_width_m, beam_width_s), (search_limit, search_limit, search_limit))
 
