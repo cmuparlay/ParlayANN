@@ -76,6 +76,7 @@ if not os.path.exists("index_cache/"):
 
 os.environ['PARLAY_NUM_THREADS'] = '8'
 INDEX_DIR = '../../big-ann-benchmarks/data/indices/filter/parlayivf/YFCC100MDataset-10000000/parlayivf_Euclidian_uint8'
+# INDEX_DIR = "index_cache/"
 
 # %%
 def parse_framework_output(data):
@@ -233,9 +234,9 @@ index = build_with_params(MAX_DEGREES, WEIGHT_CLASSES, CUTOFF, CLUSTER_SIZE, 10_
 def objective(trial):
     tiny_cutoff = trial.suggest_int('tiny_cutoff', 10_000, 100_000, step=1_000)
     target_points = trial.suggest_int('target_points', 5_000, 30_000, step=1_000)
-    beam_width_s = trial.suggest_int('beam_width', 30, 100)
-    beam_width_m = trial.suggest_int('beam_width', 30, 100)
-    beam_width_l = trial.suggest_int('beam_width', 30, 100)
+    beam_width_s = trial.suggest_int('beam_width_s', 30, 100)
+    beam_width_m = trial.suggest_int('beam_width_m', 30, 100)
+    beam_width_l = trial.suggest_int('beam_width_l', 30, 100)
     search_limit = trial.suggest_int('search_limit', 0, 500)
 
     update_search_params(index, target_points, tiny_cutoff, (beam_width_s, beam_width_m, beam_width_s), (search_limit, search_limit, search_limit))
@@ -252,3 +253,25 @@ study = optuna.create_study(direction='maximize')
 # %%
 study.optimize(objective, n_trials=800)
 # %%
+# def build_objective(trial):
+#     max_degrees = (trial.suggest_int('max_degree_s', 5, 8), trial.suggest_int('max_degree_m', 6, 10), trial.suggest_int('max_degree_l', 6, 12))
+#     weight_classes = (trial.suggest_int('weight_classes_s', 60_000, 300_000, step=10_000), trial.suggest_int('weight_classes_m', 300_000, 800_000, step=10_000))
+#     cutoff = trial.suggest_int('cutoff', 7_000, 20_000, step=500)
+#     cluster_size = trial.suggest_int('cluster_size', 1_000, 10_000, step=500)
+#     bitvector_cutoff = trial.suggest_int('bitvector_cutoff', 0, 20_000, step=1_000)
+#     max_iter = trial.suggest_int('max_iter', 5, 20, step=1)
+
+#     os.export('PARLAY_NUM_THREADS', '180')
+
+#     index = build_with_params(max_degrees, weight_classes, cutoff, cluster_size, bitvector_cutoff, max_iter)
+
+#     tiny_cutoff = trial.suggest_int('tiny_cutoff', 10_000, 100_000, step=1_000)
+#     target_points = trial.suggest_int('target_points', 5_000, 30_000, step=1_000)
+#     beam_width_s = trial.suggest_int('beam_width', 30, 100)
+#     beam_width_m = trial.suggest_int('beam_width', 30, 100)
+#     beam_width_l = trial.suggest_int('beam_width', 30, 100)
+#     search_limit = trial.suggest_int('search_limit', 0, 500)
+
+#     os.export('PARLAY_NUM_THREADS', '8')
+    
+#     update_search_params(index, target_points, tiny_cutoff, (beam_width_s, beam_width_m, beam_width_s), (
