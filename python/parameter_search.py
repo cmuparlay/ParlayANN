@@ -62,9 +62,9 @@ NQ = 100_000
 WEIGHT_CLASSES = (100_000, 400_000)
 MAX_DEGREES = (8, 10, 12)
 
-TINY_CUTOFF = 500
-TARGET_POINTS = 15_000
-BEAM_WIDTHS = (85, 85, 85)
+TINY_CUTOFF = 35000
+TARGET_POINTS = 7500
+BEAM_WIDTHS = (55, 55, 55)
 SEARCH_LIMITS = (int(WEIGHT_CLASSES[0] * 0.2), int(WEIGHT_CLASSES[1] * 0.5), int(3_000_000 * 0.5))
 MAX_ITER = 10
 
@@ -215,15 +215,17 @@ for i in filter_dict.keys():
 
 # %%
 def run_index(index, I_gt, nq, runs=4):
-    best_run = (0, 0)
+    best_run = (0, 0, 0)
     for i in range(runs):
         start = time.time()
         I, D = index.batch_filter_search(X, filters, nq, 10)
         end = time.time()
+        dcmps = index.get_dcmps()
+        index.reset()
         r = recall(I, I_gt)
         qps = nq / (end - start)
-        if r > 0.9 and qps > best_run[1]:
-            best_run = (r, qps)
+        if r > 0.9 and dcmps < best_run[2]:
+            best_run = (r, qps, dcmps)
         
     return best_run
 
@@ -241,17 +243,17 @@ def objective(trial):
 
     update_search_params(index, target_points, tiny_cutoff, (beam_width_s, beam_width_m, beam_width_s), (search_limit, search_limit, search_limit))
 
-    r, qps = run_index(index, I, NQ, runs=4)
+    r, qps, dcmps = run_index(index, I, NQ, runs=4)
 
     if r > 0.9:
-        return qps
+        return round(qps) + r
     else:
         return 0
     
 # %%
 study = optuna.create_study(direction='maximize')
 # %%
-study.optimize(objective, n_trials=800)
+study.optimize(objective, n_trials=10_000)
 # %%
 # def build_objective(trial):
 #     max_degrees = (trial.suggest_int('max_degree_s', 5, 8), trial.suggest_int('max_degree_m', 6, 10), trial.suggest_int('max_degree_l', 6, 12))
@@ -259,19 +261,22 @@ study.optimize(objective, n_trials=800)
 #     cutoff = trial.suggest_int('cutoff', 7_000, 20_000, step=500)
 #     cluster_size = trial.suggest_int('cluster_size', 1_000, 10_000, step=500)
 #     bitvector_cutoff = trial.suggest_int('bitvector_cutoff', 0, 20_000, step=1_000)
-#     max_iter = trial.suggest_int('max_iter', 5, 20, step=1)
 
-#     os.export('PARLAY_NUM_THREADS', '180')
+#     index = build_with_params(max_degrees, weight_classes, cutoff, cluster_size, bitvector_cutoff, 10)
 
-#     index = build_with_params(max_degrees, weight_classes, cutoff, cluster_size, bitvector_cutoff, max_iter)
+#     update_search_params(index, TARGET_POINTS, TINY_CUTOFF, BEAM_WIDTHS, SEARCH_LIMITS)
 
-#     tiny_cutoff = trial.suggest_int('tiny_cutoff', 10_000, 100_000, step=1_000)
-#     target_points = trial.suggest_int('target_points', 5_000, 30_000, step=1_000)
-#     beam_width_s = trial.suggest_int('beam_width', 30, 100)
-#     beam_width_m = trial.suggest_int('beam_width', 30, 100)
-#     beam_width_l = trial.suggest_int('beam_width', 30, 100)
-#     search_limit = trial.suggest_int('search_limit', 0, 500)
+#     r, qps, dcmps = run_index(index, I, NQ, runs=5)
 
-#     os.export('PARLAY_NUM_THREADS', '8')
-    
-#     update_search_params(index, target_points, tiny_cutoff, (beam_width_s, beam_width_m, beam_width_s), (
+#     if r > 0.9:
+#         return dcmps
+#     else:
+#         return 0
+
+# # %%
+# study = optuna.create_study(direction='minimize')
+
+# study.enqueue_trial({'max_degree_s': 8, 'max_degree_m': 10, 'max_degree_l': 12, 'weight_classes_s': 100_000, 'weight_classes_m': 400_000, 'cutoff': 10_000, 'cluster_size': 5_000, 'bitvector_cutoff': 10_000, 'max_iter': 10})
+
+# study.optimize(build_objective, n_trials=1000)
+# %%

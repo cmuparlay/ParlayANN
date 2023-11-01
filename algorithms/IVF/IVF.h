@@ -1351,6 +1351,19 @@ struct IVF_Squared {
 
 #endif
   }
+
+  int64_t get_dcmps() const {
+#ifdef COUNTERS
+
+    return largexlarge_dcmp.total() + largexsmall_dcmp.total() +
+           smallxsmall_dcmp.total() + tinyxlarge_dcmp.total() +
+           large_dcmp.total() + small_dcmp.total();
+
+#else
+  
+      return 0;
+#endif
+  }
 };
 
 #endif   // IVF_H

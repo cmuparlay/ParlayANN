@@ -117,7 +117,8 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
         .def("set_query_params", &IVF_Squared<T, Point>::set_query_params, "params"_a, "weight_class"_a)
         .def("set_build_params", &IVF_Squared<T, Point>::set_build_params, "params"_a, "weight_class"_a)
         .def("set_bitvector_cutoff", &IVF_Squared<T, Point>::set_bitvector_cutoff, "bitvector_cutoff"_a)
-        .def("get_log", &IVF_Squared<T, Point>::get_log, py::return_value_policy::copy);
+        .def("get_log", &IVF_Squared<T, Point>::get_log, py::return_value_policy::copy)
+        .def("get_dcmps", &IVF_Squared<T, Point>::get_dcmps);
 }
 
 PYBIND11_MODULE(_ParlayANNpy, m)
