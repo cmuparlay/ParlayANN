@@ -238,7 +238,7 @@ def objective(trial):
     beam_width_l = trial.suggest_int('beam_width', 30, 100)
     search_limit = trial.suggest_int('search_limit', 0, 500)
 
-    update_search_params(index, target_points, tiny_cutoff, (beam_width, beam_width, beam_width), (search_limit, search_limit, search_limit))
+    update_search_params(index, target_points, tiny_cutoff, (beam_width_s, beam_width_m, beam_width_s), (search_limit, search_limit, search_limit))
 
     r, qps = run_index(index, I, NQ, runs=4)
 
