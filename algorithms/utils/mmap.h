@@ -28,22 +28,8 @@
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 #include "parlay/internal/file_map.h"
-// #include "common/geometry.h"
-// #include "common/geometryIO.h"
 #include "../bench/parse_command_line.h"
-#include "types.h"
-// #include "common/time_loop.h"
 
-#include <fcntl.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
-
-// using namespace benchIO;
-// *************************************************************
-// Parsing code (should move to common?)
-// *************************************************************
 
 // returns a pointer and a length
 std::pair<char*, size_t> mmapStringFromFile(const char* filename) {
