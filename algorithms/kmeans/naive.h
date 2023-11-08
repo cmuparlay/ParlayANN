@@ -3,6 +3,29 @@
 #ifndef Naive2_Kmeans
 #define Naive2_Kmeans
 
+#include "parlay/random.h"
+#include "parlay/parallel.h"
+#include "parlay/primitives.h"
+#include "parlay/sequence.h"
+#include "parlay/slice.h"
+#include "parlay/delayed.h"
+#include "parlay/io.h"
+#include "parlay/internal/get_time.h"
+#include "distance.h"
+#include "kmeans_bench.h"
+
+//TODO unclear which of these needed, remove that which are not
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <algorithm>
+#include <cmath>
+#include <iostream>
+#include <limits>
+
+
 template <typename T>
 struct NaiveKmeans {
 
@@ -108,6 +131,8 @@ float* c, size_t* asg, Distance& D, kmeans_bench& logger, size_t max_iter, doubl
     if (max_diff <= epsilon) break;
     
   }
+
+  delete[] center_calc_float;
 }
 
 };
