@@ -25,8 +25,8 @@
 
 #include <algorithm>
 
-#include "../vamana/parlay/parallel.h"
-#include "../vamana/parlay/primitives.h"
+#include "parlay/parallel.h"
+#include "parlay/primitives.h"
 #include "mmap.h"
 
 template<typename T>
