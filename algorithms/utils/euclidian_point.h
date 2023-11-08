@@ -70,6 +70,7 @@ struct Euclidian_Point {
 
   static distanceType d_min() {return 0;}
   static bool is_metric() {return true;}
+  T operator[](long i){return *(values + i);}
 
   float distance(Euclidian_Point<T> x) {
     return euclidian_distance(this->values, x.values, d);

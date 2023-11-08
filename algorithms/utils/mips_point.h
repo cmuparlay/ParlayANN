@@ -68,9 +68,11 @@
 template<typename T>
 struct Mips_Point {
   using distanceType = float; 
+  template<class C> friend struct Quantized_Mips_Point;
   
   static distanceType d_min() {return -std::numeric_limits<float>::max();}
   static bool is_metric() {return false;}
+  T operator [](long i) {return *(values + i);}
 
   float distance(Mips_Point<T> x) {
     return mips_distance(this->values, x.values, d);
@@ -101,4 +103,82 @@ private:
   unsigned int d;
   unsigned int aligned_d;
   long id_;
+};
+
+template<typename T>
+float quantized_mips_distance(float* q, T* p, unsigned d, float max_coord, float min_coord){
+  float result = 0;
+  uint T_bits = sizeof(T)*8;
+  float maxval = static_cast<float>(static_cast<T>((((size_t) 1) << T_bits)-1));
+  float delta = max_coord - min_coord;
+  float mult = delta/maxval;
+  float dc;
+  for(int i=0; i<d; i++){
+    dc = static_cast<float>(p[i])*mult + min_coord;
+    result += dc*q[i];
+  }
+  return result;
+}
+
+template<typename T>
+float quantized_mips_distance(T* q, T* p, unsigned d, float max_coord, float min_coord){
+  float result = 0;
+  uint T_bits = sizeof(T)*8;
+  float maxval = static_cast<float>(static_cast<T>((((size_t) 1) << T_bits)-1));
+  float delta = max_coord - min_coord;
+  float mult = delta/maxval;
+  float dc;
+  float dcq;
+  for(int i=0; i<d; i++){
+    dc = static_cast<float>(p[i])*mult + min_coord;
+    dcq = static_cast<float>(q[i])*mult + min_coord;
+    result += dc*dcq;
+  }
+  return result;
+}
+
+
+template<typename T>
+struct Quantized_Mips_Point{
+    using distanceType = float; 
+  
+  static distanceType d_min() {return -std::numeric_limits<float>::max();}
+  static bool is_metric() {return false;}
+  
+  T operator [] (long j) {if(j >= d) abort(); return *(values+j);}
+
+
+  float distance(Mips_Point<float> x) {return quantized_mips_distance(x.values, this->values, d, max_coord, min_coord);}
+
+  float distance(Quantized_Mips_Point<T> x){return quantized_mips_distance(x.values, this->values, d, max_coord, min_coord);}
+
+  void prefetch() {
+    int l = (aligned_d * sizeof(T))/64;
+    for (int i=0; i < l; i++)
+      __builtin_prefetch((char*) values + i* 64);
+  }
+
+  long id() {return id_;}
+
+  Quantized_Mips_Point(const T* values, unsigned int d, unsigned int ad, long id, float max_coord, float min_coord)
+    : values(values), d(d), aligned_d(ad), id_(id), max_coord(max_coord), min_coord(min_coord) {;
+    }
+
+  bool operator==(Quantized_Mips_Point<T> q){
+    for (int i = 0; i < d; i++) {
+      if (values[i] != q.values[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+
+private:
+  const T* values;
+  unsigned int d;
+  unsigned int aligned_d;
+  long id_;
+  float min_coord;
+  float max_coord;
 };
