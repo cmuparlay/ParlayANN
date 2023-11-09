@@ -53,7 +53,10 @@ template<typename T, class Point>
 struct PointRange{
 
   long dimension(){return dims;}
-  
+
+  long aligned_dimension() {return aligned_dims;}
+
+  T* get_values() {return values;}
 
   PointRange(char* filename){
       if(filename == NULL) {

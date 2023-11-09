@@ -73,3 +73,15 @@ cc_library(
     name = "csvfile",
     hdrs = ["csvfile.h"],
 )
+
+cc_library(
+    name="point_range",
+    hdrs=["mmap.h","point_range.h","NSGDist.h","types.h","euclidian_point.h"],
+    deps=[
+        "@parlaylib//parlay:parallel",
+        "@parlaylib//parlay:primitives",
+        "//algorithms/bench:parse_command_line",
+       
+
+    ],
+)

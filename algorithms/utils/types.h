@@ -24,9 +24,9 @@
 #define TYPES
 
 #include <algorithm>
-
-#include "../vamana/parlay/parallel.h"
-#include "../vamana/parlay/primitives.h"
+//parlay include changed to accomodate bazel build structure (see point_range target)
+#include "parlay/parallel.h"
+#include "parlay/primitives.h"
 #include "mmap.h"
 
 template<typename T>
@@ -101,8 +101,9 @@ struct groundTruth{
 
 
 struct BuildParams{
-  long L; //vamana
+  //reordered R and L to avoid build warning (initializer order different from declare order)
   long R; //vamana and pynnDescent
+  long L; //vamana
   double alpha; //vamana and pyNNDescent
   bool two_pass; //vamana
 

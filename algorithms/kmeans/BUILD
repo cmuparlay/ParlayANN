@@ -10,6 +10,7 @@ cc_binary(
   deps = [
     ":kmeans_headers",
     
+    
   ],
  
 )
@@ -36,4 +37,18 @@ deps = [
   "//algorithms/bench:parse_command_line",
 ],
 
+)
+
+cc_binary(
+  name="test_run",
+  srcs=["test.cpp"],
+  linkopts=["-pthread"],
+  #makes it known that include is an include library
+  copts = ["-Iinclude"],
+  deps = [
+    ":kmeans_headers",
+    "//algorithms/utils:point_range",
+    
+  ],
+ 
 )
