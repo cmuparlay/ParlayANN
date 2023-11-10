@@ -96,6 +96,19 @@ struct PointRange{
       }
   }
 
+  //TODO is this a valid PointRange constructor?
+  //the idea being, we need to return a PointRange from Kmeans, so we need a constructor that doesn't come from a file
+  PointRange(T* vals, size_t npts, long d, long ad) {
+    dims=d;
+    aligned_dims=ad;
+    n=npts;
+    values = (T*) aligned_alloc(64, n*aligned_dims*sizeof(T));
+    parlay::parallel_for(0,n*ad,[&] (size_t i) {
+      values[i]=vals[i];
+    });
+
+  }
+
   // PointRange(char* filename) {
   //   if(filename == NULL) {
   //     n = 0;

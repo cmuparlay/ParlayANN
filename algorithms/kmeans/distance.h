@@ -20,71 +20,8 @@ class Distance{
     virtual float distance(uint8_t *p, uint8_t *q, unsigned d){return 0;}
     virtual float distance(int8_t *p, int8_t *q, unsigned d){return 0;}
     virtual float distance(float *p, float *q, unsigned d){return 0;}
-    //virtual ~Distance() = 0; //destructor?
-    virtual float distance(uint8_t *p, float *q, unsigned d){return 0;}
-    virtual float distance(int8_t *p, float *q, unsigned d){return 0;}
-    virtual float distance(float *p, uint8_t *q, unsigned d){return 0;}
-    virtual float distance(float *p, int8_t *q, unsigned d){return 0;}
-
 };
 
-// struct EuclideanDistance : public Distance{
-
-//  threadlocal::buffer<float>* buf = nullptr;
-
-//   std::string id(){return "euclidean";}
-
-//   float distance(uint8_t *p, uint8_t *q, unsigned d){
-//    // std::cout << "calling uint8_t dist\n";
-//     int result = 0;
-//     for(unsigned i=0; i<d; i++){
-//       result += ((int32_t)((int16_t) q[i] - (int16_t) p[i])) *
-//                     ((int32_t)((int16_t) q[i] - (int16_t) p[i]));
-//     }
-//     return (float) result;
-//   }
-
-//   float distance(int8_t *p, int8_t *q, unsigned d){
-//   //  std::cout << "calling int8_t dist" << std::endl;
-//     int result = 0;
-//     for(unsigned i=0; i<d; i++){
-//       result += ((int32_t)((int16_t) q[i] - (int16_t) p[i])) *
-//                     ((int32_t)((int16_t) q[i] - (int16_t) p[i]));
-//     }
-//     return (float) result;
-//   }
-
-//   float distance(float *p, float *q, unsigned d){
-//       efanna2e::DistanceL2 distfunc;
-//    //   std::cout << "comparing distfunc" << std::endl;
-//       return distfunc.compare(p, q, d);
-//   }
-
-//   float distance(uint8_t *p, float *q, unsigned d){
-//       if (buf == nullptr || buf->length < d) {
-//         buf = new threadlocal::buffer<float>(d);
-//       }
-//       buf->write(p);
-//       return distance(buf->begin(), q, d);
-//   }
-
-//   float distance(int8_t *p, float *q, unsigned d){
-//       if (buf == nullptr || buf->length < d) {
-//         buf = new threadlocal::buffer<float>(d);
-//       }
-//       buf->write(p);
-//       return distance(buf->begin(), q, d);
-//   }
-
-//   float distance(float *p, uint8_t *q, unsigned d){
-//       return distance(q, p, d);
-//   }
-
-//   float distance(float *p, int8_t *q, unsigned d){
-//       return distance(q, p, d);
-//   }
-
-// };
 
 struct Mips_Distance : public Distance{
 
@@ -146,26 +83,6 @@ struct EuclideanDistanceFast : public Distance {
     return distfunc.compare(p, q, d);
   }
 
-  float distance(uint8_t *p, float *q, unsigned d){
-    std::cout << "Mixed distance call aborting1" << std::endl;
-    abort(); return 0;}
-  float distance(int8_t *p, float *q, unsigned d){
-    std::cout << "Mixed distance call aborting2" << std::endl;
-
-    abort();
-  return 0;}
-  float distance(float *p, uint8_t *q, unsigned d){
-    std::cout << "Mixed distance call aborting3" << std::endl;
-    abort();
-    return 0;}
-  float distance(float *p, int8_t *q, unsigned d){
-    std::cout << "Mixed distance call aborting4" << std::endl;
-    abort();
-
-    return 0;}
-
-
-
 };
 
 //Euclidian distance to use if d < 36 (I believe that 30 is the bound, but 
@@ -199,24 +116,6 @@ struct EuclideanDistanceSmall : public Distance {
     }
     return result;
   }
-
-  float distance(uint8_t *p, float *q, unsigned d){
-    std::cout << "Mixed distance call aborting1" << std::endl;
-    abort(); return 0;}
-  float distance(int8_t *p, float *q, unsigned d){
-    std::cout << "Mixed distance call aborting2" << std::endl;
-
-    abort();
-  return 0;}
-  float distance(float *p, uint8_t *q, unsigned d){
-    std::cout << "Mixed distance call aborting3" << std::endl;
-    abort();
-    return 0;}
-  float distance(float *p, int8_t *q, unsigned d){
-    std::cout << "Mixed distance call aborting4" << std::endl;
-    abort();
-
-    return 0;}
 
 
 

@@ -28,23 +28,14 @@
 #include "../utils/euclidian_point.h"
 
 //Kmeans struct interface -- needs a cluster function
-template<typename T, typename Point, typename index_type>
+template<typename T, typename Point, typename index_type, typename float_type, typename CenterPoint>
 struct KmeansInterface {
 
 
-  virtual std::pair<parlay::sequence<parlay::sequence<index_type>>,PointRange<float,Point>> cluster(PointRange<T,Point> points, size_t k)=0;
+  virtual std::pair<parlay::sequence<parlay::sequence<index_type>>,PointRange<float_type,CenterPoint>> cluster(PointRange<T,Point> points, size_t k)=0;
 
-}
+};
 
-struct Kmeans : public KMeansInterface {
-  std::pair<parlay::sequence<parlay::sequence<index_type>>,PointRange<float,Point>> cluster(PointRange<T,Point> points, size_t k) {
-    T* vals = points.get_values();
-    size_t d = static_cast<size_t>(points.dimension());
-    size_t ad = static_cast<size_t>(points.algined_dimension());
-  }
-
-
-}
 
 
 #endif //KMEANS_H

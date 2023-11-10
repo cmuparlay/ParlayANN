@@ -9,6 +9,7 @@ cc_binary(
   copts = ["-Iinclude"],
   deps = [
     ":kmeans_headers",
+    "//algorithms/utils:point_range"
     
     
   ],
@@ -22,6 +23,7 @@ cc_library(
 "naive.h",
 "kmeans_bench.h",
 "distance.h",
+"kmeans.h"
 ],
 
 linkopts=["-pthread"],
