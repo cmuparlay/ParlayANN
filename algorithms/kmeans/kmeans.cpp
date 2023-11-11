@@ -42,7 +42,7 @@ inline void bench_three(T*v, size_t n, size_t d, size_t k) {
 
 }
 
-
+//bench stable has a promise not to be changed/updated
 template <typename T>
 inline void bench_two_stable(T* v, size_t n, size_t d, size_t k, Distance& D, 
 size_t max_iter=1000, double epsilon=0, bool output_log_to_csv=false, std::string output_file_name1="data.csv", std::string output_file_name2="data2.csv") { 
@@ -50,6 +50,7 @@ size_t max_iter=1000, double epsilon=0, bool output_log_to_csv=false, std::strin
 
 }
 
+//bench two is the basic version I mess with
 template <typename T>
 inline void bench_two(T* v, size_t n, size_t d, size_t k, Distance& D, 
 size_t max_iter=1000, double epsilon=0, bool output_log_to_csv=false, std::string output_file_name1="data.csv", std::string output_file_name2="data2.csv") { 
@@ -75,8 +76,27 @@ size_t max_iter=1000, double epsilon=0, bool output_log_to_csv=false, std::strin
     nie2.cluster_middle(v,n,d,d,k,c,asg,D,logger_nie2,max_iter,epsilon);
     logger_nie2.end_time();
     
-
 }
+
+//bench many
+//n samples <- values of n to try
+//k samples <- values of k to try
+//d samples < values of d to try
+//output_file <- where to put results
+//iter_samples <- values of max_iter to tryu
+//var_samples <- how many times we do the run (if > 1, then average)
+//limiter <- cap the value of n*d*k*max_iter*var_samples to prevent a single run from taking too long
+// template<typename T>
+// inline void bench_many(T* v, size_t n, size_t d, std::string n_samples, std::string k_samples, std::string d_samples, std::string output_file, std::string iter_samples, std::string var_samples, size_t limiter) {
+//     std::cout << "Run bench many " << std::endl;
+//     std::cout << "Bench many moved to bench.cpp file" << std::endl;
+//     std::vector<size_t> n_vec = extract_vector<size_t>(n_samples);
+//     std::vector<size_t> d_vec = extract_vector<size_t>(d_samples);
+//     std::vector<size_t> k_vec = extract_vector<size_t>(k_samples);
+//     std::vector<size_t> iter_vec = extract_vector<size_t>(iter_samples);
+//     std::vector<size_t> var_vec = extract_vector<size_t>(var_samples);
+
+// }
 
 
 int main(int argc, char* argv[]){
@@ -85,7 +105,7 @@ int main(int argc, char* argv[]){
     size_t k = P.getOptionLongValue("-k", 10); // k is number of clusters
     size_t max_iterations = P.getOptionLongValue("-m", 1000); // max_iterations is the max # of Lloyd iters kmeans will run
     std::string output = std::string(P.getOptionValue("-o", "kmeans_results.csv")); // maybe the kmeans results get written into this csv
-    std::string input = std::string(P.getOptionValue("-i", "")); // the input file
+    std::string input = std::string(P.getOptionValue("-i", "")); // the data input file
     std::string ft = std::string(P.getOptionValue("-f", "bin")); // file type, bin or vecs
     std::string tp = std::string(P.getOptionValue("-t", "uint8")); // data type
     std::string dist = std::string(P.getOptionValue("-D", "Euclidian")); // distance choice
@@ -97,6 +117,13 @@ int main(int argc, char* argv[]){
     }
     std::string output_log_file_name = std::string(P.getOptionValue("-csv_log_file_name","data.csv"));
     std::string output_log_file_name2 = std::string(P.getOptionValue("-csv_log_file_name2","data2.csv"));
+    std::string n_samples_name = std::string(P.getOptionValue("-n_vals","n.txt"));
+    std::string k_samples_name = std::string(P.getOptionValue("-k_vals","k.txt"));
+    std::string d_samples_name = std::string(P.getOptionValue("-d_vals","d.txt"));
+    std::string iter_samples_name = std::string(P.getOptionValue("-iter_vals","iter.txt"));
+    std::string var_samples_name = std::string(P.getOptionValue("-var_vals","var.txt"));
+    long limiter = P.getOptionLongValue("-lim",1'000'000'000);
+
     float epsilon = static_cast<float>(P.getOptionDoubleValue("-epsilon",0.0));
 
 
@@ -150,24 +177,23 @@ int main(int argc, char* argv[]){
     if (ft == "bin"){
         if (tp == "float") {
             auto [v, n, d] = parse_fbin(input.c_str());
-            if (use_bench_two == "yes") {
-                bench_two<float>(v,n,d,k,*D,max_iterations,epsilon,output_log_to_csv,output_log_file_name,output_log_file_name2);
-
+            if (use_bench_two=="yes") { //can't use switch for strings sadly
+                    bench_two<float>(v,n,d,k,*D,max_iterations,epsilon,output_log_to_csv,output_log_file_name,output_log_file_name2);
             }
             else if (use_bench_two=="stable") {
-                bench_two_stable<float>(v,n,d,k,*D,max_iterations,epsilon,output_log_to_csv,output_log_file_name,output_log_file_name2);
-
+                    bench_two_stable<float>(v,n,d,k,*D,max_iterations,epsilon,output_log_to_csv,output_log_file_name,output_log_file_name2);
             }
             else if (use_bench_two=="three") {
-                bench_three<float>(v,n,d,k);
-
+                    bench_three<float>(v,n,d,k);
             }
+                // case "many":
+                //     bench_many<float>(v,n,d,n_samples_name,k_samples_name,d_samples_name,output_log_to_csv,iter_samples_name,var_samples_name,limiter);
             else {
-                std::cout << "Must specify bench path, aborting" << std::endl;
-                abort();
-
+                    std::cout << "Must specify bench path, aborting" << std::endl;
+                    abort();
 
             }
+
         } else if (tp == "uint8") {
             auto [v, n, d] = parse_uint8bin(input.c_str());
             if (use_bench_two=="yes") {

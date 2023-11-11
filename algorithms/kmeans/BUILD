@@ -1,6 +1,6 @@
 licenses(["notice"])
 
-#What's with this binary library separation?
+#run an instance of kmeans
 cc_binary(
   name="kmeans_test_run",
   srcs=["kmeans.cpp"],
@@ -12,6 +12,20 @@ cc_binary(
     "//algorithms/utils:point_range"
     
     
+  ],
+ 
+)
+
+#run a benchmark across many values of n,d,k,etc.
+cc_binary(
+  name="bench_run",
+  srcs=["bench.cpp"],
+  linkopts=["-pthread"],
+  #makes it known that include is an include library
+  copts = ["-Iinclude"],
+  deps = [
+    ":kmeans_headers",
+    "//algorithms/utils:point_range"
   ],
  
 )
