@@ -115,4 +115,82 @@ std::vector<std::pair<std::string,std::string>> extract_string_pair_vector(const
 
 }
 
+//iterate by one the curr array
+//Ex
+//if capacities = 3 2 2 and
+//curr = 1 0 1, then iterate would return
+//1 1 0 (because the rightmost one increases, hits capacity and so we carry the value over to the 2nd place)
+bool iterate_multidim(std::vector<size_t>& capacities, std::vector<size_t>& curr) {
+    //first, make sure we can iterate
+    bool isFull=true;
+    for (size_t i = 0; i < capacities.size(); i++) {
+        if (capacities[i]-1!=curr[i]) {
+            isFull=false;
+        }
+    }
+    if (isFull) {
+        return false; //false means can no longer iterate
+    }
+    //if we can iterate, iterate
+    int position = curr.size()-1;
+    curr[position] += 1;
+    while(curr[position]==capacities[position]) {
+        
+        curr[position]=0;
+        curr[position-1]+=1;
+        position-=1;
+
+    }
+    return true;
+
+}
+
+// //hold a point set
+// struct DataWrapper {
+//     float* fd;
+//     int8_t* ind;
+//     uint8_t* uid;
+//     size_t n;
+//     size_t d;
+//     size_t type=-1; //0 means float, 1 means int8, 2 means uint8
+//     size_t type_string = "";
+
+//     DataWrapper(std::string filename, std::string tp) {
+//         if (tp == "float") {
+//             auto [tv, tn, td] = parse_fbin(input.c_str());
+//             fd=tv;
+//             n=tn;
+//             d=td;
+//             type=0;
+//             type_string="float";
+//         }
+//         else if (tp == "uint8") {
+//             auto [tv, tn, td] = parse_uint8_t(input.c_str());
+//             fd=tv;
+//             n=tn;
+//             d=td;
+//             type=2;
+//             type_string="uint8_t";
+//         }
+//         else if (tp == "int8") {
+//             auto [tv, tn, td] = parse_int8bin(input.c_str());
+//             fd=tv;
+//             n=tn;
+//             d=td;
+//             type=1;
+//             type_string="int8_t";
+//         }
+//         else {
+//             std::cout << "invalid type, aborting " << std::endl;
+//             abort();
+//         }
+
+        
+//     }
+
+// };
+
+
+
+
 #endif //PARSING
