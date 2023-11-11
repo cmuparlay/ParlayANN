@@ -68,3 +68,40 @@ cc_binary(
   ],
  
 )
+
+#testing the distance function
+cc_test(
+  name="distance_gtest",
+  size="small",
+  srcs=["tests/distanceTests.cpp"],
+  deps=["@googletest//:gtest_main",
+    "kmeans_headers"],
+  linkopts=["-pthread"],
+  copts = ["-Iinclude"],
+)
+
+#testing/exploring Google test
+cc_test(
+  name="test_gtest",
+  size="small",
+  srcs=["tests/testTests.cpp"],
+  deps=["@googletest//:gtest_main",
+    "kmeans_headers"],
+  linkopts=["-pthread"],
+  copts = ["-Iinclude"],
+
+)
+
+#testing naive
+cc_test(
+  name="naive_gtest",
+  size="small",
+  srcs=["tests/naiveTests.cpp"],
+  deps=["@googletest//:gtest_main",
+    "kmeans_headers",
+    "//algorithms/utils:point_range",],
+  linkopts=["-pthread"],
+  includes=["."],
+
+)
+
