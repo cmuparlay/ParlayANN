@@ -52,19 +52,20 @@ nn_result checkRecall(
   parlay::internal::timer t;
   float query_time;
   stats<indexType> QueryStats(Query_Points.size());
-  if(random){
+
+  // to clear the cache between runs
+  parlay::sequence<long> a(10000000,23);
+  a = parlay::random_shuffle(a);
+
+  QueryStats.clear();
+  t.next_time(); // start timer
+
+  if (random) 
     all_ngh = beamSearchRandom<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, QP);
-    t.next_time();
-    QueryStats.clear();
-    all_ngh = beamSearchRandom<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, QP);
-    query_time = t.next_time();
-  }else{
+  else
     all_ngh = searchAll<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_point, QP);
-    t.next_time();
-    QueryStats.clear();
-    all_ngh = searchAll<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_point, QP);
-    query_time = t.next_time();
-  }
+
+  query_time = t.next_time(); // stop timer
 
   float recall = 0.0;
   //TODO deprecate this after further testing
