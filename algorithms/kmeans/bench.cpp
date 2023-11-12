@@ -42,7 +42,7 @@ size_t max_iter=1000, double epsilon=0, bool output_log_to_csv=false, std::strin
 
   
     //initialization
-    Lazy<T,size_t> init;
+    Lazy<T,CT,size_t> init;
     //note that here, d=ad
     init(v,n,d,ad,k,c,asg);
 

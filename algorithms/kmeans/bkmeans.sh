@@ -1,4 +1,5 @@
 #!bin/bash
+#This bash file for running kmeans, except through the PointRange interface
 bazel build kmeans_test_run
 
 PARANN_DIR=~/ParlayANN

@@ -1,5 +1,8 @@
 #!bin/bash
+#This bash file is for running kmeans, through the parlaykmeans-style interface
+
 bazel build kmeans_test_run
+
 
 PARANN_DIR=~/ParlayANN
 

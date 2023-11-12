@@ -32,9 +32,9 @@ inline void bench_three(T*v, size_t n, size_t d, size_t k) {
     std::cout << "finished" << std::endl;
     std::cout << "Printing out partitions: " << std::endl;
     auto parts = output.first;
-    for (int i = 0; i < parts.size(); i++) {
+    for (size_t i = 0; i < parts.size(); i++) {
         std::cout << i << ": ";
-        for (int j = 0; j < parts[i].size(); j++) {
+        for (size_t j = 0; j < parts[i].size(); j++) {
             std::cout << parts[i][j] << " ";
         }
         std::cout << std::endl;
@@ -52,20 +52,20 @@ size_t max_iter=1000, double epsilon=0, bool output_log_to_csv=false, std::strin
 
 //bench two is the basic version I mess with
 template <typename T>
-inline void bench_two(T* v, size_t n, size_t d, size_t k, Distance& D, 
+inline void bench_two(T* v, size_t n, size_t d, size_t ad, size_t k, Distance& D, 
 size_t max_iter=1000, double epsilon=0, bool output_log_to_csv=false, std::string output_file_name1="data.csv", std::string output_file_name2="data2.csv") { 
     std::cout << "fill in bench 2" << std::endl;
 
      std::cout << "Running bench stable " << std::endl;
 
-    float* c = new float[k*d]; // centers
+    float* c = new float[k*ad]; // centers
     size_t* asg = new size_t[n];
 
   
     //initialization
-    Lazy<T,size_t> init;
+    Lazy<T,float,size_t> init;
     //note that here, d=ad
-    init(v,n,d,d,k,c,asg);
+    init(v,n,d,ad,k,c,asg);
 
    
     NaiveKmeans<T,Euclidian_Point<T>,size_t,float,Euclidian_Point<float>> nie2;
@@ -73,7 +73,7 @@ size_t max_iter=1000, double epsilon=0, bool output_log_to_csv=false, std::strin
     epsilon,"Lazy","Naive");
     logger_nie2.start_time();
     //note that d=ad here
-    nie2.cluster_middle(v,n,d,d,k,c,asg,D,logger_nie2,max_iter,epsilon);
+    nie2.cluster_middle(v,n,d,ad,k,c,asg,D,logger_nie2,max_iter,epsilon);
     logger_nie2.end_time();
     
 }
@@ -98,11 +98,20 @@ size_t max_iter=1000, double epsilon=0, bool output_log_to_csv=false, std::strin
 
 // }
 
+//if new_d is the default value, go with the d given by the dataset. Otherwise, use the custom value of d.
+size_t pickd(long orig_d,long new_d) {
+    if (new_d==-1) {
+        return orig_d;
+    }
+    return new_d;
+}
+
 
 int main(int argc, char* argv[]){
     commandLine P(argc, argv, "[-k <n_clusters>] [-m <iterations>] [-o <output>] [-i <input>] [-f <ft>] [-t <tp>] [-D <dist>]");
 
     size_t k = P.getOptionLongValue("-k", 10); // k is number of clusters
+    long newd = P.getOptionLongValue("-d",-1);
     size_t max_iterations = P.getOptionLongValue("-m", 1000); // max_iterations is the max # of Lloyd iters kmeans will run
     std::string output = std::string(P.getOptionValue("-o", "kmeans_results.csv")); // maybe the kmeans results get written into this csv
     std::string input = std::string(P.getOptionValue("-i", "")); // the data input file
@@ -178,7 +187,7 @@ int main(int argc, char* argv[]){
         if (tp == "float") {
             auto [v, n, d] = parse_fbin(input.c_str());
             if (use_bench_two=="yes") { //can't use switch for strings sadly
-                    bench_two<float>(v,n,d,k,*D,max_iterations,epsilon,output_log_to_csv,output_log_file_name,output_log_file_name2);
+                    bench_two<float>(v,n,pickd(d,newd),d,k,*D,max_iterations,epsilon,output_log_to_csv,output_log_file_name,output_log_file_name2);
             }
             else if (use_bench_two=="stable") {
                     bench_two_stable<float>(v,n,d,k,*D,max_iterations,epsilon,output_log_to_csv,output_log_file_name,output_log_file_name2);
@@ -197,7 +206,7 @@ int main(int argc, char* argv[]){
         } else if (tp == "uint8") {
             auto [v, n, d] = parse_uint8bin(input.c_str());
             if (use_bench_two=="yes") {
-                bench_two<uint8_t>(v,n,d,k,*D,max_iterations,epsilon,output_log_to_csv,output_log_file_name,output_log_file_name2);
+                bench_two<uint8_t>(v,n,pickd(d,newd),d,k,*D,max_iterations,epsilon,output_log_to_csv,output_log_file_name,output_log_file_name2);
             }
             else if (use_bench_two=="stable") {
                 bench_two_stable<uint8_t>(v,n,d,k,*D,max_iterations,epsilon,output_log_to_csv,output_log_file_name,output_log_file_name2);
@@ -216,7 +225,7 @@ int main(int argc, char* argv[]){
         } else if (tp == "int8") {
             auto [v, n, d] = parse_int8bin(input.c_str());
             if (use_bench_two == "yes") {
-                bench_two<int8_t>(v,n,d,k,*D,max_iterations,epsilon,output_log_to_csv,output_log_file_name,output_log_file_name2);
+                bench_two<int8_t>(v,n,pickd(d,newd),d,k,*D,max_iterations,epsilon,output_log_to_csv,output_log_file_name,output_log_file_name2);
 
             }
             else if (use_bench_two=="stable") {

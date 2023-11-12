@@ -42,8 +42,8 @@
 
 // }
 
-template <typename T, typename Point, typename index_type, typename float_type, typename CenterPoint>
-struct NaiveKmeans : KmeansInterface<T,Point,index_type,float_type, CenterPoint> {
+template <typename T, typename Point, typename index_type, typename CT, typename CenterPoint>
+struct NaiveKmeans : KmeansInterface<T,Point,index_type,CT, CenterPoint> {
 
 
   // std::pair<parlay::sequence<parlay::sequence<size_t>>,PointRange<float,Euclidian_Point<float> >> cluster(PointRange<T,Euclidian_Point<T>> points, size_t k) {
@@ -62,11 +62,11 @@ struct NaiveKmeans : KmeansInterface<T,Point,index_type,float_type, CenterPoint>
     return parlay::group_by_index(pairs, k);
   }
 
-   std::pair<parlay::sequence<parlay::sequence<index_type>>,PointRange<float_type,CenterPoint>> cluster(PointRange<T,Point> points, size_t k) {
+   std::pair<parlay::sequence<parlay::sequence<index_type>>,PointRange<CT,CenterPoint>> cluster(PointRange<T,Point> points, size_t k) {
     // dummy vals
     // parlay::sequence<parlay::sequence<index_type>> hi;
-    // float_type* check;
-    // PointRange<float_type,CenterPoint> bye(check,0,0,0);
+    // CT* check;
+    // PointRange<CT,CenterPoint> bye(check,0,0,0);
     // return std::make_pair(hi,bye);
 
     T* v = points.get_values();
@@ -76,9 +76,9 @@ struct NaiveKmeans : KmeansInterface<T,Point,index_type,float_type, CenterPoint>
     size_t max_iter = 5; //can change
     double epsilon = 0;
 
-    float_type* c = new float_type[k*ad];
+    CT* c = new CT[k*ad];
     index_type* asg = new index_type[n];
-    Lazy<T,index_type> init;
+    Lazy<T,CT,index_type> init;
     Distance* D = new EuclideanDistanceFast();
     init(v,n,d,ad,k,c,asg);
     kmeans_bench log = kmeans_bench(n,d,k,max_iter,
@@ -91,10 +91,10 @@ struct NaiveKmeans : KmeansInterface<T,Point,index_type,float_type, CenterPoint>
     std::cout << "Finished cluster" << std::endl;
 
 
-    float_type* check;
+    CT* check;
     //TODO FIXME Seg fault when try to return the centers themselves, bye is a dummy value for now
-    PointRange<float_type,CenterPoint> bye(check,0,0,0);
-    //PointRange<float_type,CenterPoint> final_centers(c,n,d,ad);
+    PointRange<CT,CenterPoint> bye(check,0,0,0);
+    //PointRange<CT,CenterPoint> final_centers(c,n,d,ad);
 
     std::cout << "Assigned final centers" << std::endl;
 
@@ -116,7 +116,7 @@ struct NaiveKmeans : KmeansInterface<T,Point,index_type,float_type, CenterPoint>
 void cluster_middle(T* v, size_t n, size_t d, size_t ad, size_t k, 
 float* c, size_t* asg, Distance& D, kmeans_bench& logger, size_t max_iter, double epsilon,bool suppress_logging=false) {
 
-  if (!suppress_logging) std::cout << "running pq" << std::endl;
+  if (!suppress_logging) std::cout << "running pq, ad " << ad << std::endl;
   
   if (d > 2048) {
     std::cout << "d greater than 2048, too big, printing d: " << 
@@ -134,8 +134,10 @@ float* c, size_t* asg, Distance& D, kmeans_bench& logger, size_t max_iter, doubl
   auto rangk = parlay::iota(k);
   auto rangn = parlay::iota(n);
   float* center_calc_float = new float[k*ad]; //do calculations for compute center inside here
+  parlay::sequence<bool> empty_center(k,false);
 
   while (iterations < max_iter) {
+    //std::cout << "starting assign, iter " << iterations << std::endl;
     iterations++;
 
     // Assign each point to the closest center
@@ -154,18 +156,39 @@ float* c, size_t* asg, Distance& D, kmeans_bench& logger, size_t max_iter, doubl
     });
 
     float assignment_time = t.next_time();
+    //std::cout << "starting update, iter " << iterations << std::endl;
+
 
     // Compute new centers
+
+    
+
      //copy center coords into center_calc_float
     parlay::parallel_for(0,k*ad,[&] (size_t i) {
         center_calc_float[i] = 0;
     });
+    //std::cout << "starting update-groupby, iter " << iterations << std::endl;
+
     //group points by center
     parlay::sequence<std::pair<size_t,parlay::sequence<size_t>>> pts_grouped_by_center = parlay::group_by_key(parlay::map(rangn,[&] (size_t i) {
     return std::pair(asg[i],i);
     }));
+
+   
+   // std::cout << "starting update-add, iter " << iterations << std::endl;
+    //std::cout << "Printing group-by size: " << pts_grouped_by_center.size() <<  std::endl;
+    // for (size_t i = 0; i < pts_grouped_by_center.size(); i++) {
+    //   std::cout << i << ", " << pts_grouped_by_center[i].first << ": ";
+    //   for (size_t j = 0; j < pts_grouped_by_center[i].second.size(); j++) {
+    //     std::cout << pts_grouped_by_center[i].second[j] << " ";
+        
+    //   }
+    //   std::cout << std::endl;
+    // }
+
     //add points
-    parlay::parallel_for(0,k,[&] (size_t i) {
+    //caution: we can't parallel_for by k, must parallel_for by pts_grouped_by_center.size() because a center can lose all points
+    parlay::parallel_for(0,pts_grouped_by_center.size(),[&] (size_t i) {
         size_t picked_center_d = pts_grouped_by_center[i].first*ad;
         for (size_t j = 0; j < pts_grouped_by_center[i].second.size(); j++) {
           size_t point_coord = pts_grouped_by_center[i].second[j]*ad;
@@ -174,19 +197,38 @@ float* c, size_t* asg, Distance& D, kmeans_bench& logger, size_t max_iter, doubl
           }
         }
     },1);
+    //std::cout << "starting update-divide, iter " << iterations << std::endl;
 
-    parlay::parallel_for(0,k,[&] (size_t i) {
+    parlay::parallel_for(0,pts_grouped_by_center.size(),[&] (size_t i) {
 
       parlay::parallel_for(0,d,[&] (size_t coord) {
+        //note that this if condition is necessarily true, because if the list was empty that center wouldn't be in pts_grouped_by_center at all
         if (pts_grouped_by_center[i].second.size() > 0) {
           center_calc_float[pts_grouped_by_center[i].first*ad+coord] /= pts_grouped_by_center[i].second.size();
         }
-        else { //if no points belong to this center
-          center_calc_float[pts_grouped_by_center[i].first*ad+coord] = c[pts_grouped_by_center[i].first*ad+coord];
-        }
+       
       });
     
     });
+    //we need to make sure that we don't wipe centers that lost all their points
+    for (size_t i = 0; i < k; i++) {
+      empty_center[i]=true;
+    }
+    for (size_t i = 0; i < pts_grouped_by_center.size(); i++) {
+      empty_center[pts_grouped_by_center[i].first]=false;
+    }
+    parlay::parallel_for(0,k,[&] (size_t i) {
+      if (empty_center[i]) {
+        for (size_t j = 0; j < d; j++) {
+          center_calc_float[i*ad+j] = c[i*ad+j];
+
+        }
+      }
+    });
+   
+
+   // std::cout << "starting wrap-up, iter " << iterations << std::endl;
+
    
     parlay::sequence<float> deltas = parlay::tabulate(k, [&] (size_t i) {
       return D.distance(center_calc_float+i*ad, c + i*ad,d);
@@ -195,7 +237,7 @@ float* c, size_t* asg, Distance& D, kmeans_bench& logger, size_t max_iter, doubl
     max_diff = *parlay::max_element(deltas);
    
     //copy back over centers
-    parlay::parallel_for(0,k*d,[&](size_t i) {
+    parlay::parallel_for(0,k*ad,[&](size_t i) {
       c[i] = center_calc_float[i];
     });
 

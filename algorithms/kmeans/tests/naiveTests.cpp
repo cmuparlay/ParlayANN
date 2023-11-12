@@ -33,13 +33,16 @@
 #include <gtest/gtest.h>
 
 //confirm that k=1 run is average of all points
+//confirm that k=n run has one point per center and msse 0
 //run to completion, check closest point and center average
+//make sure that at least half of the centers own points 
 
 //given a convergent kmeans run, confirm that the centers are the average of the points assigned to them
 //T - point type
 //CT - center coordinate type
 //index_type - type of asg[0]
 //TODO make this check for efficient (ie ||ize)
+//TODO what happens in this test if a center has no points (oh this test requires for every center to own points, okay that's fine)
 template<typename T, typename CT, typename index_type>
 void assertCenteredCentroids(T* v, size_t n, size_t d, size_t ad, size_t k, CT* c, index_type* asg) {
 
@@ -63,37 +66,47 @@ void assertCenteredCentroids(T* v, size_t n, size_t d, size_t ad, size_t k, CT* 
 
   }
 
-  for (size_t i = 0; i < k; i++) {
-    std::cout << "num_mem[" << i << "]: " << num_members[i] << std::endl; 
-  }
-  std::cout << "total mems " << parlay::reduce(num_members) << std::endl;
+  // for (size_t i = 0; i < k; i++) {
+  //   std::cout << "num_mem[" << i << "]: " << num_members[i] << std::endl; 
+  // }
+  // std::cout << "total mems " << parlay::reduce(num_members) << std::endl;
 
   EXPECT_EQ(parlay::reduce(num_members),n);
 
 
   //confirm that assignments are to a possible center
   for (size_t i = 0; i < n; i++) {
-    EXPECT_LE(asg[i],k-1);
-    EXPECT_GE(asg[i],0);
+    EXPECT_LE(asg[i],k-1) << "Asg >= k\n";
+    EXPECT_GE(asg[i],0) << "Asg < 0\n";
   }
 
   //confirm that num_members elts are between 0 andn n
   for (size_t i = 0; i < k; i++) {
-    EXPECT_GE(num_members[i],0); //change to 0
-    EXPECT_LE(num_members[i],n);
+    EXPECT_GE(num_members[i],0) << "Center overassigned\n"; //change to 0
+    EXPECT_LE(num_members[i],n) << "Center underassigned\n";
   }
 
-  std::cout << "HERE4" << std::endl;
+  // std::cout << "HERE4" << std::endl;
 
-  for (size_t i = 0; i < 10; i++) {
-    std::cout << centroids[i] << " " << c[i] << std::endl;
-  }
+  // for (size_t i = 0; i < 10; i++) {
+  //   std::cout << centroids[i] << " " << c[i] << std::endl;
+  // }
 
   //TODO how tightly should we set this?
   //putting centroids in double to get a bit better precision
-  for(size_t i=0; i < k*d; i++){
-    EXPECT_LE(std::abs(centroids[i]/num_members[i/d]-c[i]),.1) //+10 is wrong
-    << "This one failed\n";
+  for (size_t i = 0; i < k; i++) {
+    for (size_t j = 0; j < d; j++) {
+      double diff = std::abs(centroids[i*ad+j]-c[i*ad+j]*num_members[i]);
+      if (diff < .1) {
+        continue;
+      }
+      else {
+        EXPECT_LE(diff,.1) << "Center " << i << "differs from average";
+        break; //prevent overprinting
+      }
+     
+      
+    }
   }
   
   delete[] centroids;
@@ -115,7 +128,11 @@ void assertClosestPoints(T* v, size_t n, size_t d, size_t ad, size_t k, CT* c, i
 
     parlay::parallel_for(0,n,[&] (size_t i) {
       auto distances = parlay::delayed::map(rang, [&](size_t j) {
-            return D.distance(v+i*d, c+j*d,d); });
+        CT buf[2048];
+        T* it = v+i*ad;
+        for (size_t el = 0; el < d; el++) buf[el]=*(it++);
+        return D.distance(buf, c+j*ad,d); 
+      });
 
      bests[i] = min_element(distances) - distances.begin();
     });
@@ -126,6 +143,37 @@ void assertClosestPoints(T* v, size_t n, size_t d, size_t ad, size_t k, CT* c, i
 
     delete[] bests; //memory cleanup
 }
+
+//given a kmeans method, n, d, k, run to convergence, and make sure that the result is a valid kmeans result
+template<typename T, typename CT, typename index_type, typename Kmeans>
+void kmeansConvergenceTest(T* v, size_t n, size_t d, size_t ad, size_t k, Distance& D, bool suppress_logging=true) {
+    CT* c = new CT[k*ad]; // centers
+    index_type* asg = new index_type[n];
+    size_t max_iter=1000;
+    double epsilon=0;
+    
+
+    //initialization
+    Lazy<T,CT, index_type> init;
+    //note that here, d=ad
+    init(v,n,d,ad,k,c,asg);
+
+   
+    Kmeans runner;
+    kmeans_bench logger = kmeans_bench(n,d,k,max_iter,
+    epsilon,"Lazy","Naive");
+    logger.start_time();
+    //true at the end suppresses logging
+    runner.cluster_middle(v,n,d,ad,k,c,asg,D,logger,max_iter,epsilon,suppress_logging);
+    logger.end_time();
+     SCOPED_TRACE("dims: " + std::to_string(n) + " " + std::to_string(d) + " " + std::to_string(k)); //about to test centers
+    assertCenteredCentroids<T,CT,index_type>(v,n,d,ad,k,c,asg);
+    assertClosestPoints<T,CT,index_type>(v,n,d,ad,k,c,asg,D);
+
+    delete[] c;
+    delete[] asg;
+
+  }
 
 //Test fixture for NaiveKmeans Testing
 //Open the datafile (so that we don't open it each test)
@@ -145,6 +193,7 @@ class NaiveData1 : public ::testing::Test {
   static void TearDownTestSuite()  {
 
     //TODO warning: deleting object of polymorphic class type 'Distance' which has non-virtual destructor might cause undefined behavior [-Wdelete-non-virtual-dtor]
+    //where does this error come from? 
     // delete D;
 
   }
@@ -166,7 +215,7 @@ class NaiveData1 : public ::testing::Test {
   void naiveTestOnce() {
     
     size_t n = 1000;
-    size_t k = 10;
+    size_t k = 8;
     float* c = new float[k*ad]; // centers
     size_t* asg = new size_t[n];
     size_t max_iter=1000;
@@ -174,7 +223,7 @@ class NaiveData1 : public ::testing::Test {
     
 
     //initialization
-    Lazy<float,size_t> init;
+    Lazy<float,float,size_t> init;
     //note that here, d=ad
     init(v,n,base_d,ad,k,c,asg);
 
@@ -191,9 +240,27 @@ class NaiveData1 : public ::testing::Test {
      SCOPED_TRACE("float data, CLOSEST_POINT"); //trace about to test closest points
     assertClosestPoints<float,float,size_t>(v,n,base_d,ad,k,c,asg,*D);
 
+    delete[] c;
+    delete[] asg;
+
+  }
+
+  
+
+  //run to converge and check values for several instances of n,d,k
+  void naiveTestSeveral() {
+    kmeansConvergenceTest<float,float,size_t,NaiveKmeans<float,Euclidian_Point<float>,size_t,float,Euclidian_Point<float>>>(v,1000,128,base_d,10,*D);
+
+    kmeansConvergenceTest<float,float,size_t,NaiveKmeans<float,Euclidian_Point<float>,size_t,float,Euclidian_Point<float>>>(v,5000,100,base_d,3,*D);
+
+    kmeansConvergenceTest<float,float,size_t,NaiveKmeans<float,Euclidian_Point<float>,size_t,float,Euclidian_Point<float>>>(v,2001,50,base_d,13,*D);
+  }
+
+  void naiveTestLong() {
+    kmeansConvergenceTest<float,float,size_t,NaiveKmeans<float,Euclidian_Point<float>,size_t,float,Euclidian_Point<float>>>(v,100000,2,base_d,10,*D);
+
   }
  
-
 };
 //initialize static vals
 float* NaiveData1::v = nullptr;
@@ -204,8 +271,161 @@ Distance* NaiveData1::D = nullptr;
 
 
 
+//Test fixture for NaiveKmeans Testing
+//Open the datafile (so that we don't open it each test)
+//NaiveData2 looks at a different data file
+class NaiveData2 : public ::testing::Test {
+  protected:
+
+  static void SetUpTestSuite()  {
+    auto [v2,n_int,d_int] = parse_uint8bin("/ssd1/anndata/bigann/base.1B.u8bin.crop_nb_1000000");
+    v=v2;
+    base_n = (size_t) n_int;
+    base_d = (size_t) d_int;
+    ad = base_d;
+    
+    D = new EuclideanDistanceFast();
+  }
+
+  static void TearDownTestSuite()  {
+
+    //TODO warning: deleting object of polymorphic class type 'Distance' which has non-virtual destructor might cause undefined behavior [-Wdelete-non-virtual-dtor]
+    //where does this error come from? 
+    // delete D;
+
+  }
+
+  static uint8_t* v;
+  static size_t base_n;
+  static size_t base_d;
+  static size_t ad;
+  static Distance* D;
+
+  //run all sorts of tests in here
+  void naiveTestDimension() {
+    EXPECT_EQ(base_n,1000000);
+    EXPECT_EQ(base_d,128);
+    EXPECT_EQ(3+5,8);
+  }
+
+};
+//initialize static vals
+uint8_t* NaiveData2::v = nullptr;
+size_t NaiveData2::base_n = 0;
+size_t NaiveData2::base_d = 0;
+size_t NaiveData2::ad = 0;
+Distance* NaiveData2::D = nullptr;
+
+
+
 TEST_F(NaiveData1,Test1) {
   naiveTestDimension();
-  naiveTestOnce();
+ // naiveTestOnce();
+  naiveTestSeveral();
 
 }
+
+TEST_F(NaiveData1,Test2) {
+  naiveTestLong();
+}
+
+TEST_F(NaiveData2,TestDimension) {
+  naiveTestDimension();
+  
+  
+  
+}
+
+TEST_F(NaiveData2,Test1) {
+  kmeansConvergenceTest<uint8_t,float,size_t,NaiveKmeans<uint8_t,Euclidian_Point<uint8_t>,size_t,float,Euclidian_Point<float>>>(v,10000,2,base_d,20,*D);
+
+}
+TEST_F(NaiveData2,Test2) {
+  kmeansConvergenceTest<uint8_t,float,size_t,NaiveKmeans<uint8_t,Euclidian_Point<uint8_t>,size_t,float,Euclidian_Point<float>>>(v,500,10,base_d,5,*D);
+  
+}
+TEST_F(NaiveData2,Test3) {
+  kmeansConvergenceTest<uint8_t,float,size_t,NaiveKmeans<uint8_t,Euclidian_Point<uint8_t>,size_t,float,Euclidian_Point<float>>>(v,1217,60,base_d,40,*D);
+  
+}
+TEST_F(NaiveData2,Test4) {
+  kmeansConvergenceTest<uint8_t,float,size_t,NaiveKmeans<uint8_t,Euclidian_Point<uint8_t>,size_t,float,Euclidian_Point<float>>>(v,1000,128,base_d,40,*D);
+  
+}
+
+
+
+//NaiveData3 looks at another different data file
+class NaiveData3 : public ::testing::Test {
+  protected:
+
+  static void SetUpTestSuite()  {
+    auto [v2,n_int,d_int] = parse_int8bin("/ssd1/anndata/MSSPACEV1B/spacev1b_base.i8bin.crop_nb_1000000");
+    
+    v=v2;
+    base_n = (size_t) n_int;
+    base_d = (size_t) d_int;
+    ad = base_d;
+    
+    D = new EuclideanDistanceFast();
+  }
+
+  static void TearDownTestSuite()  {
+
+    //TODO warning: deleting object of polymorphic class type 'Distance' which has non-virtual destructor might cause undefined behavior [-Wdelete-non-virtual-dtor]
+    //where does this error come from? 
+    // delete D;
+
+  }
+
+  static int8_t* v;
+  static size_t base_n;
+  static size_t base_d;
+  static size_t ad;
+  static Distance* D;
+
+  //run all sorts of tests in here
+  void naiveTestDimension() {
+    EXPECT_EQ(base_n,1000000);
+    EXPECT_EQ(base_d,100);
+    EXPECT_EQ(3+5,8);
+  }
+
+};
+//initialize static vals
+int8_t* NaiveData3::v = nullptr;
+size_t NaiveData3::base_n = 0;
+size_t NaiveData3::base_d = 0;
+size_t NaiveData3::ad = 0;
+Distance* NaiveData3::D = nullptr;
+
+
+TEST_F(NaiveData3,TestDimension) {
+  naiveTestDimension();
+  
+  
+  
+}
+
+TEST_F(NaiveData3,Test1) {
+  kmeansConvergenceTest<int8_t,float,size_t,NaiveKmeans<int8_t,Euclidian_Point<int8_t>,size_t,float,Euclidian_Point<float>>>(v,10000,5,base_d,20,*D);
+
+}
+TEST_F(NaiveData3,Test2) {
+  kmeansConvergenceTest<int8_t,float,size_t,NaiveKmeans<int8_t,Euclidian_Point<int8_t>,size_t,float,Euclidian_Point<float>>>(v,2000,base_d,base_d,500,*D);
+  
+}
+TEST_F(NaiveData3,Test3) {
+  kmeansConvergenceTest<int8_t,float,size_t,NaiveKmeans<int8_t,Euclidian_Point<int8_t>,size_t,float,Euclidian_Point<float>>>(v,900,60,base_d,21,*D);
+  
+}
+TEST_F(NaiveData3,Test4) {
+  kmeansConvergenceTest<int8_t,float,size_t,NaiveKmeans<int8_t,Euclidian_Point<int8_t>,size_t,float,Euclidian_Point<float>>>(v,1000,base_d,base_d,10,*D);
+  
+}
+
+TEST_F(NaiveData3,Test5) {
+  kmeansConvergenceTest<int8_t,float,size_t,NaiveKmeans<int8_t,Euclidian_Point<int8_t>,size_t,float,Euclidian_Point<float>>>(v,1000,99,base_d,10,*D);
+  
+}
+
