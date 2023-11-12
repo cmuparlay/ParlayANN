@@ -123,7 +123,13 @@ struct BuildParams{
 
   BuildParams() {}
 
-  BuildParams(long R, long L, double a, bool tp) : R(R), L(L), alpha(a), two_pass(tp) {}
+  BuildParams(long R, long L, double a, bool tp) : R(R), L(L), alpha(a), two_pass(tp) {alg_type = "Vamana";}
+
+  BuildParams(long nc, long cs, long mst) : num_clusters(nc), cluster_size(cs), MST_deg(mst) {alg_type = "HCNNG";}
+
+  BuildParams(long R, double a, long nc, long cs, double de) : R(R), alpha(a), num_clusters(nc), cluster_size(cs),
+              delta(de)
+    {alg_type = "pyNNDescent";}
 
   long max_degree(){
     if(alg_type == "HCNNG") return num_clusters*MST_deg;

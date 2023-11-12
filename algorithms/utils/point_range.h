@@ -29,7 +29,7 @@
 #include "parlay/primitives.h"
 #include "parlay/internal/file_map.h"
 #include "../bench/parse_command_line.h"
-#include "NSGDist.h"
+// #include "NSGDist.h"
 
 #include "../bench/parse_command_line.h"
 #include "types.h"
@@ -49,13 +49,16 @@ long dim_round_up(long dim, long tp_size){
   else return ((qt+1)*64)/tp_size;
 }
 
+  
 template<typename T, class Point>
 struct PointRange{
 
   long dimension(){return dims;}
-  
+  long aligned_dimension(){return aligned_dims;}
 
-  PointRange(char* filename){
+  PointRange() : values(std::shared_ptr<T[]>(nullptr, std::free)) {n=0;}
+
+  PointRange(char* filename) : values(std::shared_ptr<T[]>(nullptr, std::free)){
       if(filename == NULL) {
         n = 0;
         dims = 0;
@@ -74,7 +77,7 @@ struct PointRange{
       std::cout << "Detected " << num_points << " points with dimension " << d << std::endl;
       aligned_dims =  dim_round_up(dims, sizeof(T));
       if(aligned_dims != dims) std::cout << "Aligning dimension to " << aligned_dims << std::endl;
-      values = (T*) aligned_alloc(64, n*aligned_dims*sizeof(T));
+      values = std::shared_ptr<T[]>((T*) aligned_alloc(64, n*aligned_dims*sizeof(T)), std::free);
       size_t BLOCK_SIZE = 1000000;
       size_t index = 0;
       while(index < n){
@@ -86,39 +89,23 @@ struct PointRange{
           parlay::slice<T*, T*> data = parlay::make_slice(data_start, data_end);
           int data_bytes = dims*sizeof(T);
           parlay::parallel_for(floor, ceiling, [&] (size_t i){
-            std::memmove(values + i*aligned_dims, data.begin() + (i-floor)*dims, data_bytes);
+            std::memmove(values.get() + i*aligned_dims, data.begin() + (i-floor)*dims, data_bytes);
           });
           delete[] data_start;
           index = ceiling;
       }
   }
 
-  // PointRange(char* filename) {
-  //   if(filename == NULL) {
-  //     n = 0;
-  //     dims = 0;
-  //     return;
-  //   }
-  //   auto [fileptr, length] = mmapStringFromFile(filename);
-  //   int num_vectors = *((int*) fileptr);
-  //   int d = *((int*) (fileptr+4));
-  //   n = num_vectors;
-  //   dims = d;
-  //   aligned_dims = dims;
-  //   values = (T*)(fileptr+8);
-  //   std::cout << "Detected " << n
-	//       << " points with dimension " << dims << std::endl;
-  // }
-
   size_t size() { return n; }
   
   Point operator [] (long i) {
-    return Point(values+i*aligned_dims, dims, aligned_dims, i);
+    return Point(values.get()+i*aligned_dims, dims, aligned_dims, i);
   }
 
 private:
-  T* values;
+  std::shared_ptr<T[]> values;
   unsigned int dims;
   unsigned int aligned_dims;
   size_t n;
+
 };
