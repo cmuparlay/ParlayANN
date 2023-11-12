@@ -99,7 +99,7 @@ size_t max_iter=1000, double epsilon=0, bool output_log_to_csv=false, std::strin
 // }
 
 //if new_d is the default value, go with the d given by the dataset. Otherwise, use the custom value of d.
-size_t pickd(long orig_d,long new_d) {
+size_t pick_num(long orig_d,long new_d) {
     if (new_d==-1) {
         return orig_d;
     }
@@ -110,6 +110,7 @@ size_t pickd(long orig_d,long new_d) {
 int main(int argc, char* argv[]){
     commandLine P(argc, argv, "[-k <n_clusters>] [-m <iterations>] [-o <output>] [-i <input>] [-f <ft>] [-t <tp>] [-D <dist>]");
 
+    long newn = P.getOptionLongValue("-n",-1);
     size_t k = P.getOptionLongValue("-k", 10); // k is number of clusters
     long newd = P.getOptionLongValue("-d",-1);
     size_t max_iterations = P.getOptionLongValue("-m", 1000); // max_iterations is the max # of Lloyd iters kmeans will run
@@ -187,7 +188,7 @@ int main(int argc, char* argv[]){
         if (tp == "float") {
             auto [v, n, d] = parse_fbin(input.c_str());
             if (use_bench_two=="yes") { //can't use switch for strings sadly
-                    bench_two<float>(v,n,pickd(d,newd),d,k,*D,max_iterations,epsilon,output_log_to_csv,output_log_file_name,output_log_file_name2);
+                    bench_two<float>(v,pick_num(n,newn),pick_num(d,newd),d,k,*D,max_iterations,epsilon,output_log_to_csv,output_log_file_name,output_log_file_name2);
             }
             else if (use_bench_two=="stable") {
                     bench_two_stable<float>(v,n,d,k,*D,max_iterations,epsilon,output_log_to_csv,output_log_file_name,output_log_file_name2);
@@ -206,7 +207,7 @@ int main(int argc, char* argv[]){
         } else if (tp == "uint8") {
             auto [v, n, d] = parse_uint8bin(input.c_str());
             if (use_bench_two=="yes") {
-                bench_two<uint8_t>(v,n,pickd(d,newd),d,k,*D,max_iterations,epsilon,output_log_to_csv,output_log_file_name,output_log_file_name2);
+                bench_two<uint8_t>(v,pick_num(n,newn),pick_num(d,newd),d,k,*D,max_iterations,epsilon,output_log_to_csv,output_log_file_name,output_log_file_name2);
             }
             else if (use_bench_two=="stable") {
                 bench_two_stable<uint8_t>(v,n,d,k,*D,max_iterations,epsilon,output_log_to_csv,output_log_file_name,output_log_file_name2);
@@ -225,7 +226,7 @@ int main(int argc, char* argv[]){
         } else if (tp == "int8") {
             auto [v, n, d] = parse_int8bin(input.c_str());
             if (use_bench_two == "yes") {
-                bench_two<int8_t>(v,n,pickd(d,newd),d,k,*D,max_iterations,epsilon,output_log_to_csv,output_log_file_name,output_log_file_name2);
+                bench_two<int8_t>(v,pick_num(n,newn),pick_num(d,newd),d,k,*D,max_iterations,epsilon,output_log_to_csv,output_log_file_name,output_log_file_name2);
 
             }
             else if (use_bench_two=="stable") {

@@ -1,5 +1,6 @@
 //naive testing
-
+//note that the validity of this testing relies on the centers starting out at points in the data -- as this effectively guarantees that the converged solution will have all nonempty centers, because they will at least own their initial point.
+//so our tests will fail if a center permanently loses all its points, when this may in fact be legitimate behavior. (TODO adjust this)
 
 //TODO purge the include list to include only what's actually needed
 #include "parlay/parallel.h"
@@ -144,9 +145,11 @@ void assertClosestPoints(T* v, size_t n, size_t d, size_t ad, size_t k, CT* c, i
     delete[] bests; //memory cleanup
 }
 
+
 //given a kmeans method, n, d, k, run to convergence, and make sure that the result is a valid kmeans result
+//by setting k=1, we get the k is 1 test implicitly (don't need a separate function) (by k is 1 test, I mean that the result of clustering with k=1 is that the single center is the average of all the points)
 template<typename T, typename CT, typename index_type, typename Kmeans>
-void kmeansConvergenceTest(T* v, size_t n, size_t d, size_t ad, size_t k, Distance& D, bool suppress_logging=true) {
+double kmeansConvergenceTest(T* v, size_t n, size_t d, size_t ad, size_t k, Distance& D, bool suppress_logging=true) {
     CT* c = new CT[k*ad]; // centers
     index_type* asg = new index_type[n];
     size_t max_iter=1000;
@@ -169,9 +172,20 @@ void kmeansConvergenceTest(T* v, size_t n, size_t d, size_t ad, size_t k, Distan
      SCOPED_TRACE("dims: " + std::to_string(n) + " " + std::to_string(d) + " " + std::to_string(k)); //about to test centers
     assertCenteredCentroids<T,CT,index_type>(v,n,d,ad,k,c,asg);
     assertClosestPoints<T,CT,index_type>(v,n,d,ad,k,c,asg,D);
+    auto rangn = parlay::iota(n);
+    float msse = parlay::reduce(parlay::map(rangn,[&] (size_t i) { 
+      float buf[2048];
+      T* it = v+i*ad;
+      for (size_t i = 0; i < d; i++) buf[i]=*(it++);
+      return D.distance(buf,c+asg[i]*ad,d);
+    }))/n; //calculate msse
 
     delete[] c;
     delete[] asg;
+
+    return msse;
+
+    
 
   }
 
@@ -244,7 +258,7 @@ class NaiveData1 : public ::testing::Test {
     delete[] asg;
 
   }
-
+ 
   
 
   //run to converge and check values for several instances of n,d,k
@@ -254,6 +268,12 @@ class NaiveData1 : public ::testing::Test {
     kmeansConvergenceTest<float,float,size_t,NaiveKmeans<float,Euclidian_Point<float>,size_t,float,Euclidian_Point<float>>>(v,5000,100,base_d,3,*D);
 
     kmeansConvergenceTest<float,float,size_t,NaiveKmeans<float,Euclidian_Point<float>,size_t,float,Euclidian_Point<float>>>(v,2001,50,base_d,13,*D);
+
+    kmeansConvergenceTest<float,float,size_t,NaiveKmeans<float,Euclidian_Point<float>,size_t,float,Euclidian_Point<float>>>(v,2001,50,base_d,1,*D);
+
+    kmeansConvergenceTest<float,float,size_t,NaiveKmeans<float,Euclidian_Point<float>,size_t,float,Euclidian_Point<float>>>(v,2000,1,base_d,13,*D);
+    
+    
   }
 
   void naiveTestLong() {
@@ -324,6 +344,10 @@ TEST_F(NaiveData1,Test1) {
   naiveTestSeveral();
 
 }
+TEST_F(NaiveData1,TestNisK) {
+  double msse = kmeansConvergenceTest<float,float,size_t,NaiveKmeans<float,Euclidian_Point<float>,size_t,float,Euclidian_Point<float>>>(v,1000,base_d,base_d,1000,*D);
+  EXPECT_EQ(msse,0);
+}
 
 TEST_F(NaiveData1,Test2) {
   naiveTestLong();
@@ -350,8 +374,18 @@ TEST_F(NaiveData2,Test3) {
 }
 TEST_F(NaiveData2,Test4) {
   kmeansConvergenceTest<uint8_t,float,size_t,NaiveKmeans<uint8_t,Euclidian_Point<uint8_t>,size_t,float,Euclidian_Point<float>>>(v,1000,128,base_d,40,*D);
-  
 }
+TEST_F(NaiveData2,Testkis1) {
+  kmeansConvergenceTest<uint8_t,float,size_t,NaiveKmeans<uint8_t,Euclidian_Point<uint8_t>,size_t,float,Euclidian_Point<float>>>(v,1000,base_d,base_d,1,*D);
+}
+TEST_F(NaiveData2,Testdis1) {
+  kmeansConvergenceTest<uint8_t,float,size_t,NaiveKmeans<uint8_t,Euclidian_Point<uint8_t>,size_t,float,Euclidian_Point<float>>>(v,1000,1,base_d,100,*D);
+}
+TEST_F(NaiveData2,Test_n_is_k) {
+  double msse = kmeansConvergenceTest<uint8_t,float,size_t,NaiveKmeans<uint8_t,Euclidian_Point<uint8_t>,size_t,float,Euclidian_Point<float>>>(v,1000,base_d,base_d,1000,*D);
+  EXPECT_EQ(msse,0);
+}
+
 
 
 
@@ -426,6 +460,25 @@ TEST_F(NaiveData3,Test4) {
 
 TEST_F(NaiveData3,Test5) {
   kmeansConvergenceTest<int8_t,float,size_t,NaiveKmeans<int8_t,Euclidian_Point<int8_t>,size_t,float,Euclidian_Point<float>>>(v,1000,99,base_d,10,*D);
+  
+}
+TEST_F(NaiveData3,Testkis1) {
+  kmeansConvergenceTest<int8_t,float,size_t,NaiveKmeans<int8_t,Euclidian_Point<int8_t>,size_t,float,Euclidian_Point<float>>>(v,1000,base_d,base_d,1,*D);
+  
+}
+
+TEST_F(NaiveData3,Testdis1) {
+  kmeansConvergenceTest<int8_t,float,size_t,NaiveKmeans<int8_t,Euclidian_Point<int8_t>,size_t,float,Euclidian_Point<float>>>(v,1000,1,base_d,10,*D);
+  
+}
+
+TEST_F(NaiveData3,Test_n_is_k) {
+  double msse = kmeansConvergenceTest<int8_t,float,size_t,NaiveKmeans<int8_t,Euclidian_Point<int8_t>,size_t,float,Euclidian_Point<float>>>(v,1000,base_d,base_d,1000,*D);
+  EXPECT_EQ(msse,0);
+}
+//higher dimensions, so this test takes a bit longer (6s)
+TEST_F(NaiveData3,TestHigh_n) {
+  kmeansConvergenceTest<int8_t,float,size_t,NaiveKmeans<int8_t,Euclidian_Point<int8_t>,size_t,float,Euclidian_Point<float>>>(v,100000,base_d,base_d,1000,*D);
   
 }
 
