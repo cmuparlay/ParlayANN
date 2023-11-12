@@ -137,3 +137,26 @@ def init_squared_ivf_index(metric, dtype):
             raise Exception('Invalid data type ' + dtype)
     else:
         raise Exception('Invalid metric ' + metric)
+    
+def init_stitched_vamana_index(metric, dtype):
+    if metric == 'Euclidian':
+        if dtype == 'uint8':
+            return StitchedVamanaUInt8EuclidianIndex()
+        elif dtype == 'int8':
+            return StitchedVamanaInt8EuclidianIndex()
+        elif dtype == 'float':
+            return StitchedVamanaFloatEuclidianIndex()
+        else:
+            raise Exception('Invalid data type ' + dtype)
+    elif metric == 'mips':
+        # raise Exception('MIPS commented out to speed up build')
+        if dtype == 'uint8':
+            return StitchedVamanaUInt8MipsIndex()
+        elif dtype == 'int8':
+            return StitchedVamanaInt8MipsIndex()
+        elif dtype == 'float':
+            return StitchedVamanaFloatMipsIndex()
+        else:
+            raise Exception('Invalid data type ' + dtype)
+    else:
+        raise Exception('Invalid metric ' + metric)
