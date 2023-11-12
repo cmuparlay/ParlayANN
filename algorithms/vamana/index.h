@@ -20,6 +20,8 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#pragma once
+
 #include <math.h>
 
 #include <algorithm>
@@ -27,9 +29,13 @@
 #include <set>
 
 #include "../utils/NSGDist.h"
+#include "../utils/point_range.h"
+#include "../utils/graph.h"
+#include "../utils/types.h"
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 #include "parlay/random.h"
+#include "../utils/beamSearch.h"
 
 
 template<typename Point, typename PointRange, typename indexType>
