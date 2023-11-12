@@ -131,17 +131,17 @@ private:
  */
 template<typename T, class Point>
 struct SubsetPointRange {
-    PointRange<T, Point> &pr;
+    PointRange<T, Point> *pr;
     parlay::sequence<int32_t> subset;
     std::unordered_map<int32_t, int32_t> real_to_subset;
     size_t n;
     unsigned int dims;
     unsigned int aligned_dims;
 
-    // SubsetPointRange() {}
+    SubsetPointRange() {}
 
 
-    SubsetPointRange(PointRange<T, Point> &pr, parlay::sequence<int32_t> subset) : pr(pr), subset(subset) {
+    SubsetPointRange(PointRange<T, Point> &pr, parlay::sequence<int32_t> subset) : pr(&pr), subset(subset) {
       n = subset.size();
       dims = pr.dimension();
       aligned_dims = pr.aligned_dimension();
@@ -156,7 +156,7 @@ struct SubsetPointRange {
     size_t size() const { return n; }
   
     Point operator [] (long i) {
-      return pr[subset[i]];
+      return (*pr)[subset[i]];
     }
 
     long dimension() const {return dims;}
@@ -169,4 +169,5 @@ struct SubsetPointRange {
     int32_t subset_index(int32_t i) const {
       return real_to_subset.at(i);
     }
+
 };

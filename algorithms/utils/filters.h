@@ -55,6 +55,14 @@ struct QueryFilter {
         // because the only possible negative value is -1, we can return the inverse of the sign bit of b
         return ~b >> 31;
     }
+
+    parlay::sequence<int32_t> get_sequence() const {
+        if (is_and()) {
+            return parlay::sequence<int32_t>({a, b});
+        } else {
+            return parlay::sequence<int32_t>({a});
+        }
+    }
 };
 
 
