@@ -32,6 +32,7 @@
 #include "../algorithms/IVF/posting_list.h"
 #include "../algorithms/utils/filters.h"
 #include "../algorithms/utils/types.h"
+#include "../algorithms/stitched_vamana/stitched_vamana.h"
 
 PYBIND11_MAKE_OPAQUE(std::vector<uint32_t>);
 PYBIND11_MAKE_OPAQUE(std::vector<float>);
@@ -54,16 +55,17 @@ struct Variant
     std::string builder_name;
     std::string index_name;
     std::string ivf_name;
+    std::string agnostic_name;
 };
 
-const Variant FloatEuclidianVariant{"build_vamana_float_euclidian_index", "VamanaFloatEuclidianIndex", "IVFFloatEuclidianIndex"};
-const Variant FloatMipsVariant{"build_vamana_float_mips_index", "VamanaFloatMipsIndex", "IVFFloatMipsIndex"};
+const Variant FloatEuclidianVariant{"build_vamana_float_euclidian_index", "VamanaFloatEuclidianIndex", "IVFFloatEuclidianIndex", "FloatEuclidian"};
+const Variant FloatMipsVariant{"build_vamana_float_mips_index", "VamanaFloatMipsIndex", "IVFFloatMipsIndex", "FloatMips"};
 
-const Variant UInt8EuclidianVariant{"build_vamana_uint8_euclidian_index", "VamanaUInt8EuclidianIndex", "IVFUInt8EuclidianIndex"};
-const Variant UInt8MipsVariant{"build_vamana_uint8_mips_index", "VamanaUInt8MipsIndex", "IVFUInt8MipsIndex"};
+const Variant UInt8EuclidianVariant{"build_vamana_uint8_euclidian_index", "VamanaUInt8EuclidianIndex", "IVFUInt8EuclidianIndex", "UInt8Euclidian"};
+const Variant UInt8MipsVariant{"build_vamana_uint8_mips_index", "VamanaUInt8MipsIndex", "IVFUInt8MipsIndex", "UInt8Mips"};
 
-const Variant Int8EuclidianVariant{"build_vamana_int8_euclidian_index", "VamanaInt8EuclidianIndex", "IVFInt8EuclidianIndex"};
-const Variant Int8MipsVariant{"build_vamana_int8_mips_index", "VamanaInt8MipsIndex", "IVFInt8MipsIndex"};
+const Variant Int8EuclidianVariant{"build_vamana_int8_euclidian_index", "VamanaInt8EuclidianIndex", "IVFInt8EuclidianIndex", "Int8Euclidian"};
+const Variant Int8MipsVariant{"build_vamana_int8_mips_index", "VamanaInt8MipsIndex", "IVFInt8MipsIndex", "Int8Mips"};
 
 template <typename T, typename Point> inline void add_variant(py::module_ &m, const Variant &variant)
 {
@@ -119,6 +121,26 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
         .def("set_bitvector_cutoff", &IVF_Squared<T, Point>::set_bitvector_cutoff, "bitvector_cutoff"_a)
         .def("get_log", &IVF_Squared<T, Point>::get_log, py::return_value_policy::copy)
         .def("get_dcmps", &IVF_Squared<T, Point>::get_dcmps);
+
+    py::class_<StitchedVamanaIndex<T, Point>>(m, ("StitchedVamana" + variant.agnostic_name + "Index").c_str())
+        .def(py::init())
+        .def("fit", &StitchedVamanaIndex<T, Point>::fit, "points"_a, "filters"_a)
+        .def("fit_from_filename", &StitchedVamanaIndex<T, Point>::fit_from_filename, "points_filename"_a, "filters_filename"_a)
+        .def("set_build_params_small", 
+            (void (StitchedVamanaIndex<T, Point>::*)(BuildParams)) &StitchedVamanaIndex<T, Point>::set_build_params_small,
+            "build_params_small"_a)
+        .def("set_build_params_small", 
+            (void (StitchedVamanaIndex<T, Point>::*)(unsigned int, unsigned int, double)) &StitchedVamanaIndex<T, Point>::set_build_params_small,
+            "R"_a, "L"_a, "alpha"_a)
+        .def("set_build_params_large", 
+            (void (StitchedVamanaIndex<T, Point>::*)(BuildParams)) &StitchedVamanaIndex<T, Point>::set_build_params_large,
+            "build_params_large"_a)
+        .def("set_build_params_large", 
+            (void (StitchedVamanaIndex<T, Point>::*)(unsigned int, unsigned int, double)) &StitchedVamanaIndex<T, Point>::set_build_params_large,
+            "R"_a, "L"_a, "alpha"_a)
+        .def("set_query_params", &StitchedVamanaIndex<T, Point>::set_query_params, "query_params"_a)
+        .def("save_graph", &StitchedVamanaIndex<T, Point>::save_graph, "prefix"_a);
+
 }
 
 PYBIND11_MODULE(_ParlayANNpy, m)
@@ -176,4 +198,4 @@ PYBIND11_MODULE(_ParlayANNpy, m)
     py::class_<BuildParams>(m, "BuildParams")
         .def(py::init<long, long, double>(), "max_degree"_a, "limit"_a, "alpha"_a);
 
-}
+};
