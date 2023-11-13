@@ -59,11 +59,11 @@ using NeighborsAndDistances =
 // };
 
 /* Implementation of StitchedVamana */
-template <typename T, class Point>
+template <typename T, class Point, class PR = PointRange<T, Point>>
 struct StitchedVamana
 {
     using pid = std::pair<index_type, float>;
-    using PR = PointRange<T, Point>;
+    // using PR = PointRange<T, Point>;
     using GraphI = Graph<index_type>;
 
     BuildParams build_params_small;
@@ -74,7 +74,7 @@ struct StitchedVamana
     StitchedVamana() : StitchedVamana(BuildParams(), BuildParams()) {}
 
     /* We expect the filter object to be transposed */
-    parlay::sequence<index_type> build(PointRange<T, Point> &points, Graph<index_type> &G, csr_filters &filters) {
+    parlay::sequence<index_type> build(PR &points, Graph<index_type> &G, csr_filters &filters) {
         auto untransposed_filters = filters.transpose();
 
         // pick starting points
@@ -238,9 +238,9 @@ struct StitchedVamana
 };
 
 /* An index which uses the StitchedVamana index builder to create a graph and support queries */
-template <typename T, class Point>
+template <typename T, class Point, class PR = PointRange<T, Point>>
 struct StitchedVamanaIndex {
-    PointRange<T, Point> points; 
+    PR points; 
     csr_filters filters;
     parlay::sequence<index_type> starting_points;
 
@@ -255,7 +255,7 @@ struct StitchedVamanaIndex {
 
     StitchedVamanaIndex(BuildParams build_params_small, BuildParams build_params_large) : build_params_small(build_params_small), build_params_large(build_params_large) {}
 
-    void fit(PointRange<T, Point> points, csr_filters& filters) {
+    void fit(PR points, csr_filters& filters) {
         auto timer = parlay::internal::timer();
         timer.start();
 
@@ -272,6 +272,7 @@ struct StitchedVamanaIndex {
         std::cout << "Finished building StitchedVamana graph in " << timer.stop() << " seconds" << std::endl;
     }
 
+    /* This will ofc not work if PR is not PointRange */
     void fit_from_filename(std::string points_filename, std::string filters_filename) {
         PointRange<T, Point> points(points_filename.c_str());
         csr_filters filters(filters_filename.c_str());
@@ -279,11 +280,8 @@ struct StitchedVamanaIndex {
         fit(points, filters);
     }
 
-    void load(std::string prefix, std::string points_filename, std::string filters_filename) {
-        PointRange<T, Point> points(points_filename.c_str());
+    void load(std::string prefix, PR points, csr_filters& filters) {
         this->points = points;
-
-        csr_filters filters(filters_filename.c_str());
         this->filters = filters;
 
         // load the starting points
@@ -311,6 +309,18 @@ struct StitchedVamanaIndex {
         this->G = Graph<index_type>(graph_filename.data());
 
         std::cout << "Finished loading StitchedVamana index" << std::endl;
+    }
+
+    /* The below should cause this method to not exist if PR is a subset point range 
+    
+    Admittedly, this should probably be a runtime exception because this function is not in any kind of loop, but this is in some twisted sense more efficient.
+    */
+    std::enable_if<std::is_same<PR, PointRange<T, Point>>::value, void> 
+    load_from_filename(std::string prefix, std::string points_filename, std::string filters_filename) {
+        PointRange<T, Point> points(points_filename.c_str());
+        csr_filters filters(filters_filename.c_str());
+
+        load(prefix, points, filters);
     }
 
     NeighborsAndDistances batch_filter_search(
@@ -405,5 +415,102 @@ struct StitchedVamanaIndex {
  
 Internally, this is a wrapper around a StitchedVamanaIndex, which is used for the larger filters and uses the raw transposed csr_matrix for the smaller filters
 */
-// template <typename T, class Point>
-// struct 
+template <typename T, class Point>
+struct HybridStitchedVamanaIndex {
+    StitchedVamanaIndex<T, Point, SubsetPointRange<T, Point>> stitched_vamana_index;
+    PointRange<T, Point> points;
+    csr_filters filters;
+
+    // the cutoff for when to use the stitched vamana index
+    size_t cutoff;
+    
+    std::unordered_map<index_type, index_type> real_to_subset_index;
+    parlay::sequence<index_type> subset_to_real_index; // not sure this is actually needed outside of fit
+
+    
+    HybridStitchedVamanaIndex() {};
+
+    HybridStitchedVamanaIndex(size_t cutoff) : cutoff(cutoff) {};
+
+    void fit(PointRange<T, Point> points, csr_filters filters) {
+        this->points = points;
+        this->filters = filters; // filters isn't a reference because we should own it
+
+        // transpose the filters
+        filters.transpose_inplace();
+
+        // determine which filters are above the cutoff
+        for (size_t i = 0; i < filters.n_points; i++) {
+            if (filters.row_offsets[i+1] - filters.row_offsets[i] > cutoff) {
+                subset_to_real_index.push_back(i);
+                real_to_subset_index[i] = subset_to_real_index.size() - 1;
+            }
+        }
+
+        // build the subset point range and filters
+        SubsetPointRange<T, Point> subset_points(points, subset_to_real_index);
+        csr_filters subset_filters = filters.subset_rows(subset_to_real_index);
+
+        // build the stitched vamana index
+        stitched_vamana_index.fit(subset_points, subset_filters);
+    }
+
+    void fit_from_filename(std::string points_filename, std::string filters_filename) {
+        PointRange<T, Point> points(points_filename.c_str());
+        csr_filters filters(filters_filename.c_str());
+
+        fit(points, filters);
+    }
+
+    void save(std::string prefix) {
+        stitched_vamana_index.save(prefix + "Hybrid_cutoff" + std::to_string(cutoff) + "_");
+    }
+
+    void load_from_filename(std::string prefix, std::string points_filename, std::string filters_filename) {
+        this->points = PointRange<T, Point>(points_filename.c_str());
+        this->filters = csr_filters(filters_filename.c_str());
+
+        this->filters.transpose_inplace();
+
+        // determine which filters are above the cutoff
+        for (size_t i = 0; i < filters.n_points; i++) {
+            if (filters.row_offsets[i+1] - filters.row_offsets[i] > cutoff) {
+                subset_to_real_index.push_back(i);
+                real_to_subset_index[i] = subset_to_real_index.size() - 1;
+            }
+        }
+
+        // build the subset point range and filters
+        SubsetPointRange<T, Point> subset_points(points, subset_to_real_index);
+        csr_filters subset_filters = filters.subset_rows(subset_to_real_index);
+
+        stitched_vamana_index.load(prefix + "Hybrid_cutoff" + std::to_string(cutoff) + "_", subset_points, subset_filters);
+    }
+
+    // TODO: querying
+
+    std::string get_index_name() {
+        return "Hybrid_cutoff" + std::to_string(cutoff) + "_" + stitched_vamana_index.get_index_name();
+    }
+
+    void set_query_params(QueryParams query_params) {
+        this->stitched_vamana_index.set_query_params(query_params);
+    }
+
+    void set_build_params_small(BuildParams build_params_small) {
+        this->stitched_vamana_index.set_build_params_small(build_params_small);
+    }
+
+    void set_build_params_small(unsigned int R, unsigned int L, double alpha) {
+        this->stitched_vamana_index.set_build_params_small(R, L, alpha);
+    }
+
+    void set_build_params_large(BuildParams build_params_large) {
+        this->stitched_vamana_index.set_build_params_large(build_params_large);
+    }
+
+    void set_build_params_large(unsigned int R, unsigned int L, double alpha) {
+        this->stitched_vamana_index.set_build_params_large(R, L, alpha);
+    }
+
+};
