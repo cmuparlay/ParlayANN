@@ -65,7 +65,7 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
              "index_path"_a, "data_path"_a, "num_points"_a, "dimensions"_a) //maybe these last two are unnecessary?
         //do we want to add options like visited limit, or leave those as defaults?
         .def("batch_search", &GraphIndex<T, Point>::batch_search, "queries"_a, "num_queries"_a, "knn"_a,
-             "beam_width"_a)
+             "beam_width"_a, "visit_limit"_a)
         .def("batch_search_from_string", &GraphIndex<T, Point>::batch_search_from_string, "queries"_a, "num_queries"_a, "knn"_a,
              "beam_width"_a)
         .def("check_recall", &GraphIndex<T, Point>::check_recall, "gFile"_a, "neighbors"_a, "k"_a);
