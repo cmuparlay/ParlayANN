@@ -28,6 +28,7 @@
 
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
+#include "graph.h"
 
 // template <typename T>
 // std::pair<double, int> graph_stats(parlay::sequence<Tvec_point<T> *> &v) {

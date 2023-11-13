@@ -8,6 +8,7 @@ cc_library(
     deps = [
         "@parlaylib//parlay:parallel",
         "@parlaylib//parlay:primitives",
+        ":mmap",
     ],
 )
 
@@ -28,9 +29,9 @@ cc_library(
         "@parlaylib//parlay:parallel",
         "@parlaylib//parlay:primitives",
         "@parlaylib//parlay:random",
-        ":indexTools",
+        ":graph",
+        ":stats",
         ":types",
-        ":NSGDist",
     ],
 )
 
@@ -40,8 +41,7 @@ cc_library(
     deps = [
         "@parlaylib//parlay:parallel",
         "@parlaylib//parlay:primitives",
-        ":indexTools",
-        ":types",
+        ":graph",
     ],
 )
 
@@ -51,7 +51,6 @@ cc_library(
     deps = [
         "@parlaylib//parlay:parallel",
         "@parlaylib//parlay:primitives",
-        ":indexTools",
     ],
 )
 
@@ -63,7 +62,6 @@ cc_library(
         "@parlaylib//parlay:primitives",
         ":beamSearch",
         ":csvfile",
-        ":indexTools",
         ":parse_results",
         ":types",
     ],
@@ -72,4 +70,62 @@ cc_library(
 cc_library(
     name = "csvfile",
     hdrs = ["csvfile.h"],
+)
+
+cc_library(
+    name = "graph",
+    hdrs = ["graph.h"],
+    deps = [
+        "@parlaylib//parlay:parallel",
+        "@parlaylib//parlay:primitives",
+        "@parlaylib//parlay/internal:file_map",
+        ":NSGDist",
+        ":types",
+    ],
+)
+
+cc_library(
+    name = "mmap",
+    hdrs = ["mmap.h"],
+    deps = [
+        "@parlaylib//parlay:parallel",
+        "@parlaylib//parlay:primitives",
+        "@parlaylib//parlay/internal:file_map",
+    ],
+)
+
+cc_library(
+    name = "point_range",
+    hdrs = ["point_range.h"],
+    deps = [
+        "@parlaylib//parlay:parallel",
+        "@parlaylib//parlay:primitives",
+        "@parlaylib//parlay/internal:file_map",
+        ":NSGDist",
+        ":types",
+    ],
+)
+
+cc_library(
+    name = "mips_point",
+    hdrs = ["mips_point.h"],
+    deps = [
+        "@parlaylib//parlay:parallel",
+        "@parlaylib//parlay:primitives",
+        "@parlaylib//parlay/internal:file_map",
+        ":NSGDist",
+        ":types",
+    ],
+)
+
+cc_library(
+    name = "euclidian_point",
+    hdrs = ["euclidian_point.h"],
+    deps = [
+        "@parlaylib//parlay:parallel",
+        "@parlaylib//parlay:primitives",
+        "@parlaylib//parlay/internal:file_map",
+        ":NSGDist",
+        ":types",
+    ],
 )

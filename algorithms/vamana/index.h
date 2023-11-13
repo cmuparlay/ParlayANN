@@ -27,6 +27,9 @@
 #include <set>
 
 #include "../utils/NSGDist.h"
+#include "../utils/beamSearch.h"
+#include "../utils/graph.h"
+#include "../utils/stats.h"
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 #include "parlay/random.h"

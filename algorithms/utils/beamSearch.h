@@ -32,11 +32,9 @@
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 #include "parlay/random.h"
-#include "types.h"
 #include "graph.h"
 #include "stats.h"
-
-
+#include "types.h"
 
 template<typename Point, typename PointRange, typename indexType>
 std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>, parlay::sequence<std::pair<indexType, typename Point::distanceType>>>, indexType>

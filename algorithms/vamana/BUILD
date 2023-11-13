@@ -8,6 +8,9 @@ cc_library(
         "@parlaylib//parlay:primitives",
         "@parlaylib//parlay:random",
         "//algorithms/utils:NSGDist",
+        "//algorithms/utils:beamSearch",
+        "//algorithms/utils:graph",
+        "//algorithms/utils:stats",
     ],
 )
 
