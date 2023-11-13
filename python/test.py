@@ -71,13 +71,13 @@ DATA_DIR = FERN_DATA_DIR
 
 print("----- Building Squared IVF index... -----")
 
-CUTOFF = 20_000
-CLUSTER_SIZE = 2500
+CUTOFF = 5_000
+CLUSTER_SIZE = 5000
 NQ = 100_000
 WEIGHT_CLASSES = (100_000, 400_000)
 MAX_DEGREES = (8, 10, 12)
 
-TINY_CUTOFF = 500
+TINY_CUTOFF = 60000
 TARGET_POINTS = 15_000
 BEAM_WIDTHS = (85, 85, 85)
 SEARCH_LIMITS = (int(WEIGHT_CLASSES[0] * 0.2), int(WEIGHT_CLASSES[1] * 0.5), int(3_000_000 * 0.5))
@@ -95,11 +95,13 @@ if not os.path.exists("index_cache/"):
 index = wp.init_squared_ivf_index("Euclidian", "uint8")
 
 for i in range(3):
-    index.set_build_params(wp.BuildParams(MAX_DEGREES[i], 500, ALPHA), i)
+    index.set_build_params(wp.BuildParams(MAX_DEGREES[i], 200, ALPHA), i)
     index.set_query_params(wp.QueryParams(10, BEAM_WIDTHS[i], 1.35, SEARCH_LIMITS[i], MAX_DEGREES[i]), i)
 
+index.set_bitvector_cutoff(10000)
+
 index.fit_from_filename(DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR +
-                        'data/yfcc100M/base.metadata.10M.spmat', CUTOFF, CLUSTER_SIZE, "index_cache/", WEIGHT_CLASSES)
+                        'data/yfcc100M/base.metadata.10M.spmat', CUTOFF, CLUSTER_SIZE, "index_cache/", WEIGHT_CLASSES, True)
 
 print(f"Time taken: {time.time() - start:.2f}s")
 
@@ -192,11 +194,9 @@ log = index.get_log()  # should be a list of (id, comparisons, time) tuples
 print(len(log))
 
 for i in range(NQ):
-    ground_truth = set()
-    ann = set()
-    for j in range(10):
-        ground_truth.add(I[i][j])
-        ann.add(neighbors[i][j])
+    ground_truth = set(I[i][:10])
+    ann = set(neighbors[i][:10])
+    
     local_recall = len(ground_truth & ann)
 
     case = ""
