@@ -53,8 +53,9 @@ struct GraphIndex{
     }
 
     NeighborsAndDistances batch_search(py::array_t<T, py::array::c_style | py::array::forcecast> &queries, uint64_t num_queries, uint64_t knn,
-                        uint64_t beam_width){
-        QueryParams QP(knn, beam_width, 1.35, G.size(), G.max_degree());
+                        uint64_t beam_width, uint64_t visit_limit = -1){
+        if(visit_limit == -1) visit_limit = G.size();
+        QueryParams QP(knn, beam_width, 1.35, visit_limit, G.max_degree());
 
         py::array_t<unsigned int> ids({num_queries, knn});
         py::array_t<float> dists({num_queries, knn});
