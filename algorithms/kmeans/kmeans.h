@@ -36,6 +36,29 @@ struct KmeansInterface {
 
 };
 
+//helpful function for center calculation
+//requires integer keys
+template<typename index_type>
+void fast_int_group_by(parlay::sequence<std::pair<index_type, parlay::sequence<index_type>>>& grouped, size_t n, index_type* asg) {
+   
+   auto init_pairs = parlay::delayed_tabulate(n,[&] (size_t i) {
+    return std::make_pair(asg[i],i);
+  });
+   parlay::sequence<std::pair<size_t,size_t>> int_sorted = parlay::integer_sort(init_pairs, [&] (std::pair<size_t,size_t> p) {return p.first;});
+
+    //store where each center starts in int_sorted
+   auto start_pos = parlay::pack_index(parlay::delayed_tabulate(n,[&] (size_t i) {
+    return i==0 || int_sorted[i].first != int_sorted[i-1].first;
+  }));
+  start_pos.push_back(n);
+  grouped=parlay::tabulate(start_pos.size()-1, [&] (size_t i) {
+    return std::make_pair(int_sorted[start_pos[i]].first, parlay::map(int_sorted.subseq(start_pos[i],start_pos[i+1]),[&] (std::pair<size_t,size_t> ind) { return ind.second;}) );
+
+  });
+
+
+
+}
 
 
 #endif //KMEANS_H

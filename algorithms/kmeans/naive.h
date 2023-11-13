@@ -100,7 +100,7 @@ struct NaiveKmeans : KmeansInterface<T,Point,index_type,CT, CenterPoint> {
 
     auto seq_seq_pt_asgs = get_clusters(asg,n,k);
 
-    std::cout << "Aquí estamos" << std::endl;
+    std::cout << "Here now" << std::endl;
 
     delete[] c;
     delete[] asg;
@@ -170,9 +170,11 @@ float* c, size_t* asg, Distance& D, kmeans_bench& logger, size_t max_iter, doubl
     //std::cout << "starting update-groupby, iter " << iterations << std::endl;
 
     //group points by center
-    parlay::sequence<std::pair<size_t,parlay::sequence<size_t>>> pts_grouped_by_center = parlay::group_by_key(parlay::map(rangn,[&] (size_t i) {
-    return std::pair(asg[i],i);
-    }));
+   
+    //using the integer_sort based fast group by (in kmeans.h)
+    parlay::sequence<std::pair<size_t,parlay::sequence<size_t>>> pts_grouped_by_center;
+    fast_int_group_by(pts_grouped_by_center,n,asg);
+
 
    
    // std::cout << "starting update-add, iter " << iterations << std::endl;
