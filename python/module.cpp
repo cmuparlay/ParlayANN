@@ -139,7 +139,9 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
             (void (StitchedVamanaIndex<T, Point>::*)(unsigned int, unsigned int, double)) &StitchedVamanaIndex<T, Point>::set_build_params_large,
             "R"_a, "L"_a, "alpha"_a)
         .def("set_query_params", &StitchedVamanaIndex<T, Point>::set_query_params, "query_params"_a)
-        .def("save_graph", &StitchedVamanaIndex<T, Point>::save_graph, "prefix"_a);
+        .def("save", &StitchedVamanaIndex<T, Point>::save, "prefix"_a)
+        .def("load", &StitchedVamanaIndex<T, Point>::load, "prefix"_a, "points_filename"_a, "filters_filename"_a)
+        .def("batch_filter_search", &StitchedVamanaIndex<T, Point>::batch_filter_search, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a);
 
 }
 

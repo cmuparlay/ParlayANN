@@ -279,6 +279,40 @@ struct StitchedVamanaIndex {
         fit(points, filters);
     }
 
+    void load(std::string prefix, std::string points_filename, std::string filters_filename) {
+        PointRange<T, Point> points(points_filename.c_str());
+        this->points = points;
+
+        csr_filters filters(filters_filename.c_str());
+        this->filters = filters;
+
+        // load the starting points
+        std::string starting_points_filename = prefix + get_index_name() + ".starting_points";
+        std::ifstream infile(starting_points_filename.data(), std::ios::in | std::ios::binary);
+        if (!infile.is_open()) {
+            std::cout << "Error opening file " << starting_points_filename << std::endl;
+            return;
+        }
+        this->starting_points = parlay::sequence<index_type>::uninitialized(points.size());
+
+        // read the number of starting points, assert that it's the same as the number of filters
+        size_t n_starting_points;
+        infile.read((char*) &n_starting_points, sizeof(size_t));
+
+        assert(n_starting_points == filters.n_points);
+
+        // read the starting points
+        infile.read((char*) this->starting_points.data(), sizeof(index_type) * n_starting_points);
+
+        infile.close();
+
+        // load the graph
+        std::string graph_filename = prefix + get_index_name() + ".graph";
+        this->G = Graph<index_type>(graph_filename.data());
+
+        std::cout << "Finished loading StitchedVamana index" << std::endl;
+    }
+
     NeighborsAndDistances batch_filter_search(
      py::array_t<T, py::array::c_style | py::array::forcecast>& queries,
      const std::vector<QueryFilter>& filters, uint64_t num_queries,
@@ -293,8 +327,22 @@ struct StitchedVamanaIndex {
                       this->points.aligned_dimension(), i);
             parlay::sequence<index_type> query_filters = filters[i].get_sequence();
 
-            auto [pairElts, dist_cmps] = filtered_beam_search(q, query_filters, G, points, starting_points, QueryParams(knn), this->filters);
+            parlay::sequence<index_type> start_from(query_filters.size());
+            for (size_t j = 0; j < query_filters.size(); j++) {
+                start_from[j] = starting_points[query_filters[j]];
+            }
+
+            auto [pairElts, dist_cmps] = filtered_beam_search(q, query_filters, G, points, start_from, this->query_params, this->filters);
+
+            auto frontier = pairElts.first;
+
+            for (size_t j = 0; j < knn; j++) {
+                ids.mutable_at(i, j) = frontier[j].first;
+                dists.mutable_at(i, j) = frontier[j].second;
+            }
         });
+
+        return std::make_pair(std::move(ids), std::move(dists));
     }
 
     std::string get_index_name() {
