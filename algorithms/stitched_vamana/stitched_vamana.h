@@ -79,7 +79,7 @@ struct StitchedVamana
 
         // pick starting points
         parlay::sequence<index_type> starting_points = parlay::tabulate(filters.n_points, [&](size_t i) {
-            return filters.row_indices[filters.row_offsets[i]];
+            return filters.row_indices[filters.row_offsets[i] + parlay::hash64_2(i) % (filters.row_offsets[i+1] - filters.row_offsets[i])];
             });
 
         auto starting_points_rd = parlay::remove_duplicates(starting_points);
@@ -400,3 +400,8 @@ struct StitchedVamanaIndex {
 
 
 };
+
+/* A stitched vamana index that only incorporates filters above a given size cutoff into the graph, doing exhaustive search for smaller filters
+ 
+Internally, this is a wrapper around a StitchedVamanaIndex, which is used for the larger filters and uses the raw transposed csr_matrix for the smaller filters
+ */
