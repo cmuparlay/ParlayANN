@@ -28,17 +28,69 @@
 #include "../utils/euclidian_point.h"
 
 //Kmeans struct interface -- needs a cluster function
-template<typename T, typename Point, typename index_type, typename float_type, typename CenterPoint>
+//CT = Center (data) type
+template<typename T, typename Point, typename index_type, typename CT, typename CenterPoint>
 struct KmeansInterface {
 
+  parlay::sequence<parlay::sequence<index_type>> get_clusters(index_type* asg, size_t n, size_t k) {
+   
+    auto pairs = parlay::tabulate(n, [&] (size_t i) {
+      return std::make_pair(asg[i], i);
+    });
+    return parlay::group_by_index(pairs, k);
+  }
 
-  virtual std::pair<parlay::sequence<parlay::sequence<index_type>>,PointRange<float_type,CenterPoint>> cluster(PointRange<T,Point> points, size_t k)=0;
+  //given a PointRange and k, cluster will use k-means clustering to partition the points into k groups
+  virtual std::pair<parlay::sequence<parlay::sequence<index_type>>,PointRange<CT,CenterPoint>> cluster(PointRange<T,Point> points, size_t k) {
+   
+    T* v = points.get_values(); //v is array of point coordinates
+    size_t d = points.dimension(); //d is # of dimensions
+    size_t ad = points.aligned_dimension(); //ad is aligned dimension is # of dimensions with padding
+    size_t n = points.size(); //n is # of points
+    size_t max_iter = 5; //can change
+    double epsilon = 0;
 
-};
+    CT* c = new CT[k*ad]; //c stores the centers we find
+    index_type* asg = new index_type[n]; //asg (assignment) stores the point assignments to centers
+    Lazy<T,CT,index_type> init; //create an initalizer object
+    Distance* D = new EuclideanDistanceFast(); //create a distance calculation object
+    init(v,n,d,ad,k,c,asg); //initialize c and asg
+    kmeans_bench log = kmeans_bench(n,d,k,max_iter,
+    epsilon,"Lazy","Naive"); //logging object that keeps track of time, center movements, msse, other useful  info
+
+  
+    cluster_middle(v,n,d,ad,k,c,asg,*D,log,max_iter,epsilon); //call the parlaykmeans-style clustering algorithm
+      
+    std::cout << "Finished cluster" << std::endl;
+
+    CT* check;
+    //TODO FIXME Seg fault when try to return the centers themselves, bye is a dummy value for now
+    PointRange<CT,CenterPoint> bye(check,0,0,0);
+    //PointRange<CT,CenterPoint> final_centers(c,n,d,ad);
+
+    std::cout << "Assigned final centers" << std::endl;
+
+    auto seq_seq_pt_asgs = get_clusters(asg,n,k);
+
+    std::cout << "Here now" << std::endl;
+
+    delete[] c;
+    delete[] asg;
+
+    std::cout << "Made it here" << std::endl;
+
+    return std::make_pair(seq_seq_pt_asgs,bye);
+
+
+  }
+
+  //cluster_middle is the actual clustering function
+  virtual void cluster_middle(T* v, size_t n, size_t d, size_t ad, size_t k, 
+CT* c, size_t* asg, Distance& D, kmeans_bench& logger, size_t max_iter, double epsilon,bool suppress_logging=false) = 0;
+
 
 //helpful function for center calculation
 //requires integer keys
-template<typename index_type>
 void fast_int_group_by(parlay::sequence<std::pair<index_type, parlay::sequence<index_type>>>& grouped, size_t n, index_type* asg) {
    
    auto init_pairs = parlay::delayed_tabulate(n,[&] (size_t i) {
@@ -59,6 +111,66 @@ void fast_int_group_by(parlay::sequence<std::pair<index_type, parlay::sequence<i
 
 
 }
+
+
+//given assignments, compute the centers (new center is centroid of points assigned to the center) and store in centers
+void compute_centers(T* v, size_t n, size_t d, size_t ad, size_t k, CT* c, CT* centers, index_type* asg) {
+    parlay::sequence<bool> empty_center(k,false);
+
+
+    //copy center coords into centers
+    parlay::parallel_for(0,k*ad,[&] (size_t i) {
+        centers[i] = 0;
+    });
+    //std::cout << "starting update-groupby, iter " << iterations << std::endl;
+
+    //group points by center
+   
+    //using the integer_sort based fast group by (in kmeans.h)
+    parlay::sequence<std::pair<index_type,parlay::sequence<index_type>>> pts_grouped_by_center;
+    fast_int_group_by(pts_grouped_by_center,n,asg);
+
+    //add points
+    //caution: we can't parallel_for by k, must parallel_for by pts_grouped_by_center.size() because a center can lose all points
+    parlay::parallel_for(0,pts_grouped_by_center.size(),[&] (size_t i) {
+        size_t picked_center_d = pts_grouped_by_center[i].first*ad;
+        for (size_t j = 0; j < pts_grouped_by_center[i].second.size(); j++) {
+          size_t point_coord = pts_grouped_by_center[i].second[j]*ad;
+          for (size_t coord = 0; coord < d; coord++) {
+            centers[picked_center_d + coord] += static_cast<float>(v[point_coord + coord]);
+          }
+        }
+    },1);
+
+    parlay::parallel_for(0,pts_grouped_by_center.size(),[&] (size_t i) {
+
+      parlay::parallel_for(0,d,[&] (size_t coord) {
+        //note that this if condition is necessarily true, because if the list was empty that center wouldn't be in pts_grouped_by_center at all
+        if (pts_grouped_by_center[i].second.size() > 0) {
+          centers[pts_grouped_by_center[i].first*ad+coord] /= pts_grouped_by_center[i].second.size();
+        }
+       
+      });
+    
+    });
+    //we need to make sure that we don't wipe centers that lost all their points
+    for (size_t i = 0; i < k; i++) {
+      empty_center[i]=true;
+    }
+    for (size_t i = 0; i < pts_grouped_by_center.size(); i++) {
+      empty_center[pts_grouped_by_center[i].first]=false;
+    }
+    parlay::parallel_for(0,k,[&] (size_t i) {
+      if (empty_center[i]) {
+        for (size_t j = 0; j < d; j++) {
+          centers[i*ad+j] = c[i*ad+j];
+
+        }
+      }
+    });
+}
+
+};
 
 
 #endif //KMEANS_H

@@ -3,12 +3,12 @@
 #ifndef DISTANCE_CLASS
 #define DISTANCE_CLASS
 
-#include <math.h>
-#include <x86intrin.h>
+// #include <math.h>
+// #include <x86intrin.h>
 
-#include <algorithm>
-#include <iostream>
-#include <type_traits>
+// #include <algorithm>
+// #include <iostream>
+// #include <type_traits>
 
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
