@@ -37,7 +37,8 @@ cc_library(
 "naive.h",
 "kmeans_bench.h",
 "distance.h",
-"kmeans.h"
+"kmeans.h",
+"yy.h",
 ],
 
 linkopts=["-pthread"],

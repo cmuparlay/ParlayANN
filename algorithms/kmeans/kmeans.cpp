@@ -22,6 +22,7 @@
 #include "initialization.h"
 #include "naive.h"
 #include "kmeans.h"
+#include "yy.h"
 
 //other information default
 //this version uses the "cluster" method from the KmeansInterface
@@ -61,11 +62,24 @@ size_t max_iter=1000, double epsilon=0, bool output_log_to_csv=false, std::strin
     float* c = new float[k*ad]; // centers
     size_t* asg = new size_t[n];
 
+    
   
     //initialization
     Lazy<T,float,size_t> init;
     //note that here, d=ad
     init(v,n,d,ad,k,c,asg);
+
+    //c2 and asg2 for the yy run
+    //make sure to copy over AFTER initialization, but BEFORE kmeans run
+    float* c2 = new float[k*ad];
+    size_t* asg2 = new size_t[n];
+    parlay::parallel_for(0,k*ad,[&] (size_t i) {
+        c2[i]=c[i];
+    });
+    parlay::parallel_for(0,n,[&] (size_t i) {
+        asg2[i]=asg[i];
+    });
+
 
    
     NaiveKmeans<T,Euclidian_Point<T>,size_t,float,Euclidian_Point<float>> nie2;
@@ -75,6 +89,14 @@ size_t max_iter=1000, double epsilon=0, bool output_log_to_csv=false, std::strin
     //note that d=ad here
     nie2.cluster_middle(v,n,d,ad,k,c,asg,D,logger_nie2,max_iter,epsilon);
     logger_nie2.end_time();
+
+    Yinyang<T,Euclidian_Point<T>,size_t,float,Euclidian_Point<float>> yy_runner;
+    kmeans_bench logger_yy = kmeans_bench(n,d,k,max_iter,epsilon,"Lazy","YY");
+    logger_yy.start_time();
+    yy_runner.cluster_middle(v,n,d,ad,k,c2,asg2,D,logger_yy,max_iter,epsilon);
+    logger_yy.end_time();
+
+
     
 }
 
@@ -133,6 +155,7 @@ int main(int argc, char* argv[]){
     std::string iter_samples_name = std::string(P.getOptionValue("-iter_vals","iter.txt"));
     std::string var_samples_name = std::string(P.getOptionValue("-var_vals","var.txt"));
     long limiter = P.getOptionLongValue("-lim",1'000'000'000);
+    limiter +=1;//to avoid unused warning TODO FIXME
 
     float epsilon = static_cast<float>(P.getOptionDoubleValue("-epsilon",0.0));
 
