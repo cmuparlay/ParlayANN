@@ -33,6 +33,7 @@
 #include "../algorithms/utils/filters.h"
 #include "../algorithms/utils/types.h"
 #include "../algorithms/stitched_vamana/stitched_vamana.h"
+#include "filtered_dataset.h"
 
 PYBIND11_MAKE_OPAQUE(std::vector<uint32_t>);
 PYBIND11_MAKE_OPAQUE(std::vector<float>);
@@ -140,8 +141,9 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
             "R"_a, "L"_a, "alpha"_a)
         .def("set_query_params", &StitchedVamanaIndex<T, Point>::set_query_params, "query_params"_a)
         .def("save", &StitchedVamanaIndex<T, Point>::save, "prefix"_a)
-        .def("load", &StitchedVamanaIndex<T, Point>::load, "prefix"_a, "points_filename"_a, "filters_filename"_a)
-        .def("batch_filter_search", &StitchedVamanaIndex<T, Point>::batch_filter_search, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a);
+        .def("load_from_filename", &StitchedVamanaIndex<T, Point>::load_from_filename, "prefix"_a, "points_filename"_a, "filters_filename"_a)
+        .def("batch_filter_search", &StitchedVamanaIndex<T, Point>::batch_filter_search, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a)
+        .def("get_dist_comparisons", &StitchedVamanaIndex<T, Point>::get_dist_comparisons);
 
 }
 
@@ -199,5 +201,17 @@ PYBIND11_MODULE(_ParlayANNpy, m)
 
     py::class_<BuildParams>(m, "BuildParams")
         .def(py::init<long, long, double>(), "max_degree"_a, "limit"_a, "alpha"_a);
+
+    py::class_<FilteredDataset>(m, "FilteredDataset")
+        .def(py::init<std::string &, std::string &>(), "points_filename"_a, "filters_filename"_a)
+        .def("distance", &FilteredDataset::distance, "a"_a, "b"_a)
+        .def("size", &FilteredDataset::size)
+        .def("get_n_filters", &FilteredDataset::get_n_filters)
+        .def("get_filter_size", &FilteredDataset::get_filter_size, "filter_id"_a)
+        .def("get_point_size", &FilteredDataset::get_point_size, "point_id"_a)
+        .def("get_filter_points", &FilteredDataset::get_filter_points, "filter_id"_a)
+        .def("get_point_filters", &FilteredDataset::get_point_filters, "point_id"_a)
+        .def("get_filter_intersection", &FilteredDataset::get_filter_intersection, "filter_id_1"_a, "filter_id_2"_a)
+        .def("get_point_intersection", &FilteredDataset::get_point_intersection, "point_id_1"_a, "point_id_2"_a);
 
 };
