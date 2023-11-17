@@ -14,6 +14,7 @@
 #include "../utils/euclidian_point.h"
 #include "../utils/mips_point.h"
 #include "../utils/filteredBeamSearch.h"
+#include "../utils/threadlocal.h"
 
 #include "../vamana/index.h"
 
@@ -251,6 +252,8 @@ struct StitchedVamanaIndex {
 
     Graph<index_type> G; // the graph to build and search
 
+    threadlocal::accumulator<size_t> dcmps; // the number of distance comparisons made during queries
+
     StitchedVamanaIndex() {};
 
     StitchedVamanaIndex(BuildParams build_params_small, BuildParams build_params_large) : build_params_small(build_params_small), build_params_large(build_params_large) {}
@@ -287,6 +290,7 @@ struct StitchedVamanaIndex {
         // load the starting points
         std::string starting_points_filename = prefix + get_index_name() + ".starting_points";
         std::ifstream infile(starting_points_filename.data(), std::ios::in | std::ios::binary);
+        std::cout << "Loading starting points from " << starting_points_filename << std::endl;
         if (!infile.is_open()) {
             std::cout << "Error opening file " << starting_points_filename << std::endl;
             return;
@@ -350,6 +354,8 @@ struct StitchedVamanaIndex {
                 ids.mutable_at(i, j) = frontier[j].first;
                 dists.mutable_at(i, j) = frontier[j].second;
             }
+
+            dcmps.add(dist_cmps);
         });
 
         return std::make_pair(std::move(ids), std::move(dists));
@@ -408,6 +414,9 @@ struct StitchedVamanaIndex {
         this->build_params_large = BuildParams(R, L, alpha);
     }
 
+    size_t get_dist_comparisons() {
+        return dcmps.total();
+    }
 
 };
 
