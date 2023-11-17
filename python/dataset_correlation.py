@@ -1,3 +1,4 @@
+from random import randint
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -20,11 +21,15 @@ FILTER_PATH = DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat'
 ds = wp.FilteredDataset(POINTS_PATH, FILTER_PATH)
 
 
+# try multiprocessing - spawn 192 processes, each one samples a point
+
 # Repeat the following steps many times:
 
-# 1. Select a random point
-
+# 1. Select a random point (try the query set after the general dataset)
+point = randint(1, ds.size())
 # 2. Select two random filters associated with that point
+filters = ds.get_point_filters(point)
+filter1 = randint(0, len(filters) - 1)
 
 # 3. Compute the average distance between this point and Filter 1
 
