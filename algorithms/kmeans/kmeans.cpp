@@ -79,8 +79,14 @@ size_t max_iter=1000, double epsilon=0, bool output_log_to_csv=false, std::strin
     parlay::parallel_for(0,n,[&] (size_t i) {
         asg2[i]=asg[i];
     });
-
-
+    //switch order?
+  Yinyang<T,Euclidian_Point<T>,size_t,float,Euclidian_Point<float>> yy_runner;
+    kmeans_bench logger_yy = kmeans_bench(n,d,k,max_iter,epsilon,"Lazy","YY");
+    logger_yy.start_time();
+    std::cout << "about 2 yy " << std::endl;
+    yy_runner.cluster_middle(v,n,d,ad,k,c2,asg2,D,logger_yy,max_iter,epsilon);
+    std::cout << "Escaped clustering " << std::endl;
+    logger_yy.end_time();
    
     NaiveKmeans<T,Euclidian_Point<T>,size_t,float,Euclidian_Point<float>> nie2;
     kmeans_bench logger_nie2 = kmeans_bench(n,d,k,max_iter,
@@ -90,11 +96,13 @@ size_t max_iter=1000, double epsilon=0, bool output_log_to_csv=false, std::strin
     nie2.cluster_middle(v,n,d,ad,k,c,asg,D,logger_nie2,max_iter,epsilon);
     logger_nie2.end_time();
 
-    Yinyang<T,Euclidian_Point<T>,size_t,float,Euclidian_Point<float>> yy_runner;
-    kmeans_bench logger_yy = kmeans_bench(n,d,k,max_iter,epsilon,"Lazy","YY");
-    logger_yy.start_time();
-    yy_runner.cluster_middle(v,n,d,ad,k,c2,asg2,D,logger_yy,max_iter,epsilon);
-    logger_yy.end_time();
+  
+    std::cout << "finished outside" << std::endl;
+
+    delete[] c;
+    delete[] c2;
+    delete[] asg;
+    delete[] asg2;
 
 
     
