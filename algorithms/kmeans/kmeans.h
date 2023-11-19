@@ -93,10 +93,10 @@ CT* c, size_t* asg, Distance& D, kmeans_bench& logger, size_t max_iter, double e
 //requires integer keys
 void fast_int_group_by(parlay::sequence<std::pair<index_type, parlay::sequence<index_type>>>& grouped, size_t n, index_type* asg) {
    
-   auto init_pairs = parlay::delayed_tabulate(n,[&] (size_t i) {
+   auto init_pairs = parlay::delayed_tabulate(n,[&] (index_type i) {
     return std::make_pair(asg[i],i);
   });
-   parlay::sequence<std::pair<size_t,size_t>> int_sorted = parlay::integer_sort(init_pairs, [&] (std::pair<size_t,size_t> p) {return p.first;});
+   parlay::sequence<std::pair<index_type,index_type>> int_sorted = parlay::integer_sort(init_pairs, [&] (std::pair<index_type,index_type> p) {return p.first;});
 
     //store where each center starts in int_sorted
    auto start_pos = parlay::pack_index(parlay::delayed_tabulate(n,[&] (size_t i) {
@@ -105,7 +105,7 @@ void fast_int_group_by(parlay::sequence<std::pair<index_type, parlay::sequence<i
   start_pos.push_back(n);
   
   grouped=parlay::tabulate(start_pos.size()-1, [&] (size_t i) {
-    return std::make_pair(int_sorted[start_pos[i]].first, parlay::map(int_sorted.subseq(start_pos[i],start_pos[i+1]),[&] (std::pair<size_t,size_t> ind) { return ind.second;}) );
+    return std::make_pair(int_sorted[start_pos[i]].first, parlay::map(int_sorted.subseq(start_pos[i],start_pos[i+1]),[&] (std::pair<index_type,index_type> ind) { return ind.second;}) );
 
   });
 
@@ -113,69 +113,27 @@ void fast_int_group_by(parlay::sequence<std::pair<index_type, parlay::sequence<i
 
 }
 
-//helpful function for center calculation
-//requires integer keys
- parlay::sequence<std::pair<index_type, parlay::sequence<index_type>>> fast_int_group_by2(size_t n, index_type* asg) {
-  std::cout << "inside of fast int " << std::endl;
-   
-   auto init_pairs = parlay::delayed_tabulate(n,[&] (size_t i) {
-    return std::make_pair(asg[i],i);
-  });
-    std::cout << "here " << std::endl;
-
-   parlay::sequence<std::pair<size_t,size_t>> int_sorted = parlay::integer_sort(init_pairs, [&] (std::pair<size_t,size_t> p) {return p.first;});
-  std::cout << "there" << std::endl;
-
-    //store where each center starts in int_sorted
-   auto start_pos = parlay::pack_index(parlay::delayed_tabulate(n,[&] (size_t i) {
-    return i==0 || int_sorted[i].first != int_sorted[i-1].first;
-  }));
-      std::cout << "ok" << std::endl;
-
-  start_pos.push_back(n);
-    std::cout << "ibasdt " << std::endl;
-
-    return parlay::tabulate(start_pos.size()-1, [&] (size_t i) {
-    return std::make_pair(int_sorted[start_pos[i]].first, parlay::map(int_sorted.subseq(start_pos[i],start_pos[i+1]),[&] (std::pair<size_t,size_t> ind) { return ind.second;}) );
-
-  });
 
 
 
-}
 
 //given assignments, compute the centers (new center is centroid of points assigned to the center) and store in centers
-//TODO change asg back from size_t
-void compute_centers(T* v, size_t n, size_t d, size_t ad, size_t k, CT* c, CT* centers, size_t* asg) {
-  std::cout << "starting com center s" << std::endl;
-
+void compute_centers(T* v, size_t n, size_t d, size_t ad, size_t k, CT* c, CT* centers, index_type* asg) {
 
     //copy center coords into centers
     parlay::parallel_for(0,k*ad,[&] (size_t i) {
         centers[i] = 0;
     });
-    //std::cout << "starting update-groupby, iter " << iterations << std::endl;
 
     //group points by center
-   std::cout << "past copy " << "" << std::endl;
-   std::cout << "print asg " << std::endl;
-   for (size_t i = 0; i < n; i++) {
-    std::cout << i << " " << asg[i] << ",";
-   }
-   std::cout << std::endl;
-   std::cout << "finished asg print " << std::endl;
-    //using the integer_sort based fast group by (in kmeans.h)
-    //TODO use int sort
-    //TODO change back from size_t
-    //TODO change back from long
-    auto rangn = parlay::delayed_tabulate(n,[&] (size_t i) {return i;});
-    parlay::sequence<std::pair<size_t,parlay::sequence<size_t>>>  pts_grouped_by_center = parlay::group_by_key(parlay::map(rangn,[&] (size_t i) {
-    return std::make_pair(asg[i],i);
-    }));
-    //fast_int_group_by2(pts_grouped_by_center,n,asg);
-  //  parlay::sequence<std::pair<index_type,parlay::sequence<index_type>>> pts_grouped_by_center = fast_int_group_by2(n,asg);
+    // auto rangn = parlay::delayed_tabulate(n,[&] (index_type i) {return i;});
+    // parlay::sequence<std::pair<index_type,parlay::sequence<index_type>>>  pts_grouped_by_center = parlay::group_by_key(parlay::map(rangn,[&] (index_type i) {
+    // return std::make_pair(asg[i],i);
+    // }));
+    //TODO change back to using int sort
+    parlay::sequence<std::pair<index_type,parlay::sequence<index_type>>> pts_grouped_by_center; 
+    fast_int_group_by(pts_grouped_by_center, n,asg);
 
-   std::cout << "past copy 2" << std::endl;
 
     //add points
     //caution: we can't parallel_for by k, must parallel_for by pts_grouped_by_center.size() because a center can lose all points
@@ -188,7 +146,6 @@ void compute_centers(T* v, size_t n, size_t d, size_t ad, size_t k, CT* c, CT* c
           }
         }
     },1);
-   std::cout << "past copy3 " << std::endl;
 
     parlay::parallel_for(0,pts_grouped_by_center.size(),[&] (size_t i) {
 
@@ -201,12 +158,10 @@ void compute_centers(T* v, size_t n, size_t d, size_t ad, size_t k, CT* c, CT* c
       });
     
     });
-       std::cout << "past copy 4" << std::endl;
 
     //we need to make sure that we don't wipe centers that lost all their points
     parlay::sequence<bool> empty_center(k,true);
 
-    
     for (size_t i = 0; i < pts_grouped_by_center.size(); i++) {
       empty_center[pts_grouped_by_center[i].first]=false;
     }
@@ -219,13 +174,6 @@ void compute_centers(T* v, size_t n, size_t d, size_t ad, size_t k, CT* c, CT* c
       }
     });
 
-    std::cout << "empty center print " << std::endl;
-    for (size_t i = 0; i < empty_center.size(); i++) {
-      std::cout << "in compute centers " << i << std::endl;
-      std::cout << empty_center[i] << " ";
-    }
-    std::cout << std::endl;
-    std::cout << "out of compute centers" << std::endl;
 }
 
 };
