@@ -3,13 +3,14 @@
 #ifndef YY
 #define YY
 
-#include "parlay/primitives.h"
-#include "parlay/internal/get_time.h"
-#include "distance.h"
-#include "initialization.h"
-#include "naive.h"
-#include "kmeans_bench.h"
+#include "parlay/primitives.h" //for assorted parlay functions (histogram, tabulate, etc.)
+#include "parlay/internal/get_time.h" //for the timer
+#include "distance.h" //for distance object
+#include "initialization.h" //for Lazy initialization
+#include "naive.h" //for NaiveKmeans method (we use internally)
+#include "kmeans_bench.h" //for logger object
 
+//T: point data type, Point: Point object type, index_type: type of assignment value (for asg, e.g., size_t), CT: type of center data, CenterPoint: Center Point object
 template<typename T, typename Point, typename index_type, typename CT, typename CenterPoint>
 struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
 
@@ -63,7 +64,7 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
     kmeans_bench logger = kmeans_bench(k,d,t,max_iter,epsilon,"Lazy currently", "YY's Internal Naive");
     logger.start_time();
 
-    NaiveKmeans<CT,Euclidian_Point<CT>,size_t,CT,Euclidian_Point<CT>> run;
+    NaiveKmeans<CT,Euclidian_Point<CT>,index_type,CT,Euclidian_Point<CT>> run;
     run.cluster_middle(c,k,d,ad,t,
     group_centers, group_asg,D,logger, max_iter,epsilon,true);
 
@@ -100,8 +101,7 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
         if (groups[j].center_ids[elt] >= k || groups[j].center_ids[elt] < 0) {
           std::cout << "invalid center in group asg, error ";
           abort();
-        }
-        
+        }        
       }
       total_centers_accounted += groups[j].center_ids.size();
     }
@@ -127,15 +127,15 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
       abort();
     }
   }
+  //ptr dist is distance between two pointers
+  float ptr_dist(CT* a, CT* b, size_t d, Distance& D) { return std::sqrt(D.distance(a,b,d)); }
 
-  float sqrt_dist(CT* a, CT* b, size_t d, Distance& D) { return std::sqrt(D.distance(a,b,d)); }
-
-  //find distance between point and center
-  float dist(point& p, size_t d, center& cen, Distance& D) {
+  //find distance between point (p) and center
+  float pc_dist_squared(point& p, size_t d, center& cen, Distance& D) {
     CT buf[2048];
     T* it = p.coordinates.begin();
     for (size_t j = 0; j < d; j++) buf[j]= *(it++);
-    return std::sqrt(D.distance(buf,cen.begin(),d));
+    return D.distance(buf,cen.begin(),d);
   }
 
   //run yy
@@ -167,7 +167,15 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
     parlay::sequence<group> groups = parlay::tabulate<group>(t,[&] (size_t i) {
       return group(i);
     });
-    init_groups(d,ad,k,c,centers,groups,t,D);
+    //init_groups(d,ad,k,c,centers,groups,t,D);
+    //alternate group formation:TODO revert
+    parlay::parallel_for(0,k,[&] (size_t i) {
+      centers[i].group_id = i%t;
+    });
+    for (size_t i = 0; i < k; i++) { //sequential assigning the groups their centers, TODO do in parallel?
+      groups[centers[i].group_id].center_ids.push_back(i);
+    }
+
     assert_proper_group_size(k,centers,groups,t,false); //confirm groups all nonempty
 
     parlay::sequence<point> pts = parlay::tabulate<point>(n, [&] (size_t i) {
@@ -178,9 +186,12 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
 
     //Init the point bounds
     parlay::parallel_for(0,n,[&] (size_t i) {
+      CT buf[2048];
+      T* it = pts[i].coordinates.begin();
+      for (size_t j = 0; j < d; j++) buf[j]= *(it++);
       //first, we find the closest center to each point
       auto distances = parlay::delayed::map(centers, [&](center& q) {
-          return dist(pts[i],d,q,D);
+        return D.distance(buf,q.begin(),d);
       });
 
       pts[i].best = min_element(distances) - distances.begin();
@@ -247,7 +258,7 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
 
       //std::cout << "before drift "<< std::endl;
       parlay::parallel_for (0,k,[&] (size_t i) { 
-        centers[i].delta = sqrt_dist(centers[i].begin(), new_centers+i*ad,d,D);
+        centers[i].delta = ptr_dist(centers[i].begin(), new_centers+i*ad,d,D);
       });
 
       //max_diff is the largest center movement
@@ -271,9 +282,9 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
 
       });
      
-      //TODO how expensive is this calculation? (will it affect logging?)
+      //TODO how expensive is this calculation? (will it affect logging time?)
       float msse = parlay::reduce(parlay::delayed_tabulate(n,[&] (size_t i) {
-        return dist(pts[i],d,centers[pts[i].best],D);
+        return pc_dist_squared(pts[i],d,centers[pts[i].best],D);
       }))/n; 
 
 
@@ -308,186 +319,96 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
         centers[i].old_num_members=centers[i].new_num_members;
       });
 
-      //3.2: Group filtering (<assign> step)    //continue here TODO FIXME 
+      //3.2: Group filtering (<assign> step) 
       parlay::parallel_for(0,n,[&](size_t i) {
+        point& p = pts[i]; //for ease of notation
 
         //update bounds and old_best
-        pts[i].ub += centers[pts[i].best].delta; 
-        pts[i].old_best = pts[i].best; 
+        p.ub += centers[p.best].delta; 
+        p.old_best = p.best; 
 
-        pts[i].global_lb = std::numeric_limits<float>::max();
+        p.global_lb = std::numeric_limits<float>::max();
         for (size_t j = 0; j < t; j++) {
-
           lbs[i][j] = std::max(static_cast<float>(0), lbs[i][j]-groups[j].max_drift);
           //reduce the global lower bound if possible
-          //TODO which is better, if check or a min (given that the if check may prevent a write, which is good) (given that the min is more concise which looks nice)
-          if (pts[i].global_lb > lbs[i][j]) {
-            pts[i].global_lb=lbs[i][j];
-          }
-          //p.global_lb = std::min(p.global_lb,p.lb[j]);
-      
+          if (p.global_lb > lbs[i][j]) p.global_lb=lbs[i][j];
+          
         }
 
         //nothing happens if our closest center can't change
-        if (pts[i].global_lb >= pts[i].ub) {
-        // std::cout << "pt " << i << "no move before tighten " << pts[i].global_lb << " >= " << pts[i].ub << std::endl;
-          //return;
-          continue; //change 
-        }
+        if (p.global_lb >= p.ub) return;
 
-        //copy point to float buffer
+        //even though we have a dist wrapper, we copy the point to a buffer here, so that we only have to copy the point to a buffer once, instead of the k times needed if we called dist k times
         CT buf[2048];
-        T* it = pts[i].coordinates.begin();
-        for (size_t coord = 0; coord < d; coord++) buf[coord]=* (it++);
-        
+        T* it = p.coordinates.begin();
+        for (size_t j = 0; j < d; j++) buf[j]= *(it++);
         //tighten the upper bound
-        pts[i].ub = sqrt_dist(buf,
-        parlay::make_slice(centers[pts[i].best].coordinates).begin(),
-        d,D);
+        p.ub = ptr_dist(buf,centers[p.best].begin(),d,D);
         distance_calculations[i] += 1;
 
         //again, nothing happens if our closest center can't change
-        if (pts[i].global_lb >= pts[i].ub) {
-        // std::cout << "pt " << i << "no move after tighten" << std::endl;
-
-          //return; //FIXME TODO uncomment
-          continue;
-        }
-
+        if (p.global_lb >= p.ub) return;
+        
         //for each group
         for (size_t j = 0; j < t; j++) {
           //if group j is too far away we don't look at it
-          if (pts[i].ub <= lbs[i][j]) {
-           // std::cout << "pt " << i << "skips group " << j << std::endl;
-            continue;
-          }
+          if (p.ub <= lbs[i][j]) continue;
                    
           //reset the lower bound, make it smallest distance we calculate that's not the closest distance away
-          lbs[i][j] = std::numeric_limits<float>::max(); 
+          float new_lb = std::numeric_limits<float>::max(); 
             
           //for each group member (center)
           for (size_t l = 0; l < groups[j].center_ids.size(); l++) {
+              //c_id is the id of our candidate center, creating variable for ease of reading
+              size_t c_id = groups[j].center_ids[l];
 
               //don't do a distance comparison with the previous best
-              if (pts[i].old_best == groups[j].center_ids[l]) {
-                continue;
-              }
+              if (p.old_best == c_id) continue;
 
-              //find distance to center l in group j
-              float new_d = sqrt_dist(
-              buf,
-              parlay::make_slice(
-                centers[groups[j].center_ids[l]].coordinates).begin(),
-              d,D);
+              float new_d = ptr_dist(buf,centers[c_id].begin(),d,D);  //find distance to center l in group j
+              distance_calculations[i]++; //increment distance calc counter for this pt
 
-              //increment distance calc counter for this pt
-              distance_calculations[i]++; 
-
-              //note that the ub is tight rn,
-              //that ub IS the distance to the previously 
-              //closest center
-              //So if our new dist is less than ub, we have
-              //a new closest point
-              if (pts[i].ub > new_d) {
-                //the group with the previous center gets a slightly
-                //lower bound, because the distance to the old center can 
-                //become a lower bound
-                //minus needed because of the center change from this iter
-                //TODO is this a correct adjustment of the lower bound?? consider again
-                lbs[i][centers[pts[i].best].group_id]=
-                std::max(pts[i].ub-centers[pts[i].best].delta, std::min(pts[i].ub,
-                lbs[i][centers[pts[i].best].group_id] - centers[pts[i].best].delta));
+              //note that the ub is tight rn, that ub IS the distance to the previously closest center
+              //So if our new dist is less than ub, we have a new closest point
+              if (p.ub > new_d) {
+             
+                //update the lower bound of the group with the previous best center TODO correctness?
+                if (lbs[i][centers[p.best].group_id] > p.ub) lbs[i][centers[p.best].group_id]=p.ub;
                 
-                pts[i].best=groups[j].center_ids[l];
-                //new ub is tight
-                pts[i].ub = new_d;
+                p.best=c_id;
+                pts[i].ub = new_d; //new ub is tight
 
-                //log center reassign
-                //TODO read before write (reading cheaper)
-                center_reassignments[i] = 1;
-                //mark centers have changed. yes this is a race, but because we are setting false to true this is fine
-                centers[pts[i].best].has_changed = true;
-                centers[pts[i].old_best].has_changed=true;
-                  
+                //mark centers have changed. yes this is a race, but because we are setting false to true and 0 to 1 this is fine
+                if (center_reassignments[i] != 1) center_reassignments[i] = 1;
+                if (!centers[p.best].has_changed) centers[p.best].has_changed = true;
+                if (!centers[p.old_best].has_changed) centers[p.old_best].has_changed=true;
               }
               else {
                 //if this center is not the closest, use it to improve the lower bound
-                if (lbs[i][j] > new_d) {
-                  lbs[i][j]=new_d;
+                if (new_lb > new_d) {
+                  new_lb=new_d;
                 }
               
               }
-          }  
+            }
+            lbs[i][j] = new_lb; //update the lb using all of the group data  
         }
-
-      
       }); //gran 1? I think helps. TODO
-            std::cout << "post asg "<< std::endl;
-             std::cout << "printing state" << std::endl;
-   for (size_t i = 0; i < n; i++) {
-    std::cout << i << " " << pts[i].best << std::endl;
-   }
-   for (size_t i = 0; i < k; i++) {
-   std::cout << "cen " << i << ": ";
-   
-    for (size_t j = 0; j < d; j++) {
-      std::cout << centers[i].coordinates[j] << " ";
-
-
-    }
-    std::cout << std::endl;
-   }
-   std::cout << "pts size is " << pts.size() << std::endl;
-   std::cout << "finished cen print " << std::endl;
-   auto my_map9 = parlay::map(pts,[&] (const point& p) {
-      return p.best;
-    });
-    std::cout << "past map " << std::endl;
-    for (auto i : my_map9) {
-      std::cout << i << " ";
-    }
-    std::cout << "finished map " << std::endl;
-    std::cout << std::endl;
- auto center_member_dist9 = parlay::histogram_by_key(my_map9);
-    std::cout << "survived 9 " << std::endl;
-      assignment_time = tim.next_time();
-           // std::cout << "about to create "<< std::endl;
-
-      //       std::cout << "printing best"<<std::endl;
-      //       // for (size_t i = 0; i < pts.size(); i++) {
-      //       //   std::cout << i << " " << pts[i].best << std::endl;
-      //       // }
-
-      //       parlay::parallel_for(0,n,[&] (size_t i) {
-      //   asg[i]=pts[i].best;
-      // });
-
-    //  std::cout << "transferred to asg" << std::endl;
-     // auto rangn = parlay::delayed_tabulate(n,[&] (size_t i) { return i;});
-      // auto new_center_member_dist = parlay::histogram_by_key(parlay::map(rangn,[&] (size_t i) {return asg[i];}));
-
+            
       //record num_new_members for each center
       auto new_center_member_dist = parlay::histogram_by_key(parlay::map(pts,[&] (point& p) {
         return p.best;
       }));
       
-
-             //     std::cout << "post create "<< std::endl;
-
       parlay::parallel_for(0,new_center_member_dist.size(),[&] (size_t i) {
         centers[new_center_member_dist[i].first].new_num_members = new_center_member_dist[i].second;
 
       });
    
-      
       setup_time = tim.next_time();
-                  std::cout << "finished round"<< std::endl;
-
-
     }
    
-    //copy back over coordinates
-    //put our data back 
+    //copy back data
     parlay::parallel_for(0,k,[&] (size_t i) {
       for (size_t j = 0; j < d; j++) {
         c[i*ad + j] = centers[i].coordinates[j];
@@ -497,16 +418,8 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
         asg[i] = pts[i].best;
     });
 
-    std::cout << "left1 " << std::endl;
-
-
-
-   // delete[] new_centers; //TODO need to delete
-
-    std::cout << "left2 " << std::endl;
-
+    delete[] new_centers; 
   }
-
 };
 
 #endif //YYIMP

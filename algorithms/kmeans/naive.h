@@ -67,7 +67,7 @@ CT* c, size_t* asg, Distance& D, kmeans_bench& logger, size_t max_iter, double e
     this->compute_centers(v,n,d,ad,k,c,new_centers,asg); // Compute new centers
 
     parlay::sequence<float> deltas = parlay::tabulate(k, [&] (size_t i) {
-      return D.distance(new_centers+i*ad, c + i*ad,d);
+      return std::sqrt(D.distance(new_centers+i*ad, c + i*ad,d));
     }); //store how much each center moved
 
     max_diff = *parlay::max_element(deltas); //get the max movement of any center
