@@ -6,7 +6,7 @@ cc_binary(
   srcs=["kmeans.cpp"],
   linkopts=["-pthread"],
   #makes it known that include is an include library
-  copts = ["-Iinclude"],
+  copts = ["-Iinclude"], #TODO add -03
   deps = [
     ":kmeans_headers",
     "//algorithms/utils:point_range"
@@ -29,17 +29,106 @@ cc_binary(
   ],
  
 )
+cc_library(
+  name="init",
+  hdrs=["initialization.h"],
+  linkopts=["-pthread"],
+  copts=["-Iinclude"],
+  deps = [
+  "@parlaylib//parlay:parallel",
+  "@parlaylib//parlay:primitives",
+  "@parlaylib//parlay:sequence",
+  "@parlaylib//parlay:slice",
+  "@parlaylib//parlay:io",]
+)
+cc_library(
+  name="distance",
+  hdrs=["distance.h"],
+  linkopts=["-pthread"],
+  copts=["-Iinclude"],
+  deps = [
+  "@parlaylib//parlay:parallel",
+  "@parlaylib//parlay:primitives",
+  "@parlaylib//parlay:sequence",
+  "@parlaylib//parlay:slice",
+  "@parlaylib//parlay:io",
+  "//algorithms/utils:NSGDist",
+  "//algorithms/bench:parse_command_line",],
 
+)
+cc_library(
+  name="kmeans_bench",
+  hdrs=["kmeans_bench.h"],
+  linkopts=["-pthread"],
+  copts=["-Iinclude"],
+  deps = [
+  "@parlaylib//parlay:parallel",
+  "@parlaylib//parlay:primitives",
+  "@parlaylib//parlay:sequence",
+  "@parlaylib//parlay:slice",
+  "@parlaylib//parlay:io",
+  "//algorithms/utils:NSGDist",
+  "//algorithms/bench:parse_command_line",
+  ],
+)
+cc_library(
+  name="kmeans_interface",
+  hdrs=["kmeans.h"],
+  linkopts=["-pthread"],
+  copts=["-Iinclude"],
+  deps = [
+  "@parlaylib//parlay:parallel",
+  "@parlaylib//parlay:primitives",
+  "@parlaylib//parlay:sequence",
+  "@parlaylib//parlay:slice",
+  "@parlaylib//parlay:io",
+  ":kmeans_bench",
+  ":distance",
+  ":init",
+  ],
+)
+cc_library(
+  name="naive",
+  hdrs=["naive.h",],
+  linkopts=["-pthread"],
+  copts=["-Iinclude"],
+  deps = [
+  "@parlaylib//parlay:parallel",
+  "@parlaylib//parlay:primitives",
+  "@parlaylib//parlay:sequence",
+  "@parlaylib//parlay:slice",
+  "@parlaylib//parlay:io",
+  ":kmeans_bench",
+  ":distance",
+  ":init",
+  ":kmeans_interface",
+  ],
+
+)
+cc_library(
+  name="yy",
+  hdrs=["yy.h",],
+  linkopts=["-pthread"],
+  copts=["-Iinclude"],
+  deps = [
+  "@parlaylib//parlay:parallel",
+  "@parlaylib//parlay:primitives",
+  "@parlaylib//parlay:sequence",
+  "@parlaylib//parlay:slice",
+  "@parlaylib//parlay:io",
+  ":kmeans_bench",
+  ":distance",
+  ":init",
+  ":kmeans_interface",
+  ":naive",
+  "//algorithms/bench:parse_command_line",
+  ],
+
+)
 cc_library(
   name="kmeans_headers",
-  hdrs=["parse_files.h",
-"initialization.h",
-"naive.h",
-"kmeans_bench.h",
-"distance.h",
-"kmeans.h",
-"yy.h",
-],
+  hdrs=["parse_files.h",],
+  
 
 linkopts=["-pthread"],
 #makes it known that include is an include library
@@ -52,6 +141,7 @@ deps = [
   "@parlaylib//parlay:io",
   "//algorithms/utils:NSGDist",
   "//algorithms/bench:parse_command_line",
+  ":yy",
 ],
 
 )

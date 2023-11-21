@@ -1,7 +1,6 @@
 #ifndef KMEANS_H
 #define KMEANS_H
 
-#include "naive.h"
 #include "parse_files.h"
 #include "distance.h"
 #include "kmeans_bench.h"

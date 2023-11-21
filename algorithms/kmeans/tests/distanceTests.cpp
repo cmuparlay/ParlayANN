@@ -91,3 +91,42 @@ TEST(EuclideanDistance,Size10PrintoutsInt) {
   }
 
 }
+
+void nested_Dcall(Distance& D, std::string id, int num) {
+  if (num == 0) {
+    EXPECT_EQ(id,D.id());
+
+  }
+  else {
+    nested_Dcall(D,id,num-1);
+  }
+}
+void nested_Dcall2(Distance& D, std::string id, int num) {
+  if (num==0) {
+    EXPECT_EQ(id,D.id());
+  }
+  else {
+    nested_Dcall2(D,id,num-1);
+    nested_Dcall2(D,id,num-1);
+
+  }
+}
+//make sure the Distance object can be passed by reference
+TEST(EuclideanDistance,NestedCalls) {
+  std::vector<Distance*> distance_list = {new EuclideanDistanceSmall(), new EuclideanDistanceFast()};
+  for (Distance* D : distance_list) {
+    nested_Dcall(*D,D->id(),200);
+    nested_Dcall(*D,D->id(),50);
+    nested_Dcall2(*D,D->id(),10);
+
+  }
+
+  for (Distance* D : distance_list) {
+    delete D;
+
+
+  }
+
+    
+  
+}

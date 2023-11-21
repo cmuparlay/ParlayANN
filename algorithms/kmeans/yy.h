@@ -167,22 +167,19 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
     parlay::sequence<group> groups = parlay::tabulate<group>(t,[&] (size_t i) {
       return group(i);
     });
-    //init_groups(d,ad,k,c,centers,groups,t,D);
-    //alternate group formation:TODO revert
-    parlay::parallel_for(0,k,[&] (size_t i) {
-      centers[i].group_id = i%t;
-    });
-    for (size_t i = 0; i < k; i++) { //sequential assigning the groups their centers, TODO do in parallel?
-      groups[centers[i].group_id].center_ids.push_back(i);
-    }
-
+    init_groups(d,ad,k,c,centers,groups,t,D);
+   
     assert_proper_group_size(k,centers,groups,t,false); //confirm groups all nonempty
 
     parlay::sequence<point> pts = parlay::tabulate<point>(n, [&] (size_t i) {
       return point(i,asg[i],parlay::slice(v+i*ad, v+i*ad + d));
     });
 
-    parlay::sequence<parlay::sequence<float>> lbs(n,parlay::sequence<float>(t,std::numeric_limits<float>::max()));
+   
+    //TODO will floats overflow (if accidental add to numeric_limits max)?
+    auto lbs = parlay::tabulate(n,[&] (size_t i) {
+      return parlay::sequence<float>(t,std::numeric_limits<float>::max());
+    });
 
     //Init the point bounds
     parlay::parallel_for(0,n,[&] (size_t i) {
@@ -256,7 +253,6 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
       });
       this->compute_centers(v,n,d,ad,k,c,new_centers,asg);
 
-      //std::cout << "before drift "<< std::endl;
       parlay::parallel_for (0,k,[&] (size_t i) { 
         centers[i].delta = ptr_dist(centers[i].begin(), new_centers+i*ad,d,D);
       });
@@ -283,13 +279,15 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
       });
      
       //TODO how expensive is this calculation? (will it affect logging time?)
-      float msse = parlay::reduce(parlay::delayed_tabulate(n,[&] (size_t i) {
+      //TODO delayed_tab vs tab
+      float msse = parlay::reduce(parlay::tabulate(n,[&] (size_t i) {
         return pc_dist_squared(pts[i],d,centers[pts[i].best],D);
       }))/n; 
+     
 
 
       update_time = tim.next_time();
-
+ 
       //end of iteration stat updating
       if (!suppress_logging) {
          logger.add_iteration(assignment_time,update_time,msse,parlay::reduce(distance_calculations),
@@ -297,17 +295,20 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
         return cen.delta;
       }),setup_time);
       }
-
+      
       assignment_time=update_time=setup_time=0;
 
       //convergence check
       if (iters >= max_iter || max_diff <= epsilon) break;
+     
 
       iters += 1; //start a new iteration
-      parlay::parallel_for(0,n,[&] (size_t i) {
-        distance_calculations[i]=0;
-        center_reassignments[i]=0;
-      });
+     
+      for (size_t i = 0; i < distance_calculations.size(); i++) distance_calculations[i]=0;
+
+    
+      for (size_t i = 0; i < center_reassignments.size(); i++)  center_reassignments[i]=0;
+
      
       if (!suppress_logging) {
         std::cout << "iter: " << iters << std::endl;
@@ -319,9 +320,11 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
         centers[i].old_num_members=centers[i].new_num_members;
       });
 
+     
+
       //3.2: Group filtering (<assign> step) 
       parlay::parallel_for(0,n,[&](size_t i) {
-        point& p = pts[i]; //for ease of notation
+        point& p = pts[i]; //for ease of notation //TODO CHANGEBACK
 
         //update bounds and old_best
         p.ub += centers[p.best].delta; 
@@ -329,6 +332,7 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
 
         p.global_lb = std::numeric_limits<float>::max();
         for (size_t j = 0; j < t; j++) {
+          //subtracting negative #?
           lbs[i][j] = std::max(static_cast<float>(0), lbs[i][j]-groups[j].max_drift);
           //reduce the global lower bound if possible
           if (p.global_lb > lbs[i][j]) p.global_lb=lbs[i][j];
@@ -342,7 +346,8 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
         CT buf[2048];
         T* it = p.coordinates.begin();
         for (size_t j = 0; j < d; j++) buf[j]= *(it++);
-        //tighten the upper bound
+       
+       
         p.ub = ptr_dist(buf,centers[p.best].begin(),d,D);
         distance_calculations[i] += 1;
 
@@ -376,10 +381,11 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
                 if (lbs[i][centers[p.best].group_id] > p.ub) lbs[i][centers[p.best].group_id]=p.ub;
                 
                 p.best=c_id;
-                pts[i].ub = new_d; //new ub is tight
+                p.ub = new_d; //new ub is tight
 
                 //mark centers have changed. yes this is a race, but because we are setting false to true and 0 to 1 this is fine
-                if (center_reassignments[i] != 1) center_reassignments[i] = 1;
+                if (center_reassignments[p.best] != 1) center_reassignments[p.best] = 1; //TODO uncomment
+                if (center_reassignments[p.old_best] != 1) center_reassignments[p.old_best] = 1; 
                 if (!centers[p.best].has_changed) centers[p.best].has_changed = true;
                 if (!centers[p.old_best].has_changed) centers[p.old_best].has_changed=true;
               }
@@ -403,6 +409,7 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
       parlay::parallel_for(0,new_center_member_dist.size(),[&] (size_t i) {
         centers[new_center_member_dist[i].first].new_num_members = new_center_member_dist[i].second;
 
+
       });
    
       setup_time = tim.next_time();
@@ -418,7 +425,10 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
         asg[i] = pts[i].best;
     });
 
+
     delete[] new_centers; 
+
+
   }
 };
 

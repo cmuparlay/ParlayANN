@@ -20,6 +20,7 @@ class Distance{
     virtual float distance(uint8_t *p, uint8_t *q, unsigned d){return 0;}
     virtual float distance(int8_t *p, int8_t *q, unsigned d){return 0;}
     virtual float distance(float *p, float *q, unsigned d){return 0;}
+    virtual ~Distance() {}
 };
 
 
