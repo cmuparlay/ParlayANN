@@ -167,7 +167,16 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
     parlay::sequence<group> groups = parlay::tabulate<group>(t,[&] (size_t i) {
       return group(i);
     });
-    init_groups(d,ad,k,c,centers,groups,t,D);
+
+    //init_groups(d,ad,k,c,centers,groups,t,D);
+    //TODO use better grouping (the below grouping ensures all groups nonempty at least)
+    parlay::parallel_for(0,k,[&] (size_t i) {
+      centers[i].group_id=i%t;
+    });
+    for (size_t i = 0; i < k; i++) {
+      groups[centers[i].group_id].center_ids.push_back(i);
+    }
+
    
     assert_proper_group_size(k,centers,groups,t,false); //confirm groups all nonempty
 
@@ -340,7 +349,7 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
         }
 
         //nothing happens if our closest center can't change
-        if (p.global_lb >= p.ub) return;
+        //if (p.global_lb >= p.ub) return; //TODO uncomment
 
         //even though we have a dist wrapper, we copy the point to a buffer here, so that we only have to copy the point to a buffer once, instead of the k times needed if we called dist k times
         CT buf[2048];
@@ -352,12 +361,12 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
         distance_calculations[i] += 1;
 
         //again, nothing happens if our closest center can't change
-        if (p.global_lb >= p.ub) return;
+        //if (p.global_lb >= p.ub) return; //TODO uncomment
         
         //for each group
         for (size_t j = 0; j < t; j++) {
           //if group j is too far away we don't look at it
-          if (p.ub <= lbs[i][j]) continue;
+          //if (p.ub <= lbs[i][j]) continue; //TODO uncomment
                    
           //reset the lower bound, make it smallest distance we calculate that's not the closest distance away
           float new_lb = std::numeric_limits<float>::max(); 
@@ -378,7 +387,9 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
               if (p.ub > new_d) {
              
                 //update the lower bound of the group with the previous best center TODO correctness?
-                if (lbs[i][centers[p.best].group_id] > p.ub) lbs[i][centers[p.best].group_id]=p.ub;
+               // if (lbs[i][centers[p.best].group_id] > p.ub) lbs[i][centers[p.best].group_id]=p.ub;
+                lbs[i][centers[p.best].group_id]=std::max(pts[i].ub-centers[pts[i].best].delta, std::min(pts[i].ub,
+                lbs[i][centers[pts[i].best].group_id] - centers[pts[i].best].delta));
                 
                 p.best=c_id;
                 p.ub = new_d; //new ub is tight

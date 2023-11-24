@@ -27,6 +27,7 @@
 #include "initialization.h"
 #include "naive.h"
 #include "kmeans.h"
+#include "yy.h"
 
 #include "../utils/point_range.h"
 #include "../utils/euclidian_point.h"
@@ -34,8 +35,7 @@
 #include <gtest/gtest.h>
 #include "kmeansTests.h"
 
-
-//Test fixture for NaiveKmeans Testing
+//Test fixture for Yinyang Testing
 //Open the datafile (so that we don't open it each test)
 class NaiveData1 : public ::testing::Test {
   protected:
@@ -88,7 +88,7 @@ class NaiveData1 : public ::testing::Test {
     init(v,n,base_d,ad,k,c,asg);
 
    
-    NaiveKmeans<float,Euclidian_Point<float>,size_t,float,Euclidian_Point<float>> nie2;
+    Yinyang<float,Euclidian_Point<float>,size_t,float,Euclidian_Point<float>> nie2;
     kmeans_bench logger_nie2 = kmeans_bench(n,base_d,k,max_iter,
     epsilon,"Lazy","Naive");
     logger_nie2.start_time();
@@ -109,21 +109,21 @@ class NaiveData1 : public ::testing::Test {
 
   //run to converge and check values for several instances of n,d,k
   void naiveTestSeveral() {
-    kmeansConvergenceTest<float,float,size_t,NaiveKmeans<float,Euclidian_Point<float>,size_t,float,Euclidian_Point<float>>>(v,1000,128,base_d,10,*D);
+    kmeansConvergenceTest<float,float,size_t,Yinyang<float,Euclidian_Point<float>,size_t,float,Euclidian_Point<float>>>(v,1000,128,base_d,10,*D);
 
-    kmeansConvergenceTest<float,float,size_t,NaiveKmeans<float,Euclidian_Point<float>,size_t,float,Euclidian_Point<float>>>(v,5000,100,base_d,3,*D);
+    kmeansConvergenceTest<float,float,size_t,Yinyang<float,Euclidian_Point<float>,size_t,float,Euclidian_Point<float>>>(v,5000,100,base_d,3,*D);
 
-    kmeansConvergenceTest<float,float,size_t,NaiveKmeans<float,Euclidian_Point<float>,size_t,float,Euclidian_Point<float>>>(v,2001,50,base_d,13,*D);
+    kmeansConvergenceTest<float,float,size_t,Yinyang<float,Euclidian_Point<float>,size_t,float,Euclidian_Point<float>>>(v,2001,50,base_d,13,*D);
 
-    kmeansConvergenceTest<float,float,size_t,NaiveKmeans<float,Euclidian_Point<float>,size_t,float,Euclidian_Point<float>>>(v,2001,50,base_d,1,*D);
+    kmeansConvergenceTest<float,float,size_t,Yinyang<float,Euclidian_Point<float>,size_t,float,Euclidian_Point<float>>>(v,2001,50,base_d,1,*D);
 
-    kmeansConvergenceTest<float,float,size_t,NaiveKmeans<float,Euclidian_Point<float>,size_t,float,Euclidian_Point<float>>>(v,2000,1,base_d,13,*D);
+    kmeansConvergenceTest<float,float,size_t,Yinyang<float,Euclidian_Point<float>,size_t,float,Euclidian_Point<float>>>(v,2000,1,base_d,13,*D);
     
     
   }
 
   void naiveTestLong() {
-    kmeansConvergenceTest<float,float,size_t,NaiveKmeans<float,Euclidian_Point<float>,size_t,float,Euclidian_Point<float>>>(v,100000,2,base_d,10,*D);
+    kmeansConvergenceTest<float,float,size_t,Yinyang<float,Euclidian_Point<float>,size_t,float,Euclidian_Point<float>>>(v,100000,2,base_d,10,*D);
 
   }
  
@@ -137,7 +137,7 @@ Distance* NaiveData1::D = nullptr;
 
 
 
-//Test fixture for NaiveKmeans Testing
+//Test fixture for Yinyang Testing
 //Open the datafile (so that we don't open it each test)
 //NaiveData2 looks at a different data file
 class NaiveData2 : public ::testing::Test {
@@ -184,18 +184,43 @@ Distance* NaiveData2::D = nullptr;
 
 
 
-TEST_F(NaiveData1,Test1) {
+TEST_F(NaiveData1,TestDim) {
   naiveTestDimension();
- // naiveTestOnce();
-  naiveTestSeveral();
 
 }
+TEST_F(NaiveData1,Test1) {
+   kmeansConvergenceTest<float,float,size_t,Yinyang<float,Euclidian_Point<float>,size_t,float,Euclidian_Point<float>>>(v,1000,128,base_d,10,*D);
+
+
+}
+TEST_F(NaiveData1,Test2) {
+
+    kmeansConvergenceTest<float,float,size_t,Yinyang<float,Euclidian_Point<float>,size_t,float,Euclidian_Point<float>>>(v,5000,100,base_d,3,*D);
+
+
+}
+TEST_F(NaiveData1,Test3) {
+   kmeansConvergenceTest<float,float,size_t,Yinyang<float,Euclidian_Point<float>,size_t,float,Euclidian_Point<float>>>(v,2001,50,base_d,13,*D);
+  
+}
+TEST_F(NaiveData1,Test4) {
+
+    kmeansConvergenceTest<float,float,size_t,Yinyang<float,Euclidian_Point<float>,size_t,float,Euclidian_Point<float>>>(v,2001,50,base_d,1,*D);
+
+  
+}
+TEST_F(NaiveData1,Test5) {
+      kmeansConvergenceTest<float,float,size_t,Yinyang<float,Euclidian_Point<float>,size_t,float,Euclidian_Point<float>>>(v,2000,1,base_d,13,*D);
+  
+}
+
+
 TEST_F(NaiveData1,TestNisK) {
-  double msse = kmeansConvergenceTest<float,float,size_t,NaiveKmeans<float,Euclidian_Point<float>,size_t,float,Euclidian_Point<float>>>(v,1000,base_d,base_d,1000,*D);
+  double msse = kmeansConvergenceTest<float,float,size_t,Yinyang<float,Euclidian_Point<float>,size_t,float,Euclidian_Point<float>>>(v,1000,base_d,base_d,1000,*D);
   EXPECT_EQ(msse,0);
 }
 
-TEST_F(NaiveData1,Test2) {
+TEST_F(NaiveData1,TestLong) {
   naiveTestLong();
 }
 
@@ -207,28 +232,28 @@ TEST_F(NaiveData2,TestDimension) {
 }
 
 TEST_F(NaiveData2,Test1) {
-  kmeansConvergenceTest<uint8_t,float,size_t,NaiveKmeans<uint8_t,Euclidian_Point<uint8_t>,size_t,float,Euclidian_Point<float>>>(v,10000,2,base_d,20,*D);
+  kmeansConvergenceTest<uint8_t,float,size_t,Yinyang<uint8_t,Euclidian_Point<uint8_t>,size_t,float,Euclidian_Point<float>>>(v,10000,2,base_d,20,*D);
 
 }
 TEST_F(NaiveData2,Test2) {
-  kmeansConvergenceTest<uint8_t,float,size_t,NaiveKmeans<uint8_t,Euclidian_Point<uint8_t>,size_t,float,Euclidian_Point<float>>>(v,500,10,base_d,5,*D);
+  kmeansConvergenceTest<uint8_t,float,size_t,Yinyang<uint8_t,Euclidian_Point<uint8_t>,size_t,float,Euclidian_Point<float>>>(v,500,10,base_d,5,*D);
   
 }
 TEST_F(NaiveData2,Test3) {
-  kmeansConvergenceTest<uint8_t,float,size_t,NaiveKmeans<uint8_t,Euclidian_Point<uint8_t>,size_t,float,Euclidian_Point<float>>>(v,1217,60,base_d,40,*D);
+  kmeansConvergenceTest<uint8_t,float,size_t,Yinyang<uint8_t,Euclidian_Point<uint8_t>,size_t,float,Euclidian_Point<float>>>(v,1217,60,base_d,40,*D);
   
 }
 TEST_F(NaiveData2,Test4) {
-  kmeansConvergenceTest<uint8_t,float,size_t,NaiveKmeans<uint8_t,Euclidian_Point<uint8_t>,size_t,float,Euclidian_Point<float>>>(v,1000,128,base_d,40,*D);
+  kmeansConvergenceTest<uint8_t,float,size_t,Yinyang<uint8_t,Euclidian_Point<uint8_t>,size_t,float,Euclidian_Point<float>>>(v,1000,128,base_d,40,*D);
 }
 TEST_F(NaiveData2,Testkis1) {
-  kmeansConvergenceTest<uint8_t,float,size_t,NaiveKmeans<uint8_t,Euclidian_Point<uint8_t>,size_t,float,Euclidian_Point<float>>>(v,1000,base_d,base_d,1,*D);
+  kmeansConvergenceTest<uint8_t,float,size_t,Yinyang<uint8_t,Euclidian_Point<uint8_t>,size_t,float,Euclidian_Point<float>>>(v,1000,base_d,base_d,1,*D);
 }
 TEST_F(NaiveData2,Testdis1) {
-  kmeansConvergenceTest<uint8_t,float,size_t,NaiveKmeans<uint8_t,Euclidian_Point<uint8_t>,size_t,float,Euclidian_Point<float>>>(v,1000,1,base_d,100,*D);
+  kmeansConvergenceTest<uint8_t,float,size_t,Yinyang<uint8_t,Euclidian_Point<uint8_t>,size_t,float,Euclidian_Point<float>>>(v,1000,1,base_d,100,*D);
 }
 TEST_F(NaiveData2,Test_n_is_k) {
-  double msse = kmeansConvergenceTest<uint8_t,float,size_t,NaiveKmeans<uint8_t,Euclidian_Point<uint8_t>,size_t,float,Euclidian_Point<float>>>(v,1000,base_d,base_d,1000,*D);
+  double msse = kmeansConvergenceTest<uint8_t,float,size_t,Yinyang<uint8_t,Euclidian_Point<uint8_t>,size_t,float,Euclidian_Point<float>>>(v,1000,base_d,base_d,1000,*D);
   EXPECT_EQ(msse,0);
 }
 
@@ -288,43 +313,43 @@ TEST_F(NaiveData3,TestDimension) {
 }
 
 TEST_F(NaiveData3,Test1) {
-  kmeansConvergenceTest<int8_t,float,size_t,NaiveKmeans<int8_t,Euclidian_Point<int8_t>,size_t,float,Euclidian_Point<float>>>(v,10000,5,base_d,20,*D);
+  kmeansConvergenceTest<int8_t,float,size_t,Yinyang<int8_t,Euclidian_Point<int8_t>,size_t,float,Euclidian_Point<float>>>(v,10000,5,base_d,20,*D);
 
 }
 TEST_F(NaiveData3,Test2) {
-  kmeansConvergenceTest<int8_t,float,size_t,NaiveKmeans<int8_t,Euclidian_Point<int8_t>,size_t,float,Euclidian_Point<float>>>(v,2000,base_d,base_d,500,*D);
+  kmeansConvergenceTest<int8_t,float,size_t,Yinyang<int8_t,Euclidian_Point<int8_t>,size_t,float,Euclidian_Point<float>>>(v,2000,base_d,base_d,500,*D);
   
 }
 TEST_F(NaiveData3,Test3) {
-  kmeansConvergenceTest<int8_t,float,size_t,NaiveKmeans<int8_t,Euclidian_Point<int8_t>,size_t,float,Euclidian_Point<float>>>(v,900,60,base_d,21,*D);
+  kmeansConvergenceTest<int8_t,float,size_t,Yinyang<int8_t,Euclidian_Point<int8_t>,size_t,float,Euclidian_Point<float>>>(v,900,60,base_d,21,*D);
   
 }
 TEST_F(NaiveData3,Test4) {
-  kmeansConvergenceTest<int8_t,float,size_t,NaiveKmeans<int8_t,Euclidian_Point<int8_t>,size_t,float,Euclidian_Point<float>>>(v,1000,base_d,base_d,10,*D);
+  kmeansConvergenceTest<int8_t,float,size_t,Yinyang<int8_t,Euclidian_Point<int8_t>,size_t,float,Euclidian_Point<float>>>(v,1000,base_d,base_d,10,*D);
   
 }
 
 TEST_F(NaiveData3,Test5) {
-  kmeansConvergenceTest<int8_t,float,size_t,NaiveKmeans<int8_t,Euclidian_Point<int8_t>,size_t,float,Euclidian_Point<float>>>(v,1000,99,base_d,10,*D);
+  kmeansConvergenceTest<int8_t,float,size_t,Yinyang<int8_t,Euclidian_Point<int8_t>,size_t,float,Euclidian_Point<float>>>(v,1000,99,base_d,10,*D);
   
 }
 TEST_F(NaiveData3,Testkis1) {
-  kmeansConvergenceTest<int8_t,float,size_t,NaiveKmeans<int8_t,Euclidian_Point<int8_t>,size_t,float,Euclidian_Point<float>>>(v,1000,base_d,base_d,1,*D);
+  kmeansConvergenceTest<int8_t,float,size_t,Yinyang<int8_t,Euclidian_Point<int8_t>,size_t,float,Euclidian_Point<float>>>(v,1000,base_d,base_d,1,*D);
   
 }
 
 TEST_F(NaiveData3,Testdis1) {
-  kmeansConvergenceTest<int8_t,float,size_t,NaiveKmeans<int8_t,Euclidian_Point<int8_t>,size_t,float,Euclidian_Point<float>>>(v,1000,1,base_d,10,*D);
+  kmeansConvergenceTest<int8_t,float,size_t,Yinyang<int8_t,Euclidian_Point<int8_t>,size_t,float,Euclidian_Point<float>>>(v,1000,1,base_d,10,*D);
   
 }
 
 TEST_F(NaiveData3,Test_n_is_k) {
-  double msse = kmeansConvergenceTest<int8_t,float,size_t,NaiveKmeans<int8_t,Euclidian_Point<int8_t>,size_t,float,Euclidian_Point<float>>>(v,1000,base_d,base_d,1000,*D);
+  double msse = kmeansConvergenceTest<int8_t,float,size_t,Yinyang<int8_t,Euclidian_Point<int8_t>,size_t,float,Euclidian_Point<float>>>(v,1000,base_d,base_d,1000,*D);
   EXPECT_EQ(msse,0);
 }
 //higher dimensions, so this test takes a bit longer (6s)
 TEST_F(NaiveData3,TestHigh_n) {
-  kmeansConvergenceTest<int8_t,float,size_t,NaiveKmeans<int8_t,Euclidian_Point<int8_t>,size_t,float,Euclidian_Point<float>>>(v,100000,base_d,base_d,1000,*D);
+  kmeansConvergenceTest<int8_t,float,size_t,Yinyang<int8_t,Euclidian_Point<int8_t>,size_t,float,Euclidian_Point<float>>>(v,100000,base_d,base_d,1000,*D);
   
 }
 

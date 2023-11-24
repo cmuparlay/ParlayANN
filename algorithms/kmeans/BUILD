@@ -2,16 +2,17 @@ licenses(["notice"])
 
 #run an instance of kmeans
 cc_binary(
-  name="kmeans_test_run",
+  name="kmeans_run",
   srcs=["kmeans.cpp"],
   linkopts=["-pthread"],
-  #makes it known that include is an include library
-  copts = ["-Iinclude"], #TODO add -03
+ #TODO add -03 to copts
   deps = [
     ":kmeans_headers",
-    "//algorithms/utils:point_range"
-    
-    
+    "//algorithms/utils:point_range",
+    "//algorithms/bench:parse_command_line",
+    ":naive",
+    ":yy",
+
   ],
  
 )
@@ -21,8 +22,7 @@ cc_binary(
   name="bench_run",
   srcs=["bench.cpp"],
   linkopts=["-pthread"],
-  #makes it known that include is an include library
-  copts = ["-Iinclude"],
+ 
   deps = [
     ":kmeans_headers",
     "//algorithms/utils:point_range"
@@ -33,49 +33,49 @@ cc_library(
   name="init",
   hdrs=["initialization.h"],
   linkopts=["-pthread"],
-  copts=["-Iinclude"],
   deps = [
   "@parlaylib//parlay:parallel",
-  "@parlaylib//parlay:primitives",
-  "@parlaylib//parlay:sequence",
-  "@parlaylib//parlay:slice",
-  "@parlaylib//parlay:io",]
+  "@parlaylib//parlay:primitives",],
 )
 cc_library(
   name="distance",
   hdrs=["distance.h"],
   linkopts=["-pthread"],
-  copts=["-Iinclude"],
   deps = [
   "@parlaylib//parlay:parallel",
   "@parlaylib//parlay:primitives",
-  "@parlaylib//parlay:sequence",
-  "@parlaylib//parlay:slice",
-  "@parlaylib//parlay:io",
-  "//algorithms/utils:NSGDist",
-  "//algorithms/bench:parse_command_line",],
+ 
+  "//algorithms/utils:NSGDist",],
 
 )
 cc_library(
   name="kmeans_bench",
   hdrs=["kmeans_bench.h"],
   linkopts=["-pthread"],
-  copts=["-Iinclude"],
   deps = [
   "@parlaylib//parlay:parallel",
   "@parlaylib//parlay:primitives",
   "@parlaylib//parlay:sequence",
-  "@parlaylib//parlay:slice",
-  "@parlaylib//parlay:io",
-  "//algorithms/utils:NSGDist",
-  "//algorithms/bench:parse_command_line",
+  "@parlaylib//parlay:random",
   ],
 )
+cc_library(
+  name="parse_files",
+  hdrs=["parse_files.h",],
+  linkopts=["-pthread"],
+  deps=[ "@parlaylib//parlay:parallel",
+  "@parlaylib//parlay:primitives",
+  "@parlaylib//parlay:sequence",
+  "@parlaylib//parlay:slice",
+  "//algorithms/utils:point_range", #include mmap
+  ],
+
+)
+
 cc_library(
   name="kmeans_interface",
   hdrs=["kmeans.h"],
   linkopts=["-pthread"],
-  copts=["-Iinclude"],
   deps = [
   "@parlaylib//parlay:parallel",
   "@parlaylib//parlay:primitives",
@@ -85,13 +85,14 @@ cc_library(
   ":kmeans_bench",
   ":distance",
   ":init",
+  ":parse_files",
+  "//algorithms/utils:point_range",
   ],
 )
 cc_library(
   name="naive",
   hdrs=["naive.h",],
   linkopts=["-pthread"],
-  copts=["-Iinclude"],
   deps = [
   "@parlaylib//parlay:parallel",
   "@parlaylib//parlay:primitives",
@@ -102,6 +103,7 @@ cc_library(
   ":distance",
   ":init",
   ":kmeans_interface",
+  "//algorithms/utils:point_range",
   ],
 
 )
@@ -109,7 +111,6 @@ cc_library(
   name="yy",
   hdrs=["yy.h",],
   linkopts=["-pthread"],
-  copts=["-Iinclude"],
   deps = [
   "@parlaylib//parlay:parallel",
   "@parlaylib//parlay:primitives",
@@ -121,28 +122,25 @@ cc_library(
   ":init",
   ":kmeans_interface",
   ":naive",
-  "//algorithms/bench:parse_command_line",
+  "//algorithms/utils:point_range",
+
   ],
 
 )
 cc_library(
   name="kmeans_headers",
-  hdrs=["parse_files.h",],
+  hdrs=[],
   
 
 linkopts=["-pthread"],
 #makes it known that include is an include library
-copts = ["-Iinclude"],
-deps = [
-  "@parlaylib//parlay:parallel",
-  "@parlaylib//parlay:primitives",
-  "@parlaylib//parlay:sequence",
-  "@parlaylib//parlay:slice",
-  "@parlaylib//parlay:io",
-  "//algorithms/utils:NSGDist",
-  "//algorithms/bench:parse_command_line",
+deps=[
+  ":kmeans_interface",
+  ":naive",
   ":yy",
-],
+
+  ],
+  
 
 )
 
@@ -151,7 +149,6 @@ cc_binary(
   srcs=["test.cpp"],
   linkopts=["-pthread"],
   #makes it known that include is an include library
-  copts = ["-Iinclude"],
   deps = [
     ":kmeans_headers",
     "//algorithms/utils:point_range",
@@ -168,7 +165,6 @@ cc_test(
   deps=["@googletest//:gtest_main",
     "kmeans_headers"],
   linkopts=["-pthread"],
-  copts = ["-Iinclude"],
 )
 
 #testing/exploring Google test
@@ -179,10 +175,18 @@ cc_test(
   deps=["@googletest//:gtest_main",
     "kmeans_headers"],
   linkopts=["-pthread"],
-  copts = ["-Iinclude"],
 
 )
 
+cc_library (
+  name="kmeans_test_headers",
+  hdrs=["tests/kmeansTests.h"],
+  linkopts=["-pthread"],
+  deps=["@googletest//:gtest_main",
+  "kmeans_headers",
+  "//algorithms/utils:point_range",],
+  
+)
 #testing naive
 cc_test(
   name="naive_gtest",
@@ -190,7 +194,22 @@ cc_test(
   srcs=["tests/naiveTests.cpp"],
   deps=["@googletest//:gtest_main",
     "kmeans_headers",
-    "//algorithms/utils:point_range",],
+    "//algorithms/utils:point_range",
+    "kmeans_test_headers",
+    ],
+  linkopts=["-pthread"],
+  includes=["."],
+
+)
+#testing yy
+cc_test(
+  name="yy_gtest",
+  size="small",
+  srcs=["tests/yyTests.cpp"],
+  deps=["@googletest//:gtest_main",
+    "kmeans_headers",
+    "//algorithms/utils:point_range",
+    "kmeans_test_headers",],
   linkopts=["-pthread"],
   includes=["."],
 
