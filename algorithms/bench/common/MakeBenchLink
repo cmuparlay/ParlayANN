@@ -1,0 +1,41 @@
+# ********************
+# GENERIC MAKEFILE FOR MOST BENCHMARKS THAT LINK
+# THE TIMING CODE WITH THE IMPLEMENTATION
+# USES FOLLOWING DEFINITIONS
+#    BENCH : the name of the benchmark
+#    OBJS : implementation object files
+#    REQUIRE : dependences for the object files
+#    CC : the compiler
+#    CFLAGS : compiler flags
+#    LFLAGS : compiler link flags
+# ********************
+
+TIME = $(BENCH)Time
+CHECK = ../bench/$(BENCH)Check
+INCLUDE =
+
+# Make benchmark
+$(BENCH) : $(TIME).o $(OBJS) $(CHECK) testInputs
+	$(CC) -o $@ $(TIME).o $(OBJS) $(LFLAGS)
+
+# Timing Code
+$(TIME).o : ../bench/$(TIME).C 
+	$(CC) $(CFLAGS) $(INCLUDE) -o $@ -c ../bench/$(TIME).C
+	
+# The check code
+$(CHECK) : $(CHECK).C
+	cd ../bench; make -s $(BENCH)Check
+
+# object files
+%.o : %.C $(REQUIRE)
+	$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@
+
+# copy over the generic test code
+testInputs : ../bench/testInputs ../bench/testInputs_small
+	cp ../bench/testInputs ../bench/testInputs_small .
+
+clean :
+	rm -f $(BENCH) *.o
+
+cleanall : clean
+	rm -f testInputs*; cd ../bench; make -s clean
