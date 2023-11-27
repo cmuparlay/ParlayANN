@@ -61,8 +61,9 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
           "data_file_path"_a, "index_output_path"_a, "graph_degree"_a, "beam_width"_a, "alpha"_a, "two_pass"_a);
 
     py::class_<GraphIndex<T, Point>>(m, variant.index_name.c_str())
-        .def(py::init<std::string &, std::string &, size_t, size_t>(),
-             "index_path"_a, "data_path"_a, "num_points"_a, "dimensions"_a) //maybe these last two are unnecessary?
+        .def(py::init<std::string &, std::string &, size_t, size_t, bool>(),
+             "index_path"_a, "data_path"_a, "num_points"_a, "dimensions"_a, "hnsw"_a=false)
+        //maybe "num_points" and "dimensions" are unnecessary?
         //do we want to add options like visited limit, or leave those as defaults?
         .def("batch_search", &GraphIndex<T, Point>::batch_search, "queries"_a, "num_queries"_a, "knn"_a,
              "beam_width"_a, "visit_limit"_a)
@@ -110,6 +111,23 @@ template <typename T, typename Point> inline void add_pynndescent_variant(py::mo
    
 }
 
+const Variant FloatEuclidianHNSWVariant{"build_hnsw_float_euclidian_index", "FloatEuclidianIndex"};
+const Variant FloatMipsHNSWVariant{"build_hnsw_float_mips_index", "FloatMipsIndex"};
+
+const Variant UInt8EuclidianHNSWVariant{"build_hnsw_uint8_euclidian_index", "UInt8EuclidianIndex"};
+const Variant UInt8MipsHNSWVariant{"build_hnsw_uint8_mips_index", "UInt8MipsIndex"};
+
+const Variant Int8EuclidianHNSWVariant{"build_hnsw_int8_euclidian_index", "Int8EuclidianIndex"};
+const Variant Int8MipsHNSWVariant{"build_hnsw_int8_mips_index", "Int8MipsIndex"};
+
+template <typename T, typename Point> inline void add_hnsw_variant(py::module_ &m, const Variant &variant)
+{
+
+    m.def(variant.builder_name.c_str(), build_hnsw_index<T, Point>, "distance_metric"_a,
+          "data_file_path"_a, "index_output_path"_a, "graph_degree"_a, "efc"_a, "m_l"_a, "alpha"_a);
+}
+
+
 PYBIND11_MODULE(_ParlayANNpy, m)
 {
     m.doc() = "ParlayANN Python Bindings";
@@ -149,4 +167,10 @@ PYBIND11_MODULE(_ParlayANNpy, m)
     add_pynndescent_variant<int8_t, Euclidian_Point<int8_t>>(m, Int8EuclidianpyNNVariant);
     add_pynndescent_variant<int8_t, Mips_Point<int8_t>>(m, Int8MipspyNNVariant);
 
+    add_hnsw_variant<float, Euclidian_Point<float>>(m, FloatEuclidianHNSWVariant);
+    add_hnsw_variant<float, Mips_Point<float>>(m, FloatMipsHNSWVariant);
+    add_hnsw_variant<uint8_t, Euclidian_Point<uint8_t>>(m, UInt8EuclidianHNSWVariant);
+    add_hnsw_variant<uint8_t, Mips_Point<uint8_t>>(m, UInt8MipsHNSWVariant);
+    add_hnsw_variant<int8_t, Euclidian_Point<int8_t>>(m, Int8EuclidianHNSWVariant);
+    add_hnsw_variant<int8_t, Mips_Point<int8_t>>(m, Int8MipsHNSWVariant);
 }

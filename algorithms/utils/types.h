@@ -103,6 +103,7 @@ struct groundTruth{
 struct BuildParams{
   long L; //vamana
   long R; //vamana and pynnDescent
+  double m_l = 0; // HNSW
   double alpha; //vamana and pyNNDescent
   bool two_pass; //vamana
 
@@ -116,7 +117,7 @@ struct BuildParams{
 
   BuildParams(long R, long L, double a, bool tp, long nc, long cs, long mst, double de) : R(R), L(L), 
             alpha(a), two_pass(tp), num_clusters(nc), cluster_size(cs), MST_deg(mst), delta(de) {
-    if(R != 0 && L != 0 && alpha != 0){alg_type = "Vamana";}
+    if(R != 0 && L != 0 && alpha != 0){alg_type = m_l>0? "HNSW": "Vamana";}
     else if(num_clusters != 0 && cluster_size != 0 && MST_deg != 0){alg_type = "HCNNG";}
     else if(R != 0 && alpha != 0 && num_clusters != 0 && cluster_size != 0 && delta != 0){alg_type = "pyNNDescent";}
   }
@@ -124,6 +125,8 @@ struct BuildParams{
   BuildParams() {}
 
   BuildParams(long R, long L, double a, bool tp) : R(R), L(L), alpha(a), two_pass(tp) {alg_type = "Vamana";}
+
+  BuildParams(long R, long L, double m_l, double a) : R(R), L(L), m_l(m_l), alpha(a) {alg_type = "HNSW";}
 
   BuildParams(long nc, long cs, long mst) : num_clusters(nc), cluster_size(cs), MST_deg(mst) {alg_type = "HCNNG";}
 
@@ -133,6 +136,7 @@ struct BuildParams{
 
   long max_degree(){
     if(alg_type == "HCNNG") return num_clusters*MST_deg;
+    else if(alg_type == "HNSW")  return R*2;
     else return R;
   }
 };
@@ -152,5 +156,21 @@ struct QueryParams{
 };
 
 
+template<typename T, typename Point>
+class Desc_HNSW{
+public:
+  typedef T type_elem;
+  typedef Point type_point;
+  static auto distance(const type_point &u, const type_point &v, uint32_t dim)
+  {
+    (void)dim;
+    return u.distance(v);
+  }
+
+  static auto get_id(const type_point &u)
+  {
+    return u.id();
+  }
+};
 
 #endif
