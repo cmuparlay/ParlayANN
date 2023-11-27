@@ -13,6 +13,7 @@
     stores benchmarking properties for a single iteration of kmeans
 */
 struct iteration_bench {
+    size_t iter_num;
     double assign_time;
     double update_time;
 
@@ -25,12 +26,13 @@ struct iteration_bench {
     //setup time tracks time used before the first iteration
     double setup_time;
 
-    iteration_bench(double assign_time, double update_time, double msse, size_t distance_calculations, size_t center_reassignments, parlay::sequence<float> center_movements,
-    double setup_time=0.0) : assign_time(assign_time), update_time(update_time), msse(msse), distance_calculations(distance_calculations), center_reassignments(center_reassignments), setup_time(setup_time) {
+    iteration_bench(size_t iter_num, double assign_time, double update_time, double msse, size_t distance_calculations, size_t center_reassignments, parlay::sequence<float> center_movements,
+    double setup_time=0.0) : iter_num(iter_num), assign_time(assign_time), update_time(update_time), msse(msse), distance_calculations(distance_calculations), center_reassignments(center_reassignments), setup_time(setup_time) {
         this->center_movements = center_movements;
     };
 
     void print() {
+        std::cout << "Iter:    \t" << iter_num << std::endl;
         std::cout << "assignment time:       \t" << assign_time << std::endl;
         std::cout << "update time:           \t" << update_time << std::endl;
         std::cout << "setup time:            \t" << setup_time << std::endl;
@@ -113,8 +115,8 @@ struct kmeans_bench {
         center_reassignments: number of points assigned to a new center
         center_movements: sequence of distances moved by each center in an iteration
      */
-    void add_iteration(double assign_time, double update_time, double msse, size_t distance_calculations, size_t center_reassignments, parlay::sequence<float> center_movements,double setup_time=0) {
-        iterations.push_back(iteration_bench(assign_time, update_time, msse, distance_calculations, center_reassignments, center_movements,setup_time));
+    void add_iteration(size_t iter_num, double assign_time, double update_time, double msse, size_t distance_calculations, size_t center_reassignments, parlay::sequence<float> center_movements,double setup_time=0) {
+        iterations.push_back(iteration_bench(iter_num,assign_time, update_time, msse, distance_calculations, center_reassignments, center_movements,setup_time));
         n_iterations++;
 
         iterations[iterations.size()-1].print();

@@ -70,12 +70,31 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
 
     logger.end_time();
 
-    parlay::parallel_for(0,k,[&] (size_t i) {
+    //occasionally, for example when k is high and d=1 on int data, the kmeans clustering will leave a group empty. In this case, we opt for random group assignments instead. TODO handle this case more elegantly (for example transferring ownership of centers from a large group into an empty group)
+    parlay::sequence<int> group_repped(t,0);
+    for (size_t i = 0; i < k; i++) {
+      group_repped[group_asg[i]]=1;
+    }
+    if (parlay::reduce(group_repped) < t) {
+      std::cout << "Standard group init with kmeans clustering failed. Opting for random init." << std::endl;
+       parlay::parallel_for(0,k,[&] (size_t i) {
+      centers[i].group_id=i%t;
+      });
+      for (size_t i = 0; i < k; i++) {
+        groups[centers[i].group_id].center_ids.push_back(i);
+      }
+    }
+    else {
+      parlay::parallel_for(0,k,[&] (size_t i) {
       centers[i].group_id = group_asg[i];
     });
     for (size_t i = 0; i < k; i++) { //sequential assigning the groups their centers, TODO do in parallel?
       groups[centers[i].group_id].center_ids.push_back(i);
     }
+
+    }
+
+    
 
     delete[] group_centers; 
     delete[] group_asg;
@@ -168,15 +187,8 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
       return group(i);
     });
 
-    //init_groups(d,ad,k,c,centers,groups,t,D);
-    //TODO use better grouping (the below grouping ensures all groups nonempty at least)
-    parlay::parallel_for(0,k,[&] (size_t i) {
-      centers[i].group_id=i%t;
-    });
-    for (size_t i = 0; i < k; i++) {
-      groups[centers[i].group_id].center_ids.push_back(i);
-    }
-
+    init_groups(d,ad,k,c,centers,groups,t,D);
+  
    
     assert_proper_group_size(k,centers,groups,t,false); //confirm groups all nonempty
 
@@ -288,8 +300,7 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
       });
      
       //TODO how expensive is this calculation? (will it affect logging time?)
-      //TODO delayed_tab vs tab
-      float msse = parlay::reduce(parlay::tabulate(n,[&] (size_t i) {
+      float msse = parlay::reduce(parlay::delayed_tabulate(n,[&] (size_t i) {
         return pc_dist_squared(pts[i],d,centers[pts[i].best],D);
       }))/n; 
      
@@ -299,7 +310,7 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
  
       //end of iteration stat updating
       if (!suppress_logging) {
-         logger.add_iteration(assignment_time,update_time,msse,parlay::reduce(distance_calculations),
+         logger.add_iteration(iters,assignment_time,update_time,msse,parlay::reduce(distance_calculations),
       parlay::reduce(center_reassignments),parlay::map(centers,[&] (center& cen) {
         return cen.delta;
       }),setup_time);
@@ -333,7 +344,7 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
 
       //3.2: Group filtering (<assign> step) 
       parlay::parallel_for(0,n,[&](size_t i) {
-        point& p = pts[i]; //for ease of notation //TODO CHANGEBACK
+        point& p = pts[i]; //for ease of notation 
 
         //update bounds and old_best
         p.ub += centers[p.best].delta; 
@@ -349,7 +360,7 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
         }
 
         //nothing happens if our closest center can't change
-        //if (p.global_lb >= p.ub) return; //TODO uncomment
+        if (p.global_lb >= p.ub) return; 
 
         //even though we have a dist wrapper, we copy the point to a buffer here, so that we only have to copy the point to a buffer once, instead of the k times needed if we called dist k times
         CT buf[2048];
@@ -361,23 +372,24 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
         distance_calculations[i] += 1;
 
         //again, nothing happens if our closest center can't change
-        //if (p.global_lb >= p.ub) return; //TODO uncomment
+        if (p.global_lb >= p.ub) return;
         
         //for each group
         for (size_t j = 0; j < t; j++) {
           //if group j is too far away we don't look at it
-          //if (p.ub <= lbs[i][j]) continue; //TODO uncomment
+          if (p.ub <= lbs[i][j]) continue; 
                    
           //reset the lower bound, make it smallest distance we calculate that's not the closest distance away
-          float new_lb = std::numeric_limits<float>::max(); 
+          //note that this max set can overwrite the lbs[i][j] being set to the old ub on a center reassignment, so we do need to do a distance calculation with the old_best to recover that bound
+          lbs[i][j] = std::numeric_limits<float>::max(); 
             
           //for each group member (center)
           for (size_t l = 0; l < groups[j].center_ids.size(); l++) {
               //c_id is the id of our candidate center, creating variable for ease of reading
               size_t c_id = groups[j].center_ids[l];
 
-              //don't do a distance comparison with the previous best
-              if (p.old_best == c_id) continue;
+              //don't do a distance comparison with the current best
+              if (p.best==c_id) continue;
 
               float new_d = ptr_dist(buf,centers[c_id].begin(),d,D);  //find distance to center l in group j
               distance_calculations[i]++; //increment distance calc counter for this pt
@@ -386,29 +398,30 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
               //So if our new dist is less than ub, we have a new closest point
               if (p.ub > new_d) {
              
-                //update the lower bound of the group with the previous best center TODO correctness?
-               // if (lbs[i][centers[p.best].group_id] > p.ub) lbs[i][centers[p.best].group_id]=p.ub;
-                lbs[i][centers[p.best].group_id]=std::max(pts[i].ub-centers[pts[i].best].delta, std::min(pts[i].ub,
-                lbs[i][centers[pts[i].best].group_id] - centers[pts[i].best].delta));
-                
+                //update the lower bound of the group with the previous best center 
+              if (lbs[i][centers[p.best].group_id] > p.ub) lbs[i][centers[p.best].group_id]=p.ub;
+            
                 p.best=c_id;
                 p.ub = new_d; //new ub is tight
 
                 //mark centers have changed. yes this is a race, but because we are setting false to true and 0 to 1 this is fine
-                if (center_reassignments[p.best] != 1) center_reassignments[p.best] = 1; //TODO uncomment
+                if (center_reassignments[p.best] != 1) center_reassignments[p.best] = 1; 
                 if (center_reassignments[p.old_best] != 1) center_reassignments[p.old_best] = 1; 
                 if (!centers[p.best].has_changed) centers[p.best].has_changed = true;
                 if (!centers[p.old_best].has_changed) centers[p.old_best].has_changed=true;
               }
               else {
                 //if this center is not the closest, use it to improve the lower bound
-                if (new_lb > new_d) {
-                  new_lb=new_d;
+                if (lbs[i][j] > new_d) {
+                  lbs[i][j]=new_d;
                 }
               
               }
             }
-            lbs[i][j] = new_lb; //update the lb using all of the group data  
+            if (lbs[i][j]==std::numeric_limits<float>::max()) {
+              int a = 5; //error piece
+              a+3;
+            }
         }
       }); //gran 1? I think helps. TODO
             

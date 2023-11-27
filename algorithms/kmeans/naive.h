@@ -86,7 +86,7 @@ CT* c, size_t* asg, Distance& D, kmeans_bench& logger, size_t max_iter, double e
     }))/n; //calculate msse
     
     float setup_time = t.next_time(); //setup_time counts msse calculation time
-    if (!suppress_logging) logger.add_iteration(assignment_time,update_time,
+    if (!suppress_logging) logger.add_iteration(iterations,assignment_time,update_time,
     msse, 0, 0, deltas,setup_time);
 
     if (max_diff <= epsilon) break; //if our centers barely moved, we have essentially converged, so end k-means early
