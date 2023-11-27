@@ -68,24 +68,48 @@ def build_pynndescent_index(metric, dtype, data_dir, index_dir, max_deg, num_clu
             raise Exception('Invalid data type ' + dtype)
     else:
         raise Exception('Invalid metric ' + metric)
-        
-def load_index(metric, dtype, data_dir, index_dir, n, d):
+
+
+def build_hnsw_index(metric, dtype, data_dir, index_dir, R, L, alpha, two_pass):
     if metric == 'Euclidian':
         if dtype == 'uint8':
-            return UInt8EuclidianIndex(data_dir, index_dir, n, d)
+            build_hnsw_uint8_euclidian_index(metric, data_dir, index_dir, R, L, alpha, two_pass)
         elif dtype == 'int8':
-            return Int8EuclidianIndex(data_dir, index_dir, n, d)
+            build_hnsw_int8_euclidian_index(metric, data_dir, index_dir, R, L, alpha, two_pass)
         elif dtype == 'float':
-            return FloatEuclidianIndex(data_dir, index_dir, n, d)
+            build_hnsw_float_euclidian_index(metric, data_dir, index_dir, R, L, alpha, two_pass)
+        else:
+            raise Exception('Invalid data type ' + dtype)
+    elif metric == 'mips':
+        if dtype == 'uint8':
+            build_hnsw_uint8_mips_index(metric, data_dir, index_dir, R, L, alpha, two_pass)
+        elif dtype == 'int8':
+            build_hnsw_int8_mips_index(metric, data_dir, index_dir, R, L, alpha, two_pass)
+        elif dtype == 'float':
+            build_hnsw_float_mips_index(metric, data_dir, index_dir, R, L, alpha, two_pass)
+        else:
+            raise Exception('Invalid data type ' + dtype)
+    else:
+        raise Exception('Invalid metric ' + metric)
+
+        
+def load_index(metric, dtype, data_dir, index_dir, n, d, hnsw=False):
+    if metric == 'Euclidian':
+        if dtype == 'uint8':
+            return UInt8EuclidianIndex(data_dir, index_dir, n, d, hnsw)
+        elif dtype == 'int8':
+            return Int8EuclidianIndex(data_dir, index_dir, n, d, hnsw)
+        elif dtype == 'float':
+            return FloatEuclidianIndex(data_dir, index_dir, n, d, hnsw)
         else:
             raise Exception('Invalid data type')
     elif metric == 'mips':
         if dtype == 'uint8':
-            return UInt8MipsIndex(data_dir, index_dir, n, d)
+            return UInt8MipsIndex(data_dir, index_dir, n, d, hnsw)
         elif dtype == 'int8':
-            return Int8MipsIndex(data_dir, index_dir, n, d)
+            return Int8MipsIndex(data_dir, index_dir, n, d, hsnw)
         elif dtype == 'float':
-            return FloatMipsIndex(data_dir, index_dir, n, d)
+            return FloatMipsIndex(data_dir, index_dir, n, d, hsnw)
         else:
             raise Exception('Invalid data type')
     else:

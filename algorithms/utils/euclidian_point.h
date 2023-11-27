@@ -84,6 +84,9 @@ struct Euclidian_Point {
 
   long id() const {return id_;}
 
+  Euclidian_Point()
+    : values(nullptr), d(0), aligned_d(0), id_(-1) {}
+
   Euclidian_Point(const T* values, unsigned int d, unsigned int ad, long id)
     : values(values), d(d), aligned_d(ad), id_(id) {}
 
