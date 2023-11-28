@@ -42,6 +42,15 @@ inline void bench_three(T*v, size_t n, size_t d, size_t k) {
         std::cout << std::endl;
     }
 
+    std::cout << "Printing out centers: " << std::endl;
+    auto centers = output.second;
+    for (size_t i = 0; i < centers.size(); i++) {
+        for (size_t j = 0; j < centers[i].size(); j++) {
+            std::cout << centers[i][j] << " ";
+        }
+        std::cout << std::endl;
+    }
+
 }
 
 //bench stable has a promise not to be changed/updated
@@ -126,7 +135,7 @@ int main(int argc, char* argv[]){
     std::string ft = std::string(P.getOptionValue("-f", "bin")); // file type, bin or vecs
     std::string tp = std::string(P.getOptionValue("-t", "uint8")); // data type
     std::string dist = std::string(P.getOptionValue("-D", "Euclidian")); // distance choice
-    std::string use_bench_two = std::string(P.getOptionValue("-two","no"));
+    std::string bench_version = std::string(P.getOptionValue("-bench_version","no"));
     bool output_log_to_csv = false;
     std::string output_to_csv_str = std::string(P.getOptionValue("-csv_log","false"));
     if (output_to_csv_str == "true") {
@@ -198,14 +207,14 @@ int main(int argc, char* argv[]){
     if (ft == "bin"){
         if (tp == "float") {
             auto [v, n, d] = parse_fbin(input.c_str());
-            if (use_bench_two=="yes") { //can't use switch for strings sadly
+            if (bench_version=="two") { //can't use switch for strings sadly
                     bench_two<float>(v,pick_num(n,newn),pick_num(d,newd),d,k,*D,max_iterations,epsilon,output_log_to_csv,output_log_file_name,output_log_file_name2);
             }
-            else if (use_bench_two=="stable") {
-                    bench_two_stable<float>(v,n,d,k,*D,max_iterations,epsilon,output_log_to_csv,output_log_file_name,output_log_file_name2);
+            else if (bench_version=="stable") {
+                    bench_two_stable<float>(v,pick_num(n,newn),pick_num(d,newd),k,*D,max_iterations,epsilon,output_log_to_csv,output_log_file_name,output_log_file_name2);
             }
-            else if (use_bench_two=="three") {
-                    bench_three<float>(v,n,d,k);
+            else if (bench_version=="three") {
+                    bench_three<float>(v,pick_num(n,newn),pick_num(d,newd),k);
             }
                 
             else {
@@ -216,15 +225,15 @@ int main(int argc, char* argv[]){
 
         } else if (tp == "uint8") {
             auto [v, n, d] = parse_uint8bin(input.c_str());
-            if (use_bench_two=="yes") {
+            if (bench_version=="two") {
                 bench_two<uint8_t>(v,pick_num(n,newn),pick_num(d,newd),d,k,*D,max_iterations,epsilon,output_log_to_csv,output_log_file_name,output_log_file_name2);
             }
-            else if (use_bench_two=="stable") {
-                bench_two_stable<uint8_t>(v,n,d,k,*D,max_iterations,epsilon,output_log_to_csv,output_log_file_name,output_log_file_name2);
+            else if (bench_version=="stable") {
+                bench_two_stable<uint8_t>(v,pick_num(n,newn),pick_num(d,newd),k,*D,max_iterations,epsilon,output_log_to_csv,output_log_file_name,output_log_file_name2);
 
             }
-            else if (use_bench_two=="three") {
-                bench_three<uint8_t>(v,n,d,k);
+            else if (bench_version=="three") {
+                bench_three<uint8_t>(v,pick_num(n,newn),pick_num(d,newd),k);
 
             }
             else {
@@ -235,16 +244,16 @@ int main(int argc, char* argv[]){
             }
         } else if (tp == "int8") {
             auto [v, n, d] = parse_int8bin(input.c_str());
-            if (use_bench_two == "yes") {
+            if (bench_version == "two") {
                 bench_two<int8_t>(v,pick_num(n,newn),pick_num(d,newd),d,k,*D,max_iterations,epsilon,output_log_to_csv,output_log_file_name,output_log_file_name2);
 
             }
-            else if (use_bench_two=="stable") {
-                bench_two_stable<int8_t>(v,n,d,k,*D,max_iterations,epsilon,output_log_to_csv,output_log_file_name,output_log_file_name2);
+            else if (bench_version=="stable") {
+                bench_two_stable<int8_t>(v,pick_num(n,newn),pick_num(d,newd),k,*D,max_iterations,epsilon,output_log_to_csv,output_log_file_name,output_log_file_name2);
 
             }
-            else if (use_bench_two=="three") {
-                bench_three<int8_t>(v,n,d,k);
+            else if (bench_version=="three") {
+                bench_three<int8_t>(v,pick_num(n,newn),pick_num(d,newd),k);
 
             }
             else {

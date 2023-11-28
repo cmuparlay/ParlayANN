@@ -27,34 +27,31 @@
 #include "initialization.h"
 #include "naive.h"
 #include "kmeans.h"
-
+#include "yy.h"
 
 //get runtime from given kmeans run
-template <typename T>
-inline double get_run_time(T* v, size_t n, size_t d, size_t ad, size_t k, Distance& D, 
-size_t max_iter=1000, double epsilon=0, bool output_log_to_csv=false, std::string output_file_name1="data.csv", std::string output_file_name2="data2.csv") { 
-    std::cout << "fill in bench 2" << std::endl;
-
-     std::cout << "Running bench stable " << std::endl;
-
+template <typename T, typename Runner>
+inline double get_run_time(T* v, size_t n, size_t d, size_t ad, size_t k, Distance& D, Runner& r,
+size_t max_iter=1000, double epsilon=0) { 
+  
     float* c = new float[k*ad]; // centers
     size_t* asg = new size_t[n];
 
   
     //initialization
-    Lazy<T,CT,size_t> init;
+    Lazy<T,float,size_t> init;
     //note that here, d=ad
     init(v,n,d,ad,k,c,asg);
 
    
-    NaiveKmeans<T,Euclidian_Point<T>,size_t,float,Euclidian_Point<float>> nie2;
-    kmeans_bench logger_nie2 = kmeans_bench(n,d,k,max_iter,
-    epsilon,"Lazy","Naive");
-    logger_nie2.start_time();
+
+    kmeans_bench logger = kmeans_bench(n,d,k,max_iter,
+    epsilon,"Lazy",r.name());
+    logger.start_time();
     //note that d=ad here
-    nie2.cluster_middle(v,n,d,ad,k,c,asg,D,logger_nie2,max_iter,epsilon);
-    logger_nie2.end_time();
-    return logger_nie2.total_time;
+    r.cluster_middle(v,n,d,ad,k,c,asg,D,logger,max_iter,epsilon,true);
+    logger.end_time();
+    return logger.total_time;
     
 }
 
@@ -68,7 +65,7 @@ size_t max_iter=1000, double epsilon=0, bool output_log_to_csv=false, std::strin
 //limiter <- cap the value of n*d*k*max_iter*var_samples to prevent a single run from taking too long
 //TODO: this version of the code will only take in a single data file -- and we would just run this code over multiple data files in separate runs, for simplicity
 template<typename T>
-inline void bench_many(T* v, size_t ad, std::string n_samples, std::string k_samples, std::string d_samples, std::string output_file, std::string iter_samples, std::string var_samples, size_t limiter, Distance& D) {
+inline void bench_many(T* v, size_t ad, std::string n_samples, std::string k_samples, std::string d_samples, std::string runner_name, std::string output_file, std::string iter_samples, std::string var_samples, size_t limiter, Distance& D) {
     std::cout << "Run bench many " << std::endl;
     std::cout << "N sample: " << n_samples <<std::endl;
     std::vector<size_t> n_vec = extract_vector<size_t>(n_samples.c_str());
@@ -86,11 +83,26 @@ inline void bench_many(T* v, size_t ad, std::string n_samples, std::string k_sam
     std::vector<size_t> var_vec = extract_vector<size_t>(var_samples.c_str());
     std::cout << "made it here5" << std::endl;
 
+    KmeansInterface<T,Euclidian_Point<T>,size_t,float,Euclidian_Point<float>>* runner;
+    if (runner_name=="naive") {
+        runner = new NaiveKmeans<T,Euclidian_Point<T>,size_t,float,Euclidian_Point<float>>();
+    }
+    else if (runner_name=="yy") {
+        runner = new Yinyang<T,Euclidian_Point<T>,size_t,float,Euclidian_Point<float>>();
+    }
+    else {
+        std::cout << "please provide a kmeans method to run, aborting" << std::endl;
+        abort();
+    }
+
     //std::vector<std::pair,std::string,std::string>> data_samples = extract_string_pair_vector(data_samples_name.c_str());
     // std::vector<DataWrapper> ex_data;
     // for (int i = 0; i < data_samples.size(); i++) {
     //     ex_data.push_back(DataWrapper(data_samples[i].first,data_samples[i].second));
     // }
+
+    std::ofstream file(output_file);
+    file << "n" << ", " << "d" << ", " << "k" << ", " << "n_iter" << ", " << "reps(vars)" << ", " << "time" << "\n";
 
     std::vector<size_t> capacities = {n_vec.size(),k_vec.size(),d_vec.size(),iter_vec.size(),var_vec.size()};
     std::vector<size_t> cur_parms = {0,0,0,0,0}; //starting at -1 for ease of while loop
@@ -101,13 +113,15 @@ inline void bench_many(T* v, size_t ad, std::string n_samples, std::string k_sam
         }
         //TODO add var_vec to get runtime function
         //note that we need ad to access the right points
-        std::cout << get_run_time(v,n_vec[cur_parms[0]],d_vec[cur_parms[2]],ad,k_vec[cur_parms[1]],D,iter_vec[cur_parms[3]],0);
-        std::cout << std::endl;
+        double result_time = get_run_time(v,n_vec[cur_parms[0]],d_vec[cur_parms[2]],ad,k_vec[cur_parms[1]],D,*runner,iter_vec[cur_parms[3]],0);
 
-        
+        file << n_vec[cur_parms[0]] << ", " << d_vec[cur_parms[2]] << ", " << k_vec[cur_parms[1]] << ", " << iter_vec[cur_parms[3]] << ", " << 1 << ", " <<  result_time << "\n";
 
     } while (iterate_multidim(capacities,cur_parms));
 
+    file.close();
+
+    delete runner;
 
 
 }
@@ -129,6 +143,7 @@ int main(int argc, char* argv[]){
     long limiter = P.getOptionLongValue("-lim",1'000'000'000);
     std::string input = std::string(P.getOptionValue("-i", "")); // the data input file
     std::string tp = std::string(P.getOptionValue("-t", "uint8")); // data type
+    std::string runner_name=std::string(P.getOptionValue("-rn","none"));
 
 
     Distance* D; // create a distance object, it can either by Euclidian or MIPS
@@ -151,21 +166,22 @@ int main(int argc, char* argv[]){
         std::cout << "Error: distance type not specified correctly, specify Euclidean or mips" << std::endl;
         abort();
     }
+    
 
 
     if (tp == "float") {
         auto [tv, tn, td] = parse_fbin(input.c_str());
-        bench_many<float>(tv,td,n_samples_name,k_samples_name,d_samples_name,output,iter_samples_name,var_samples_name,limiter,*D);
+        bench_many(tv,td,n_samples_name,k_samples_name,d_samples_name,runner_name,output,iter_samples_name,var_samples_name,limiter,*D);
 
     }
     else if (tp == "uint8") {
         auto [tv, tn, td] = parse_uint8bin(input.c_str());
-        bench_many<uint8_t>(tv,td,n_samples_name,k_samples_name,d_samples_name,output,iter_samples_name,var_samples_name,limiter,*D);
+        bench_many<uint8_t>(tv,td,n_samples_name,k_samples_name,d_samples_name,runner_name,output,iter_samples_name,var_samples_name,limiter,*D);
        
     }
     else if (tp == "int8") {
         auto [tv, tn, td] = parse_int8bin(input.c_str());
-        bench_many<int8_t>(tv,td,n_samples_name,k_samples_name,d_samples_name,output,iter_samples_name,var_samples_name,limiter,*D);
+        bench_many<int8_t>(tv,td,n_samples_name,k_samples_name,d_samples_name,runner_name,output,iter_samples_name,var_samples_name,limiter,*D);
        
     }
     else {
@@ -173,9 +189,7 @@ int main(int argc, char* argv[]){
         abort();
     }
 
-    
-
-
+    delete D;
 
 
 }

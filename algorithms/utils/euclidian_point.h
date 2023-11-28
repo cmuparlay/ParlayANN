@@ -86,6 +86,8 @@ struct Euclidian_Point {
   Euclidian_Point(T* values, unsigned int d, unsigned int ad, long id)
     : values(values), d(d), aligned_d(ad), id_(id) {}
 
+
+
   bool operator==(Euclidian_Point<T> q){
     for (int i = 0; i < d; i++) {
       if (values[i] != q.values[i]) {

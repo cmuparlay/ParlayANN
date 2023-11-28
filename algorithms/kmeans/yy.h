@@ -71,7 +71,7 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
     logger.end_time();
 
     //occasionally, for example when k is high and d=1 on int data, the kmeans clustering will leave a group empty. In this case, we opt for random group assignments instead. TODO handle this case more elegantly (for example transferring ownership of centers from a large group into an empty group)
-    parlay::sequence<int> group_repped(t,0);
+    parlay::sequence<size_t> group_repped(t,0);
     for (size_t i = 0; i < k; i++) {
       group_repped[group_asg[i]]=1;
     }
@@ -418,10 +418,7 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
               
               }
             }
-            if (lbs[i][j]==std::numeric_limits<float>::max()) {
-              int a = 5; //error piece
-              a+3;
-            }
+          
         }
       }); //gran 1? I think helps. TODO
             
@@ -453,6 +450,9 @@ struct Yinyang : KmeansInterface<T,Point,index_type,CT,CenterPoint> {
     delete[] new_centers; 
 
 
+  }
+  std::string name() {
+    return "yy";
   }
 };
 

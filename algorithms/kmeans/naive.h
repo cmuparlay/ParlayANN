@@ -93,5 +93,9 @@ CT* c, size_t* asg, Distance& D, kmeans_bench& logger, size_t max_iter, double e
   }
   delete[] new_centers;
 }
+
+std::string name() {
+  return "naive";
+}
 };
 #endif //Naive

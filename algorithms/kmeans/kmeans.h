@@ -40,7 +40,7 @@ struct KmeansInterface {
   }
 
   //given a PointRange and k, cluster will use k-means clustering to partition the points into k groups
-  virtual std::pair<parlay::sequence<parlay::sequence<index_type>>,PointRange<CT,CenterPoint>> cluster(PointRange<T,Point> points, size_t k) {
+  virtual std::pair<parlay::sequence<parlay::sequence<index_type>>,parlay::sequence<parlay::sequence<CT>>> cluster(PointRange<T,Point> points, size_t k) {
    
     T* v = points.get_values(); //v is array of point coordinates
     size_t d = points.dimension(); //d is # of dimensions
@@ -62,23 +62,21 @@ struct KmeansInterface {
       
     std::cout << "Finished cluster" << std::endl;
 
-    CT* check;
-    //TODO FIXME Seg fault when try to return the centers themselves, bye is a dummy value for now
-    PointRange<CT,CenterPoint> bye(check,0,0,0);
-    //PointRange<CT,CenterPoint> final_centers(c,n,d,ad);
-
-    std::cout << "Assigned final centers" << std::endl;
-
     auto seq_seq_pt_asgs = get_clusters(asg,n,k);
 
-    std::cout << "Here now" << std::endl;
+    parlay::sequence<parlay::sequence<CT>> centers = parlay::tabulate(k,[&] (size_t i) {
+      return parlay::tabulate(d,[&] (size_t j) {
+        return c[i*ad+j];
+      });
+
+    });
+
 
     delete[] c;
     delete[] asg;
 
-    std::cout << "Made it here" << std::endl;
 
-    return std::make_pair(seq_seq_pt_asgs,bye);
+    return std::make_pair(seq_seq_pt_asgs,centers);
 
 
   }
@@ -86,6 +84,8 @@ struct KmeansInterface {
   //cluster_middle is the actual clustering function
   virtual void cluster_middle(T* v, size_t n, size_t d, size_t ad, size_t k, 
 CT* c, size_t* asg, Distance& D, kmeans_bench& logger, size_t max_iter, double epsilon,bool suppress_logging=false) = 0;
+
+  virtual std::string name() =0;
 
 
 //helpful function for center calculation
@@ -174,6 +174,8 @@ void compute_centers(T* v, size_t n, size_t d, size_t ad, size_t k, CT* c, CT* c
     });
 
 }
+
+virtual ~KmeansInterface() {}
 
 };
 
