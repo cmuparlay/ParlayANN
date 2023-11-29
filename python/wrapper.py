@@ -107,9 +107,9 @@ def load_index(metric, dtype, data_dir, index_dir, n, d, hnsw=False):
         if dtype == 'uint8':
             return UInt8MipsIndex(data_dir, index_dir, n, d, hnsw)
         elif dtype == 'int8':
-            return Int8MipsIndex(data_dir, index_dir, n, d, hsnw)
+            return Int8MipsIndex(data_dir, index_dir, n, d, hnsw)
         elif dtype == 'float':
-            return FloatMipsIndex(data_dir, index_dir, n, d, hsnw)
+            return FloatMipsIndex(data_dir, index_dir, n, d, hnsw)
         else:
             raise Exception('Invalid data type')
     else:
