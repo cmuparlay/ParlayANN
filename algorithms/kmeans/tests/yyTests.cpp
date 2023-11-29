@@ -1,4 +1,4 @@
-//naive testing
+//yy testing
 //note that the validity of this testing relies on the centers starting out at points in the data -- as this effectively guarantees that the converged solution will have all nonempty centers, because they will at least own their initial point.
 //so our tests will fail if a center permanently loses all its points, when this may in fact be legitimate behavior. (TODO adjust this)
 

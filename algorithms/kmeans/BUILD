@@ -215,3 +215,17 @@ cc_test(
 
 )
 
+
+#comparing the msse output of naive and yy
+cc_test(
+  name="naive_yy_compare_gtest",
+  size="small",
+  srcs=["tests/naiveYyTests.cpp"],
+  deps=["@googletest//:gtest_main",
+    "kmeans_headers",
+    "//algorithms/utils:point_range",
+    "kmeans_test_headers",],
+  linkopts=["-pthread"],
+  includes=["."],
+
+)

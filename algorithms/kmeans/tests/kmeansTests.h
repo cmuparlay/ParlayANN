@@ -165,3 +165,77 @@ double kmeansConvergenceTest(T* v, size_t n, size_t d, size_t ad, size_t k, Dist
     
 
   }
+
+//given two kmeans methods, run both, and compare the output msse's
+template<typename T, typename CT, typename index_type, typename Kmeans, typename Kmeans2>
+void kmeansComparativeTest(T* v, size_t n, size_t d, size_t ad, size_t k,  Distance& D, size_t max_iter, double epsilon, bool suppress_logging=true) {
+    CT* c = new CT[k*ad]; // centers
+    index_type* asg = new index_type[n];
+    
+
+    //initialization
+    Lazy<T,CT, index_type> init;
+    //note that here, d=ad
+    init(v,n,d,ad,k,c,asg);
+
+    CT* c2 = new CT[k*ad];
+    index_type* asg2 = new index_type[n];
+    //copy over values from initialization into c2, asg2
+    parlay::parallel_for(0,k*ad,[&] (size_t i) {
+      c2[i]=c[i];
+    });
+    parlay::parallel_for(0,n,[&] (size_t i) {
+      asg2[i]=asg[i];
+    });
+
+   
+    Kmeans runner;
+    kmeans_bench logger = kmeans_bench(n,d,k,max_iter,
+    epsilon,"Lazy",runner.name());
+    logger.start_time();
+    //true at the end suppresses logging
+    runner.cluster_middle(v,n,d,ad,k,c,asg,D,logger,max_iter,epsilon,suppress_logging);
+    logger.end_time();
+
+    Kmeans2 runner2;
+
+    kmeans_bench logger2 = kmeans_bench(n,d,k,max_iter,epsilon,"Lazy",runner2.name());
+    logger2.start_time();
+    //true at the end suppresses logging
+    runner2.cluster_middle(v,n,d,ad,k,c2,asg2,D,logger,max_iter,epsilon,suppress_logging);
+    logger2.end_time();
+    
+    auto rangn = parlay::iota(n);
+    float msse1 = parlay::reduce(parlay::map(rangn,[&] (size_t i) { 
+      float buf[2048];
+      T* it = v+i*ad;
+      for (size_t i = 0; i < d; i++) buf[i]=*(it++);
+      return D.distance(buf,c+asg[i]*ad,d);
+    }))/n; //calculate msse
+
+    float msse2 = parlay::reduce(parlay::map(rangn,[&] (size_t i) { 
+      float buf[2048];
+      T* it = v+i*ad;
+      for (size_t i = 0; i < d; i++) buf[i]=*(it++);
+      return D.distance(buf,c2+asg2[i]*ad,d);
+    }))/n; //calculate msse
+
+    //avoid weird division by very small numbers? TODO (or is this >0 instead of >0.0001 okay)
+    //make sure that the msse values are within 1% of each other
+    if (msse1 > 0 && msse2 > 0) {
+      EXPECT_LE(std::abs(msse1-msse2)/msse1, 0.01 ) << runner.name() << " : " << msse1 << ", " << runner2.name() << " : " << msse2 << "\n";
+
+    }
+    else {
+      EXPECT_LE(std::abs(msse1-msse2),.0001);
+    }
+
+    delete[] c;
+    delete[] asg;
+    delete[] c2;
+    delete[] asg2;
+
+
+    
+
+  }

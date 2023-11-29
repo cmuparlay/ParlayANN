@@ -31,7 +31,7 @@
 
 //get runtime from given kmeans run
 template <typename T, typename Runner>
-inline double get_run_time(T* v, size_t n, size_t d, size_t ad, size_t k, Distance& D, Runner& r,
+kmeans_bench get_run_time(T* v, size_t n, size_t d, size_t ad, size_t k, Distance& D, Runner& r,
 size_t max_iter=1000, double epsilon=0) { 
   
     float* c = new float[k*ad]; // centers
@@ -51,7 +51,7 @@ size_t max_iter=1000, double epsilon=0) {
     //note that d=ad here
     r.cluster_middle(v,n,d,ad,k,c,asg,D,logger,max_iter,epsilon,true);
     logger.end_time();
-    return logger.total_time;
+    return logger;
     
 }
 
@@ -102,7 +102,7 @@ inline void bench_many(T* v, size_t ad, std::string n_samples, std::string k_sam
     // }
 
     std::ofstream file(output_file);
-    file << "n" << ", " << "d" << ", " << "k" << ", " << "n_iter" << ", " << "reps(vars)" << ", " << "time" << "\n";
+    file << "n" << ", " << "d" << ", " << "k" << ", " << "n_iter" << ", " << "reps(vars)" << ", " << "time" << ", " << "dist_calcs" << "\n";
 
     std::vector<size_t> capacities = {n_vec.size(),k_vec.size(),d_vec.size(),iter_vec.size(),var_vec.size()};
     std::vector<size_t> cur_parms = {0,0,0,0,0}; //starting at -1 for ease of while loop
@@ -113,9 +113,13 @@ inline void bench_many(T* v, size_t ad, std::string n_samples, std::string k_sam
         }
         //TODO add var_vec to get runtime function
         //note that we need ad to access the right points
-        double result_time = get_run_time(v,n_vec[cur_parms[0]],d_vec[cur_parms[2]],ad,k_vec[cur_parms[1]],D,*runner,iter_vec[cur_parms[3]],0);
+        kmeans_bench logger = get_run_time(v,n_vec[cur_parms[0]],d_vec[cur_parms[2]],ad,k_vec[cur_parms[1]],D,*runner,iter_vec[cur_parms[3]],0);
+        double result_time=logger.total_time;
+        size_t dist_calcs=parlay::reduce(parlay::map(logger.iterations,[&] (iteration_bench iter_data) {
+            return iter_data.distance_calculations;
+        }));
 
-        file << n_vec[cur_parms[0]] << ", " << d_vec[cur_parms[2]] << ", " << k_vec[cur_parms[1]] << ", " << iter_vec[cur_parms[3]] << ", " << 1 << ", " <<  result_time << "\n";
+        file << n_vec[cur_parms[0]] << ", " << d_vec[cur_parms[2]] << ", " << k_vec[cur_parms[1]] << ", " << iter_vec[cur_parms[3]] << ", " << 1 << ", " << result_time  << ", " << dist_calcs << "\n";
 
     } while (iterate_multidim(capacities,cur_parms));
 
