@@ -271,8 +271,12 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
   }
 
   void assign_step(parlay::sequence<point>& pts, size_t n, size_t d, size_t ad, size_t k, parlay::sequence<center>& centers, parlay::sequence<group>& groups, size_t t, Distance& D, parlay::sequence<parlay::sequence<float>>& lbs, parlay::sequence<size_t>& distance_calculations, parlay::sequence<int>& center_reassignments, parlay::sequence<group>& point_groups, size_t npg) {
+    
     //if we are using point groups
     if (do_point_groups) {
+      parlay::parallel_for(0,n,[&] (size_t i) {
+        pts[i].old_best=pts[i].best;
+      });
       //for each point group
       parlay::parallel_for(0,npg,[&] (size_t pg) {
 
@@ -354,9 +358,8 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
         }
 
         point& p = pts[i];
-
+        p.old_best=p.best;
         p.ub += centers[p.best].delta;
-        p.old_best = p.best;
 
         p.global_lb = *parlay::min_element(lbs[i]);
 
@@ -495,7 +498,8 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
     });
 
      //npg = number of point groups. npg is to points as t is to centers.
-    size_t npg = n/10;//std::max(static_cast<size_t>(1),n/50);
+    size_t npg = n/10;//n/10;//std::max(static_cast<size_t>(1),n/50);
+
 
     parlay::sequence<group> point_groups = parlay::tabulate<group>(npg,[&] (size_t i) {return group(i);});
     size_t* pg_asg = new size_t[n]; //store the point-groups each point is assigned to
@@ -509,8 +513,14 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
       }
       //confirm all point groups nonempty
       assert_proper_point_group_size(n,pts,point_groups,npg,false); 
+
+     
     }
     delete[] pg_asg;
+
+   
+
+
 
     // TODO will floats overflow (if accidental add to numeric_limits max)?
     //Remark: size of lbs dependent on whether or not we are doing point_groups
@@ -527,6 +537,9 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
       return parlay::sequence<float>(t, std::numeric_limits<float>::max());
     });
     }
+    
+    setup_time += tim.next_time();
+
 
     init_point_bounds(pts,n,d,ad,k,centers,D, lbs,point_groups,npg,do_point_groups);
 
@@ -562,7 +575,7 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
 
     // for center calculation
     CT* new_centers = new CT[k * ad];
-    setup_time = tim.next_time();
+    setup_time += tim.next_time();
 
     while (true) {   // our iteration loop, will stop when we've done max_iter
                      // iters, or if we converge (within epsilon)
