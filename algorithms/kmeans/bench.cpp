@@ -53,6 +53,33 @@ kmeans_bench get_run_time(T* v, size_t n, size_t d, size_t ad, size_t k,
   return logger;
 }
 
+
+// //alternate function, for benching against the IVF k-means implementation
+// template <typename T, typename OuterRunner>
+// kmeans_bench get_run_time_IVF(T* v, size_t n, size_t d, size_t ad, size_t k, Distance& D, Runner& r,
+// size_t max_iter=1000, double epsilon=0) { 
+  
+//     float* c = new float[k*ad]; // centers
+//     size_t* asg = new size_t[n];
+
+  
+//     //initialization
+//     Lazy<T,float,size_t> init;
+//     //note that here, d=ad
+//     init(v,n,d,ad,k,c,asg);
+
+   
+
+//     kmeans_bench logger = kmeans_bench(n,d,k,max_iter,
+//     epsilon,"Lazy",r.name());
+//     logger.start_time();
+//     //note that d=ad here
+//     r.cluster_middle(v,n,d,ad,k,c,asg,D,logger,max_iter,epsilon,true);
+//     logger.end_time();
+//     return logger;
+    
+// }
+
 // bench many
 // n samples <- values of n to try
 // k samples <- values of k to try
@@ -77,6 +104,7 @@ inline void bench_many(T* v, size_t ad, std::string n_samples,
   std::cout << "made it here" << std::endl;
   std::vector<size_t> d_vec = extract_vector<size_t>(d_samples.c_str());
   std::cout << "made it here2" << std::endl;
+
 
   std::vector<size_t> k_vec = extract_vector<size_t>(k_samples.c_str());
   std::cout << "made it here3" << std::endl;
@@ -148,7 +176,35 @@ inline void bench_many(T* v, size_t ad, std::string n_samples,
          << k_vec[cur_parms[1]] << ", " << iter_vec[cur_parms[3]] << ", " << 1
          << ", " << result_time << ", " << dist_calcs << "\n";
 
+<<<<<<< HEAD
   } while (iterate_multidim(capacities, cur_parms));
+=======
+    std::ofstream file(output_file);
+    file << "n" << ", " << "d" << ", " << "k" << ", " << "n_iter" << ", " << "reps(vars)" << ", " << "time" << ", " << "dist_calcs" << "\n";
+
+    std::vector<size_t> capacities = {n_vec.size(),k_vec.size(),d_vec.size(),iter_vec.size(),var_vec.size()};
+    std::vector<size_t> cur_parms = {0,0,0,0,0}; //starting at -1 for ease of while loop
+
+    do {
+        for (size_t i = 0; i < cur_parms.size(); i++) {
+            std::cout << cur_parms[i] << " ";
+        }
+        //TODO add var_vec to get runtime function
+        //note that we need ad to access the right points
+        kmeans_bench logger = get_run_time(v,n_vec[cur_parms[0]],d_vec[cur_parms[2]],ad,k_vec[cur_parms[1]],D,*runner,iter_vec[cur_parms[3]],0);
+        double result_time=logger.total_time;
+        size_t dist_calcs=parlay::reduce(parlay::map(logger.iterations,[&] (iteration_bench& iter_data) {
+            return iter_data.distance_calculations;
+        }));
+
+        file << n_vec[cur_parms[0]] << ", " << d_vec[cur_parms[2]] << ", " << k_vec[cur_parms[1]] << ", " << iter_vec[cur_parms[3]] << ", " << 1 << ", " << result_time  << ", " << dist_calcs << "\n";
+
+    } while (iterate_multidim(capacities,cur_parms));
+
+    file.close();
+
+    delete runner;
+>>>>>>> 420040b (updated bench code)
 
   file.close();
 
