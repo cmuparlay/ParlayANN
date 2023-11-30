@@ -20,6 +20,7 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
 
   //param of Yinyang: choose whether to group points
   bool do_point_groups=false;
+  bool do_center_groups = false;
 
   struct point {
     index_type best;   // the index of the best center for the point
@@ -468,7 +469,15 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
     // We want t to be big without overloading memory because our memory cost
     // contains O(nt). Leaving at t=k/10 for now to allow for more consistent
     // benching, but should fiddle with, TODO optimize
-    size_t t = std::max(static_cast<size_t>(1), k / 10);
+    size_t t;
+    //flag for whether or not we group centers. t=k is equivalent of each center being its own group (so effectively Elkan's-like, no grouping)
+    if (do_center_groups) { 
+      t = std::max(static_cast<size_t>(1), k / 10);
+    }
+    else {
+      t=k;
+    }
+    
 
     parlay::sequence<group> groups =
        parlay::tabulate<group>(t, [&](size_t i) { return group(i); });
@@ -486,7 +495,7 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
     });
 
      //npg = number of point groups. npg is to points as t is to centers.
-    size_t npg = n/100;//std::max(static_cast<size_t>(1),n/50);
+    size_t npg = n/10;//std::max(static_cast<size_t>(1),n/50);
 
     parlay::sequence<group> point_groups = parlay::tabulate<group>(npg,[&] (size_t i) {return group(i);});
     size_t* pg_asg = new size_t[n]; //store the point-groups each point is assigned to
@@ -549,7 +558,7 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
     // keep track of the number of distance calculations
     parlay::sequence<size_t> distance_calculations(n, k);
     // keep track of the number of centers reassigned in an iteration
-    parlay::sequence<int> center_reassignments(k, 1);
+    parlay::sequence<int> center_reassignments(n, 1);
 
     // for center calculation
     CT* new_centers = new CT[k * ad];
@@ -642,16 +651,17 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
 
       assign_step(pts,n,d,ad,k,centers,groups,t,D,lbs,distance_calculations,center_reassignments,point_groups,npg);
 
+      assignment_time=tim.next_time();
+
       //update center.has_changed, center_reassg
       // mark centers have changed. yes this is a race, but because we
       // are setting false to true and 0 to 1 this is fine       
       parlay::parallel_for(0,n,[&] (size_t i) {
         point& p = pts[i];
         if (p.best != p.old_best) {
-          if (center_reassignments[p.best] != 1)
-          center_reassignments[p.best] = 1;
-          if (center_reassignments[p.old_best] != 1)
-            center_reassignments[p.old_best] = 1;
+          if (center_reassignments[i] != 1)
+          center_reassignments[i] = 1;
+         
           if (!centers[p.best].has_changed)
             centers[p.best].has_changed = true;
           if (!centers[p.old_best].has_changed)
