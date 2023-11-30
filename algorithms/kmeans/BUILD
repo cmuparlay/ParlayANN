@@ -49,6 +49,19 @@ cc_library(
 
 )
 cc_library(
+  name="lsh",
+  hdrs=["lsh.h"],
+  linkopts=["-pthread"],
+  deps = [
+  "@parlaylib//parlay:parallel",
+  "@parlaylib//parlay:primitives",
+  "@parlaylib//parlay:sequence",
+  "@parlaylib//parlay:random",
+  "@parlaylib//parlay:slice",
+  ":distance",],
+
+)
+cc_library(
   name="kmeans_bench",
   hdrs=["kmeans_bench.h"],
   linkopts=["-pthread"],
@@ -122,6 +135,7 @@ cc_library(
   ":init",
   ":kmeans_interface",
   ":naive",
+  ":lsh",
   "//algorithms/utils:point_range",
 
   ],

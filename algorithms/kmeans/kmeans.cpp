@@ -87,32 +87,38 @@ inline void bench_two(T* v, size_t n, size_t d, size_t ad, size_t k,
   // make sure to copy over AFTER initialization, but BEFORE kmeans run
   float* c2 = new float[k * ad];
   size_t* asg2 = new size_t[n];
-  parlay::parallel_for(0, k * ad, [&](size_t i) { c2[i] = c[i]; });
-  parlay::parallel_for(0, n, [&](size_t i) { asg2[i] = asg[i]; });
+  float* c3 = new float[k*ad];
+  size_t* asg3 = new size_t[n];
+  parlay::parallel_for(0, k * ad, [&](size_t i) { c2[i] = c[i]; c3[i]=c[i]; });
+  parlay::parallel_for(0, n, [&](size_t i) { asg2[i] = asg[i]; asg3[i]=asg[i]; });
 
-  NaiveKmeans<T, Euclidian_Point<T>, size_t, float, Euclidian_Point<float>>
-     nie2;
-  kmeans_bench logger_nie2 =
-     kmeans_bench(n, d, k, max_iter, epsilon, "Lazy", "Naive");
+  NaiveKmeans<T, Euclidian_Point<T>, size_t, float, Euclidian_Point<float>> nie2;
+  kmeans_bench logger_nie2 = kmeans_bench(n, d, k, max_iter, epsilon, "Lazy", "Naive");
   logger_nie2.start_time();
   // note that d=ad here
   nie2.cluster_middle(v, n, d, ad, k, c, asg, D, logger_nie2, max_iter,
                       epsilon);
   logger_nie2.end_time();
 
-  Yinyang<T, Euclidian_Point<T>, size_t, float, Euclidian_Point<float>>
-     yy_runner;
-  kmeans_bench logger_yy =
-     kmeans_bench(n, d, k, max_iter, epsilon, "Lazy", "YY");
+  Yinyang<T, Euclidian_Point<T>, size_t, float, Euclidian_Point<float>> yy_runner;
+  kmeans_bench logger_yy = kmeans_bench(n, d, k, max_iter, epsilon, "Lazy", "YY");
   logger_yy.start_time();
   yy_runner.cluster_middle(v, n, d, ad, k, c2, asg2, D, logger_yy, max_iter,
                            epsilon);
   logger_yy.end_time();
 
+  kmeans_bench logger_pgyy = kmeans_bench(n, d, k, max_iter, epsilon, "Lazy", "pgYY");
+  logger_pgyy.start_time();
+  yy_runner.do_point_groups=true;
+  yy_runner.cluster_middle(v,n,d,ad,k,c3,asg3,D,logger_pgyy,max_iter,epsilon);
+  logger_pgyy.end_time();
+
   delete[] c;
   delete[] c2;
+  delete[] c3;
   delete[] asg;
   delete[] asg2;
+  delete[] asg3;
 }
 
 // if new_d is the default value, go with the d given by the dataset. Otherwise,
