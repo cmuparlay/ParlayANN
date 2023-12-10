@@ -6,6 +6,9 @@ vec_to_bin : vec_to_bin.cpp
 compute_groundtruth : compute_groundtruth.cpp
 	$(CC) $(CFLAGS) -o compute_groundtruth compute_groundtruth.cpp $(LFLAGS) 
 
+compute_range_groundtruth : compute_range_groundtruth.cpp
+	$(CC) $(CFLAGS) -o compute_range_groundtruth compute_range_groundtruth.cpp $(LFLAGS) 
+
 crop : crop.cpp
 	$(CC) $(CFLAGS) -o crop crop.cpp $(LFLAGS) 
 
