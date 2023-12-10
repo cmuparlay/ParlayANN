@@ -1,6 +1,6 @@
 # Algorithms
 
-The algorithms in this folder share a common main file and thus a common commandline interface. The commandline interface allows the user to build an ANNS graph and write it to an outfile, load a graph and search it, or build and search in one shot. It contains several "generic" parameters that can be repurposed for a new benchmark. In the following examples, we provide instructions for building indices using bash. The instructions assume that the user has downloaded, converted, and built groundtruth for the 100K slice of the BIGANN dataset, as shown in the quickstart instructions.
+The algorithms in this folder share a common main file and thus a common commandline interface. The commandline interface allows the user to build an ANNS graph and write it to an outfile, load a graph and search it, or build and search in one shot. It contains several "generic" parameters that can be repurposed for a new benchmark. In the following examples, we provide instructions for building indices using bash. The instructions assume that the user has downloaded, converted, and built groundtruth for the 100K slice of the BIGANN dataset, as shown in the quickstart instructions. If you want to use range searching, we also provide instructions for computing range groundtruth in `data_tools.md`.
 
 ### Universal Parameters
 
@@ -53,6 +53,14 @@ To build, query, and save to memory, use the following:
 cd vamana
 make
 ./neighbors -R 32 -L 64 -alpha 1.2 -graph_outfile ../../data/sift/sift_learn_32_64 -query_path ../../data/sift/sift_query.fbin -gt_path ../../data/sift/sift-100K -res_path ../../data/vamana_res.csv -data_type float -dist_func Euclidian -base_path ../../data/sift/sift_learn.fbin
+```
+
+To execute range search using Vamana, use the following commandline. Note that range searching currently does not support exporting data to a CSV file: 
+
+```bash
+cd ../rangeSearch/vamanaRange
+make
+./range -R 32 -L 64 -alpha 1.2 -graph_outfile ../../data/sift/sift_learn_32_64 -query_path ../../data/sift/sift_query.fbin -gt_path ../../data/sift/sift-100K-range -data_type float -dist_func Euclidian -base_path ../../data/sift/sift_learn.fbin
 ```
 
 ## HCNNG
