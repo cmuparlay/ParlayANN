@@ -99,6 +99,50 @@ struct groundTruth{
 
 };
 
+template<typename T>
+struct RangeGroundTruth{
+  T* coords;
+  parlay::sequence<T> offsets;
+  parlay::slice<T*, T*> sizes;
+  size_t n;
+  size_t num_matches;
+
+  RangeGroundTruth() : sizes(parlay::make_slice<T*, T*>(nullptr, nullptr)){}
+
+  RangeGroundTruth(char* gtFile) : sizes(parlay::make_slice<T*, T*>(nullptr, nullptr)){
+    if(gtFile == NULL){
+        n = 0;
+        num_matches = 0;
+      } else{
+        auto [fileptr, length] = mmapStringFromFile(gtFile);
+
+        n = *((T*) fileptr);
+        num_matches = *((T*) (fileptr+sizeof(T)));
+
+        T* sizes_begin = (T*)(fileptr + 2*sizeof(T)) ;
+        T* sizes_end = sizes_begin+n;
+        sizes = parlay::make_slice(sizes_begin, sizes_end);
+
+        auto [offsets0, total] = parlay::scan(sizes);
+        offsets0.push_back(total);
+        offsets = offsets0;
+
+        std::cout << "Detected " << n << " points with num matches " << num_matches << std::endl;
+
+        coords = sizes_end;     
+      }
+  }
+
+  parlay::slice<T*, T*> operator[] (long i){
+    T* begin = coords + offsets[i];
+    T* end = coords + offsets[i+1];
+    return parlay::make_slice(begin, end);
+  }
+
+  size_t size(){return n;}
+  size_t matches(){return num_matches;}
+};
+
 
 struct BuildParams{
   long L; //vamana
@@ -148,6 +192,20 @@ struct QueryParams{
   QueryParams(long k, long Q, double cut, long limit, long dg) : k(k), beamSize(Q), cut(cut), limit(limit), degree_limit(dg) {}
 
   QueryParams() {}
+
+};
+
+struct RangeParams{
+  double rad;
+  long initial_beam;
+
+  RangeParams(double rad, long ib) : rad(rad), initial_beam(ib) {}
+
+  RangeParams() {}
+
+  void print(){
+    std::cout << "Beam: " << initial_beam;
+  }
 
 };
 
