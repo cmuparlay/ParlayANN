@@ -67,7 +67,6 @@ struct knn_index {
 
     if(add){
       for (size_t i=0; i<out_size; i++) {
-        // candidates.push_back(std::make_pair(v[p]->out_nbh[i], Points[v[p]->out_nbh[i]].distance(Points[p])));
         candidates.push_back(std::make_pair(G[p][i], Points[G[p][i]].distance(Points[p])));
       }
     }
@@ -120,9 +119,11 @@ struct knn_index {
     return robustPrune(p, cc, G, Points, alpha, add);
   }
 
+  void set_start(){start_point = 0;}
+
   void build_index(GraphI &G, PR &Points, stats<indexType> &BuildStats){
     std::cout << "Building graph..." << std::endl;
-    start_point = 0;
+    set_start();
     parlay::sequence<indexType> inserts = parlay::tabulate(Points.size(), [&] (size_t i){
 					    return static_cast<indexType>(i);});
 
@@ -254,14 +255,6 @@ struct knn_index {
         ceiling = std::min(count + static_cast<size_t>(max_batch_size), m);
         count += static_cast<size_t>(max_batch_size);
       }
-      if (print) {
-        auto ind = frac * n;
-        if (floor <= ind && ceiling > ind) {
-          frac += progress_inc;
-          std::cout << "Pass " << 100 * frac << "% complete"
-                    << std::endl;
-        }
-      }
       parlay::sequence<parlay::sequence<indexType>> new_out_(ceiling-floor);
       // search for each node starting from the start_point, then call
       // robustPrune with the visited list as its candidate set
@@ -302,10 +295,17 @@ struct knn_index {
           G[index].append_neighbors(candidates);
         } else {
           auto new_out_2_ = robustPrune(index, std::move(candidates), G, Points, alpha);  
-          G[index].update_neighbors(new_out_2_);    
         }
       });
       t_prune.stop();
+      if (print) {
+        auto ind = frac * n;
+        if (floor <= ind && ceiling > ind) {
+          frac += progress_inc;
+          std::cout << "Pass " << 100 * frac << "% complete"
+                    << std::endl;
+        }
+      }
       inc += 1;
     }
     t_beam.total();
@@ -313,30 +313,81 @@ struct knn_index {
     t_prune.total();
   }
 
-  void batch_insert(indexType p, Graph<indexType> &G) {
+  void batch_insert_with_stats(indexType p, Graph<indexType> &G) {
     parlay::sequence<indexType> inserts;
     inserts.push_back(p);
     batch_insert(inserts, G, true);
   }
 
-  // void check_index(parlay::sequence<Tvec_point<T>*> &v){
-  //   parlay::parallel_for(0, v.size(), [&] (size_t i){
-  //     if(v[i]->id > 1000000 && v[i]->id != start_point->id){
-  //       if(size_of(v[i]->out_nbh) != 0) {
-  //         std::cout << "ERROR : deleted point " << i << " still in graph" << std::endl; 
-  //         abort();
-  //       }
-  //     } else {
-  //       for(int j=0; j<size_of(v[i]->out_nbh); j++){
-  //         int nbh = v[i]->out_nbh[j];
-  //         if(nbh > 1000000 && nbh != start_point->id){
-  //           std::cout << "ERROR : point " << i << " contains deleted neighbor "
-  //                     << nbh << std::endl; 
-  //           abort();
-  //         }
-  //       }
-  //     }
-  //  });
-  // }
+  bool did_prune_change(GraphI &G, indexType index, parlay::sequence<indexType> new_nbh){
+    if(G[index].size() != new_nbh.size()) return true;
+    else{
+      std::set<indexType> old_edges;
+      for(int j=0; j<G[index].size(); j++) old_edges.insert(G[index][j]);
+      for(auto j : new_nbh){
+        if(old_edges.find(j) == old_edges.end()) return true;
+      }
+    }
+    return false;
+  }
+
+  void batch_insert_with_stats_count(parlay::sequence<indexType> &inserts,
+                     GraphI &G, PR &Points, double alpha, parlay::sequence<int> &changed) {
+
+    size_t n = G.size();
+    size_t m = inserts.size();
+    bool random_order = true;
+    parlay::sequence<int> rperm;
+    if (random_order)
+      rperm = parlay::random_permutation<int>(static_cast<int>(m));
+    else
+      rperm = parlay::tabulate(m, [&](int i) { return i; });
+    auto shuffled_inserts =
+        parlay::tabulate(m, [&](size_t i) { return inserts[rperm[i]]; });
+
+    size_t floor = 0;
+    size_t ceiling = m;
+    parlay::sequence<parlay::sequence<indexType>> new_out_(m);
+    // search for each node starting from the start_point, then call
+    // robustPrune with the visited list as its candidate set
+    parlay::parallel_for(floor, ceiling, [&](size_t i) {
+      size_t index = shuffled_inserts[i];
+      QueryParams QP((long) 0, BP.L, (double) 0.0, (long) Points.size(), (long) G.max_degree());
+      parlay::sequence<pid> visited = 
+        (beam_search<Point, PointRange, indexType>(Points[index], G, Points, start_point, QP)).first.second;
+      new_out_[i-floor] = robustPrune(index, visited, G, Points, alpha); });
+    // make each edge bidirectional by first adding each new edge
+    //(i,j) to a sequence, then semisorting the sequence by key values
+    auto to_flatten = parlay::tabulate(ceiling - floor, [&](size_t i) {
+      indexType index = shuffled_inserts[i + floor];
+      auto edges =
+          parlay::tabulate(new_out_[i].size(), [&](size_t j) {
+            return std::make_pair(new_out_[i][j], index);
+          });
+      return edges;
+    });
+    // add edges corresponding to the inserted points
+    parlay::parallel_for(floor, ceiling, [&](size_t i) {
+      G[shuffled_inserts[i]].update_neighbors(new_out_[i-floor]);
+      changed[shuffled_inserts[i]] = 1;
+    });
+    auto grouped_by = parlay::group_by_key(parlay::flatten(to_flatten));
+    // finally, add the bidirectional edges; if they do not make
+    // the vertex exceed the degree bound, just add them to out_nbhs;
+    // otherwise, use robustPrune on the vertex with user-specified alpha
+    parlay::parallel_for(0, grouped_by.size(), [&](size_t j) {
+      auto &[index, candidates] = grouped_by[j];
+      size_t newsize = candidates.size() + G[index].size();
+      if (newsize <= BP.R) {
+        G[index].append_neighbors(candidates);
+        changed[index] = 1;
+      } else {
+        auto new_out_2_ = robustPrune(index, std::move(candidates), G, Points, alpha);  
+        G[index].update_neighbors(new_out_2_);    
+        // if(did_prune_change(G, index, new_out_2_)) changed[index] = 1;
+        changed[index] = 1;
+      }
+    });
+  }
 
 };

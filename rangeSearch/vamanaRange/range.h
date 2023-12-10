@@ -23,23 +23,24 @@
 #include <algorithm>
 
 #include "../utils/NSGDist.h"
+#include "../utils/check_range_recall.h"
 #include "../utils/beamSearch.h"
 #include "../utils/check_nn_recall.h"
 #include "../utils/parse_results.h"
 #include "../utils/stats.h"
 #include "../utils/types.h"
 #include "../utils/graph.h"
-#include "index.h"
+#include "../../algorithms/vamana/index.h"
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 #include "parlay/random.h"
 
 
 template<typename Point, typename PointRange, typename indexType>
-void ANN(Graph<indexType> &G, long k, BuildParams &BP,
+void RNG(Graph<indexType> &G, double rad, BuildParams &BP,
          PointRange &Query_Points,
-         groundTruth<indexType> GT, char *res_file,
-         bool graph_built, PointRange &Points) {
+         RangeGroundTruth<indexType> GT,
+         char* res_file, bool graph_built, PointRange &Points) {
   parlay::internal::timer t("ANN");
   using findex = knn_index<Point, PointRange, indexType>;
   findex I(BP);
@@ -52,35 +53,6 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
     idx_time = t.next_time();
   }
 
-  
-
-  // I.set_start();
-  // parlay::sequence<indexType> inserts = parlay::tabulate(Points.size()/2, [&] (size_t i){
-	// 				    return static_cast<indexType>(i);});
-  // I.batch_insert(inserts, G, Points, BuildStats, BP.alpha, true, 2, .02);
-
-  // std::cout << "built on " << inserts.size() << " points" << std::endl; 
-
-
-  // size_t index = inserts[inserts.size()-1];
-  // size_t st = inserts[inserts.size()-1];
-  // parlay::sequence<int> changed(G.size(), 0);
-  // size_t num_batches = 50;
-  // size_t bs = 1000;
-  // size_t count = 0;
-
-  // while(count < num_batches){
-  //   parlay::sequence<indexType> next_inserts = parlay::tabulate(bs, [&] (size_t i){
-	// 				    return static_cast<indexType>(index+i);});
-  //   I.batch_insert_with_stats_count(next_inserts, G, Points, BP.alpha, changed);
-  //   count++;
-  //   index += bs;
-  //   size_t inserted_so_far = index - st;
-  //   std::cout << "Elements changed after " << inserted_so_far << " inserts: " << parlay::reduce(changed) << std::endl;
-    
-  // }
-  
-
   indexType start_point = I.get_start();
   std::string name = "Vamana";
   std::string params =
@@ -91,7 +63,7 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
             << std::endl;
   Graph_ G_(name, params, G.size(), avg_deg, max_deg, idx_time);
   G_.print();
-  if(Query_Points.size() != 0) search_and_parse<Point, PointRange, indexType>(G_, G, Points, Query_Points, GT, res_file, k, false, start_point);
+  if(Query_Points.size() != 0) range_search_wrapper<Point, PointRange, indexType>(G, Points, Query_Points, GT, rad, start_point);
 }
 
 
