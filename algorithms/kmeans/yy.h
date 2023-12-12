@@ -20,7 +20,8 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
 
   //param of Yinyang: choose whether to group points
   bool do_point_groups=false;
-  bool do_center_groups = false;
+  //TODO FIXME setting do_center_groups to false causes yy to fail the d is 1 test. 
+  bool do_center_groups = true;
 
   struct point {
     index_type best;   // the index of the best center for the point
@@ -69,7 +70,7 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
     float global_lb;
 
     group(index_type id)
-        : id(id), member_ids(parlay::sequence<index_type>()), max_drift(-1) {}
+        : id(id), member_ids(parlay::sequence<index_type>()), max_drift(1) {}
   };
 
   // initialize the groups by running a naive kmeans a few times
@@ -197,6 +198,21 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
         std::cout << "center " << i << "has invalid group id "
                   << centers[i].group_id << ", aborting." << std::endl;
         abort();
+      }
+    }
+    //make sure same center not assigned to mult groups
+    parlay::sequence<bool> center_already_assigned(k,false);
+    for (size_t i = 0; i < groups.size(); i++) {
+      for (size_t j = 0; j < groups[i].member_ids.size(); j++) {
+        if (DEBUG_FLAG) {
+          std::cout << "Examining center " << groups[i].member_ids[j] << std::endl;
+        }
+        
+        if (center_already_assigned[groups[i].member_ids[j]]) {
+          std::cout << "double assigned center " << groups[i].member_ids[j] << ", aborting"<<std::endl;
+          abort();
+        }
+        center_already_assigned[groups[i].member_ids[j]]=true;
       }
     }
   }
@@ -379,6 +395,7 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
         distance_calculations[p.id] += 1;
 
         // again, nothing happens if our closest center can't change
+
         if (p.global_lb >= p.ub)
           return;
 
@@ -489,7 +506,15 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
 
    
 
-
+    //debugging
+    // std::cout << "printing groups "<<std::endl;
+    // for (size_t i = 0; i < groups.size(); i++) {
+    //   std::cout << i << ": ";
+    //   for (size_t j = 0; j < groups[i].member_ids.size(); j++) {
+    //     std::cout << groups[i].member_ids[j] << " " ;
+    //   }
+    //   std::cout << std::endl;
+    // }
     assert_proper_group_size(k, centers, groups, t,
                              false);   // confirm groups all nonempty
 
@@ -504,8 +529,8 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
     parlay::sequence<group> point_groups = parlay::tabulate<group>(npg,[&] (size_t i) {return group(i);});
     size_t* pg_asg = new size_t[n]; //store the point-groups each point is assigned to
     if (do_point_groups) {
-      LSH<T> lsh_init;
-      lsh_init(v,n,d,ad,npg,c,pg_asg,D);
+      LSH<T,CT> lsh_init;
+      lsh_init.set_init_asg(v,n,d,ad,npg,pg_asg,D);
       //TODO unfortunate sequential for loop over n
       for (size_t i = 0; i < n; i++) {
         point_groups[pg_asg[i]].member_ids.push_back(i);
@@ -513,6 +538,14 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
       }
       //confirm all point groups nonempty
       assert_proper_point_group_size(n,pts,point_groups,npg,false); 
+      //DEBUGGING
+      // for (size_t i = 0; i < point_groups.size(); i++) {
+      //   std::cout << i << ": ";
+      //   for (size_t j = 0; j < point_groups[i].member_ids.size(); j++) {
+      //     std::cout << point_groups[i].member_ids[j] << " ";
+      //   }
+      //   std::cout << std::endl;
+      // }
 
      
     }
@@ -609,7 +642,7 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
       });
 
       // for each group, get max drift for group
-      parlay::parallel_for(0, t, [&](size_t i) {
+      parlay::parallel_for(0, groups.size(), [&](size_t i) {
         auto drifts = parlay::map(groups[i].member_ids, [&](index_type j) {
           return centers[j].delta;
         });

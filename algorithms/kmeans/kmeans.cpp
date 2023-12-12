@@ -56,12 +56,33 @@ inline void bench_three(T* v, size_t n, size_t d, size_t k) {
 
 // bench stable has a promise not to be changed/updated
 template <typename T>
-inline void bench_two_stable(T* v, size_t n, size_t d, size_t k, Distance& D,
+inline void bench_two_stable(T* v, size_t n, size_t d, size_t ad, size_t k, Distance& D,
                              size_t max_iter = 1000, double epsilon = 0,
                              bool output_log_to_csv = false,
                              std::string output_file_name1 = "data.csv",
                              std::string output_file_name2 = "data2.csv") {
   std::cout << "fill in bench two stable" << std::endl;
+
+
+
+  float* c = new float[k * ad];   // centers
+  size_t* asg = new size_t[n];
+
+  // initialization
+  Lazy<T, float, size_t> init;
+  // note that here, d=ad
+  init(v, n, d, ad, k, c, asg);
+
+  Yinyang<T, Euclidian_Point<T>, size_t, float, Euclidian_Point<float>> yy_runner;
+
+  kmeans_bench logger_yy = kmeans_bench(n, d, k, max_iter, epsilon, "Lazy", "YY");
+  logger_yy.start_time();
+  yy_runner.cluster_middle(v, n, d, ad, k, c, asg, D, logger_yy, max_iter,
+                           epsilon);
+  logger_yy.end_time();
+
+  delete[] c;
+  delete[] asg;
 }
 
 // bench two is the basic version I mess with
@@ -262,7 +283,7 @@ int main(int argc, char* argv[]) {
                          max_iterations, epsilon, output_log_to_csv,
                          output_log_file_name, output_log_file_name2);
       } else if (bench_version == "stable") {
-        bench_two_stable<float>(v, pick_num(n, newn), pick_num(d, newd), k, *D,
+        bench_two_stable<float>(v, pick_num(n, newn), pick_num(d, newd), d, k, *D,
                                 max_iterations, epsilon, output_log_to_csv,
                                 output_log_file_name, output_log_file_name2);
       } else if (bench_version == "three") {
@@ -281,7 +302,7 @@ int main(int argc, char* argv[]) {
                            max_iterations, epsilon, output_log_to_csv,
                            output_log_file_name, output_log_file_name2);
       } else if (bench_version == "stable") {
-        bench_two_stable<uint8_t>(v, pick_num(n, newn), pick_num(d, newd), k,
+        bench_two_stable<uint8_t>(v, pick_num(n, newn), pick_num(d, newd), d, k,
                                   *D, max_iterations, epsilon,
                                   output_log_to_csv, output_log_file_name,
                                   output_log_file_name2);
@@ -301,7 +322,7 @@ int main(int argc, char* argv[]) {
                           output_log_file_name, output_log_file_name2);
 
       } else if (bench_version == "stable") {
-        bench_two_stable<int8_t>(v, pick_num(n, newn), pick_num(d, newd), k, *D,
+        bench_two_stable<int8_t>(v, pick_num(n, newn), pick_num(d, newd), d, k, *D,
                                  max_iterations, epsilon, output_log_to_csv,
                                  output_log_file_name, output_log_file_name2);
 

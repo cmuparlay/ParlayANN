@@ -87,10 +87,27 @@ template<typename CT>
 bool equal_centers(CT* c, size_t i, size_t j, size_t d, size_t ad) {
   for (size_t coord = 0; coord < d; coord++) {
     if (std::abs(c[i*ad+coord] - c[j*ad+coord]) > .1) {
+      std::cout << "Centers diff: " << c[i*ad+coord] << " " << c[j*ad+coord] << std::endl;
       return false; //centers not equal
     }
   }
   return true;
+}
+
+template<typename T, typename CT>
+bool equidistant_centers(T* v, CT* c, size_t pt_id, size_t cid1, size_t cid2, size_t d, size_t ad, Distance& D) {
+   CT buf[2048];
+    T* it = v+pt_id*ad;
+    for (size_t el = 0; el < d; el++) buf[el]=*(it++);
+  auto dist1 = D.distance(buf,c+cid1*ad,d);
+  auto dist2 = D.distance(buf,c+cid2*ad,d);
+  if ( std::abs(dist1-dist2) < .1) {
+    return true;
+  }
+  else {
+    return false;
+  }
+ 
 }
 
 //Makes sure that each point is assigned to its closest center
@@ -115,8 +132,16 @@ void assertClosestPoints(T* v, size_t n, size_t d, size_t ad, size_t k, CT* c, i
     });
 
     for (size_t i = 0; i < n; i++) {
-      EXPECT_EQ( (bests[i]==asg[i]) || equal_centers(c,bests[i],asg[i],d,ad),true) << "asg fail " << bests[i] << " " << asg[i];
-      if (bests[i] != asg[i]) break; //prevent overprinting
+      EXPECT_EQ( (bests[i]==asg[i]) || equal_centers(c,bests[i],asg[i],d,ad) || equidistant_centers(v,c,i,bests[i],asg[i],d,ad,D),true) << "asg fail " << bests[i] << " " << asg[i] << std::endl;
+      if (bests[i] != asg[i]){
+        // std::cout << "printing point that failed" << std::endl;
+        // for (size_t coord = 0; coord < d; coord++) {
+        //   std::cout << v[i*ad+coord] << " ";
+        // }
+        // std::cout << std::endl;
+        // std::cout << "printed point that failed " << std::endl;
+        break; //prevent overprinting
+      }
     }
 
     delete[] bests; //memory cleanup
@@ -129,7 +154,7 @@ template<typename T, typename CT, typename index_type, typename Kmeans>
 double kmeansConvergenceTest(T* v, size_t n, size_t d, size_t ad, size_t k, Distance& D, bool suppress_logging=true) {
     CT* c = new CT[k*ad]; // centers
     index_type* asg = new index_type[n];
-    size_t max_iter=1000;
+    size_t max_iter=1000; 
     double epsilon=0;
     
 

@@ -252,6 +252,10 @@ TEST_F(NaiveData2,Testkis1) {
 TEST_F(NaiveData2,Testdis1) {
   kmeansConvergenceTest<uint8_t,float,size_t,Yinyang<uint8_t,Euclidian_Point<uint8_t>,size_t,float,Euclidian_Point<float>>>(v,1000,1,base_d,100,*D);
 }
+
+TEST_F(NaiveData2,Testdis1Extreme) {
+  kmeansConvergenceTest<uint8_t,float,size_t,Yinyang<uint8_t,Euclidian_Point<uint8_t>,size_t,float,Euclidian_Point<float>>>(v,1000,1,base_d,500,*D);
+}
 TEST_F(NaiveData2,Test_n_is_k) {
   double msse = kmeansConvergenceTest<uint8_t,float,size_t,Yinyang<uint8_t,Euclidian_Point<uint8_t>,size_t,float,Euclidian_Point<float>>>(v,1000,base_d,base_d,1000,*D);
   EXPECT_EQ(msse,0);
