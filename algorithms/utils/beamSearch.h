@@ -36,7 +36,11 @@
 #include "graph.h"
 #include "stats.h"
 
-
+// main beam search
+template<typename indexType, typename Point, typename PointRange, class GT>
+std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>, parlay::sequence<std::pair<indexType, typename Point::distanceType>>>, size_t>
+beam_search_impl(Point p, GT &G, PointRange &Points,
+        parlay::sequence<indexType> starting_points, QueryParams &QP);
 
 template<typename Point, typename PointRange, typename indexType>
 std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>, parlay::sequence<std::pair<indexType, typename Point::distanceType>>>, indexType>
@@ -44,13 +48,20 @@ beam_search(Point p, Graph<indexType> &G, PointRange &Points,
 	    indexType starting_point, QueryParams &QP) {
   
   parlay::sequence<indexType> start_points = {starting_point};
-  return beam_search(p, G, Points, start_points, QP);
+  return beam_search_impl<indexType>(p, G, Points, start_points, QP);
 }
 
-// main beam search
 template<typename Point, typename PointRange, typename indexType>
 std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>, parlay::sequence<std::pair<indexType, typename Point::distanceType>>>, size_t>
 beam_search(Point p, Graph<indexType> &G, PointRange &Points,
+        parlay::sequence<indexType> starting_points, QueryParams &QP) {
+  return beam_search_impl<indexType>(p, G, Points, starting_points, QP);
+}
+
+// main beam search
+template<typename indexType, typename Point, typename PointRange, class GT>
+std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>, parlay::sequence<std::pair<indexType, typename Point::distanceType>>>, size_t>
+beam_search_impl(Point p, GT &G, PointRange &Points,
 	      parlay::sequence<indexType> starting_points, QueryParams &QP) {
 
   // compare two (node_id,distance) pairs, first by distance and then id if
