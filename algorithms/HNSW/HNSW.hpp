@@ -28,6 +28,7 @@
 #include <parlay/delayed_sequence.h>
 #include <parlay/random.h>
 #include "debug.hpp"
+#include "../utils/beamSearch.h"
 #define DEBUG_OUTPUT 0
 #if DEBUG_OUTPUT
 #define debug_output(...) fprintf(stderr, __VA_ARGS__)
@@ -195,6 +196,25 @@ public:
 	};
 
 	struct graph{
+		template<class Nbh>
+		struct edgeRange{
+			edgeRange(Nbh &nbh) : nbh(nbh){
+			}
+			decltype(auto) operator[](node_id pu) const{
+				return nbh.get()[pu];
+			}
+			auto size() const{
+				return nbh.get().size();
+			}
+			void prefetch() const{
+				int l = (size() * sizeof(node_id))/64;
+				for (int i=0; i < l; i++)
+					__builtin_prefetch((char*) nbh.get().data() + i*64);
+			}
+
+			std::reference_wrapper<Nbh> nbh;
+		};
+
 		using nid_t = node_id;
 
 		graph(const HNSW<U,Allocator> &hnsw, uint32_t l) :
@@ -207,8 +227,22 @@ public:
 		decltype(auto) get_node(node_id pu) const{
 			return hnsw.get().get_node(pu);
 		}
+		decltype(auto) get_edges(node_id pu){
+			return hnsw.get().neighbourhood(hnsw.get().get_node(pu),l);
+		}
 		decltype(auto) get_edges(node_id pu) const{
 			return hnsw.get().neighbourhood(hnsw.get().get_node(pu),l);
+		}
+
+		uint32_t max_degree() const{
+			return hnsw.get().get_threshold_m(l);
+		}
+
+		auto operator[](node_id pu){
+			return edgeRange(get_edges(pu));
+		}
+		auto operator[](node_id pu) const{
+			return edgeRange(get_edges(pu));
 		}
 
 		std::reference_wrapper<const HNSW<U,Allocator>> hnsw;
@@ -488,7 +522,7 @@ public:
 		const node &u, uint32_t ef, uint32_t l_stop, const search_control &ctrl={}
 	);
 
-	auto get_threshold_m(uint32_t level){
+	auto get_threshold_m(uint32_t level) const{
 		return level==0? m*2: m;
 		// (void)level;
 		// return m;
@@ -1051,8 +1085,21 @@ template<typename U, template<typename> class Allocator>
 auto HNSW<U,Allocator>::search_layer(const node &u, const parlay::sequence<node_id> &eps, uint32_t ef, uint32_t l_c, search_control ctrl) const
 {
 	graph g(*this,l_c);
+	/*
 	dist_evaluator f_dist(u.data,dim);
 	return beamSearch<dist>(g, f_dist, eps, ef, ctrl);
+	*/
+	QueryParams QP(ef, ef, 1.35, ctrl.limit_eval.value_or(n), get_threshold_m(l_c));
+	auto points = parlay::delayed_seq<const T&>(node_pool.size(), [&](size_t i) -> const T&{
+		return node_pool[i].data;
+	});
+	auto res = beam_search_impl<node_id>(u.data, g, points, eps, QP);
+	const auto &pairElts = std::get<0>(res);
+	const auto &frontier = std::get<0>(pairElts);
+	return parlay::tabulate(frontier.size(), [&](size_t i){
+		const auto &f = frontier[i];
+		return dist{f.second, f.first};
+	});
 }
 
 template<typename U, template<typename> class Allocator>
