@@ -20,7 +20,7 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
 
   //param of Yinyang: choose whether to group points
   bool do_point_groups=false;
-  //TODO FIXME setting do_center_groups to false causes yy to fail the d is 1 test. 
+  //param of Yinyang: choose whether to group centers 
   bool do_center_groups = true;
 
   struct point {
@@ -320,18 +320,24 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
         lowest_lb = *parlay::min_element(lbs[pg]);
 
         if (farthest_dist_from_center <= lowest_lb) return;
-        //group filtering stage on the point block
-        for (size_t j = 0; j < t; j++) {
-          //if all the points close enough, skip
-          if (farthest_dist_from_center <= lbs[pg][j]) continue;
 
-          //otherwise, calculate all the distances from each point to each center
-          lbs[pg][j] = std::numeric_limits<float>::max(); //reset the lb for this point group - group combo
+        //examine_group[i] is true iff we need to look at the centers in group i
+        parlay::sequence<bool> examine_group = parlay::tabulate(t,[&] (size_t j) {
+          //if all the points close enough, skip
+          if (farthest_dist_from_center > lbs[pg][j]) {
+            lbs[pg][j]=std::numeric_limits<float>::max(); //rest lb for this point-group -- group combo
+            return true;
+          }
+          return false;
+        });
+     
           for (size_t i : point_groups[pg].member_ids) { //for each point in the p-group
             point& p = pts[i];
             CT buf[2048];
             T* it = p.coordinates.begin();
             for (size_t j = 0; j < d; j++) buf[j] = *(it++);
+            for (size_t j = 0; j < t; j++) {
+              if (!examine_group[j]) continue;
             for (size_t l = 0; l < groups[j].member_ids.size(); l++) {
               size_t c_id = groups[j].member_ids[l];
              if (p.best==c_id) continue; 
@@ -357,10 +363,11 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
 
 
             }
+            }
 
           }          
 
-        }
+  
 
       });
 
@@ -525,7 +532,7 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
     });
 
      //npg = number of point groups. npg is to points as t is to centers.
-    size_t npg = n/10;//n/10;//std::max(static_cast<size_t>(1),n/50);
+    size_t npg = std::max(static_cast<size_t>(10),n/100);//std::min(k*50,n/10);//n/10;//n/10;//std::max(static_cast<size_t>(1),n/50);
 
 
     parlay::sequence<group> point_groups = parlay::tabulate<group>(npg,[&] (size_t i) {return group(i);});
