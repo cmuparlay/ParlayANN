@@ -134,12 +134,12 @@ void assertClosestPoints(T* v, size_t n, size_t d, size_t ad, size_t k, CT* c, i
     for (size_t i = 0; i < n; i++) {
       EXPECT_EQ( (bests[i]==asg[i]) || equal_centers(c,bests[i],asg[i],d,ad) || equidistant_centers(v,c,i,bests[i],asg[i],d,ad,D),true) << "asg fail " << bests[i] << " " << asg[i] << std::endl;
       if (bests[i] != asg[i]){
-        // std::cout << "printing point that failed" << std::endl;
-        // for (size_t coord = 0; coord < d; coord++) {
-        //   std::cout << v[i*ad+coord] << " ";
-        // }
-        // std::cout << std::endl;
-        // std::cout << "printed point that failed " << std::endl;
+        std::cout << "printing point that failed in float form" << std::endl;
+        for (size_t coord = 0; coord < d; coord++) {
+          std::cout << static_cast<float>(v[i*ad+coord]) << " ";
+        }
+        std::cout << std::endl;
+        std::cout << "printed point that failed " << std::endl;
         break; //prevent overprinting
       }
     }
@@ -154,7 +154,7 @@ template<typename T, typename CT, typename index_type, typename Kmeans>
 double kmeansConvergenceTest(T* v, size_t n, size_t d, size_t ad, size_t k, Distance& D, bool suppress_logging=true) {
     CT* c = new CT[k*ad]; // centers
     index_type* asg = new index_type[n];
-    size_t max_iter=1000; 
+    size_t max_iter=1000; //is 1000 iters sufficient? TODO
     double epsilon=0;
     
 

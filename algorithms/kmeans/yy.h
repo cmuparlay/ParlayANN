@@ -291,7 +291,8 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
     //if we are using point groups
     if (do_point_groups) {
       parlay::parallel_for(0,n,[&] (size_t i) {
-        pts[i].old_best=pts[i].best;
+        pts[i].old_best=pts[i].best; //set old best to new best
+        pts[i].ub += centers[pts[i].best].delta; //increment p's ub
       });
       //for each point group
       parlay::parallel_for(0,npg,[&] (size_t pg) {
@@ -333,18 +334,19 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
             for (size_t j = 0; j < d; j++) buf[j] = *(it++);
             for (size_t l = 0; l < groups[j].member_ids.size(); l++) {
               size_t c_id = groups[j].member_ids[l];
-              if (p.best==c_id) continue;
+             if (p.best==c_id) continue; 
 
               float new_d = ptr_dist(buf, centers[c_id].begin(), d,
               D);   
               distance_calculations[p.id]++;
               if (p.ub > new_d) {
-                p.best=c_id;
-                p.ub=new_d;
+                
                 //lb of old center may tighten here 
                 if (lbs[pg][centers[p.best].group_id] > p.ub) {
                   lbs[pg][centers[p.best].group_id] = p.ub;
                 }
+                p.best=c_id;
+                p.ub=new_d;
 
               }
               //lower the lb if we can

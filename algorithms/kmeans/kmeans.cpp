@@ -103,6 +103,7 @@ inline void bench_two(T* v, size_t n, size_t d, size_t ad, size_t k,
   Lazy<T, float, size_t> init;
   // note that here, d=ad
   init(v, n, d, ad, k, c, asg);
+  
 
   // c2 and asg2 for the yy run
   // make sure to copy over AFTER initialization, but BEFORE kmeans run
@@ -114,6 +115,9 @@ inline void bench_two(T* v, size_t n, size_t d, size_t ad, size_t k,
   size_t* asg4 = new size_t[n];
   parlay::parallel_for(0, k * ad, [&](size_t i) { c2[i] = c[i]; c3[i]=c[i]; c4[i]=c[i]; });
   parlay::parallel_for(0, n, [&](size_t i) { asg2[i] = asg[i]; asg3[i]=asg[i]; asg4[i]=asg[i]; });
+ 
+  LSH<T,float> init2;
+  init2(v, n, d, ad, k, c3, asg3,D);
 
   // NaiveKmeans<T, Euclidian_Point<T>, size_t, float, Euclidian_Point<float>> nie2;
   // kmeans_bench logger_nie2 = kmeans_bench(n, d, k, max_iter, epsilon, "Lazy", "Naive");
@@ -124,6 +128,9 @@ inline void bench_two(T* v, size_t n, size_t d, size_t ad, size_t k,
   // logger_nie2.end_time();
 
   Yinyang<T, Euclidian_Point<T>, size_t, float, Euclidian_Point<float>> yy_runner;
+
+   yy_runner.do_center_groups=true;
+  yy_runner.do_point_groups=true;
 
   kmeans_bench logger_yy = kmeans_bench(n, d, k, max_iter, epsilon, "Lazy", "YY");
   logger_yy.start_time();
