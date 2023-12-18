@@ -133,6 +133,22 @@ struct LSH {
     }
 
     });
+    
+    //divide by # of points in group
+    parlay::parallel_for(0,k,[&] (size_t i) {
+      if (i == k-1) {
+        for (size_t coord = 0; coord < d; coord++) {
+          c[i*ad+coord]/=(noverk+n%k);
+        }
+
+      }
+      else {
+        for (size_t coord = 0; coord < d; coord++) {
+          c[i*ad+coord]/=noverk;
+        }
+      }
+
+    });
 
   }
 

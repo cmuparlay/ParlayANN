@@ -119,6 +119,32 @@ inline void bench_two(T* v, size_t n, size_t d, size_t ad, size_t k,
   LSH<T,float> init2;
   init2(v, n, d, ad, k, c3, asg3,D);
 
+  auto rangn = parlay::iota(n);
+
+
+  float msse = parlay::reduce(parlay::map(rangn,
+                                          [&](size_t i) {
+                                            float buf[2048];
+                                            T* it = v + i * ad;
+                                            for (size_t i = 0; i < d; i++)
+                                              buf[i] = *(it++);
+                                            return D.distance(
+                                                buf, c + asg[i] * ad, d);
+                                          })) /
+                n;   // calculate msse
+  float msse3 = parlay::reduce(parlay::map(rangn,
+                            [&](size_t i) {
+                              float buf[2048];
+                              T* it = v + i * ad;
+                              for (size_t i = 0; i < d; i++)
+                                buf[i] = *(it++);
+                              return D.distance(
+                                  buf, c3 + asg3[i] * ad, d);
+                            })) /
+  n;   // calculate msse
+  std::cout << "Normal init " << msse << ", LSH init " << msse3 << std::endl;
+
+
   // NaiveKmeans<T, Euclidian_Point<T>, size_t, float, Euclidian_Point<float>> nie2;
   // kmeans_bench logger_nie2 = kmeans_bench(n, d, k, max_iter, epsilon, "Lazy", "Naive");
   // logger_nie2.start_time();
@@ -127,33 +153,38 @@ inline void bench_two(T* v, size_t n, size_t d, size_t ad, size_t k,
   //                     epsilon);
   // logger_nie2.end_time();
 
-  Yinyang<T, Euclidian_Point<T>, size_t, float, Euclidian_Point<float>> yy_runner;
+  // kmeans_bench logger_n3 = kmeans_bench(n, d, k, max_iter, epsilon, "LSH", "Naive");
+  // logger_n3.start_time();
+  // nie2.cluster_middle(v,n,d,ad,k,c3,asg3,D,logger_n3,max_iter,epsilon);
+  // logger_n3.end_time();
 
-   yy_runner.do_center_groups=true;
-  yy_runner.do_point_groups=true;
+  // Yinyang<T, Euclidian_Point<T>, size_t, float, Euclidian_Point<float>> yy_runner;
 
-  kmeans_bench logger_yy = kmeans_bench(n, d, k, max_iter, epsilon, "Lazy", "YY");
-  logger_yy.start_time();
-  yy_runner.cluster_middle(v, n, d, ad, k, c2, asg2, D, logger_yy, max_iter,
-                           epsilon);
-  logger_yy.end_time();
+  // //  yy_runner.do_center_groups=true;
+  // // yy_runner.do_point_groups=true;
 
-  yy_runner.do_center_groups=true;
-  yy_runner.do_point_groups=false;
+  // // kmeans_bench logger_yy = kmeans_bench(n, d, k, max_iter, epsilon, "Lazy", "YY");
+  // // logger_yy.start_time();
+  // // yy_runner.cluster_middle(v, n, d, ad, k, c2, asg2, D, logger_yy, max_iter,
+  // //                          epsilon);
+  // // logger_yy.end_time();
 
-  kmeans_bench logger_cgyy = kmeans_bench(n, d, k, max_iter, epsilon, "Lazy", "cgYY");
-  logger_cgyy.start_time();
-  yy_runner.cluster_middle(v,n,d,ad,k,c3,asg3,D,logger_cgyy,max_iter,epsilon);
-  logger_cgyy.end_time();
+  // // yy_runner.do_center_groups=true;
+  // // yy_runner.do_point_groups=false;
+
+  // kmeans_bench logger_cgyy = kmeans_bench(n, d, k, max_iter, epsilon, "Lazy", "cgYY");
+  // logger_cgyy.start_time();
+  // yy_runner.cluster_middle(v,n,d,ad,k,c3,asg3,D,logger_cgyy,max_iter,epsilon);
+  // logger_cgyy.end_time();
 
 
 
-  kmeans_bench logger_pgyy = kmeans_bench(n, d, k, max_iter, epsilon, "Lazy", "pgYY");
-  logger_pgyy.start_time();
-  yy_runner.do_center_groups=false;
-  yy_runner.do_point_groups=true;
-  yy_runner.cluster_middle(v,n,d,ad,k,c4,asg4,D,logger_pgyy,max_iter,epsilon);
-  logger_pgyy.end_time();
+  // kmeans_bench logger_pgyy = kmeans_bench(n, d, k, max_iter, epsilon, "Lazy", "pgYY");
+  // logger_pgyy.start_time();
+  // yy_runner.do_center_groups=false;
+  // yy_runner.do_point_groups=true;
+  // yy_runner.cluster_middle(v,n,d,ad,k,c4,asg4,D,logger_pgyy,max_iter,epsilon);
+  // logger_pgyy.end_time();
 
   delete[] c;
   delete[] c2;
