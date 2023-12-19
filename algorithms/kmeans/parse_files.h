@@ -147,48 +147,5 @@ bool iterate_multidim(std::vector<size_t>& capacities,
   return true;
 }
 
-// //hold a point set
-// struct DataWrapper {
-//     float* fd;
-//     int8_t* ind;
-//     uint8_t* uid;
-//     size_t n;
-//     size_t d;
-//     size_t type=-1; //0 means float, 1 means int8, 2 means uint8
-//     size_t type_string = "";
-
-//     DataWrapper(std::string filename, std::string tp) {
-//         if (tp == "float") {
-//             auto [tv, tn, td] = parse_fbin(input.c_str());
-//             fd=tv;
-//             n=tn;
-//             d=td;
-//             type=0;
-//             type_string="float";
-//         }
-//         else if (tp == "uint8") {
-//             auto [tv, tn, td] = parse_uint8_t(input.c_str());
-//             fd=tv;
-//             n=tn;
-//             d=td;
-//             type=2;
-//             type_string="uint8_t";
-//         }
-//         else if (tp == "int8") {
-//             auto [tv, tn, td] = parse_int8bin(input.c_str());
-//             fd=tv;
-//             n=tn;
-//             d=td;
-//             type=1;
-//             type_string="int8_t";
-//         }
-//         else {
-//             std::cout << "invalid type, aborting " << std::endl;
-//             abort();
-//         }
-
-//     }
-
-// };
 
 #endif   // PARSING

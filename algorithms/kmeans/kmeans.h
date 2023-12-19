@@ -1,3 +1,7 @@
+//Interface for kmeans structs
+//kmeans structs are required to have a "cluster_middle" function, which will run k-means on a set of data
+//for explanations of common variable names, please see the README
+
 #ifndef KMEANS_H
 #define KMEANS_H
 
@@ -26,12 +30,17 @@
 #include "../utils/euclidian_point.h"
 #include "../utils/point_range.h"
 
-// Kmeans struct interface -- needs a cluster function
-// CT = Center (data) type
+
+// T = point data type e.g. float, uint8_t, int8_t
+// CT = Center (data) type e.g. float, double
+// index_type = type used for the indexing/assignments of points e.g., size_t
+// Point = ParlayANN point object used (e.g. Euclidian_Point<uint8_t>)
+// CenterPoint = ParlayANN center point object used (e.g. Euclidian_Point<float>)
 template <typename T, typename Point, typename index_type, typename CT,
           typename CenterPoint>
 struct KmeansInterface {
 
+  //CITE this function adapted from from Ben's IVF branch code
   parlay::sequence<parlay::sequence<index_type>> get_clusters(index_type* asg,
                                                               size_t n,
                                                               size_t k) {
@@ -43,6 +52,10 @@ struct KmeansInterface {
 
   // given a PointRange and k, cluster will use k-means clustering to partition
   // the points into k groups
+  //returns a pair. The first element of the pair is the assignments, in the form of a parlay sequence of sequences. Here, seq[i] gives a sequence containing the ids of all of the points assigned to center i
+  //The second element of the pair is a sequence of sequences, containing the coordinates of all of the centers
+  //The point of cluster is to provide the user easy access to k-means, if they don't want to think about the internals. 
+  //Thus the user cannot choose the max # of iterations, epsilon, initialization method, etc. If the user wants this control they should use cluster_middle
   virtual std::pair<parlay::sequence<parlay::sequence<index_type>>,
                     parlay::sequence<parlay::sequence<CT>>>
   cluster(PointRange<T, Point> points, size_t k) {
@@ -52,7 +65,7 @@ struct KmeansInterface {
     size_t ad = points.aligned_dimension();   // ad is aligned dimension is # of
                                               // dimensions with padding
     size_t n = points.size();                 // n is # of points
-    size_t max_iter = 5;                      // can change
+    size_t max_iter = 5;                      // can change max_iter, epsilon
     double epsilon = 0;
 
     CT* c = new CT[k * ad];                // c stores the centers we find
@@ -73,7 +86,7 @@ struct KmeansInterface {
 
     std::cout << "Finished cluster" << std::endl;
 
-    auto seq_seq_pt_asgs = get_clusters(asg, n, k);
+    auto seq_seq_pt_asgs = get_clusters(asg, n, k); //get the assignments, in sequence form
 
     parlay::sequence<parlay::sequence<CT>> centers =
        parlay::tabulate(k, [&](size_t i) {
@@ -93,10 +106,12 @@ struct KmeansInterface {
                               double epsilon,
                               bool suppress_logging = false) = 0;
 
+  //returns the name of the k-means method
   virtual std::string name() = 0;
 
   // helpful function for center calculation
-  // requires integer keys
+  // given a list of assignments (asg) of length n, format the list as a sequence of sequences and put this information into 'grouped'
+  // requires integer/size_t keys (for assignments)
   void fast_int_group_by(
      parlay::sequence<std::pair<index_type, parlay::sequence<index_type>>>&
         grouped,
@@ -109,7 +124,7 @@ struct KmeansInterface {
           init_pairs,
           [&](std::pair<index_type, index_type> p) { return p.first; });
 
-    // store where each center starts in int_sorted
+    // store where each center starts 
     auto start_pos =
        parlay::pack_index(parlay::delayed_tabulate(n, [&](size_t i) {
          return i == 0 || int_sorted[i].first != int_sorted[i - 1].first;
@@ -134,12 +149,6 @@ struct KmeansInterface {
     parlay::parallel_for(0, k * ad, [&](size_t i) { centers[i] = 0; });
 
     // group points by center
-    //  auto rangn = parlay::delayed_tabulate(n,[&] (index_type i) {return i;});
-    //  parlay::sequence<std::pair<index_type,parlay::sequence<index_type>>>
-    //  pts_grouped_by_center = parlay::group_by_key(parlay::map(rangn,[&]
-    //  (index_type i) { return std::make_pair(asg[i],i);
-    //  }));
-    // TODO change back to using int sort
     parlay::sequence<std::pair<index_type, parlay::sequence<index_type>>>
        pts_grouped_by_center;
     fast_int_group_by(pts_grouped_by_center, n, asg);
@@ -163,8 +172,7 @@ struct KmeansInterface {
 
     parlay::parallel_for(0, pts_grouped_by_center.size(), [&](size_t i) {
       parlay::parallel_for(0, d, [&](size_t coord) {
-        // note that this if condition is necessarily true, because if the list
-        // was empty that center wouldn't be in pts_grouped_by_center at all
+        // note that this if condition is necessarily true, because if the list was empty that center wouldn't be in pts_grouped_by_center at all
         if (pts_grouped_by_center[i].second.size() > 0) {
           centers[pts_grouped_by_center[i].first * ad + coord] /=
              pts_grouped_by_center[i].second.size();
@@ -187,7 +195,7 @@ struct KmeansInterface {
       }
     });
   }
-
+  //default destructor
   virtual ~KmeansInterface() {}
 };
 

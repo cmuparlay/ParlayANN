@@ -1,14 +1,7 @@
-// expand on NSGDist.h
+// built off NSGDist.h, wraps distance call in a Distance object
 
 #ifndef DISTANCE_CLASS
 #define DISTANCE_CLASS
-
-// #include <math.h>
-// #include <x86intrin.h>
-
-// #include <algorithm>
-// #include <iostream>
-// #include <type_traits>
 
 #include "../utils/NSGDist.h"
 #include "parlay/parallel.h"

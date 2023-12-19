@@ -1,4 +1,19 @@
 // Yinyang method for accelerating exact kmeans
+// Common variables:
+// groups = sequence of group objects, where each group object holds the information for a grouping of centers
+// t = # of groups (following notation used in Yinyang paper)
+// DEBUG_FLAG = if true, will print additional debugging info
+// lb = lower bound = lower bound for the true distance between a point and a center (or grouping of centers) = 
+//  we know that a point is at least lb_g away from all of the centers in group g
+// ub = upper bound = upper bound for the true distance between a point and its current closest center = 
+//  we know that a point is no more than ub away from its closest center
+// npg = Number of Point Groups. t is to center grouping as npg is to point grouping. 
+// point_groups = sequence of groups, where each group holds the information for a grouping of points
+// WARNING: the notation lbs is abused. lbs is used for both a sequence of lower bounds (for a given point) and for a sequence of sequences (containing all of the lbs for all points). When point grouping is used, lbs has dimensions npg x t, but when point grouping is not used, lbs has dimension n x t
+// pts = sequence of point objects, which contain useful information about a point in addition to a slice of v 
+// centers = sequence of center objects. Holds the center information. 
+// distance_calculations = Used to keep track of # of distance calculations done by algorithm. Is sequence of length n, distance_calculations[i] = number of distance calculations done with point i in a given iteration.
+// center_reassignments = Used to keep track of how many points change which center they are assigned to in a given iteration. Is sequence of length n, center_reassignments[i] = 1 if changed center, 0 otherwise
 
 #ifndef YY
 #define YY
@@ -27,10 +42,10 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
     index_type best;   // the index of the best center for the point
     parlay::slice<T*, T*> coordinates;   // the coordinates of the point
     index_type id;   // an id used for the point, for debugging purposes
-    float ub;
+    float ub; //upper bound (on how far the point is from its closest center)
     float global_lb;       // global lower bound
     index_type old_best;   // the previous best
-    index_type group_id;
+    index_type group_id; //for point grouping, denotes which point group this point group belongs to
 
     point(index_type id, index_type chosen, parlay::slice<T*, T*> coordinates)
         : best(chosen),
@@ -45,7 +60,7 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
     index_type id;         // a unique identifier for the center
     index_type group_id;   // the id of the group that the center belongs to
     parlay::sequence<CT> coordinates;   // the coordinates of the center
-    float delta;
+    float delta; //how much the center moves during an update center step
     index_type old_num_members;   // how many points belonged to that center
     index_type new_num_members;   // the number of members this iter
     bool has_changed;             // check if the center has changed
@@ -62,12 +77,13 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
     CT* begin() { return coordinates.begin(); }
   };
 
+  //the group object is used for both point groups and center groups. However, point groups do not use max_drift or global_lb. 
   struct group {
     index_type id;
     parlay::sequence<index_type>
        member_ids;   // store the ids of all the centers (or points, in point grouping) belonging to this group
-    float max_drift;
-    float global_lb;
+    float max_drift; //maximum movement of any center in this group
+    float global_lb; //smallest lb of any center belonging to this group
 
     group(index_type id)
         : id(id), member_ids(parlay::sequence<index_type>()), max_drift(1) {}
@@ -127,6 +143,7 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
     delete[] group_asg;
   }
 
+  //make sure that the group assignment went well, abort if not
   void assert_proper_point_group_size(size_t k,
                                 const parlay::sequence<point>& centers,
                                 const parlay::sequence<group>& groups, size_t t,
@@ -230,12 +247,13 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
       abort();
     }
   }
-  // ptr dist is distance between two pointers
+
+  // returns the distance between two pointers, looking at first d entries, with distance calculated using D
   float ptr_dist(CT* a, CT* b, size_t d, Distance& D) {
     return std::sqrt(D.distance(a, b, d));
   }
 
-  // find distance between point (p) and center
+  // return distance between point (p) and center
   float pc_dist_squared(point& p, size_t d, center& cen, Distance& D) {
     CT buf[2048];
     T* it = p.coordinates.begin();
@@ -243,8 +261,9 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
       buf[j] = *(it++);
     return D.distance(buf, cen.begin(), d);
   }
-
-  void init_set_closest_point(point& p, size_t d, size_t k, parlay::sequence<center>& centers, Distance& D, parlay::sequence<float>& lbs) {
+  //helper for init_point_bounds, do the actual closest point calculation
+  //lbs = sequence of lower bounds for the point p
+  void helper_init_point_bounds(point& p, size_t d, size_t k, parlay::sequence<center>& centers, Distance& D, parlay::sequence<float>& lbs) {
    
       CT buf[2048];
       T* it = p.coordinates.begin();
@@ -267,12 +286,13 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
       }
 
   }
-  // Init the point bounds
+  // Init the point bounds, in different ways depending on whether or not we are doing point grouping
+  // lbs = sequence of sequences, containing all of the lower bounds for all points/point groups
   void init_point_bounds(parlay::sequence<point>& pts, size_t n, size_t d, size_t ad, size_t k, parlay::sequence<center>& centers, Distance& D, parlay::sequence<parlay::sequence<float>>& lbs,parlay::sequence<group> point_groups,size_t npg,bool do_point_groups) {
     if (do_point_groups) {
       parlay::parallel_for(0,npg,[&] (size_t pg) {
         for (size_t i : point_groups[pg].member_ids) {
-          init_set_closest_point(pts[i],d,k,centers,D,lbs[pts[i].group_id]);
+          helper_init_point_bounds(pts[i],d,k,centers,D,lbs[pts[i].group_id]);
 
         }
       });
@@ -280,12 +300,13 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
     }
     else {
       parlay::parallel_for(0, n, [&](size_t i) {
-        init_set_closest_point(pts[i],d,k,centers,D,lbs[i]);
+        helper_init_point_bounds(pts[i],d,k,centers,D,lbs[i]);
         
       });
     }
   }
 
+  // lbs = sequence of sequences, containing all of the lower bounds for all points/point groups
   void assign_step(parlay::sequence<point>& pts, size_t n, size_t d, size_t ad, size_t k, parlay::sequence<center>& centers, parlay::sequence<group>& groups, size_t t, Distance& D, parlay::sequence<parlay::sequence<float>>& lbs, parlay::sequence<size_t>& distance_calculations, parlay::sequence<int>& center_reassignments, parlay::sequence<group>& point_groups, size_t npg) {
     
     //if we are using point groups
@@ -419,8 +440,7 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
           // overwrite the lbs[i][j] being set to the old ub on a center
           // reassignment, so we do need to do a distance calculation with the
           // old_best to recover that bound
-          //lbs[i][j] = std::numeric_limits<float>::max();
-          //TODO fix me put lbs back in place!
+        
           lbs[i][j] = std::numeric_limits<float>::max();
 
           // for each group member (center)
@@ -513,17 +533,6 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
 
     init_groups(d, ad, k, c, centers, groups, t, D);
 
-   
-
-    //debugging
-    // std::cout << "printing groups "<<std::endl;
-    // for (size_t i = 0; i < groups.size(); i++) {
-    //   std::cout << i << ": ";
-    //   for (size_t j = 0; j < groups[i].member_ids.size(); j++) {
-    //     std::cout << groups[i].member_ids[j] << " " ;
-    //   }
-    //   std::cout << std::endl;
-    // }
     assert_proper_group_size(k, centers, groups, t,
                              false);   // confirm groups all nonempty
 
@@ -532,7 +541,9 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
     });
 
      //npg = number of point groups. npg is to points as t is to centers.
-    size_t npg = std::max(static_cast<size_t>(10),n/100);//std::min(k*50,n/10);//n/10;//n/10;//std::max(static_cast<size_t>(1),n/50);
+     //TODO optimize choice of npg. Possible choices are n, n/10, n/50, n/100, k*50
+     //WARNING: make sure that 0 < npg <= n (otherwise code will bug). For example, it is possible that k*50 > n, or that n/100=0.
+    size_t npg = std::max(static_cast<size_t>(10),n/100);
 
 
     parlay::sequence<group> point_groups = parlay::tabulate<group>(npg,[&] (size_t i) {return group(i);});
@@ -547,24 +558,11 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
       }
       //confirm all point groups nonempty
       assert_proper_point_group_size(n,pts,point_groups,npg,false); 
-      //DEBUGGING
-      // for (size_t i = 0; i < point_groups.size(); i++) {
-      //   std::cout << i << ": ";
-      //   for (size_t j = 0; j < point_groups[i].member_ids.size(); j++) {
-      //     std::cout << point_groups[i].member_ids[j] << " ";
-      //   }
-      //   std::cout << std::endl;
-      // }
-
+     
      
     }
     delete[] pg_asg;
 
-   
-
-
-
-    // TODO will floats overflow (if accidental add to numeric_limits max)?
     //Remark: size of lbs dependent on whether or not we are doing point_groups
     //if we are doing point groups, size npg * t
     //if we aren't, size n * t
@@ -607,7 +605,7 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
 
     assert_members_n(n, k, centers);
 
-    // iters start at 1 as we have already done a closest point check
+    // iters start at 1 as we have already done an assignment step (within init_point_bounds)
     size_t iters = 1;
     float max_diff = 0.0;
     // keep track of the number of distance calculations
@@ -622,15 +620,15 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
     while (true) {   // our iteration loop, will stop when we've done max_iter
                      // iters, or if we converge (within epsilon)
 
-      // TODO use yy-style comparative compute_centers in future iterations
-      // (once it is actually faster) copying over to c array to use a shared
-      // compute_centers function with naive. Copying this should be relatively
+      // copying over to c array to use a shared compute_centers function with naive. Copying this should be relatively
       // cheap so not concerned TODO is this actually cheap?
       parlay::parallel_for(0, k, [&](size_t i) {
         for (size_t j = 0; j < d; j++) {
           c[i * ad + j] = centers[i].coordinates[j];
         }
       });
+      // TODO use yy-style comparative compute_centers in future iterations
+      // (once it is actually faster) 
       parlay::parallel_for(0, n, [&](size_t i) { asg[i] = pts[i].best; });
       this->compute_centers(v, n, d, ad, k, c, new_centers, asg);
 
@@ -659,19 +657,19 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
         groups[i].max_drift = *max_element(drifts);
       });
 
-      // TODO how expensive is this calculation? (will it affect logging time?)
-      float msse =
-         parlay::reduce(parlay::delayed_tabulate(
-            n,
-            [&](size_t i) {
-              return pc_dist_squared(pts[i], d, centers[pts[i].best], D);
-            })) /
-         n;
-
       update_time = tim.next_time();
 
       // end of iteration stat updating
       if (!suppress_logging) {
+        // TODO how expensive is this calculation? (will it affect logging time?)
+        float msse =
+        parlay::reduce(parlay::delayed_tabulate(
+          n,
+          [&](size_t i) {
+            return pc_dist_squared(pts[i], d, centers[pts[i].best], D);
+          })) /
+        n;
+
         logger.add_iteration(
            iters, assignment_time, update_time, msse,
            parlay::reduce(distance_calculations),
@@ -735,9 +733,8 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
       });
 
       setup_time = tim.next_time();
-    }
-
-    // copy back data
+    } 
+    // we have now finished our k-means iterations, so we copy back the data
     parlay::parallel_for(0, k, [&](size_t i) {
       for (size_t j = 0; j < d; j++) {
         c[i * ad + j] = centers[i].coordinates[j];
@@ -750,4 +747,4 @@ struct Yinyang : KmeansInterface<T, Point, index_type, CT, CenterPoint> {
   std::string name() { return "yy"; }
 };
 
-#endif   // YYIMP
+#endif   // YY

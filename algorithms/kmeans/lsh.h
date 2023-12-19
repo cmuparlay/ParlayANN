@@ -1,5 +1,4 @@
 //use LSH bucketing for a good initialization
-
 //CITE: the lsh code was adapted from here: https://github.com/rakri/grann/blob/main/src/lsh.cpp
 #ifndef LSHCODE
 #define LSHCODE

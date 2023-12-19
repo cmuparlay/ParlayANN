@@ -13,7 +13,6 @@
 #include <random>
 #include <set>
 #include <type_traits>
-#include <utility>
 #include <utility>   //for unique_ptr
 
 #include "../bench/parse_command_line.h"
@@ -25,36 +24,37 @@
 #include "parse_files.h"
 #include "yy.h"
 
-// other information default
 // this version uses the "cluster" method from the KmeansInterface
 template <typename T>
-inline void bench_three(T* v, size_t n, size_t d, size_t k) {
+inline void bench_three(T* v, size_t n, size_t d, size_t k, bool debug_print=false) {
   NaiveKmeans<T, Euclidian_Point<T>, size_t, float, Euclidian_Point<float>>
      runner;
   auto output =
      runner.cluster(PointRange<T, Euclidian_Point<T>>(v, n, d, d), k);
   std::cout << "finished" << std::endl;
-  std::cout << "Printing out partitions: " << std::endl;
-  auto parts = output.first;
-  for (size_t i = 0; i < parts.size(); i++) {
-    std::cout << i << ": ";
-    for (size_t j = 0; j < parts[i].size(); j++) {
-      std::cout << parts[i][j] << " ";
+  if (debug_print) {
+    std::cout << "Printing out partitions: " << std::endl;
+    auto parts = output.first;
+    for (size_t i = 0; i < parts.size(); i++) {
+      std::cout << i << ": ";
+      for (size_t j = 0; j < parts[i].size(); j++) {
+        std::cout << parts[i][j] << " ";
+      }
+      std::cout << std::endl;
     }
-    std::cout << std::endl;
+
+    std::cout << "Printing out centers: " << std::endl;
+    auto centers = output.second;
+    for (size_t i = 0; i < centers.size(); i++) {
+      for (size_t j = 0; j < centers[i].size(); j++) {
+        std::cout << centers[i][j] << " ";
+      }
+      std::cout << std::endl;
+    }
   }
 
-  std::cout << "Printing out centers: " << std::endl;
-  auto centers = output.second;
-  for (size_t i = 0; i < centers.size(); i++) {
-    for (size_t j = 0; j < centers[i].size(); j++) {
-      std::cout << centers[i][j] << " ";
-    }
-    std::cout << std::endl;
-  }
 }
-
-// bench stable has a promise not to be changed/updated
+ 
 template <typename T>
 inline void bench_two_stable(T* v, size_t n, size_t d, size_t ad, size_t k, Distance& D,
                              size_t max_iter = 1000, double epsilon = 0,
@@ -86,15 +86,15 @@ inline void bench_two_stable(T* v, size_t n, size_t d, size_t ad, size_t k, Dist
 }
 
 // bench two is the basic version I mess with
+// currently, we bench naive against yy, yy with point and center grouping, and yy with point but no center grouping
 template <typename T>
 inline void bench_two(T* v, size_t n, size_t d, size_t ad, size_t k,
                       Distance& D, size_t max_iter = 1000, double epsilon = 0,
                       bool output_log_to_csv = false,
                       std::string output_file_name1 = "data.csv",
                       std::string output_file_name2 = "data2.csv") {
-  std::cout << "fill in bench 2" << std::endl;
 
-  std::cout << "Running bench stable " << std::endl;
+  std::cout << "Running bench two " << std::endl;
 
   float* c = new float[k * ad];   // centers
   size_t* asg = new size_t[n];
@@ -116,34 +116,8 @@ inline void bench_two(T* v, size_t n, size_t d, size_t ad, size_t k,
   parlay::parallel_for(0, k * ad, [&](size_t i) { c2[i] = c[i]; c3[i]=c[i]; c4[i]=c[i]; });
   parlay::parallel_for(0, n, [&](size_t i) { asg2[i] = asg[i]; asg3[i]=asg[i]; asg4[i]=asg[i]; });
  
-  // LSH<T,float> init2;
-  // init2(v, n, d, ad, k, c3, asg3,D);
 
-  // auto rangn = parlay::iota(n);
-
-  // float msse = parlay::reduce(parlay::map(rangn,
-  //                                         [&](size_t i) {
-  //                                           float buf[2048];
-  //                                           T* it = v + i * ad;
-  //                                           for (size_t i = 0; i < d; i++)
-  //                                             buf[i] = *(it++);
-  //                                           return D.distance(
-  //                                               buf, c + asg[i] * ad, d);
-  //                                         })) /
-  //               n;   // calculate msse
-  // float msse3 = parlay::reduce(parlay::map(rangn,
-  //                           [&](size_t i) {
-  //                             float buf[2048];
-  //                             T* it = v + i * ad;
-  //                             for (size_t i = 0; i < d; i++)
-  //                               buf[i] = *(it++);
-  //                             return D.distance(
-  //                                 buf, c3 + asg3[i] * ad, d);
-  //                           })) /
-  // n;   // calculate msse
-  // std::cout << "Normal init " << msse << ", LSH init " << msse3 << std::endl;
-
-
+  //uncomment to run Naive
   // NaiveKmeans<T, Euclidian_Point<T>, size_t, float, Euclidian_Point<float>> nie2;
   // kmeans_bench logger_nie2 = kmeans_bench(n, d, k, max_iter, epsilon, "Lazy", "Naive");
   // logger_nie2.start_time();
@@ -152,21 +126,17 @@ inline void bench_two(T* v, size_t n, size_t d, size_t ad, size_t k,
   //                     epsilon);
   // logger_nie2.end_time();
 
-  // kmeans_bench logger_n3 = kmeans_bench(n, d, k, max_iter, epsilon, "LSH", "Naive");
-  // logger_n3.start_time();
-  // nie2.cluster_middle(v,n,d,ad,k,c3,asg3,D,logger_n3,max_iter,epsilon);
-  // logger_n3.end_time();
-
   Yinyang<T, Euclidian_Point<T>, size_t, float, Euclidian_Point<float>> yy_runner;
 
-  //  yy_runner.do_center_groups=true;
-  // yy_runner.do_point_groups=true;
+  //uncomment to run Yinyang with point and center grouping
+  yy_runner.do_center_groups=true;
+  yy_runner.do_point_groups=true;
 
-  // kmeans_bench logger_yy = kmeans_bench(n, d, k, max_iter, epsilon, "Lazy", "YY");
-  // logger_yy.start_time();
-  // yy_runner.cluster_middle(v, n, d, ad, k, c2, asg2, D, logger_yy, max_iter,
-  //                          epsilon);
-  // logger_yy.end_time();
+  kmeans_bench logger_yy = kmeans_bench(n, d, k, max_iter, epsilon, "Lazy", "YY");
+  logger_yy.start_time();
+  yy_runner.cluster_middle(v, n, d, ad, k, c2, asg2, D, logger_yy, max_iter,
+                           epsilon);
+  logger_yy.end_time();
 
   yy_runner.do_center_groups=true;
   yy_runner.do_point_groups=false;
@@ -176,14 +146,13 @@ inline void bench_two(T* v, size_t n, size_t d, size_t ad, size_t k,
   yy_runner.cluster_middle(v,n,d,ad,k,c3,asg3,D,logger_cgyy,max_iter,epsilon);
   logger_cgyy.end_time();
 
-
-
-  kmeans_bench logger_pgyy = kmeans_bench(n, d, k, max_iter, epsilon, "Lazy", "pgYY");
-  logger_pgyy.start_time();
-  yy_runner.do_center_groups=false;
-  yy_runner.do_point_groups=true;
-  yy_runner.cluster_middle(v,n,d,ad,k,c4,asg4,D,logger_pgyy,max_iter,epsilon);
-  logger_pgyy.end_time();
+  //uncomment to run yy with point grouping and no center grouping
+  // kmeans_bench logger_pgyy = kmeans_bench(n, d, k, max_iter, epsilon, "Lazy", "pgYY");
+  // logger_pgyy.start_time();
+  // yy_runner.do_center_groups=false;
+  // yy_runner.do_point_groups=true;
+  // yy_runner.cluster_middle(v,n,d,ad,k,c4,asg4,D,logger_pgyy,max_iter,epsilon);
+  // logger_pgyy.end_time();
 
   delete[] c;
   delete[] c2;
@@ -209,15 +178,13 @@ int main(int argc, char* argv[]) {
                 "[-k <n_clusters>] [-m <iterations>] [-o <output>] [-i "
                 "<input>] [-f <ft>] [-t <tp>] [-D <dist>]");
 
-  long newn = P.getOptionLongValue("-n", -1);
+  long newn = P.getOptionLongValue("-n", -1); //n is # of points. Default value is the # of points in the input file. If we specify n as an argument, however, we use the value of the argument instead.
   size_t k = P.getOptionLongValue("-k", 10);   // k is number of clusters
-  long newd = P.getOptionLongValue("-d", -1);
+  long newd = P.getOptionLongValue("-d", -1); //we can set a custom value of d that is no more than the dimension of the points in the dataset.
   size_t max_iterations = P.getOptionLongValue(
      "-m",
      1000);   // max_iterations is the max # of Lloyd iters kmeans will run
-  std::string output = std::string(P.getOptionValue(
-     "-o", "kmeans_results.csv"));   // maybe the kmeans results get written
-                                     // into this csv
+ 
   std::string input =
      std::string(P.getOptionValue("-i", ""));   // the data input file
   std::string ft =
@@ -226,33 +193,21 @@ int main(int argc, char* argv[]) {
   std::string dist =
      std::string(P.getOptionValue("-D", "Euclidian"));   // distance choice
   std::string bench_version =
-     std::string(P.getOptionValue("-bench_version", "no"));
-  bool output_log_to_csv = false;
+     std::string(P.getOptionValue("-bench_version", "no")); //controls which bench function is run
+  bool output_log_to_csv = false; //variable for whether we output the logging info to a csv file
   std::string output_to_csv_str =
      std::string(P.getOptionValue("-csv_log", "false"));
   if (output_to_csv_str == "true") {
     output_log_to_csv = true;
   }
   std::string output_log_file_name =
-     std::string(P.getOptionValue("-csv_log_file_name", "data.csv"));
+     std::string(P.getOptionValue("-csv_log_file_name", "data.csv")); //csv logging output file name
   std::string output_log_file_name2 =
-     std::string(P.getOptionValue("-csv_log_file_name2", "data2.csv"));
-  std::string n_samples_name =
-     std::string(P.getOptionValue("-n_vals", "n.txt"));
-  std::string k_samples_name =
-     std::string(P.getOptionValue("-k_vals", "k.txt"));
-  std::string d_samples_name =
-     std::string(P.getOptionValue("-d_vals", "d.txt"));
-  std::string iter_samples_name =
-     std::string(P.getOptionValue("-iter_vals", "iter.txt"));
-  std::string var_samples_name =
-     std::string(P.getOptionValue("-var_vals", "var.txt"));
-  long limiter = P.getOptionLongValue("-lim", 1'000'000'000);
-  limiter += 1;   // to avoid unused warning TODO FIXME
+     std::string(P.getOptionValue("-csv_log_file_name2", "data2.csv")); //2nd csv logging output file name (if benching two different algorithms)
+ 
+  float epsilon = static_cast<float>(P.getOptionDoubleValue("-epsilon", 0.0)); //threshold for stopping k-means run early
 
-  float epsilon = static_cast<float>(P.getOptionDoubleValue("-epsilon", 0.0));
-
-  std::cout << "using " << parlay::num_workers << " workers." << std::endl;
+  std::cout << "using " << parlay::num_workers << " workers." << std::endl; //print out # of parlay workers being used
 
   if (input == "") {   // if no input file given, quit
     std::cout << "Error: input file not specified" << std::endl;
@@ -292,10 +247,6 @@ int main(int argc, char* argv[]) {
   Distance* D;
 
   // create a distance object, it can either by Euclidian or MIPS
-  // if (dist == "Euclidean") {
-  //     std::cout << "Using Euclidean distance" << std::endl;
-  //     D = new EuclideanDistance();
-  // } else
   if (dist == "mips") {
     std::cout << "Using MIPS distance" << std::endl;
     D = new Mips_Distance();
@@ -315,7 +266,7 @@ int main(int argc, char* argv[]) {
   if (ft == "bin") {
     if (tp == "float") {
       auto [v, n, d] = parse_fbin(input.c_str());
-      if (bench_version == "two") {   // can't use switch for strings sadly
+      if (bench_version == "two") {   
         bench_two<float>(v, pick_num(n, newn), pick_num(d, newd), d, k, *D,
                          max_iterations, epsilon, output_log_to_csv,
                          output_log_file_name, output_log_file_name2);

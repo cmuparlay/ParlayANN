@@ -111,8 +111,7 @@ struct kmeans_bench {
     total_time = t.stop();
 
     std::cout << "iterations:\t" << n_iterations << std::endl;
-    // std::cout << "msse:      \t" << iterations[iterations.size() - 1].msse <<
-    // std::endl;
+  
     std::cout << "total time:\t" << total_time << std::endl;
     std::cout << "avg iteration time:\t" << total_time / n_iterations
               << std::endl;
@@ -129,11 +128,7 @@ struct kmeans_bench {
     std::cout << "Total assign time:\t" << total_assign_time << std::endl;
     std::cout << "Total update time:\t" << total_update_time << std::endl;
     std::cout << "Total setup time:\t" << total_setup_time << std::endl;
-    // std::cout << "total assignment time:\t" <<
-    // parlay::reduce(parlay::tabulate(iterations, iterations.size(), )) <<
-    // std::endl; std::cout << "total update time:\t" <<
-    // parlay::reduce(iterations, parlay::addm<double>(), [](iteration_bench b)
-    // {return b.update_time;}) << std::endl;
+   
   }
 
   /*
@@ -158,11 +153,6 @@ struct kmeans_bench {
 
     iterations[iterations.size() - 1].print();
 
-    // std::cout << "iteration " << n_iterations << " complete. (" <<
-    // iteration_timer.next_time() << "s) \tmsse: " << msse << std::endl;
-    // std::cout << "distance calc: " << distance_calculations << ". center
-    // reasg: " << center_reassignments
-    // << ". center move: " << parlay::reduce(center_movements) << std::endl;
   }
 
   void print() {
@@ -177,11 +167,7 @@ struct kmeans_bench {
     std::cout << "total time:\t" << total_time << std::endl;
     std::cout << "avg iteration time:\t" << total_time / iterations.size()
               << std::endl;
-    // std::cout << "total assignment time:\t" <<
-    // parlay::reduce(parlay::tabulate(iterations, iterations.size(), )) <<
-    // std::endl; std::cout << "total update time:\t" <<
-    // parlay::reduce(iterations, parlay::addm<double>(), [](iteration_bench b)
-    // {return b.update_time;}) << std::endl;
+    
   }
 
   // take logging info and put it into a CSV
@@ -197,7 +183,7 @@ struct kmeans_bench {
     auto tm = *std::localtime(&c_t);
     std::ostringstream oss;
     oss << std::put_time(&tm,
-                         "%m_%d_%Y");   // don't write hour and day, annoying
+                         "%m_%d_%Y"); 
     auto date_str = oss.str();
 
     std::string fname = output_folder + "bench_" + runner + "_" +
@@ -206,8 +192,7 @@ struct kmeans_bench {
     std::cout << "outputting to CSV: " << fname << std::endl;
 
     std::ofstream file(fname);
-    // file << "n, d, k, max_iter, epsilon, n_iter, msse, total_time" <<
-    // std::endl;
+  
 
     file << "n"
          << ", "
@@ -254,8 +239,6 @@ struct kmeans_bench {
          << ", "
          << "max center move" << std::endl;
 
-    // setup time, msse, dist calcs, center reasg, mean center move, min center
-    // move, max center move" << std::endl;
 
     for (size_t i = 0; i < n_iterations; i++) {
       file << i << ", " << iterations[i].assign_time << ", "
@@ -276,85 +259,5 @@ struct kmeans_bench {
   }
 };
 
-// struct to hold initialization info
-// mainly to help contain output to csv
-struct initialization_bench {
-  size_t n;
-  size_t d;
-  size_t k;
-
-  std::string name;
-  parlay::internal::timer t;
-  // parlay::internal::timer t_assign;
-  // parlay::internal::timer t_update;
-  // parlay::internal::timer t_setup;
-
-  double total_time;
-  double msse;
-  // double center_update_time;
-  // double assign_time;
-  // double setup_time;
-  parlay::sequence<std::pair<std::string, double>> labeled_times;
-
-  initialization_bench(size_t n, size_t d, size_t k, std::string initializer)
-      : n(n), d(d), k(k), name(initializer) {}
-
-  void start_time() {
-    std::cout << " initialization with " << name << std::endl;
-    std::cout << "n:         \t" << n << std::endl;
-    std::cout << "d:         \t" << d << std::endl;
-    std::cout << "k:         \t" << k << std::endl;
-
-    t.start();
-  }
-
-  void end_time() {
-    total_time = t.stop();
-
-    std::cout << "total time:\t" << total_time << std::endl;
-  }
-
-  void set_msse(double msse) { this->msse = msse; }
-
-  void add_labeled_time(std::string label, double labels_time) {
-    labeled_times.push_back(std::make_pair(label, labels_time));
-  }
-
-  void output_to_csv(std::string output_folder) {
-    // https://stackoverflow.com/questions/16357999/current-date-and-time-as-string
-
-    auto c_t = std::time(nullptr);
-    auto tm = *std::localtime(&c_t);
-    std::ostringstream oss;
-    oss << std::put_time(&tm,
-                         "%m_%d_%Y");   // don't write hour and day, annoying
-    auto date_str = oss.str();
-
-    std::string fname = output_folder + "bench_" + name + "_" +
-                        std::to_string(n) + "_" + std::to_string(d) + "_" +
-                        std::to_string(k) + "_" + date_str + ".csv";
-    std::cout << "outputting to CSV: " << fname << std::endl;
-    std::ofstream file(fname);
-    file << "n"
-         << ", "
-         << "d"
-         << ", "
-         << "k"
-         << ", "
-         << "init_name"
-         << ", "
-         << "time"
-         << ", "
-         << "msse" << std::endl;
-
-    file << n << ", " << d << ", " << k << ", " << name << ", " << total_time
-         << ", " << msse << std::endl;
-
-    for (size_t i = 0; i < labeled_times.size(); i++) {
-      file << labeled_times[i].first << ", " << labeled_times[i].second
-           << std::endl;
-    }
-  }
-};
 
 #endif

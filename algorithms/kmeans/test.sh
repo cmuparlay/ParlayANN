@@ -1,5 +1,10 @@
-bazel build test_run
+#!/bin/bash
 
 PARANN_DIR=~/ParlayANN
 
-$PARANN_DIR/bazel-bin/algorithms/kmeans/test_run
+cd $PARANN_DIR/algorithms/kmeans
+
+bazel test distance_gtest
+bazel test naive_gtest
+bazel test yy_gtest
+bazel test naive_yy_compare_gtest
