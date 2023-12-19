@@ -246,9 +246,10 @@ int main(int argc, char* argv[]) {
 
   Distance* D;
 
-  // create a distance object, it can either by Euclidian or MIPS
+  // create a distance object, it can either be Euclidian or MIPS
   if (dist == "mips") {
     std::cout << "Using MIPS distance" << std::endl;
+    std::cout << "Warning: mips untested" << std::endl;
     D = new Mips_Distance();
   } else if (dist == "short") {
     std::cout << "Using short Euclidean" << std::endl;

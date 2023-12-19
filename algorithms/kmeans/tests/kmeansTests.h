@@ -12,7 +12,7 @@
 //CT - center coordinate type
 //index_type - type of asg[0]
 //TODO make this check for efficient (ie ||ize)
-//TODO what happens in this test if a center has no points (oh this test requires for every center to own points, okay that's fine)
+//WARNING this test requires for every center to own points, even though a valid k-means output can include a few empty centers
 template<typename T, typename CT, typename index_type>
 void assertCenteredCentroids(T* v, size_t n, size_t d, size_t ad, size_t k, CT* c, index_type* asg) {
 
@@ -36,11 +36,6 @@ void assertCenteredCentroids(T* v, size_t n, size_t d, size_t ad, size_t k, CT* 
 
   }
 
-  // for (size_t i = 0; i < k; i++) {
-  //   std::cout << "num_mem[" << i << "]: " << num_members[i] << std::endl; 
-  // }
-  // std::cout << "total mems " << parlay::reduce(num_members) << std::endl;
-
   EXPECT_EQ(parlay::reduce(num_members),n);
 
 
@@ -55,12 +50,6 @@ void assertCenteredCentroids(T* v, size_t n, size_t d, size_t ad, size_t k, CT* 
     EXPECT_GE(num_members[i],0) << "Center overassigned\n"; //change to 0
     EXPECT_LE(num_members[i],n) << "Center underassigned\n";
   }
-
-  // std::cout << "HERE4" << std::endl;
-
-  // for (size_t i = 0; i < 10; i++) {
-  //   std::cout << centroids[i] << " " << c[i] << std::endl;
-  // }
 
   //TODO how tightly should we set this?
   //putting centroids in double to get a bit better precision

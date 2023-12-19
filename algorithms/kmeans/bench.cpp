@@ -52,38 +52,11 @@ kmeans_bench get_run_time(T* v, size_t n, size_t d, size_t ad, size_t k,
   logger.end_time();
 
   std::cout << "printing dist calcs: " <<std::endl;
-  for (int i = 0; i < logger.iterations.size(); i++) {
+  for (size_t i = 0; i < logger.iterations.size(); i++) {
     std::cout << i << ": " << logger.iterations[i].distance_calculations << std::endl;
   }
   return logger;
 }
-
-
-// //alternate function, for benching against the IVF k-means implementation
-// template <typename T, typename OuterRunner>
-// kmeans_bench get_run_time_IVF(T* v, size_t n, size_t d, size_t ad, size_t k, Distance& D, Runner& r,
-// size_t max_iter=1000, double epsilon=0) { 
-  
-//     float* c = new float[k*ad]; // centers
-//     size_t* asg = new size_t[n];
-
-  
-//     //initialization
-//     Lazy<T,float,size_t> init;
-//     //note that here, d=ad
-//     init(v,n,d,ad,k,c,asg);
-
-   
-
-//     kmeans_bench logger = kmeans_bench(n,d,k,max_iter,
-//     epsilon,"Lazy",r.name());
-//     logger.start_time();
-//     //note that d=ad here
-//     r.cluster_middle(v,n,d,ad,k,c,asg,D,logger,max_iter,epsilon,true);
-//     logger.end_time();
-//     return logger;
-    
-// }
 
 // bench many
 // n samples <- values of n to try
@@ -134,12 +107,6 @@ inline void bench_many(T* v, size_t ad, std::string n_samples,
     abort();
   }
 
-  // std::vector<std::pair,std::string,std::string>> data_samples =
-  // extract_string_pair_vector(data_samples_name.c_str());
-  //  std::vector<DataWrapper> ex_data;
-  //  for (int i = 0; i < data_samples.size(); i++) {
-  //      ex_data.push_back(DataWrapper(data_samples[i].first,data_samples[i].second));
-  //  }
 
   std::ofstream file(output_file);
   file << "n"
@@ -202,7 +169,7 @@ int main(int argc, char* argv[]) {
                                            // written into this csv
 
   std::string dist =
-     std::string(P.getOptionValue("-D", "fast"));   // distance choice
+     std::string(P.getOptionValue("-D", "none"));   // distance choice
 
   std::string n_samples_name = std::string(P.getOptionValue("-ns", "n.txt"));
   std::string k_samples_name = std::string(P.getOptionValue("-ks", "k.txt"));
@@ -216,16 +183,13 @@ int main(int argc, char* argv[]) {
   long limiter = P.getOptionLongValue("-lim", 1'000'000'000);
   std::string input =
      std::string(P.getOptionValue("-i", ""));   // the data input file
-  std::string tp = std::string(P.getOptionValue("-t", "uint8"));   // data type
+  std::string tp = std::string(P.getOptionValue("-t", "none"));   // data type
   std::string runner_name = std::string(P.getOptionValue("-rn", "none"));
 
-  Distance* D;   // create a distance object, it can either by Euclidian or MIPS
-  // if (dist == "Euclidean") {
-  //     std::cout << "Using Euclidean distance" << std::endl;
-  //     D = new EuclideanDistance();
-  // } else
+  Distance* D;   // create a distance object, it can either be Euclidian or MIPS
   if (dist == "mips") {
     std::cout << "Using MIPS distance" << std::endl;
+    std::cout << "Warning: mips untested" << std::endl;
     D = new Mips_Distance();
   } else if (dist == "short") {
     std::cout << "Using short Euclidean" << std::endl;

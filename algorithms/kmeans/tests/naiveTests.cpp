@@ -52,9 +52,7 @@ class NaiveData1 : public ::testing::Test {
 
   static void TearDownTestSuite()  {
 
-    //TODO warning: deleting object of polymorphic class type 'Distance' which has non-virtual destructor might cause undefined behavior [-Wdelete-non-virtual-dtor]
-    //where does this error come from? 
-    // delete D;
+    delete D;
 
   }
 
@@ -155,9 +153,7 @@ class NaiveData2 : public ::testing::Test {
 
   static void TearDownTestSuite()  {
 
-    //TODO warning: deleting object of polymorphic class type 'Distance' which has non-virtual destructor might cause undefined behavior [-Wdelete-non-virtual-dtor]
-    //where does this error come from? 
-    // delete D;
+   delete D;
 
   }
 
@@ -252,9 +248,7 @@ class NaiveData3 : public ::testing::Test {
 
   static void TearDownTestSuite()  {
 
-    //TODO warning: deleting object of polymorphic class type 'Distance' which has non-virtual destructor might cause undefined behavior [-Wdelete-non-virtual-dtor]
-    //where does this error come from? 
-    // delete D;
+    delete D;
 
   }
 
