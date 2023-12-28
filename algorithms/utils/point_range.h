@@ -49,6 +49,9 @@ long dim_round_up(long dim, long tp_size){
   else return ((qt+1)*64)/tp_size;
 }
 
+template<typename T, class Point, class PR>
+struct SubsetPointRange;
+
 template<typename T, class Point>
 struct PointRange{
 
@@ -95,6 +98,25 @@ struct PointRange{
       }
   }
 
+  /* a constructor which does not assume points are being read from a file 
+  
+  I would make a constructor which takes a numpy array but I don't want a pybind dependency in this file
+  */
+  PointRange(T* values, size_t n, unsigned int dims){
+    this->n = n;
+    this->dims = dims;
+    aligned_dims = dim_round_up(dims, sizeof(T));
+    if(aligned_dims != dims) std::cout << "Aligning dimension to " << aligned_dims << std::endl;
+    this->values = (T*) aligned_alloc(64, n*aligned_dims*sizeof(T));
+    parlay::parallel_for(0, n, [&] (size_t i){
+      std::memcpy(this->values + i*aligned_dims, values + i*dims, dims*sizeof(T));
+    });
+  }
+
+  SubsetPointRange<T, Point, PointRange<T, Point>> make_subset(parlay::sequence<int32_t> subset) {
+      return SubsetPointRange<T, Point, PointRange<T, Point>>(this, subset);
+    }
+
   // PointRange(char* filename) {
   //   if(filename == NULL) {
   //     n = 0;
@@ -129,9 +151,9 @@ private:
 
   Note that when indexing into the subset, the indices are relative to the included points, not the actual indices of the points in the original PointRange
  */
-template<typename T, class Point>
+template<typename T, class Point, class PR = PointRange<T, Point>>
 struct SubsetPointRange {
-    PointRange<T, Point> *pr;
+    PR *pr;
     parlay::sequence<int32_t> subset;
     std::unordered_map<int32_t, int32_t> real_to_subset;
     size_t n;
@@ -140,8 +162,7 @@ struct SubsetPointRange {
 
     SubsetPointRange() {}
 
-
-    SubsetPointRange(PointRange<T, Point> &pr, parlay::sequence<int32_t> subset) : pr(&pr), subset(subset) {
+    SubsetPointRange(PR &pr, parlay::sequence<int32_t> subset) : pr(&pr), subset(subset) {
       n = subset.size();
       dims = pr.dimension();
       aligned_dims = pr.aligned_dimension();
@@ -168,6 +189,13 @@ struct SubsetPointRange {
 
     int32_t subset_index(int32_t i) const {
       return real_to_subset.at(i);
+    }
+
+    /* creates a subset of this subset without causing a chain of redirects every access
+    
+    subset should be provided with indices relative to the full dataset */
+    SubsetPointRange<T, Point, PR> make_subset(parlay::sequence<int32_t> subset) {
+      return SubsetPointRange<T, Point, PR>(*pr, subset);
     }
 
 };
