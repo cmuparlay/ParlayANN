@@ -67,6 +67,8 @@ struct FlatRangeFilterIndex {
 
     bool has_children = false;
 
+    int32_t cutoff = 1000;
+
     // the below will have to be modified to be a variant if PR is not a subset PR at the top level
     // additionally, will have to consider how to handle the equivalent case in the real index, perhaps with a variant
     std::pair<std::unique_ptr<FlatRangeFilterIndex<T, Point, SubsetPointRange<T, Point>, FilterType>>, std::unique_ptr<FlatRangeFilterIndex<T, Point, SubsetPointRange<T, Point>, FilterType>>> children;
@@ -74,8 +76,8 @@ struct FlatRangeFilterIndex {
     // FlatRangeFilterIndex();
     
     /* This constructor should be used internally by the C++ layer */
-    FlatRangeFilterIndex(const PR& points, const parlay::sequence<FilterType>& filter_values, int32_t cutoff = 1000)
-        : points(points), filter_values(filter_values) {
+    FlatRangeFilterIndex(const PR& points, const parlay::sequence<FilterType>& filter_values, int32_t cutoff = 1000, bool recurse = true)
+        : points(points), filter_values(filter_values), cutoff(cutoff) {
         auto n = points.size();
         indices = parlay::tabulate(n, [](int32_t i) { return i; });
         sorted_filter_values = parlay::sequence<FilterType>(n);
@@ -97,7 +99,9 @@ struct FlatRangeFilterIndex {
         // get the median filter value
         median = sorted_filter_values[n/2];
         
-        build_children_recursive(cutoff);
+        if (recurse) {
+            build_children_recursive(cutoff);
+        }
     }
 
     /* This constructor should be used by the Python layer */
@@ -127,7 +131,7 @@ struct FlatRangeFilterIndex {
 
         parlay::sequence<FilterType> filter_values_seq = parlay::sequence<FilterType>(filter_values_data, filter_values_data + n);
 
-        *this = FlatRangeFilterIndex<T, Point, PR, FilterType>(point_range, filter_values_seq, cutoff);
+        *this = FlatRangeFilterIndex<T, Point, PR, FilterType>(point_range, filter_values_seq, cutoff, true);
     }
 
     /* the bounds here are inclusive */
@@ -264,8 +268,8 @@ struct FlatRangeFilterIndex {
         auto filter_values1 = parlay::sequence<FilterType>(filter_values.begin(), filter_values.begin() + n1);
         auto filter_values2 = parlay::sequence<FilterType>(filter_values.begin() + n1, filter_values.end());
 
-        auto index1 = std::make_unique<FlatRangeFilterIndex<T, Point, SubsetPointRange<T, Point>, FilterType>>(points1, filter_values1);
-        auto index2 = std::make_unique<FlatRangeFilterIndex<T, Point, SubsetPointRange<T, Point>, FilterType>>(points2, filter_values2);
+        auto index1 = std::make_unique<FlatRangeFilterIndex<T, Point, SubsetPointRange<T, Point>, FilterType>>(points1, filter_values1, this->cutoff, false);
+        auto index2 = std::make_unique<FlatRangeFilterIndex<T, Point, SubsetPointRange<T, Point>, FilterType>>(points2, filter_values2, this->cutoff, false);
 
         this->children = std::make_pair(
             std::move(index1),
