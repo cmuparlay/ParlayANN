@@ -69,17 +69,17 @@ struct FlatRangeFilterIndex {
 
     // the below will have to be modified to be a variant if PR is not a subset PR at the top level
     // additionally, will have to consider how to handle the equivalent case in the real index, perhaps with a variant
-    std::pair<std::unique_ptr<FlatRangeFilterIndex<T, Point, PR, FilterType>>, std::unique_ptr<FlatRangeFilterIndex<T, Point, PR, FilterType>>> children;
+    std::pair<std::unique_ptr<FlatRangeFilterIndex<T, Point, SubsetPointRange<T, Point>, FilterType>>, std::unique_ptr<FlatRangeFilterIndex<T, Point, SubsetPointRange<T, Point>, FilterType>>> children;
 
-    FlatRangeFilterIndex() = default;
+    // FlatRangeFilterIndex();
     
     /* This constructor should be used internally by the C++ layer */
     FlatRangeFilterIndex(const PR& points, const parlay::sequence<FilterType>& filter_values, int32_t cutoff = 1000)
         : points(points), filter_values(filter_values) {
         auto n = points.size();
-        indices = parlay::tabulate(n, [](auto i) { return i; });
+        indices = parlay::tabulate(n, [](int32_t i) { return i; });
         sorted_filter_values = parlay::sequence<FilterType>(n);
-        sorted_filter_indices = parlay::tabulate(n, [](auto i) { return i; });
+        sorted_filter_indices = parlay::tabulate(n, [](index_type i) { return i; });
 
         // argsort the filter values to get sorted indices
         parlay::sort_inplace(sorted_filter_indices, [&](auto i, auto j) {
@@ -101,8 +101,34 @@ struct FlatRangeFilterIndex {
     }
 
     /* This constructor should be used by the Python layer */
-    FlatRangeFilterIndex(py::array_t<T> points, py::array_t<FilterType> filter_values, int32_t cutoff = 1000)
-        : FlatRangeFilterIndex(numpy_point_range<T, Point>(points), parlay::sequence<FilterType>(filter_values)) {}
+    FlatRangeFilterIndex(py::array_t<T> points, py::array_t<FilterType> filter_values, int32_t cutoff = 1000) {
+        py::buffer_info points_buf = points.request();
+        if (points_buf.ndim != 2) {
+            throw std::runtime_error("points NumPy array must be 2-dimensional");
+        }
+        auto n = points_buf.shape[0]; // number of points
+        auto dims = points_buf.shape[1]; // dimension of each point
+
+        // avoiding this copy may have dire consequences from gc
+        T* numpy_data = static_cast<T*>(points_buf.ptr);
+
+        PointRange<T, Point> point_range = PointRange<T, Point>(numpy_data, n, dims);
+
+        py::buffer_info filter_values_buf = filter_values.request();
+        if (filter_values_buf.ndim != 1) {
+            throw std::runtime_error("filter data NumPy array must be 1-dimensional");
+        }
+
+        if (filter_values_buf.shape[0] != n) {
+            throw std::runtime_error("filter data NumPy array must have the same number of elements as the points array");
+        }
+
+        FilterType* filter_values_data = static_cast<FilterType*>(filter_values_buf.ptr);
+
+        parlay::sequence<FilterType> filter_values_seq = parlay::sequence<FilterType>(filter_values_data, filter_values_data + n);
+
+        *this = FlatRangeFilterIndex<T, Point, PR, FilterType>(point_range, filter_values_seq, cutoff);
+    }
 
     /* the bounds here are inclusive */
     NeighborsAndDistances batch_filter_search(py::array_t<T, py::array::c_style | py::array::forcecast>& queries,
@@ -196,7 +222,7 @@ struct FlatRangeFilterIndex {
             }
         } else {
             // recurse on the children
-            auto [index1, index2] = this->children;
+            auto& [index1, index2] = this->children;
             parlay::sequence<pid> results1, results2;
             if (range.first <= median) {
                 results1 = index1->orig_serial_query(query, range, knn);
@@ -232,14 +258,14 @@ struct FlatRangeFilterIndex {
         auto n1 = n/2;
         auto n2 = n - n1;
 
-        auto points1 = points.make_subset(parlay::map(parlay::make_slice(sorted_filter_indices.begin(), sorted_filter_indices.begin() + n1), [&](auto i) { return indices[i]; }));
-        auto points2 = points.make_subset(parlay::map(parlay::make_slice(sorted_filter_indices.begin() + n1, sorted_filter_indices.end()), [&](auto i) { return indices[i]; }));
+        SubsetPointRange<T, Point> points1 = points.make_subset(parlay::map(parlay::make_slice(sorted_filter_indices.begin(), sorted_filter_indices.begin() + n1), [&](auto i) { return indices[i]; }));
+        SubsetPointRange<T, Point> points2 = points.make_subset(parlay::map(parlay::make_slice(sorted_filter_indices.begin() + n1, sorted_filter_indices.end()), [&](auto i) { return indices[i]; }));
 
         auto filter_values1 = parlay::sequence<FilterType>(filter_values.begin(), filter_values.begin() + n1);
         auto filter_values2 = parlay::sequence<FilterType>(filter_values.begin() + n1, filter_values.end());
 
-        auto index1 = std::make_unique<FlatRangeFilterIndex<T, Point, PR, FilterType>>(points1, filter_values1);
-        auto index2 = std::make_unique<FlatRangeFilterIndex<T, Point, PR, FilterType>>(points2, filter_values2);
+        auto index1 = std::make_unique<FlatRangeFilterIndex<T, Point, SubsetPointRange<T, Point>, FilterType>>(points1, filter_values1);
+        auto index2 = std::make_unique<FlatRangeFilterIndex<T, Point, SubsetPointRange<T, Point>, FilterType>>(points2, filter_values2);
 
         this->children = std::make_pair(
             std::move(index1),

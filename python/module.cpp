@@ -34,6 +34,7 @@
 #include "../algorithms/utils/types.h"
 #include "../algorithms/stitched_vamana/stitched_vamana.h"
 #include "filtered_dataset.h"
+#include "../algorithms/range_filter_tree/range_filter_tree.h"
 
 PYBIND11_MAKE_OPAQUE(std::vector<uint32_t>);
 PYBIND11_MAKE_OPAQUE(std::vector<float>);
@@ -145,6 +146,32 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
         .def("batch_filter_search", &StitchedVamanaIndex<T, Point>::batch_filter_search, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a)
         .def("get_dist_comparisons", &StitchedVamanaIndex<T, Point>::get_dist_comparisons);
 
+    py::class_<HybridStitchedVamanaIndex<T, Point>>(m, ("HybridStitchedVamana" + variant.agnostic_name + "Index").c_str())
+        .def(py::init())
+        .def("fit", &HybridStitchedVamanaIndex<T, Point>::fit, "points"_a, "filters"_a)
+        .def("fit_from_filename", &HybridStitchedVamanaIndex<T, Point>::fit_from_filename, "points_filename"_a, "filters_filename"_a)
+        .def("set_build_params_small", 
+            (void (HybridStitchedVamanaIndex<T, Point>::*)(BuildParams)) &HybridStitchedVamanaIndex<T, Point>::set_build_params_small,
+            "build_params_small"_a)
+        .def("set_build_params_small", 
+            (void (HybridStitchedVamanaIndex<T, Point>::*)(unsigned int, unsigned int, double)) &HybridStitchedVamanaIndex<T, Point>::set_build_params_small,
+            "R"_a, "L"_a, "alpha"_a)
+        .def("set_build_params_large", 
+            (void (HybridStitchedVamanaIndex<T, Point>::*)(BuildParams)) &HybridStitchedVamanaIndex<T, Point>::set_build_params_large,
+            "build_params_large"_a)
+        .def("set_build_params_large", 
+            (void (HybridStitchedVamanaIndex<T, Point>::*)(unsigned int, unsigned int, double)) &HybridStitchedVamanaIndex<T, Point>::set_build_params_large,
+            "R"_a, "L"_a, "alpha"_a)
+        .def("set_query_params", &HybridStitchedVamanaIndex<T, Point>::set_query_params, "query_params"_a)
+        .def("save", &HybridStitchedVamanaIndex<T, Point>::save, "prefix"_a)
+        .def("load_from_filename", &HybridStitchedVamanaIndex<T, Point>::load_from_filename, "prefix"_a, "points_filename"_a, "filters_filename"_a)
+        .def("batch_filter_search", &HybridStitchedVamanaIndex<T, Point>::batch_filter_search, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a)
+        .def("set_cutoff", &HybridStitchedVamanaIndex<T, Point>::set_cutoff, "cutoff"_a);
+
+    py::class_<FlatRangeFilterIndex<T, Point>>(m, ("FlatRangeFilterIndex" + variant.agnostic_name + "Index").c_str())
+    .def(py::init<py::array_t<T>,py::array_t<float_t>>())
+    .def(py::init<py::array_t<T>,py::array_t<float_t>, int32_t>())
+    .def("batch_filter_search", &FlatRangeFilterIndex<T, Point>::batch_filter_search, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a);
 }
 
 PYBIND11_MODULE(_ParlayANNpy, m)
