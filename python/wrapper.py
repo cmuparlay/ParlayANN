@@ -187,23 +187,41 @@ def init_hybrid_stitched_vamana_index(metric, dtype):
 def flat_range_filter_index_constructor(metric, dtype):
     if metric == 'Euclidian':
         if dtype == 'uint8':
-            return FlatRangeFilterIndexUInt8EuclidianIndex
+            return FlatRangeFilterIndexUInt8Euclidian
         elif dtype == 'int8':
-            return FlatRangeFilterIndexInt8EuclidianIndex
+            return FlatRangeFilterIndexInt8Euclidian
         elif dtype == 'float':
-            return FlatRangeFilterIndexFloatEuclidianIndex
+            return FlatRangeFilterIndexFloatEuclidian
         else:
             raise Exception('Invalid data type ' + dtype)
     elif metric == 'mips':
-        # raise Exception('MIPS commented out to speed up build')
         if dtype == 'uint8':
-            return FlatRangeFilterIndexUInt8MipsIndex
+            return FlatRangeFilterIndexUInt8Mips
         elif dtype == 'int8':
-            return FlatRangeFilterIndexInt8MipsIndex
+            return FlatRangeFilterIndexInt8Mips
         elif dtype == 'float':
-            return FlatRangeFilterIndexFloatMipsIndex
+            return FlatRangeFilterIndexFloatMips
         else:
             raise Exception('Invalid data type ' + dtype)
     else:
         raise Exception('Invalid metric ' + metric)
     
+def prefilter_index_constructor(metric, dtype):
+    if metric == 'Euclidian':
+        if dtype == 'uint8':
+            return PrefilterIndexUint8Euclidian
+        elif dtype == 'int8':
+            return PrefilterIndexInt8Euclidian
+        elif dtype == 'float':
+            return PrefilterIndexFloatEuclidian
+        else:
+            raise Exception('Invalid data type ' + dtype)
+    elif metric == 'mips':
+        if dtype == 'uint8':
+            return PrefilterIndexUint8Mips
+        elif dtype == 'int8':
+            return PrefilterIndexInt8Mips
+        elif dtype == 'float':
+            return PrefilterIndexFloatMips
+        else:
+            raise Exception('Invalid data type ' + dtype)
