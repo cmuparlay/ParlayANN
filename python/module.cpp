@@ -35,6 +35,7 @@
 #include "../algorithms/stitched_vamana/stitched_vamana.h"
 #include "filtered_dataset.h"
 #include "../algorithms/range_filter_tree/range_filter_tree.h"
+#include "../algorithms/range_filter_tree/prefiltering.h"
 
 PYBIND11_MAKE_OPAQUE(std::vector<uint32_t>);
 PYBIND11_MAKE_OPAQUE(std::vector<float>);
@@ -168,10 +169,14 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
         .def("batch_filter_search", &HybridStitchedVamanaIndex<T, Point>::batch_filter_search, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a)
         .def("set_cutoff", &HybridStitchedVamanaIndex<T, Point>::set_cutoff, "cutoff"_a);
 
-    py::class_<FlatRangeFilterIndex<T, Point>>(m, ("FlatRangeFilterIndex" + variant.agnostic_name + "Index").c_str())
+    py::class_<FlatRangeFilterIndex<T, Point>>(m, ("FlatRangeFilterIndex" + variant.agnostic_name).c_str())
     .def(py::init<py::array_t<T>,py::array_t<float_t>>())
     .def(py::init<py::array_t<T>,py::array_t<float_t>, int32_t>())
     .def("batch_filter_search", &FlatRangeFilterIndex<T, Point>::batch_filter_search, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a);
+
+    py::class_<PrefilterIndex<T, Point>>(m, ("PrefilterIndex" + variant.agnostic_name).c_str())
+    .def(py::init<py::array_t<T>,py::array_t<float_t>>())
+    .def("batch_query", &PrefilterIndex<T, Point>::batch_query, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a);
 }
 
 PYBIND11_MODULE(_ParlayANNpy, m)

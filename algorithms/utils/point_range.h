@@ -114,7 +114,7 @@ struct PointRange{
   }
 
   SubsetPointRange<T, Point, PointRange<T, Point>> make_subset(parlay::sequence<int32_t> subset) {
-      return SubsetPointRange<T, Point, PointRange<T, Point>>(this, subset);
+      return SubsetPointRange<T, Point, PointRange<T, Point>>(*this, subset);
     }
 
   // PointRange(char* filename) {

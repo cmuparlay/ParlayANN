@@ -31,8 +31,19 @@ def pareto_front(x, y):
 
     return pareto_front_x, pareto_front_y
 
+def compute_recall(gt_neighbors, results, top_k):
+    recall = 0
+    for i in range(len(gt_neighbors)):
+        gt = set(gt_neighbors[i])
+        res = set(results[i][:top_k])
+        recall += len(gt.intersection(res)) / len(gt)
+    return recall / len(gt_neighbors)
+
 
 data_dir = "/ssd1/anndata/ann-benchmarks/"
+
+THREADS = 1
+os.environ["PARLAY_NUM_THREADS"] = str(THREADS)
 
 for dataset_name in ["glove-100-angular", "sift-128-euclidean"]:
     data_path = os.path.join(data_dir, f"{dataset_name}.hdf5")
@@ -71,8 +82,14 @@ for dataset_name in ["glove-100-angular", "sift-128-euclidean"]:
     top_k = 10
     output_file = f"results/{dataset_name}_experiment.txt"
 
-    with open(output_file, "a") as f:
-        f.write("filter_width,method,recall,average_time\n")
+    # with open(output_file, "a") as f:
+    #     f.write("filter_width,method,recall,average_time,qps,threads\n")
+
+    # only write header if file doesn't exist
+    if not os.path.exists(output_file):
+        with open(output_file, "a") as f:
+            f.write("filter_width,method,recall,average_time,qps,threads\n")
+
 
     for filter_width in [0.001, 0.01, 0.1, 0.2, 0.3, 0.4, 0.5]:
         print(f"filter width: {filter_width}")
@@ -90,7 +107,27 @@ for dataset_name in ["glove-100-angular", "sift-128-euclidean"]:
 
         print("index querying")
         start = time.time()
-        
+        index_results = index.batch_filter_search(queries, filters, queries.shape[0], top_k)
+        end = time.time()
+        index_time = end - start
+        print(f"index time: {index_time:.3f}s")
+
+        # compute recall
+        index_recall = compute_recall(prefilter_results[0], index_results[0], top_k)
+        print(f"index recall: {index_recall*100:.2f}%")
+
+        # compute average time
+        index_average_time = index_time / queries.shape[0]
+        prefilter_average_time = prefiltering_time / queries.shape[0]
+
+        # compute qps
+        index_qps = queries.shape[0] / index_time
+        prefilter_qps = queries.shape[0] / prefiltering_time
+
+        # write results
+        with open(output_file, "a") as f:
+            f.write(f"{filter_width},index,{index_recall},{index_average_time},{index_qps},{THREADS}\n")
+            f.write(f"{filter_width},prefilter,{index_recall},{prefilter_average_time},{prefilter_qps},{THREADS}\n")
 
 
 
