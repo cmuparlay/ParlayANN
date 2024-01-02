@@ -56,7 +56,7 @@ for dataset_name in ["glove-100-angular", "sift-128-euclidean"]:
     filter_values = np.load(filter_path)
 
     # filter_values = np.array(list(range(data.shape[0], 0, -1)), dtype=np.float32)
-    filter_values = np.array(list(range(data.shape[0])), dtype=np.float32)
+    # filter_values = np.array(list(range(data.shape[0])), dtype=np.float32)
     # filter_values.sort(reverse=True)
 
     queries = parse_ann_benchmarks_hdf5(data_path)[1]
@@ -104,8 +104,9 @@ for dataset_name in ["glove-100-angular", "sift-128-euclidean"]:
         run_results = defaultdict(list)
         raw_filters = np.random.uniform(filter_width / 2, 1 - filter_width / 2, size=len(queries))
 
-        # filters = np.array([(x - filter_width / 2, x + filter_width / 2) for x in raw_filters])
-        filters = np.array([((x - filter_width / 2) * data.shape[0], (x + filter_width / 2) * data.shape[0]) for x in raw_filters])
+        filters = np.array([(x - filter_width / 2, x + filter_width / 2) for x in raw_filters])
+
+        # filters = np.array([((x - filter_width / 2) * data.shape[0], (x + filter_width / 2) * data.shape[0]) for x in raw_filters])
 
         
 
@@ -116,8 +117,8 @@ for dataset_name in ["glove-100-angular", "sift-128-euclidean"]:
         prefiltering_time = prefiltering_end - prefiltering_start
         print(f"prefiltering time: {prefiltering_time:.3f}s")
 
-        print(prefilter_results[0][:10])
-        print(prefilter_results[1][:10])
+        # print(prefilter_results[0][:10])
+        # print(prefilter_results[1][:10])
 
 
         print("index querying")
@@ -127,8 +128,8 @@ for dataset_name in ["glove-100-angular", "sift-128-euclidean"]:
         index_time = end - start
         print(f"index time: {index_time:.3f}s")
 
-        print(index_results[0][:10])
-        print(index_results[1][:10])
+        # print(index_results[0][:10])
+        # print(index_results[1][:10])
 
         RAND_QUERY = 9878
         print(f"filter: {filters[RAND_QUERY]}")
