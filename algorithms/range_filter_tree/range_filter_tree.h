@@ -58,7 +58,9 @@ template <typename T, typename Point, class PR = PointRange<T, Point>, typename 
 struct FlatRangeFilterIndex {
     using pid = std::pair<index_type, float>;
     
-    PR points;
+    // TODO: make points a unique_ptr to a PR. Currently stack allocating like a moron.
+    std::unique_ptr<PR> points;
+    
     parlay::sequence<index_type> indices; // indices of points wrt the original dataset, important for returning results
     parlay::sequence<FilterType> filter_values; // filter value for each point
     parlay::sequence<FilterType> sorted_filter_values; // sorted filter values
@@ -76,12 +78,19 @@ struct FlatRangeFilterIndex {
     std::pair<std::unique_ptr<FlatRangeFilterIndex<T, Point, SubsetPointRange<T, Point>, FilterType>>, std::unique_ptr<FlatRangeFilterIndex<T, Point, SubsetPointRange<T, Point>, FilterType>>> children;
 
     // FlatRangeFilterIndex();
-    
-    /* This constructor should be used internally by the C++ layer */
-    FlatRangeFilterIndex(const PR& points, const parlay::sequence<FilterType>& filter_values, int32_t cutoff = 1000, bool recurse = true)
-        : points(points), filter_values(filter_values), cutoff(cutoff) {
-        auto n = points.size();
-        indices = parlay::tabulate(n, [](int32_t i) { return i; });
+
+    /* an interface to support std::move-ing unique ptrs to the point range directly */
+    FlatRangeFilterIndex(std::unique_ptr<PR> points, const parlay::sequence<FilterType>& filter_values, int32_t cutoff = 1000, bool recurse = true)
+        : points(std::move(points)), filter_values(filter_values), cutoff(cutoff) {
+        auto n = this->points->size();
+        if constexpr (std::is_same_v<PR, PointRange<T, Point>>) {
+            indices = parlay::tabulate(n, [](int32_t i) { return i; });
+        } else {
+            indices = parlay::sequence<index_type>(this->points->subset);
+        }
+
+        // std::cout<<"Building index with "<<n<<" points"<<std::endl;
+        
         sorted_filter_values = parlay::sequence<FilterType>(n);
         sorted_filter_indices = parlay::tabulate(n, [](index_type i) { return i; });
 
@@ -103,7 +112,18 @@ struct FlatRangeFilterIndex {
         
         if (recurse) {
             build_children_recursive(cutoff);
+            auto [a, b] = validate_children();
+            std::cout << "Number of leaves: " << a << std::endl;
+            std::cout << "Number of leaves with valid point ranges: " << b << std::endl;
         }
+
+    }
+
+    /* This constructor should be used internally by the C++ layer 
+    */
+    FlatRangeFilterIndex(const PR& points, const parlay::sequence<FilterType>& filter_values, int32_t cutoff = 1000, bool recurse = true) {
+        auto unique_points = std::make_unique<PR>(points);
+        *this = FlatRangeFilterIndex<T, Point, PR, FilterType>(std::move(unique_points), filter_values, cutoff, recurse);
     }
 
     /* This constructor should be used by the Python layer */
@@ -144,8 +164,8 @@ struct FlatRangeFilterIndex {
         py::array_t<float> dists({num_queries, knn});
 
         parlay::parallel_for(0, num_queries, [&](auto i) {
-            Point q = Point(queries.data(i), this->points.dimension(), 
-                this->points.aligned_dimension(), 
+            Point q = Point(queries.data(i), this->points->dimension(), 
+                this->points->aligned_dimension(), 
                 i);
             std::pair<FilterType, FilterType> filter = filters[i];
 
@@ -174,12 +194,12 @@ struct FlatRangeFilterIndex {
         if (!has_children) {
             // identify the points that are within the filter range 
             size_t start = 0;
-            size_t end = points.size();
+            size_t end = points->size();
 
             // if the start of the query range could fall within the index range, find the first point that is >= the start of the query range
-            if (range.first >= this->range.first) {
+            if (range.first > this->range.first) {
                 size_t l = 0;
-                size_t r = points.size();
+                size_t r = points->size();
                 // should make sure this is correct
                 while (l < r) {
                     size_t m = (l + r) / 2;
@@ -193,9 +213,9 @@ struct FlatRangeFilterIndex {
             }
 
             // ditto for the end of the query range
-            if (range.second <= this->range.second) {
+            if (range.second < this->range.second) {
                 size_t l = start; // see no reason why this wouldn't be valid
-                size_t r = points.size();
+                size_t r = points->size();
                 // correctness of below is similarly suspect
                 while (l < r) {
                     size_t m = (l + r) / 2;
@@ -218,7 +238,8 @@ struct FlatRangeFilterIndex {
             // i here is indexing into the sorted values
             for (auto i = start; i < end; i++) {
                 size_t j = sorted_filter_indices[i]; // local index of the point (wrt subset)
-                auto d = points[j].distance(query);
+               
+                auto d = (*points)[j].distance(query);
                 if (d < frontier[knn-1].second) {
                     frontier[knn-1] = std::make_pair(this->indices[j], d);
                     parlay::sort_inplace(frontier, [&](auto a, auto b) {
@@ -237,20 +258,31 @@ struct FlatRangeFilterIndex {
                 results2 = index2->orig_serial_query(query, range, knn);
             }
 
-            if (results1.size() == 0) {
+            if (range.first > median) {
                 frontier = results2;
-            } else if (results2.size() == 0) {
+            } else if (range.second < median) {
                 frontier = results1;
             } else {
                 // this is pretty lazy and inefficient
-                frontier = parlay::merge(results1, results2, [&](auto a, auto b) {
+                // frontier = parlay::merge(results1, results2, [&](auto a, auto b) {
+                //     return a.second < b.second;
+                // });
+                frontier = results1;
+                for (pid p : results2) {
+                    frontier.push_back(p);
+                }
+                parlay::sort_inplace(frontier, [&](auto a, auto b) {
                     return a.second < b.second;
                 });
+
                 if (frontier.size() > knn) {
-                    frontier.resize(knn);
+                    // resize is probably the right thing here but not terribly well documented
+                    frontier.pop_tail(frontier.size() - knn);
                 }
             }
         }
+        
+
         return frontier;
     }
 
@@ -260,18 +292,18 @@ struct FlatRangeFilterIndex {
             return;
         }
 
-        auto n = points.size();
+        auto n = points->size();
         auto n1 = n/2;
         auto n2 = n - n1;
 
-        SubsetPointRange<T, Point> points1 = points.make_subset(parlay::map(parlay::make_slice(sorted_filter_indices.begin(), sorted_filter_indices.begin() + n1), [&](auto i) { return indices[i]; }));
-        SubsetPointRange<T, Point> points2 = points.make_subset(parlay::map(parlay::make_slice(sorted_filter_indices.begin() + n1, sorted_filter_indices.end()), [&](auto i) { return indices[i]; }));
+        std::unique_ptr<SubsetPointRange<T, Point>> points1 = points->make_subset(parlay::map(parlay::make_slice(sorted_filter_indices.begin(), sorted_filter_indices.begin() + n1), [&](auto i) { return indices[i]; }));
+        std::unique_ptr<SubsetPointRange<T, Point>> points2 = points->make_subset(parlay::map(parlay::make_slice(sorted_filter_indices.begin() + n1, sorted_filter_indices.end()), [&](auto i) { return indices[i]; }));
 
-        auto filter_values1 = parlay::sequence<FilterType>(filter_values.begin(), filter_values.begin() + n1);
-        auto filter_values2 = parlay::sequence<FilterType>(filter_values.begin() + n1, filter_values.end());
+        auto filter_values1 = parlay::sequence<FilterType>(sorted_filter_values.begin(), sorted_filter_values.begin() + n1);
+        auto filter_values2 = parlay::sequence<FilterType>(sorted_filter_values.begin() + n1, sorted_filter_values.end());
 
-        auto index1 = std::make_unique<FlatRangeFilterIndex<T, Point, SubsetPointRange<T, Point>, FilterType>>(points1, filter_values1, this->cutoff, false);
-        auto index2 = std::make_unique<FlatRangeFilterIndex<T, Point, SubsetPointRange<T, Point>, FilterType>>(points2, filter_values2, this->cutoff, false);
+        auto index1 = std::make_unique<FlatRangeFilterIndex<T, Point, SubsetPointRange<T, Point>, FilterType>>(std::move(points1), filter_values1, this->cutoff, false);
+        auto index2 = std::make_unique<FlatRangeFilterIndex<T, Point, SubsetPointRange<T, Point>, FilterType>>(std::move(points2), filter_values2, this->cutoff, false);
 
         this->children = std::make_pair(
             std::move(index1),
@@ -288,7 +320,7 @@ struct FlatRangeFilterIndex {
             return;
         }
 
-        if (points.size() <= cutoff * 2) {
+        if (points->size() <= cutoff * 2) {
             return;
         }
 
@@ -300,35 +332,25 @@ struct FlatRangeFilterIndex {
             this->children.second->build_children_recursive(cutoff);
         });
     }
+
+    /* This method counts the leaves of the tree and how many of them have a subset point range which points to a point range with the same dimension (and is therefore probably not junk values) */
+    std::pair<int, int> validate_children() {
+        if (has_children){
+            auto [a1, b1] = children.first->validate_children();
+            auto [a2, b2] = children.second->validate_children();
+            return std::make_pair(a1 + a2, b1 + b2);
+        }
+        
+        if constexpr (std::is_same_v<PR, PointRange<T, Point>>) {
+            return std::make_pair(1, 1);
+        } else {
+            if (points->dims == points->pr->dimension()) {
+                return std::make_pair(1, 1);
+            } else {
+                return std::make_pair(1, 0);
+            }
+        }
+    }
 };
 
 
-// /* Perhaps stupidly, this is a recursive struct */
-// template <typename T, typename Point, class PR = PointRange<T, Point>, typename FilterType = float_t>
-// struct RangeFilterTreeIndex {
-//     using pid = std::pair<index_type, float>;
-//     using GraphI = Graph<index_type>;
-
-//     PR points;
-//     parlay::sequence<FilterType> sorted_filter_values;
-//     parlay::sequence<index_type> sorted_filter_indices;
-
-//     RangeFilterTreeIndex() = default;
-
-//     RangeFilterTreeIndex(const PR& points, const parlay::sequence<FilterType>& filter_values)
-//         : points(points) {
-//         auto n = points.size();
-//         sorted_filter_values = parlay::sequence<FilterType>(n);
-//         sorted_filter_indices = parlay::tabulate(n, [](auto i) { return i; });
-
-//         // argsort the filter values to get sorted indices
-//         parlay::sort_inplace(sorted_filter_indices, [&](auto i, auto j) {
-//             return filter_values[i] < filter_values[j];
-//         });
-
-//         // sort the filter values
-//         parlay::parallel_for(0, n, [&](auto i) {
-//             sorted_filter_values[i] = filter_values[sorted_filter_indices[i]];
-//         });
-//     }
-// }

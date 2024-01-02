@@ -33,17 +33,20 @@ def pareto_front(x, y):
 
 def compute_recall(gt_neighbors, results, top_k):
     recall = 0
-    for i in range(len(gt_neighbors)):
+    for i in range(len(gt_neighbors)): # for each query
         gt = set(gt_neighbors[i])
         res = set(results[i][:top_k])
         recall += len(gt.intersection(res)) / len(gt)
-    return recall / len(gt_neighbors)
+    return recall / len(gt_neighbors) # average recall per query
 
 
 data_dir = "/ssd1/anndata/ann-benchmarks/"
 
-THREADS = 1
+THREADS = 144
 os.environ["PARLAY_NUM_THREADS"] = str(THREADS)
+
+# FILTER_WIDTHS = [0.001, 0.01, 0.1, 0.2, 0.3, 0.4, 0.5]
+FILTER_WIDTHS = [0.01, 0.1, 0.5]
 
 for dataset_name in ["glove-100-angular", "sift-128-euclidean"]:
     data_path = os.path.join(data_dir, f"{dataset_name}.hdf5")
@@ -51,6 +54,11 @@ for dataset_name in ["glove-100-angular", "sift-128-euclidean"]:
 
     data = parse_ann_benchmarks_hdf5(data_path)[0]
     filter_values = np.load(filter_path)
+
+    # filter_values = np.array(list(range(data.shape[0], 0, -1)), dtype=np.float32)
+    filter_values = np.array(list(range(data.shape[0])), dtype=np.float32)
+    # filter_values.sort(reverse=True)
+
     queries = parse_ann_benchmarks_hdf5(data_path)[1]
 
     if 'angular' in dataset_name:
@@ -73,7 +81,7 @@ for dataset_name in ["glove-100-angular", "sift-128-euclidean"]:
     constructor = wp.flat_range_filter_index_constructor(metric, 'float')
     print("building index")
     index_build_start = time.time()
-    index = constructor(data, filter_values)
+    index = constructor(data, filter_values, 1_000)
     index_build_end = time.time()
     index_build_time = index_build_end - index_build_start
     print(f"index build time: {index_build_time:.3f}s")
@@ -91,12 +99,15 @@ for dataset_name in ["glove-100-angular", "sift-128-euclidean"]:
             f.write("filter_width,method,recall,average_time,qps,threads\n")
 
 
-    for filter_width in [0.001, 0.01, 0.1, 0.2, 0.3, 0.4, 0.5]:
+    for filter_width in FILTER_WIDTHS:
         print(f"filter width: {filter_width}")
         run_results = defaultdict(list)
         raw_filters = np.random.uniform(filter_width / 2, 1 - filter_width / 2, size=len(queries))
 
-        filters = np.array([(x - filter_width / 2, x + filter_width / 2) for x in raw_filters])
+        # filters = np.array([(x - filter_width / 2, x + filter_width / 2) for x in raw_filters])
+        filters = np.array([((x - filter_width / 2) * data.shape[0], (x + filter_width / 2) * data.shape[0]) for x in raw_filters])
+
+        
 
         print("prefilter querying")
         prefiltering_start = time.time()
@@ -105,12 +116,35 @@ for dataset_name in ["glove-100-angular", "sift-128-euclidean"]:
         prefiltering_time = prefiltering_end - prefiltering_start
         print(f"prefiltering time: {prefiltering_time:.3f}s")
 
+        print(prefilter_results[0][:10])
+        print(prefilter_results[1][:10])
+
+
         print("index querying")
         start = time.time()
         index_results = index.batch_filter_search(queries, filters, queries.shape[0], top_k)
         end = time.time()
         index_time = end - start
         print(f"index time: {index_time:.3f}s")
+
+        print(index_results[0][:10])
+        print(index_results[1][:10])
+
+        RAND_QUERY = 9878
+        print(f"filter: {filters[RAND_QUERY]}")
+        print(f"prefilter results: {[filter_values[x] for x in prefilter_results[0][RAND_QUERY]]}")
+        print(f"index results: {[filter_values[x] for x in index_results[0][RAND_QUERY]]}")
+
+        max_distance_out_of_range = []
+        for i in range(len(queries)):
+            filter_range = filters[i]
+            knn_filter_values = [filter_values[x] for x in index_results[0][i] if x != -1]
+            min_filter_value = min(knn_filter_values)
+            max_filter_value = max(knn_filter_values)
+
+            max_distance_out_of_range.append(max(filter_range[0] - min_filter_value, max_filter_value - filter_range[1]))
+
+        print(f"farthest out of range prefilter result: {max(max_distance_out_of_range)}")
 
         # compute recall
         index_recall = compute_recall(prefilter_results[0], index_results[0], top_k)

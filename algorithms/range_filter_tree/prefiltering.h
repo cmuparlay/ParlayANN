@@ -53,7 +53,7 @@ struct PrefilterIndex {
         // avoiding this copy may have dire consequences from gc
         T* numpy_data = static_cast<T*>(points_buf.ptr);
 
-        PointRange<T, Point> point_range = PointRange<T, Point>(numpy_data, n, dims);
+        this->points = PointRange<T, Point>(numpy_data, n, dims);
 
         py::buffer_info filter_values_buf = filter_values.request();
         if (filter_values_buf.ndim != 1) {
@@ -66,7 +66,7 @@ struct PrefilterIndex {
 
         FilterType* filter_values_data = static_cast<FilterType*>(filter_values_buf.ptr);
 
-        parlay::sequence<FilterType> filter_values_seq = parlay::sequence<FilterType>(filter_values_data, filter_values_data + n);
+        this->filter_values = parlay::sequence<FilterType>(filter_values_data, filter_values_data + n);
 
         auto indices = parlay::tabulate(n, [](int32_t i) { return i; });
         filter_values_sorted = parlay::sequence<FilterType>(n);
@@ -74,12 +74,12 @@ struct PrefilterIndex {
 
         // argsort the filter values to get sorted indices
         parlay::sort_inplace(filter_indices_sorted, [&](auto i, auto j) {
-            return filter_values_seq[i] < filter_values_seq[j];
+            return this->filter_values[i] < this->filter_values[j];
         });
 
         // sort the filter values
         parlay::parallel_for(0, n, [&](auto i) {
-            filter_values_sorted[i] = filter_values_seq[filter_indices_sorted[i]];
+            filter_values_sorted[i] = this->filter_values[filter_indices_sorted[i]];
         });
     }
 
@@ -139,6 +139,56 @@ struct PrefilterIndex {
                     });
                 }
             }
+
+            for (auto j = 0; j < knn; j++) {
+                ids.mutable_at(i, j) = frontier[j].first;
+                dists.mutable_at(i, j) = frontier[j].second;
+            }
+        });
+
+        return std::make_pair(ids, dists);
+    }
+
+    NeighborsAndDistances naive_batch_query(py::array_t<T, py::array::c_style | py::array::forcecast>& queries,
+    const std::vector<std::pair<FilterType, FilterType>>& filters,
+    uint64_t num_queries,
+    uint64_t knn) {
+        py::array_t<unsigned int> ids({num_queries, knn});
+        py::array_t<float> dists({num_queries, knn});
+
+        parlay::parallel_for(0, num_queries, [&](auto i) {
+            Point q = Point(queries.data(i), this->points.dimension(), 
+                this->points.aligned_dimension(), 
+                i);
+
+            std::pair<FilterType, FilterType> filter = filters[i];
+
+            // auto frontier = parlay::tabulate(points.size(), [&](index_type j) {
+            //     if (filter_values[j] < filter.first || filter_values[j] > filter.second) {
+            //         return std::make_pair(-1, std::numeric_limits<float>::max());
+            //     } else {
+            //         Point p = this->points[j];
+            //         float dist = q.distance(p);
+            //         return std::make_pair(j, dist);
+            //     }
+            // });
+
+            auto frontier = parlay::sequence<std::pair<index_type, float>>(points.size());
+
+            for (auto j = 0; j < points.size(); j++) {
+                if (filter_values[j] < filter.first || filter_values[j] > filter.second) {
+                    frontier[j] = std::make_pair(-1, std::numeric_limits<float>::max());
+                } else {
+                    Point p = this->points[j];
+                    float dist = q.distance(p);
+                    frontier[j] = std::make_pair(j, dist);
+                }
+            }
+
+
+            parlay::sort_inplace(frontier, [&](auto a, auto b) {
+                return a.second < b.second;
+            });
 
             for (auto j = 0; j < knn; j++) {
                 ids.mutable_at(i, j) = frontier[j].first;

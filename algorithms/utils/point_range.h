@@ -113,8 +113,8 @@ struct PointRange{
     });
   }
 
-  SubsetPointRange<T, Point, PointRange<T, Point>> make_subset(parlay::sequence<int32_t> subset) {
-      return SubsetPointRange<T, Point, PointRange<T, Point>>(*this, subset);
+  std::unique_ptr<SubsetPointRange<T, Point, PointRange<T, Point>>> make_subset(parlay::sequence<int32_t> subset) {
+      return std::make_unique<SubsetPointRange<T, Point, PointRange<T, Point>>>(this, subset);
     }
 
   // PointRange(char* filename) {
@@ -173,6 +173,18 @@ struct SubsetPointRange {
         real_to_subset[subset[i]] = i;
       }
     }
+
+    SubsetPointRange(PR *pr, parlay::sequence<int32_t> subset) : pr(pr), subset(subset) {
+      n = subset.size();
+      dims = pr->dimension();
+      aligned_dims = pr->aligned_dimension();
+
+      real_to_subset = std::unordered_map<int32_t, int32_t>();
+      real_to_subset.reserve(n);
+      for(int32_t i=0; i<n; i++) {
+        real_to_subset[subset[i]] = i;
+      }
+    }
   
     size_t size() const { return n; }
   
@@ -194,8 +206,9 @@ struct SubsetPointRange {
     /* creates a subset of this subset without causing a chain of redirects every access
     
     subset should be provided with indices relative to the full dataset */
-    SubsetPointRange<T, Point, PR> make_subset(parlay::sequence<int32_t> subset) {
-      return SubsetPointRange<T, Point, PR>(*pr, subset);
+    std::unique_ptr<SubsetPointRange<T, Point, PR>> make_subset(parlay::sequence<int32_t> subset) {
+      // parlay::sequence<int32_t> nonlocal_subset = parlay::map(subset, [&] (int32_t i) {return this->subset[i];});
+      return std::make_unique<SubsetPointRange<T, Point, PR>>(this->pr, subset);
     }
 
 };

@@ -176,7 +176,9 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
 
     py::class_<PrefilterIndex<T, Point>>(m, ("PrefilterIndex" + variant.agnostic_name).c_str())
     .def(py::init<py::array_t<T>,py::array_t<float_t>>())
-    .def("batch_query", &PrefilterIndex<T, Point>::batch_query, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a);
+    .def("batch_query", &PrefilterIndex<T, Point>::batch_query, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a)
+    .def("naive_batch_query", &PrefilterIndex<T, Point>::naive_batch_query, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a);
+
 }
 
 PYBIND11_MODULE(_ParlayANNpy, m)
