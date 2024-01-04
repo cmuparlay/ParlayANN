@@ -78,6 +78,12 @@ struct StitchedVamana
     parlay::sequence<index_type> build(PR &points, Graph<index_type> &G, csr_filters &filters) {
         auto untransposed_filters = filters.transpose();
 
+        // std::cout << "input (transposed) filters: " << std::endl;
+        // filters.print_stats();
+
+        // std::cout << "untransposed filters: " << std::endl;
+        // untransposed_filters.print_stats();
+
         // pick starting points
         parlay::sequence<index_type> starting_points = parlay::tabulate(filters.n_points, [&](size_t i) {
             return filters.row_indices[filters.row_offsets[i] + parlay::hash64_2(i) % std::max(filters.row_offsets[i+1] - filters.row_offsets[i], static_cast<int64_t>(1))];
@@ -88,8 +94,8 @@ struct StitchedVamana
 
         // build the graphs for the filters
         auto filter_graphs = parlay::sequence<Graph<index_type>>::uninitialized(filters.n_points);
-        auto subset_pr = parlay::sequence<SubsetPointRange<T, Point>>(filters.n_points) = parlay::tabulate(filters.n_points, [&](size_t i) {
-            return SubsetPointRange<T, Point>(points, parlay::sequence<index_type>(filters.row_indices.get() + filters.row_offsets[i], filters.row_indices.get() + filters.row_offsets[i+1]));
+        auto subset_pr = parlay::sequence<SubsetPointRange<T, Point, PR>>(filters.n_points) = parlay::tabulate(filters.n_points, [&](size_t i) {
+            return SubsetPointRange<T, Point, PR>(points, parlay::sequence<index_type>(filters.row_indices.get() + filters.row_offsets[i], filters.row_indices.get() + filters.row_offsets[i+1]));
         });
 
         // for (size_t i = 0; i < filters.n_points; i++) {
@@ -99,7 +105,7 @@ struct StitchedVamana
 
             std::cout << "Building graph for filter " << i << std::endl;
 
-            knn_index<Point, SubsetPointRange<T, Point>, index_type> I(build_params_small);
+            knn_index<Point, SubsetPointRange<T, Point, PR>, index_type> I(build_params_small);
             stats<index_type> BuildStats(points.size());
 
             I.build_index(filter_graphs[i], subset_pr[i], BuildStats);
@@ -258,7 +264,7 @@ struct StitchedVamanaIndex {
 
     StitchedVamanaIndex(BuildParams build_params_small, BuildParams build_params_large) : build_params_small(build_params_small), build_params_large(build_params_large) {}
 
-    void fit(PR points, csr_filters& filters) {
+    void fit(PR points, csr_filters filters) {
         auto timer = parlay::internal::timer();
         timer.start();
 
@@ -269,7 +275,7 @@ struct StitchedVamanaIndex {
 
         this->G = Graph<index_type>(build_params_large.R, points.size());
 
-        StitchedVamana<T, Point> builder(build_params_small, build_params_large);
+        StitchedVamana<T, Point, PR> builder(build_params_small, build_params_large);
         starting_points = builder.build(points, G, filters);
 
         std::cout << "Finished building StitchedVamana graph in " << timer.stop() << " seconds" << std::endl;
@@ -295,7 +301,8 @@ struct StitchedVamanaIndex {
             std::cout << "Error opening file " << starting_points_filename << std::endl;
             return;
         }
-        this->starting_points = parlay::sequence<index_type>::uninitialized(points.size());
+
+        this->starting_points = parlay::sequence<index_type>(filters.n_points);
 
         // read the number of starting points, assert that it's the same as the number of filters
         size_t n_starting_points;
@@ -315,12 +322,9 @@ struct StitchedVamanaIndex {
         std::cout << "Finished loading StitchedVamana index" << std::endl;
     }
 
-    /* The below should cause this method to not exist if PR is a subset point range 
-    
-    Admittedly, this should probably be a runtime exception because this function is not in any kind of loop, but this is in some twisted sense more efficient.
-    */
-    std::enable_if<std::is_same<PR, PointRange<T, Point>>::value, void> 
-    load_from_filename(std::string prefix, std::string points_filename, std::string filters_filename) {
+    void load_from_filename(std::string prefix, std::string points_filename, std::string filters_filename) {
+        static_assert(std::is_same<PR, PointRange<T, Point>>::value, "Cannot load from filename if PR is not PointRange");
+
         PointRange<T, Point> points(points_filename.c_str());
         csr_filters filters(filters_filename.c_str());
 
@@ -426,9 +430,9 @@ Internally, this is a wrapper around a StitchedVamanaIndex, which is used for th
 */
 template <typename T, class Point>
 struct HybridStitchedVamanaIndex {
-    StitchedVamanaIndex<T, Point, SubsetPointRange<T, Point>> stitched_vamana_index;
+    StitchedVamanaIndex<T, Point> stitched_vamana_index;
     PointRange<T, Point> points;
-    csr_filters filters;
+    csr_filters filters; // transposed after init
 
     // the cutoff for when to use the stitched vamana index
     size_t cutoff;
@@ -456,12 +460,16 @@ struct HybridStitchedVamanaIndex {
             }
         }
 
+        std::cout << "Found " << subset_to_real_index.size() << " filters above the cutoff" << std::endl;
+
         // build the subset point range and filters
-        SubsetPointRange<T, Point> subset_points(points, subset_to_real_index);
+        // SubsetPointRange<T, Point> subset_points(points, subset_to_real_index);
         csr_filters subset_filters = filters.subset_rows(subset_to_real_index);
 
+        subset_filters.transpose_inplace();
+
         // build the stitched vamana index
-        stitched_vamana_index.fit(subset_points, subset_filters);
+        stitched_vamana_index.fit(this->points, subset_filters);
     }
 
     void fit_from_filename(std::string points_filename, std::string filters_filename) {
@@ -490,13 +498,94 @@ struct HybridStitchedVamanaIndex {
         }
 
         // build the subset point range and filters
-        SubsetPointRange<T, Point> subset_points(points, subset_to_real_index);
+        // SubsetPointRange<T, Point> subset_points(points, subset_to_real_index);
         csr_filters subset_filters = filters.subset_rows(subset_to_real_index);
 
-        stitched_vamana_index.load(prefix + "Hybrid_cutoff" + std::to_string(cutoff) + "_", subset_points, subset_filters);
+        stitched_vamana_index.load(prefix + "Hybrid_cutoff" + std::to_string(cutoff) + "_", this->points, subset_filters);
     }
 
     // TODO: querying
+    NeighborsAndDistances batch_filter_search(
+     py::array_t<T, py::array::c_style | py::array::forcecast>& queries,
+     const std::vector<QueryFilter>& filters, uint64_t num_queries,
+     uint64_t knn) {
+        py::array_t<unsigned int> ids({num_queries, knn});
+        py::array_t<float> dists({num_queries, knn});
+
+        parlay::parallel_for(0, num_queries, [&](size_t i) {
+            Point q = Point(queries.data(i), this->points.dimension(),
+                      this->points.aligned_dimension(), i);
+            parlay::sequence<index_type> query_filters = filters[i].get_sequence();
+
+            // determine which filters are above the cutoff
+            parlay::sequence<index_type> graph_query_filters;
+            parlay::sequence<index_type> exhaustive_query_filters;
+            for (size_t j = 0; j < query_filters.size(); j++) {
+                if (this->filters.row_offsets[query_filters[j]+1] - this->filters.row_offsets[query_filters[j]] > cutoff) {
+                    graph_query_filters.push_back(real_to_subset_index[query_filters[j]]);
+                } else {
+                    exhaustive_query_filters.push_back(query_filters[j]);
+                }
+            }
+
+            parlay::sequence<std::pair<index_type, float>> frontier;
+            // if there are any filters above the cutoff, search graph
+            if (graph_query_filters.size() > 0) {
+                auto starting_points = parlay::tabulate(graph_query_filters.size(), [&](size_t j) {
+                    return this->stitched_vamana_index.starting_points[graph_query_filters[j]];
+                });
+                auto [pairElts, dist_cmps] = filtered_beam_search(q, graph_query_filters, this->stitched_vamana_index.G, this->points, starting_points, this->stitched_vamana_index.query_params, this->stitched_vamana_index.filters);
+
+                frontier = pairElts.first;
+            } else { // otherwise, initialize the frontier
+                frontier = parlay::tabulate(knn, [&](size_t i) {
+                    return std::make_pair(-1, std::numeric_limits<float>::infinity());
+                });
+            }
+
+            // if there are any filters below the cutoff, do exhaustive search and update the frontier
+            if (exhaustive_query_filters.size() > 0) {
+                // this could be improved by taking the union of matches of each label and checking the output of that union
+                // not really relevant to the current binary formulation though
+                for (size_t j = 0; j < exhaustive_query_filters.size(); j++) {
+                    auto filter = exhaustive_query_filters[j];
+                    auto filter_points = this->filters.point_filters(filter);
+
+                    for (size_t k = 0; k < filter_points.size(); k++) {
+                        auto filter_point = filter_points[k];
+                        auto dist = q.distance(this->points[filter_point]);
+
+                        if (dist >= frontier[knn-1].second) {
+                            continue;
+                        }
+
+                        // update the frontier
+                        // this approach to updating the frontier may be better or worse than all that sorting
+                        for (size_t l = knn - 2; l >= 0; l--) { // iterate backwards so we can break early, ignore the last element
+                        // we know that the last element of the frontier will get booted and the current element will be inserted
+                        // the only question is where the current element will end up
+                            if (dist >= frontier[l].second) { // s.t. the previous element is where we insert
+                                // move all the subsequent elements back to make room, not including the last element
+                                std::copy(frontier.begin() + l + 1, frontier.begin() + knn - 1, frontier.begin() + l + 2);
+                                // insert the current element
+                                frontier[l + 1] = std::make_pair(filter_point, dist); 
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // write the frontier to the output arrays
+            for (size_t j = 0; j < knn; j++) {
+                ids.mutable_at(i, j) = frontier[j].first;
+                dists.mutable_at(i, j) = frontier[j].second;
+            }
+
+            return std::make_pair(std::move(ids), std::move(dists));
+        });
+
+     }
 
     std::string get_index_name() {
         return "Hybrid_cutoff" + std::to_string(cutoff) + "_" + stitched_vamana_index.get_index_name();
@@ -520,6 +609,10 @@ struct HybridStitchedVamanaIndex {
 
     void set_build_params_large(unsigned int R, unsigned int L, double alpha) {
         this->stitched_vamana_index.set_build_params_large(R, L, alpha);
+    }
+
+    void set_cutoff(size_t cutoff) {
+        this->cutoff = cutoff;
     }
 
 };
