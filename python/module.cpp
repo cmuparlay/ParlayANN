@@ -32,7 +32,7 @@
 #include "../algorithms/IVF/posting_list.h"
 #include "../algorithms/utils/filters.h"
 #include "../algorithms/utils/types.h"
-#include "../algorithms/stitched_vamana/stitched_vamana.h"
+// #include "../algorithms/stitched_vamana/stitched_vamana.h"
 #include "filtered_dataset.h"
 #include "../algorithms/range_filter_tree/range_filter_tree.h"
 #include "../algorithms/range_filter_tree/prefiltering.h"
@@ -107,67 +107,67 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
 //        .def("batch_search", &FilteredIVF2Stage<T, Point, filtered_posting_list_t<T, Point>>::batch_filter_search, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a, "n_lists"_a, "threshold"_a)
 //        .def("print_stats", &FilteredIVF2Stage<T, Point, filtered_posting_list_t<T, Point>>::print_stats);
 
-    py::class_<IVF_Squared<T, Point>>(m, ("Squared" + variant.ivf_name).c_str())
-        .def(py::init())
-        .def("fit", &IVF_Squared<T, Point>::fit, "points"_a, "filters"_a, "cutoff"_a, "cluster_size"_a, py::arg("cache_path") = "", py::arg("parallel_build") = false) 
-        .def("fit_from_filename", &IVF_Squared<T, Point>::fit_from_filename, "filename"_a, "filter_filename"_a, "cutoff"_a, "cluster_size"_a, "cache_path"_a, "weight_classes"_a, py::arg("parallel_build") = false)
-        // .def("fit_from_filename", &IVF_Squared<T, Point>::fit_from_filename, "filename"_a, "cutoff"_a, "cluster_size"_a, "cache_path"_a)
-        .def("batch_filter_search", &IVF_Squared<T, Point>::sorted_batch_filter_search, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a)
-        .def("set_target_points", &IVF_Squared<T, Point>::set_target_points, "target_points"_a)
-        .def("set_sq_target_points", &IVF_Squared<T, Point>::set_sq_target_points, "sq_target_points"_a)
-        .def("set_tiny_cutoff", &IVF_Squared<T, Point>::set_tiny_cutoff, "tiny_cutoff"_a)
-        .def("set_max_iter", &IVF_Squared<T, Point>::set_max_iter, "max_iter"_a)
-        .def("reset", &IVF_Squared<T, Point>::reset)
-        .def("print_stats", &IVF_Squared<T, Point>::print_stats)
-        .def("set_query_params", &IVF_Squared<T, Point>::set_query_params, "params"_a, "weight_class"_a)
-        .def("set_build_params", &IVF_Squared<T, Point>::set_build_params, "params"_a, "weight_class"_a)
-        .def("set_bitvector_cutoff", &IVF_Squared<T, Point>::set_bitvector_cutoff, "bitvector_cutoff"_a)
-        .def("get_log", &IVF_Squared<T, Point>::get_log, py::return_value_policy::copy)
-        .def("get_dcmps", &IVF_Squared<T, Point>::get_dcmps);
+    // py::class_<IVF_Squared<T, Point>>(m, ("Squared" + variant.ivf_name).c_str())
+    //     .def(py::init())
+    //     .def("fit", &IVF_Squared<T, Point>::fit, "points"_a, "filters"_a, "cutoff"_a, "cluster_size"_a, py::arg("cache_path") = "", py::arg("parallel_build") = false) 
+    //     .def("fit_from_filename", &IVF_Squared<T, Point>::fit_from_filename, "filename"_a, "filter_filename"_a, "cutoff"_a, "cluster_size"_a, "cache_path"_a, "weight_classes"_a, py::arg("parallel_build") = false)
+    //     // .def("fit_from_filename", &IVF_Squared<T, Point>::fit_from_filename, "filename"_a, "cutoff"_a, "cluster_size"_a, "cache_path"_a)
+    //     .def("batch_filter_search", &IVF_Squared<T, Point>::sorted_batch_filter_search, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a)
+    //     .def("set_target_points", &IVF_Squared<T, Point>::set_target_points, "target_points"_a)
+    //     .def("set_sq_target_points", &IVF_Squared<T, Point>::set_sq_target_points, "sq_target_points"_a)
+    //     .def("set_tiny_cutoff", &IVF_Squared<T, Point>::set_tiny_cutoff, "tiny_cutoff"_a)
+    //     .def("set_max_iter", &IVF_Squared<T, Point>::set_max_iter, "max_iter"_a)
+    //     .def("reset", &IVF_Squared<T, Point>::reset)
+    //     .def("print_stats", &IVF_Squared<T, Point>::print_stats)
+    //     .def("set_query_params", &IVF_Squared<T, Point>::set_query_params, "params"_a, "weight_class"_a)
+    //     .def("set_build_params", &IVF_Squared<T, Point>::set_build_params, "params"_a, "weight_class"_a)
+    //     .def("set_bitvector_cutoff", &IVF_Squared<T, Point>::set_bitvector_cutoff, "bitvector_cutoff"_a)
+    //     .def("get_log", &IVF_Squared<T, Point>::get_log, py::return_value_policy::copy)
+    //     .def("get_dcmps", &IVF_Squared<T, Point>::get_dcmps);
 
-    py::class_<StitchedVamanaIndex<T, Point>>(m, ("StitchedVamana" + variant.agnostic_name + "Index").c_str())
-        .def(py::init())
-        .def("fit", &StitchedVamanaIndex<T, Point>::fit, "points"_a, "filters"_a)
-        .def("fit_from_filename", &StitchedVamanaIndex<T, Point>::fit_from_filename, "points_filename"_a, "filters_filename"_a)
-        .def("set_build_params_small", 
-            (void (StitchedVamanaIndex<T, Point>::*)(BuildParams)) &StitchedVamanaIndex<T, Point>::set_build_params_small,
-            "build_params_small"_a)
-        .def("set_build_params_small", 
-            (void (StitchedVamanaIndex<T, Point>::*)(unsigned int, unsigned int, double)) &StitchedVamanaIndex<T, Point>::set_build_params_small,
-            "R"_a, "L"_a, "alpha"_a)
-        .def("set_build_params_large", 
-            (void (StitchedVamanaIndex<T, Point>::*)(BuildParams)) &StitchedVamanaIndex<T, Point>::set_build_params_large,
-            "build_params_large"_a)
-        .def("set_build_params_large", 
-            (void (StitchedVamanaIndex<T, Point>::*)(unsigned int, unsigned int, double)) &StitchedVamanaIndex<T, Point>::set_build_params_large,
-            "R"_a, "L"_a, "alpha"_a)
-        .def("set_query_params", &StitchedVamanaIndex<T, Point>::set_query_params, "query_params"_a)
-        .def("save", &StitchedVamanaIndex<T, Point>::save, "prefix"_a)
-        .def("load_from_filename", &StitchedVamanaIndex<T, Point>::load_from_filename, "prefix"_a, "points_filename"_a, "filters_filename"_a)
-        .def("batch_filter_search", &StitchedVamanaIndex<T, Point>::batch_filter_search, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a)
-        .def("get_dist_comparisons", &StitchedVamanaIndex<T, Point>::get_dist_comparisons);
+    // py::class_<StitchedVamanaIndex<T, Point>>(m, ("StitchedVamana" + variant.agnostic_name + "Index").c_str())
+    //     .def(py::init())
+    //     .def("fit", &StitchedVamanaIndex<T, Point>::fit, "points"_a, "filters"_a)
+    //     .def("fit_from_filename", &StitchedVamanaIndex<T, Point>::fit_from_filename, "points_filename"_a, "filters_filename"_a)
+    //     .def("set_build_params_small", 
+    //         (void (StitchedVamanaIndex<T, Point>::*)(BuildParams)) &StitchedVamanaIndex<T, Point>::set_build_params_small,
+    //         "build_params_small"_a)
+    //     .def("set_build_params_small", 
+    //         (void (StitchedVamanaIndex<T, Point>::*)(unsigned int, unsigned int, double)) &StitchedVamanaIndex<T, Point>::set_build_params_small,
+    //         "R"_a, "L"_a, "alpha"_a)
+    //     .def("set_build_params_large", 
+    //         (void (StitchedVamanaIndex<T, Point>::*)(BuildParams)) &StitchedVamanaIndex<T, Point>::set_build_params_large,
+    //         "build_params_large"_a)
+    //     .def("set_build_params_large", 
+    //         (void (StitchedVamanaIndex<T, Point>::*)(unsigned int, unsigned int, double)) &StitchedVamanaIndex<T, Point>::set_build_params_large,
+    //         "R"_a, "L"_a, "alpha"_a)
+    //     .def("set_query_params", &StitchedVamanaIndex<T, Point>::set_query_params, "query_params"_a)
+    //     .def("save", &StitchedVamanaIndex<T, Point>::save, "prefix"_a)
+    //     .def("load_from_filename", &StitchedVamanaIndex<T, Point>::load_from_filename, "prefix"_a, "points_filename"_a, "filters_filename"_a)
+    //     .def("batch_filter_search", &StitchedVamanaIndex<T, Point>::batch_filter_search, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a)
+    //     .def("get_dist_comparisons", &StitchedVamanaIndex<T, Point>::get_dist_comparisons);
 
-    py::class_<HybridStitchedVamanaIndex<T, Point>>(m, ("HybridStitchedVamana" + variant.agnostic_name + "Index").c_str())
-        .def(py::init())
-        .def("fit", &HybridStitchedVamanaIndex<T, Point>::fit, "points"_a, "filters"_a)
-        .def("fit_from_filename", &HybridStitchedVamanaIndex<T, Point>::fit_from_filename, "points_filename"_a, "filters_filename"_a)
-        .def("set_build_params_small", 
-            (void (HybridStitchedVamanaIndex<T, Point>::*)(BuildParams)) &HybridStitchedVamanaIndex<T, Point>::set_build_params_small,
-            "build_params_small"_a)
-        .def("set_build_params_small", 
-            (void (HybridStitchedVamanaIndex<T, Point>::*)(unsigned int, unsigned int, double)) &HybridStitchedVamanaIndex<T, Point>::set_build_params_small,
-            "R"_a, "L"_a, "alpha"_a)
-        .def("set_build_params_large", 
-            (void (HybridStitchedVamanaIndex<T, Point>::*)(BuildParams)) &HybridStitchedVamanaIndex<T, Point>::set_build_params_large,
-            "build_params_large"_a)
-        .def("set_build_params_large", 
-            (void (HybridStitchedVamanaIndex<T, Point>::*)(unsigned int, unsigned int, double)) &HybridStitchedVamanaIndex<T, Point>::set_build_params_large,
-            "R"_a, "L"_a, "alpha"_a)
-        .def("set_query_params", &HybridStitchedVamanaIndex<T, Point>::set_query_params, "query_params"_a)
-        .def("save", &HybridStitchedVamanaIndex<T, Point>::save, "prefix"_a)
-        .def("load_from_filename", &HybridStitchedVamanaIndex<T, Point>::load_from_filename, "prefix"_a, "points_filename"_a, "filters_filename"_a)
-        .def("batch_filter_search", &HybridStitchedVamanaIndex<T, Point>::batch_filter_search, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a)
-        .def("set_cutoff", &HybridStitchedVamanaIndex<T, Point>::set_cutoff, "cutoff"_a);
+    // py::class_<HybridStitchedVamanaIndex<T, Point>>(m, ("HybridStitchedVamana" + variant.agnostic_name + "Index").c_str())
+    //     .def(py::init())
+    //     .def("fit", &HybridStitchedVamanaIndex<T, Point>::fit, "points"_a, "filters"_a)
+    //     .def("fit_from_filename", &HybridStitchedVamanaIndex<T, Point>::fit_from_filename, "points_filename"_a, "filters_filename"_a)
+    //     .def("set_build_params_small", 
+    //         (void (HybridStitchedVamanaIndex<T, Point>::*)(BuildParams)) &HybridStitchedVamanaIndex<T, Point>::set_build_params_small,
+    //         "build_params_small"_a)
+    //     .def("set_build_params_small", 
+    //         (void (HybridStitchedVamanaIndex<T, Point>::*)(unsigned int, unsigned int, double)) &HybridStitchedVamanaIndex<T, Point>::set_build_params_small,
+    //         "R"_a, "L"_a, "alpha"_a)
+    //     .def("set_build_params_large", 
+    //         (void (HybridStitchedVamanaIndex<T, Point>::*)(BuildParams)) &HybridStitchedVamanaIndex<T, Point>::set_build_params_large,
+    //         "build_params_large"_a)
+    //     .def("set_build_params_large", 
+    //         (void (HybridStitchedVamanaIndex<T, Point>::*)(unsigned int, unsigned int, double)) &HybridStitchedVamanaIndex<T, Point>::set_build_params_large,
+    //         "R"_a, "L"_a, "alpha"_a)
+    //     .def("set_query_params", &HybridStitchedVamanaIndex<T, Point>::set_query_params, "query_params"_a)
+    //     .def("save", &HybridStitchedVamanaIndex<T, Point>::save, "prefix"_a)
+    //     .def("load_from_filename", &HybridStitchedVamanaIndex<T, Point>::load_from_filename, "prefix"_a, "points_filename"_a, "filters_filename"_a)
+    //     .def("batch_filter_search", &HybridStitchedVamanaIndex<T, Point>::batch_filter_search, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a)
+    //     .def("set_cutoff", &HybridStitchedVamanaIndex<T, Point>::set_cutoff, "cutoff"_a);
 
     py::class_<FlatRangeFilterIndex<T, Point>>(m, ("FlatRangeFilterIndex" + variant.agnostic_name).c_str())
     .def(py::init<py::array_t<T>,py::array_t<float_t>>())
@@ -176,8 +176,12 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
 
     py::class_<PrefilterIndex<T, Point>>(m, ("PrefilterIndex" + variant.agnostic_name).c_str())
     .def(py::init<py::array_t<T>,py::array_t<float_t>>())
-    .def("batch_query", &PrefilterIndex<T, Point>::batch_query, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a)
-    .def("naive_batch_query", &PrefilterIndex<T, Point>::naive_batch_query, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a);
+    .def("batch_query", &PrefilterIndex<T, Point>::batch_query, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a);
+    // .def("naive_batch_query", &PrefilterIndex<T, Point>::naive_batch_query, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a);
+
+    py::class_<RangeFilterTreeIndex<T, Point>>(m, ("RangeFilterTreeIndex" + variant.agnostic_name).c_str())
+    .def(py::init<py::array_t<T>,py::array_t<float_t>>())
+    .def(py::init<py::array_t<T>,py::array_t<float_t>, int32_t>());
 
 }
 

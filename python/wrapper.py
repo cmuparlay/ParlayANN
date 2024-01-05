@@ -206,6 +206,28 @@ def flat_range_filter_index_constructor(metric, dtype):
     else:
         raise Exception('Invalid metric ' + metric)
     
+def range_filter_tree_index_constructor(metric, dtype):
+    if metric == 'Euclidian':
+        if dtype == 'uint8':
+            return RangeFilterTreeIndexUInt8Euclidian
+        elif dtype == 'int8':
+            return RangeFilterTreeIndexInt8Euclidian
+        elif dtype == 'float':
+            return RangeFilterTreeIndexFloatEuclidian
+        else:
+            raise Exception('Invalid data type ' + dtype)
+    elif metric == 'mips':
+        if dtype == 'uint8':
+            return RangeFilterTreeIndexUInt8Mips
+        elif dtype == 'int8':
+            return RangeFilterTreeIndexInt8Mips
+        elif dtype == 'float':
+            return RangeFilterTreeIndexFloatMips
+        else:
+            raise Exception('Invalid data type ' + dtype)
+    else:
+        raise Exception('Invalid metric ' + metric)
+    
 def prefilter_index_constructor(metric, dtype):
     if metric == 'Euclidian':
         if dtype == 'uint8':

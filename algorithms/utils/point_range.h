@@ -160,6 +160,10 @@ struct SubsetPointRange {
     unsigned int dims;
     unsigned int aligned_dims;
 
+    // in dire circumstances, we will want to initialize a subset point range which is actually a normal point range. This is a hack to allow that. If only there was a feature of OOP which would obviate this...
+    // the unique ptr just protects us from a memory leak
+    std::unique_ptr<PointRange<T, Point>> heap_point_range = nullptr;
+
     SubsetPointRange() {}
 
     SubsetPointRange(PR &pr, parlay::sequence<int32_t> subset) : pr(&pr), subset(subset) {
@@ -185,6 +189,22 @@ struct SubsetPointRange {
         real_to_subset[subset[i]] = i;
       }
     }
+
+    /* constructor from a twisted parallel dimension where inheritance doesn't exist */
+    SubsetPointRange(T* values, size_t n, unsigned int dims){
+      heap_point_range = std::make_unique<PointRange<T, Point>>(values, n, dims);
+      pr = heap_point_range.get();
+      subset = parlay::tabulate(n, [&] (int32_t i) {return i;});
+      this->n = n;
+      this->dims = dims;
+      aligned_dims = pr->aligned_dimension();
+      
+      real_to_subset = std::unordered_map<int32_t, int32_t>();
+      real_to_subset.reserve(n);
+      for(int32_t i=0; i<n; i++) {
+        real_to_subset[subset[i]] = i;
+      }
+  }
   
     size_t size() const { return n; }
   
