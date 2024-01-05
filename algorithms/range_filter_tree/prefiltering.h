@@ -36,6 +36,8 @@ namespace py = pybind11;
 using NeighborsAndDistances =
    std::pair<py::array_t<unsigned int>, py::array_t<float>>;
 
+using pid = std::pair<index_type, float>;
+
 /* a minimal index that does prefiltering at query time. A good faith prefiltering should probably be a fenwick tree */
 template<typename T, class Point, class PR = SubsetPointRange<T, Point>>
 struct PrefilterIndex {
@@ -177,7 +179,53 @@ struct PrefilterIndex {
         return std::make_pair(ids, dists);
     }
 
-    
+    /* processes a single query */
+    parlay::sequence<pid> query(Point q, std::pair<FilterType, FilterType> filter, uint64_t knn) {
+        size_t start;
+
+        size_t l, r, mid;
+        l = 0;
+        r = filter_values_sorted.size() - 1;
+        while (l < r) {
+            mid = (l + r) / 2;
+            if (filter_values_sorted[mid] < filter.first) {
+                l = mid + 1;
+            } else {
+                r = mid;
+            }
+        }
+        start = l;
+
+        size_t end;
+
+        l = 0;
+        r = filter_values_sorted.size() - 1;
+        while (l < r) {
+            mid = (l + r) / 2;
+            if (filter_values_sorted[mid] < filter.second) {
+                l = mid + 1;
+            } else {
+                r = mid;
+            }
+        }
+        end = l;
+
+        auto frontier = parlay::sequence<std::pair<index_type, float>>(knn, std::make_pair(-1, std::numeric_limits<float>::max()));
+
+        for (auto j = start; j < end; j++) {
+            index_type index = filter_indices_sorted[j];
+            Point p = (*points)[index];
+            float dist = q.distance(p);
+            if (dist < frontier[knn - 1].second) {
+                frontier[knn - 1] = std::make_pair(indices[index], dist);
+                parlay::sort_inplace(frontier, [&](auto a, auto b) {
+                    return a.second < b.second;
+                });
+            }
+        }
+
+        return frontier;
+    }
 
     // NeighborsAndDistances naive_batch_query(py::array_t<T, py::array::c_style | py::array::forcecast>& queries,
     // const std::vector<std::pair<FilterType, FilterType>>& filters,

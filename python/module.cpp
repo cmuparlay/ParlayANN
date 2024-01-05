@@ -181,7 +181,8 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
 
     py::class_<RangeFilterTreeIndex<T, Point>>(m, ("RangeFilterTreeIndex" + variant.agnostic_name).c_str())
     .def(py::init<py::array_t<T>,py::array_t<float_t>>())
-    .def(py::init<py::array_t<T>,py::array_t<float_t>, int32_t>());
+    .def(py::init<py::array_t<T>,py::array_t<float_t>, int32_t>())
+    .def("batch_filter_search", &RangeFilterTreeIndex<T, Point>::batch_filter_search, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a);
 
 }
 

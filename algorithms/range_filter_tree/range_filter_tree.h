@@ -489,5 +489,86 @@ struct RangeFilterTreeIndex {
         });
     }
 
+    /* the bounds here are inclusive */
+    NeighborsAndDistances batch_filter_search(py::array_t<T, py::array::c_style | py::array::forcecast>& queries,
+     const std::vector<std::pair<FilterType, FilterType>>& filters, uint64_t num_queries,
+     uint64_t knn) {
+        py::array_t<unsigned int> ids({num_queries, knn});
+        py::array_t<float> dists({num_queries, knn});
+
+        parlay::parallel_for(0, num_queries, [&](auto i) {
+            Point q = Point(queries.data(i), this->spatial_index->points->dimension(), 
+                this->spatial_index->points->aligned_dimension(), 
+                i);
+            std::pair<FilterType, FilterType> filter = filters[i];
+
+            auto results = orig_serial_query(q, filter, knn);
+
+            for (auto j = 0; j < knn; j++) {
+                ids.mutable_at(i, j) = results[j].first;
+                dists.mutable_at(i, j) = results[j].second;
+            }
+        });
+        return std::make_pair(ids, dists);
+     }
+
+    /* not really needed but just to highlight it */
+    inline parlay::sequence<pid> self_query(const Point& query, const std::pair<FilterType, FilterType>& range, uint64_t knn) {
+        return spatial_index->query(query, range, knn);
+    }
+
+    parlay::sequence<pid> orig_serial_query(const Point& query, const std::pair<FilterType, FilterType>& range, uint64_t knn) {
+        // if the query range is entirely outside the index range, return
+        if (range.second < this->range.first || range.first > this->range.second) {
+            std::cout << "Query range is entirely outside the index range (" << this->range.first << ", " << this->range.second << ") index range vs. (" << range.first << ", " << range.second << ") This shouldn't happen but does not directly impact correctness" << std::endl;
+            return parlay::sequence<pid>();
+        }
+
+        parlay::sequence<pid> frontier;
+
+        // if there are no children, search the elements within the target range
+        if (!has_children || (range.first <= this->range.first && range.second >= this->range.second)) {
+            frontier = self_query(query, range, knn);
+        } else {
+            // recurse on the children
+            auto& [index1, index2] = this->children;
+            parlay::sequence<pid> results1, results2;
+            // if (range.first <= index1->range.second) {
+            if (range.first <= median.first) {
+                results1 = index1->orig_serial_query(query, range, knn);
+            }
+            // if (range.second >= index2->range.first) {
+            if (range.second >= median.second) {
+                results2 = index2->orig_serial_query(query, range, knn);
+            }
+
+            // if (range.first <= index1->range.second) {
+            if (range.first > median.first) {
+                frontier = results2;
+            // } else if (range.second >= index2->range.first) {
+            } else if (range.second < median.second) {
+                frontier = results1;
+            } else {
+                // this is pretty lazy and inefficient
+                // frontier = parlay::merge(results1, results2, [&](auto a, auto b) {
+                //     return a.second < b.second;
+                // });
+                frontier = results1;
+                for (pid p : results2) {
+                    frontier.push_back(p);
+                }
+                parlay::sort_inplace(frontier, [&](auto a, auto b) {
+                    return a.second < b.second;
+                });
+
+                if (frontier.size() > knn) {
+                    // resize is probably the right thing here but not terribly well documented
+                    frontier.pop_tail(frontier.size() - knn);
+                }
+            }
+        }
+
+        return frontier;
+    }
     
 };
