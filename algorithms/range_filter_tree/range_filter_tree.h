@@ -180,86 +180,103 @@ struct FlatRangeFilterIndex {
      }
     
 // private:
+    /* should search the index without recursing on children */
+    inline parlay::sequence<pid> self_query(const Point& query, const std::pair<FilterType, FilterType>& range, uint64_t knn) {
+        // if (range.second < this->range.first || range.first > this->range.second) {
+        //     std::cout << "Query range is entirely outside the index range (" << this->range.first << ", " << this->range.second << ") index range vs. (" << range.first << ", " << range.second << ")" << std::endl;
+        //     return parlay::sequence<pid>();
+        // }
+
+        parlay::sequence<pid> frontier = parlay::sequence<pid>(knn, std::make_pair(-1, std::numeric_limits<FilterType>::max()));
+
+        // identify the points that are within the filter range 
+        size_t start = 0;
+        size_t end = points->size();
+
+        // if the start of the query range could fall within the index range, find the first point that is >= the start of the query range
+        if (range.first > this->range.first) {
+            size_t l = 0;
+            size_t r = points->size();
+            // should make sure this is correct
+            while (l < r) {
+                size_t m = (l + r) / 2;
+                if (sorted_filter_values[m] < range.first) {
+                    l = m + 1;
+                } else {
+                    r = m;
+                }
+            }
+            start = l;
+        }
+
+        // ditto for the end of the query range
+        if (range.second < this->range.second) {
+            size_t l = start; // see no reason why this wouldn't be valid
+            size_t r = points->size();
+            // correctness of below is similarly suspect
+            while (l < r) {
+                size_t m = (l + r) / 2;
+                if (sorted_filter_values[m] <= range.second) {
+                    l = m + 1;
+                } else {
+                    r = m;
+                }
+            }
+            end = l;
+        }
+
+        // if the start and end are the same, there are no points within the query range
+        if (start == end) {
+            return parlay::sequence<pid>();
+        }
+
+        // otherwise, return the k nearest points within the query range
+        // i here is indexing into the sorted values
+        for (auto i = start; i < end; i++) {
+            size_t j = sorted_filter_indices[i]; // local index of the point (wrt subset)
+            
+            auto d = (*points)[j].distance(query);
+            if (d < frontier[knn-1].second) {
+                frontier[knn-1] = std::make_pair(this->indices[j], d);
+                parlay::sort_inplace(frontier, [&](auto a, auto b) {
+                    return a.second < b.second;
+                });
+            }
+        }
+        return frontier;
+    }
+
     /* This should do exhaustive search on every subrange contained entirely within the query range, and preprocess leaves. */
     parlay::sequence<pid> orig_serial_query(const Point& query, const std::pair<FilterType, FilterType>& range, uint64_t knn) {
         // if the query range is entirely outside the index range, return
         if (range.second < this->range.first || range.first > this->range.second) {
-            std::cout << "Query range is entirely outside the index range" << std::endl;
+            std::cout << "Query range is entirely outside the index range (" << this->range.first << ", " << this->range.second << ") index range vs. (" << range.first << ", " << range.second << ")" << std::endl;
             return parlay::sequence<pid>();
         }
 
         parlay::sequence<pid> frontier;
 
         // if there are no children, search the elements within the target range
+        // if (!has_children || (range.first <= this->range.first && range.second >= this->range.second)) {
         if (!has_children) {
-            // identify the points that are within the filter range 
-            size_t start = 0;
-            size_t end = points->size();
-
-            // if the start of the query range could fall within the index range, find the first point that is >= the start of the query range
-            if (range.first > this->range.first) {
-                size_t l = 0;
-                size_t r = points->size();
-                // should make sure this is correct
-                while (l < r) {
-                    size_t m = (l + r) / 2;
-                    if (sorted_filter_values[m] < range.first) {
-                        l = m + 1;
-                    } else {
-                        r = m;
-                    }
-                }
-                start = l;
-            }
-
-            // ditto for the end of the query range
-            if (range.second < this->range.second) {
-                size_t l = start; // see no reason why this wouldn't be valid
-                size_t r = points->size();
-                // correctness of below is similarly suspect
-                while (l < r) {
-                    size_t m = (l + r) / 2;
-                    if (sorted_filter_values[m] <= range.second) {
-                        l = m + 1;
-                    } else {
-                        r = m;
-                    }
-                }
-                end = l;
-            }
-
-            // if the start and end are the same, there are no points within the query range
-            if (start == end) {
-                return parlay::sequence<pid>();
-            }
-
-            // otherwise, return the k nearest points within the query range
-            frontier = parlay::sequence<pid>(knn, std::make_pair(-1, std::numeric_limits<FilterType>::max()));
-            // i here is indexing into the sorted values
-            for (auto i = start; i < end; i++) {
-                size_t j = sorted_filter_indices[i]; // local index of the point (wrt subset)
-               
-                auto d = (*points)[j].distance(query);
-                if (d < frontier[knn-1].second) {
-                    frontier[knn-1] = std::make_pair(this->indices[j], d);
-                    parlay::sort_inplace(frontier, [&](auto a, auto b) {
-                        return a.second < b.second;
-                    });
-                }
-            }
+            frontier = self_query(query, range, knn);
         } else {
             // recurse on the children
             auto& [index1, index2] = this->children;
             parlay::sequence<pid> results1, results2;
+            // if (range.first <= index1->range.second) {
             if (range.first <= median) {
                 results1 = index1->orig_serial_query(query, range, knn);
             }
+            // if (range.second >= index2->range.first) {
             if (range.second >= median) {
                 results2 = index2->orig_serial_query(query, range, knn);
             }
 
+            // if (range.first <= index1->range.second) {
             if (range.first > median) {
                 frontier = results2;
+            // } else if (range.second >= index2->range.first) {
             } else if (range.second < median) {
                 frontier = results1;
             } else {
@@ -281,7 +298,6 @@ struct FlatRangeFilterIndex {
                 }
             }
         }
-        
 
         return frontier;
     }
@@ -310,7 +326,7 @@ struct FlatRangeFilterIndex {
             std::move(index2)
         );
 
-        has_children = true;
+        this->has_children = true;
     }
 
     /* intuitively, cutoff should be the size of the smallest possible index */
