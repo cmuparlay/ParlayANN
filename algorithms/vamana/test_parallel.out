@@ -1,0 +1,248 @@
+Detected 1000000 points with dimension 128
+Building graph...
+Medoid ID: 89028
+Index build 10% complete
+Detected 1000000 points with dimension 128
+Building graph...
+Medoid ID: 89028
+Index build 10% complete
+Index build 20% complete
+Index build 30% complete
+Index build 40% complete
+Index build 50% complete
+Index build 60% complete
+Index build 70% complete
+Index build 80% complete
+Index build 90% complete
+Index build 100% complete
+beam search time: total: 3.6987
+bidirect time: total: 0.8490
+prune time: total: 2.5925
+ANN: Built index: 7.2521
+Index built with average degree 52.26 and max degree 64
+ANN: stats: 0.0057
+Parlay time: 7.2578
+Detected 10000 points with number of results 100
+Detected 1000000 points with dimension 128
+Detected 10000 points with dimension 128
+Building graph...
+Medoid ID: 89028
+Index build 10% complete
+Index build 20% complete
+Index build 30% complete
+Index build 40% complete
+Index build 50% complete
+Index build 60% complete
+Index build 70% complete
+Index build 80% complete
+Index build 90% complete
+Index build 100% complete
+beam search time: total: 3.6848
+bidirect time: total: 0.8468
+prune time: total: 2.6413
+Average visited: 131, Tail visited: 134
+Vamana graph built with 1000000 points and parameters R = 64, L = 128
+Graph has average degree 52.26 and maximum degree 64
+Graph built in 7.33 seconds
+
+Parlay time: 12.1647
+Detected 10000 points with number of results 100
+Detected 1000000 points with dimension 128
+Detected 10000 points with dimension 128
+Building graph...
+Medoid ID: 89028
+Index build 10% complete
+Index build 20% complete
+Index build 30% complete
+Index build 40% complete
+Index build 50% complete
+Index build 60% complete
+Index build 70% complete
+Index build 80% complete
+Index build 90% complete
+Index build 100% complete
+beam search time: total: 3.6993
+bidirect time: total: 0.8445
+prune time: total: 2.5976
+Average visited: 131, Tail visited: 134
+Vamana graph built with 1000000 points and parameters R = 64, L = 128
+Graph has average degree 52.26 and maximum degree 64
+Graph built in 7.269 seconds
+For 10@10 recall = 0.3194, QPS = 3.73e+06, Q = 15, cut = 1.15, limit = 6
+For 10@10 recall = 0.5431, QPS = 2.778e+06, Q = 15, cut = 1.15, limit = 8
+For 10@10 recall = 0.6827, QPS = 2.186e+06, Q = 15, cut = 1.15, limit = 10
+For 10@10 recall = 0.7668, QPS = 1.854e+06, Q = 15, cut = 1.15, limit = 12
+For 10@10 recall = 0.8216, QPS = 2.019e+06, Q = 15, cut = 1.15, limit = 14
+For 10@10 recall = 0.8591, QPS = 2.069e+06, Q = 15, cut = 1.15, limit = 16
+For 10@10 recall = 0.8853, QPS = 1.828e+06, Q = 15, cut = 1.15, limit = 18
+For 10@10 recall = 0.9112, QPS = 1.769e+06, Q = 15, cut = 1.15, limit = none
+For 10@10 recall = 0.9405, QPS = 1.464e+06, Q = 20, cut = 1.15, limit = none
+For 10@10 recall = 0.9696, QPS = 1.073e+06, Q = 30, cut = 1.35, limit = none
+For 10@10 recall = 0.9883, QPS = 6.945e+05, Q = 50, cut = 1.25, limit = none
+For 10@10 recall = 0.9934, QPS = 5.129e+05, Q = 250, cut = 1.15, limit = none
+For 10@10 recall = 0.9971, QPS = 3.813e+05, Q = 100, cut = 1.35, limit = none
+For 10@10 recall = 0.9993, QPS = 2.336e+05, Q = 200, cut = 1.25, limit = none
+For 10@10 recall = 0.9996, QPS = 1.878e+05, Q = 375, cut = 1.25, limit = none
+For 10@10 recall = 0.9999, QPS = 5.395e+04, Q = 1000, cut = 1.35, limit = none
+
+Parlay time: 12.3636
+Detected 10000 points with number of results 100
+Detected 1000000 points with dimension 128
+Detected 10000 points with dimension 128
+Building graph...
+Medoid ID: 89028
+Index build 10% complete
+Index build 20% complete
+Index build 30% complete
+Index build 40% complete
+Index build 50% complete
+Index build 60% complete
+Index build 70% complete
+Index build 80% complete
+Index build 90% complete
+Index build 100% complete
+beam search time: total: 3.7364
+bidirect time: total: 0.8420
+prune time: total: 2.6493
+Average visited: 131, Tail visited: 134
+Vamana graph built with 1000000 points and parameters R = 64, L = 128
+Graph has average degree 52.26 and maximum degree 64
+Graph built in 7.356 seconds
+For 10@10 recall = 0.3194, QPS = 3.87e+06, Q = 15, cut = 1.15, limit = 6
+For 10@10 recall = 0.5431, QPS = 2.921e+06, Q = 15, cut = 1.15, limit = 8
+For 10@10 recall = 0.6827, QPS = 1.921e+06, Q = 15, cut = 1.15, limit = 10
+For 10@10 recall = 0.7668, QPS = 1.889e+06, Q = 15, cut = 1.15, limit = 12
+For 10@10 recall = 0.8216, QPS = 1.392e+06, Q = 15, cut = 1.15, limit = 14
+For 10@10 recall = 0.8591, QPS = 1.956e+06, Q = 15, cut = 1.15, limit = 16
+For 10@10 recall = 0.8853, QPS = 1.459e+06, Q = 15, cut = 1.15, limit = 18
+For 10@10 recall = 0.9112, QPS = 1.652e+06, Q = 15, cut = 1.25, limit = none
+For 10@10 recall = 0.9406, QPS = 1.47e+06, Q = 20, cut = 1.35, limit = none
+For 10@10 recall = 0.9696, QPS = 9.885e+05, Q = 30, cut = 1.35, limit = none
+For 10@10 recall = 0.9883, QPS = 6.333e+05, Q = 50, cut = 1.25, limit = none
+For 10@10 recall = 0.9934, QPS = 4.788e+05, Q = 150, cut = 1.15, limit = none
+For 10@10 recall = 0.997, QPS = 3.505e+05, Q = 100, cut = 1.25, limit = none
+For 10@10 recall = 0.9993, QPS = 2.291e+05, Q = 200, cut = 1.25, limit = none
+For 10@10 recall = 0.9996, QPS = 1.831e+05, Q = 375, cut = 1.25, limit = none
+For 10@10 recall = 0.9999, QPS = 5.148e+04, Q = 1000, cut = 1.35, limit = none
+
+Parlay time: 10.4210
+Detected 10000 points with number of results 100
+Detected 1000000 points with dimension 128
+Detected 10000 points with dimension 128
+Building graph...
+Medoid ID: 89028
+Index build 10% complete
+Index build 20% complete
+Index build 30% complete
+Index build 40% complete
+Index build 50% complete
+Index build 60% complete
+Index build 70% complete
+Index build 80% complete
+Index build 90% complete
+Index build 100% complete
+beam search time: total: 3.6879
+bidirect time: total: 0.8013
+prune time: total: 2.6198
+Average visited: 131, Tail visited: 134
+Vamana graph built with 1000000 points and parameters R = 64, L = 128
+Graph has average degree 52.26 and maximum degree 64
+Graph built in 7.231 seconds
+For 10@10 recall = 0.3194, QPS = 1.146e+06, Q = 15, cut = 1.15, limit = 6
+For 10@10 recall = 0.5431, QPS = 2.076e+06, Q = 15, cut = 1.15, limit = 8
+For 10@10 recall = 0.6827, QPS = 2.194e+06, Q = 15, cut = 1.15, limit = 10
+For 10@10 recall = 0.7668, QPS = 2.116e+06, Q = 15, cut = 1.15, limit = 12
+For 10@10 recall = 0.8216, QPS = 1.165e+06, Q = 15, cut = 1.15, limit = 14
+For 10@10 recall = 0.8591, QPS = 1.79e+06, Q = 15, cut = 1.15, limit = 16
+For 10@10 recall = 0.8853, QPS = 1.662e+06, Q = 15, cut = 1.15, limit = 18
+For 10@10 recall = 0.9112, QPS = 1.481e+06, Q = 15, cut = 1.15, limit = none
+For 10@10 recall = 0.9406, QPS = 1.322e+06, Q = 20, cut = 1.35, limit = none
+For 10@10 recall = 0.9696, QPS = 1.046e+06, Q = 30, cut = 1.35, limit = none
+For 10@10 recall = 0.9883, QPS = 6.243e+05, Q = 50, cut = 1.25, limit = none
+For 10@10 recall = 0.995, QPS = 4.507e+05, Q = 75, cut = 1.35, limit = none
+For 10@10 recall = 0.9971, QPS = 3.632e+05, Q = 100, cut = 1.35, limit = none
+For 10@10 recall = 0.9993, QPS = 2.316e+05, Q = 200, cut = 1.25, limit = none
+For 10@10 recall = 0.9996, QPS = 1.805e+05, Q = 375, cut = 1.25, limit = none
+For 10@10 recall = 0.9999, QPS = 5.585e+04, Q = 1000, cut = 1.35, limit = none
+
+Parlay time: 10.2814
+Detected 10000 points with number of results 100
+Detected 1000000 points with dimension 128
+Detected 10000 points with dimension 128
+Building graph...
+Medoid ID: 89028
+Index build 10% complete
+Index build 20% complete
+Index build 30% complete
+Index build 40% complete
+Index build 50% complete
+Index build 60% complete
+Index build 70% complete
+Index build 80% complete
+Index build 90% complete
+Index build 100% complete
+beam search time: total: 3.6903
+bidirect time: total: 0.8275
+prune time: total: 2.6526
+Average visited: 131, Tail visited: 134
+Vamana graph built with 1000000 points and parameters R = 64, L = 128
+Graph has average degree 52.26 and maximum degree 64
+Graph built in 7.285 seconds
+For 10@10 recall = 0.3194, QPS = 3.408e+06, Q = 15, cut = 1.15, limit = 6
+For 10@10 recall = 0.5431, QPS = 2.417e+06, Q = 15, cut = 1.15, limit = 8
+For 10@10 recall = 0.6827, QPS = 2.458e+06, Q = 15, cut = 1.15, limit = 10
+For 10@10 recall = 0.7668, QPS = 2.479e+06, Q = 15, cut = 1.15, limit = 12
+For 10@10 recall = 0.8216, QPS = 1.992e+06, Q = 15, cut = 1.15, limit = 14
+For 10@10 recall = 0.8591, QPS = 1.662e+06, Q = 15, cut = 1.15, limit = 16
+For 10@10 recall = 0.8853, QPS = 1.768e+06, Q = 15, cut = 1.15, limit = 18
+For 10@10 recall = 0.9112, QPS = 1.795e+06, Q = 15, cut = 1.15, limit = none
+For 10@10 recall = 0.9406, QPS = 1.365e+06, Q = 20, cut = 1.35, limit = none
+For 10@10 recall = 0.9694, QPS = 1.047e+06, Q = 30, cut = 1.15, limit = none
+For 10@10 recall = 0.9883, QPS = 7.054e+05, Q = 50, cut = 1.25, limit = none
+For 10@10 recall = 0.9921, QPS = 5.401e+05, Q = 75, cut = 1.15, limit = none
+For 10@10 recall = 0.997, QPS = 3.75e+05, Q = 100, cut = 1.25, limit = none
+For 10@10 recall = 0.9993, QPS = 2.404e+05, Q = 200, cut = 1.25, limit = none
+For 10@10 recall = 0.9996, QPS = 1.778e+05, Q = 500, cut = 1.25, limit = none
+For 10@10 recall = 0.9999, QPS = 5.402e+04, Q = 1000, cut = 1.35, limit = none
+
+Parlay time: 12.3170
+Detected 10000 points with number of results 100
+Detected 1000000 points with dimension 128
+Detected 10000 points with dimension 128
+Building graph...
+Medoid ID: 89028
+Index build 10% complete
+Index build 20% complete
+Index build 30% complete
+Index build 40% complete
+Index build 50% complete
+Index build 60% complete
+Index build 70% complete
+Index build 80% complete
+Index build 90% complete
+Index build 100% complete
+beam search time: total: 3.6822
+bidirect time: total: 0.8303
+prune time: total: 2.5991
+Average visited: 131, Tail visited: 134
+Vamana graph built with 1000000 points and parameters R = 64, L = 128
+Graph has average degree 52.26 and maximum degree 64
+Graph built in 7.227 seconds
+For 10@10 recall = 0.3194, QPS = 3.367e+06, Q = 15, cut = 1.15, limit = 6
+For 10@10 recall = 0.5431, QPS = 3.009e+06, Q = 15, cut = 1.15, limit = 8
+For 10@10 recall = 0.6827, QPS = 2.69e+06, Q = 15, cut = 1.15, limit = 10
+For 10@10 recall = 0.7668, QPS = 2.244e+06, Q = 15, cut = 1.15, limit = 12
+For 10@10 recall = 0.8216, QPS = 2.01e+06, Q = 15, cut = 1.15, limit = 14
+For 10@10 recall = 0.8591, QPS = 2.086e+06, Q = 15, cut = 1.15, limit = 16
+For 10@10 recall = 0.8853, QPS = 1.062e+06, Q = 15, cut = 1.15, limit = 18
+For 10@10 recall = 0.9112, QPS = 1.834e+06, Q = 15, cut = 1.15, limit = none
+For 10@10 recall = 0.9406, QPS = 1.496e+06, Q = 20, cut = 1.25, limit = none
+For 10@10 recall = 0.9696, QPS = 1.092e+06, Q = 30, cut = 1.25, limit = none
+For 10@10 recall = 0.9872, QPS = 6.849e+05, Q = 50, cut = 1.15, limit = none
+For 10@10 recall = 0.9921, QPS = 5.404e+05, Q = 75, cut = 1.15, limit = none
+For 10@10 recall = 0.997, QPS = 3.747e+05, Q = 100, cut = 1.25, limit = none
+For 10@10 recall = 0.9993, QPS = 2.433e+05, Q = 200, cut = 1.25, limit = none
+For 10@10 recall = 0.9996, QPS = 1.85e+05, Q = 375, cut = 1.25, limit = none
+For 10@10 recall = 0.9999, QPS = 5.39e+04, Q = 1000, cut = 1.35, limit = none
+
+Parlay time: 12.2649

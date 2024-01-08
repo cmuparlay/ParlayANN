@@ -60,11 +60,11 @@ struct knn_index {
   //of directly replacing the out_nbh of p
   parlay::sequence<indexType> robustPrune(indexType p, parlay::sequence<pid>& cand,
                     GraphI &G, PR &Points,  bool add = true) {
-    // add out neighbors of p to the candidate set.
     size_t out_size = G[p].size();
     std::vector<pid> candidates;
     for (auto x : cand) candidates.push_back(x);
 
+    // add out neighbors of p to the candidate set.
     if(add){
       for (size_t i=0; i<out_size; i++) {
         // candidates.push_back(std::make_pair(v[p]->out_nbh[i], Points[v[p]->out_nbh[i]].distance(Points[p])));
@@ -94,7 +94,7 @@ struct knn_index {
       for (size_t i = candidate_idx; i < candidates.size(); i++) {
         int p_prime = candidates[i].first;
         if (p_prime != -1) {
-          distanceType dist_starprime = Points[p_star].distance(Points[p_prime]);
+          distanceType dist_starprime = Points[p_star].distance(Points[p_prime]); 
           distanceType dist_pprime = candidates[i].second;
           if (BP.alpha * dist_starprime <= dist_pprime) {
             candidates[i].first = -1;
@@ -227,6 +227,7 @@ struct knn_index {
     float progress_inc = .1;
     size_t max_batch_size = std::min(
         static_cast<size_t>(max_fraction * static_cast<float>(n)), 1000000ul);
+    if (max_batch_size == 0) {max_batch_size = n;}
     parlay::sequence<int> rperm;
     if (random_order)
       rperm = parlay::random_permutation<int>(static_cast<int>(m));

@@ -75,7 +75,7 @@ struct PrefilterIndex {
     PrefilterIndex(py::array_t<T> points, py::array_t<FilterType> filter_values) {
         py::buffer_info points_buf = points.request();
         if (points_buf.ndim != 2) {
-            throw std::runtime_error("points NumPy array must be 2-dimensional");
+            throw std::runtime_error("points numpy array must be 2-dimensional");
         }
         auto n = points_buf.shape[0]; // number of points
         auto dims = points_buf.shape[1]; // dimension of each point
@@ -87,11 +87,11 @@ struct PrefilterIndex {
 
         py::buffer_info filter_values_buf = filter_values.request();
         if (filter_values_buf.ndim != 1) {
-            throw std::runtime_error("filter data NumPy array must be 1-dimensional");
+            throw std::runtime_error("filter data numpy array must be 1-dimensional");
         }
 
         if (filter_values_buf.shape[0] != n) {
-            throw std::runtime_error("filter data NumPy array must have the same number of elements as the points array");
+            throw std::runtime_error("filter data numpy array must have the same number of elements as the points array");
         }
 
         FilterType* filter_values_data = static_cast<FilterType*>(filter_values_buf.ptr);

@@ -124,4 +124,12 @@ struct VamanaIndex{
         std::cout << "Recall: " << recall << std::endl;
     }
 
+    // parlay::sequence<std::pair<index_type, float>> query(Point q, int knn, QueryParams QP) {
+    //     // Implementation of the query method
+    //     auto [pairElts, dist_cmps] = beam_search<Point, PointRange<T, Point>, index_type>(q, G, Points, 0, QP);
+    //     auto [frontier, visited] = pairElts;
+
+    //     return frontier;
+    // }
+
 };

@@ -30,6 +30,7 @@
 #include "pybind11/stl.h"
 
 #include "prefiltering.h"
+#include "postfilter_vamana.h"
 
 using index_type = int32_t;
 
@@ -543,10 +544,10 @@ struct RangeFilterTreeIndex {
             }
 
             // if (range.first <= index1->range.second) {
-            if (range.first > median.first) {
+            if (results1.size() == 0) {
                 frontier = results2;
             // } else if (range.second >= index2->range.first) {
-            } else if (range.second < median.second) {
+            } else if (results2.size() == 0) {
                 frontier = results1;
             } else {
                 // this is pretty lazy and inefficient
