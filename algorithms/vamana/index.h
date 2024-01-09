@@ -74,29 +74,31 @@ struct knn_index {
     // Sort the candidate set in reverse order according to distance from p.
     auto less = [&](pid a, pid b) { return a.second < b.second; };
     std::sort(candidates.begin(), candidates.end(), less);
+    auto new_end = std::unique(candidates.begin(), candidates.end(),
+			       [&] (auto x, auto y) {return x.first == y.first;});
 
     std::vector<indexType> new_nbhs;
     new_nbhs.reserve(BP.R);
 
-    size_t candidate_idx = 0;
+    auto candidates_it = candidates.begin();
 
-    while (new_nbhs.size() < BP.R && candidate_idx < candidates.size()) {
+    while (new_nbhs.size() < BP.R && candidates_it != new_end) {
       // Don't need to do modifications.
-      int p_star = candidates[candidate_idx].first;
-      candidate_idx++;
+      int p_star = candidates_it->first;
+      candidates_it++;
       if (p_star == p || p_star == -1) {
         continue;
       }
 
       new_nbhs.push_back(p_star);
 
-      for (size_t i = candidate_idx; i < candidates.size(); i++) {
-        int p_prime = candidates[i].first;
+      for (auto i = candidates_it; i != new_end; i++) {
+        int p_prime = candidates_it->first;
         if (p_prime != -1) {
           distanceType dist_starprime = Points[p_star].distance(Points[p_prime]);
-          distanceType dist_pprime = candidates[i].second;
+          distanceType dist_pprime = candidates_it->second;
           if (alpha * dist_starprime <= dist_pprime) {
-            candidates[i].first = -1;
+            candidates_it->first = -1;
           }
         }
       }
@@ -291,7 +293,7 @@ struct knn_index {
       parlay::parallel_for(0, grouped_by.size(), [&](size_t j) {
         auto &[index, candidates] = grouped_by[j];
         size_t newsize = candidates.size() + G[index].size();
-        if (newsize <= BP.R) {
+        if (false) { //newsize <= BP.R) {
           G[index].append_neighbors(candidates);
         } else {
           auto new_out_2_ = robustPrune(index, std::move(candidates), G, Points, alpha);  
