@@ -294,7 +294,8 @@ struct knn_index {
         if (newsize <= BP.R) {
           G[index].append_neighbors(candidates);
         } else {
-          auto new_out_2_ = robustPrune(index, std::move(candidates), G, Points, alpha);  
+          auto new_out_2_ = robustPrune(index, std::move(candidates), G, Points, alpha);
+	  G[index].update_neighbors(new_out_2_);    
         }
       });
       t_prune.stop();
