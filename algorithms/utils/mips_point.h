@@ -74,7 +74,7 @@ struct Mips_Point {
   static bool is_metric() {return false;}
   T operator [](long i) {return *(values + i);}
 
-  float distance(Mips_Point<T> x) {
+  float distance(const Mips_Point<T>& x) {
     return mips_distance(this->values, x.values, d);
   }
 
@@ -89,13 +89,17 @@ struct Mips_Point {
   Mips_Point(const T* values, unsigned int d, unsigned int ad, long id)
     : values(values), d(d), aligned_d(ad), id_(id) {}
 
-  bool operator==(Mips_Point<T> q){
+  bool operator==(const Mips_Point<T>& q){
     for (int i = 0; i < d; i++) {
       if (values[i] != q.values[i]) {
         return false;
       }
     }
     return true;
+  }
+
+  bool same_as(const Mips_Point<T>& q){
+    return values == q.values;
   }
 
 private:

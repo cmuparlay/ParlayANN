@@ -99,7 +99,7 @@ int main(int argc, char* argv[]) {
   if(cluster_size<0) P.badArgument();
   long k = P.getOptionIntValue("-k", 0);
   if (k > 1000 || k < 0) P.badArgument();
-  double alpha = P.getOptionDoubleValue("-alpha", 0);
+  double alpha = P.getOptionDoubleValue("-alpha", 1.0);
   int two_pass = P.getOptionIntValue("-two_pass", 0);
   if(two_pass > 1 | two_pass < 0) P.badArgument();
   bool pass = (two_pass == 1);
