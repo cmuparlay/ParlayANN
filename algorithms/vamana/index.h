@@ -71,10 +71,15 @@ struct knn_index {
       }
     }
 
-    // Sort the candidate set in reverse order according to distance from p.
+    // Sort the candidate set according to distance from p
     auto less = [&](pid a, pid b) { return a.second < b.second; };
     std::sort(candidates.begin(), candidates.end(), less);
 
+    // remove any duplicates
+    auto new_end =std::unique(candidates.begin(), candidates.end(),
+			      [&] (auto x, auto y) {return x.first == y.first;});
+    candidates = std::vector(candidates.begin(), new_end);
+    
     std::vector<indexType> new_nbhs;
     new_nbhs.reserve(BP.R);
 
@@ -119,6 +124,7 @@ struct knn_index {
     return robustPrune(p, cc, G, Points, alpha, add);
   }
 
+  // add ngh to candidates without adding any repeats
   template<typename rangeType1, typename rangeType2>
   void add_neighbors_without_repeats(const rangeType1 &ngh, rangeType2& candidates) {
     std::unordered_set<indexType> a;
