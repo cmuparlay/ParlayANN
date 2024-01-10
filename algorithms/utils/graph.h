@@ -43,15 +43,15 @@
 template<typename indexType>
 struct edgeRange{
 
-    size_t size(){return edges[0];}
+    size_t size() const {return edges[0];}
 
-    indexType id(){return id_;}
+    indexType id() const {return id_;}
 
     edgeRange() : edges(parlay::make_slice<indexType*, indexType*>(nullptr, nullptr)) {}
 
     edgeRange(indexType* start, indexType* end, indexType id) : edges(parlay::make_slice<indexType*, indexType*>(start,end)), id_(id) {maxDeg = edges.size()-1;}
 
-    indexType operator [] (indexType j){
+    indexType operator [] (indexType j) const {
         if(j > edges[0]){
             std::cout << "ERROR: tried to exceed range" << std::endl;
             abort();
@@ -69,7 +69,7 @@ struct edgeRange{
     }
 
     template<typename rangeType>
-    void update_neighbors(rangeType r){
+    void update_neighbors(const rangeType& r){
         if(r.size() > maxDeg){
             std::cout << "ERROR in update_neighbors: cannot exceed max degree " << maxDeg << std::endl;
             abort();
@@ -81,7 +81,7 @@ struct edgeRange{
     }
 
     template<typename rangeType>
-    void append_neighbors(rangeType r){
+    void append_neighbors(const rangeType& r){
         if(r.size() + edges[0] > maxDeg){
             std::cout << "ERROR in append_neighbors for point " << id_ << ": cannot exceed max degree " << maxDeg << std::endl;
             std::cout << edges[0] << std::endl;
@@ -118,8 +118,8 @@ struct edgeRange{
 
 template<typename indexType>
 struct Graph{
-    long max_degree(){return maxDeg;}
-    size_t size(){return n;}
+    long max_degree() const {return maxDeg;}
+    size_t size() const {return n;}
 
     Graph(){}
 

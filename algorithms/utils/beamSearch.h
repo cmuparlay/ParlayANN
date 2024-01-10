@@ -126,7 +126,7 @@ beam_search(Point p, Graph<indexType> &G, PointRange &Points,
     long num_elts = std::min<long>(G[current.first].size(), QP.degree_limit);
     for (indexType i=0; i<num_elts; i++) {
       auto a = G[current.first][i];
-      if (a == p.id() || has_been_seen(a)) continue;  // skip if already seen
+      if (has_been_seen(a) || Points[a].same_as(p)) continue;  // skip if already seen
       keep.push_back(a);
       Points[a].prefetch();
     }

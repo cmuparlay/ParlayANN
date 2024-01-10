@@ -119,6 +119,14 @@ struct knn_index {
     return robustPrune(p, cc, G, Points, alpha, add);
   }
 
+  template<typename rangeType1, typename rangeType2>
+  void add_neighbors_without_repeats(const rangeType1 &ngh, rangeType2& candidates) {
+    std::unordered_set<indexType> a;
+    for (auto c : candidates) a.insert(c);
+    for (int i=0; i < ngh.size(); i++) 
+      if (a.count(ngh[i]) == 0) candidates.push_back(ngh[i]);
+  }
+
   void set_start(){start_point = 0;}
 
   void build_index(GraphI &G, PR &Points, stats<indexType> &BuildStats){
@@ -290,9 +298,10 @@ struct knn_index {
       // otherwise, use robustPrune on the vertex with user-specified alpha
       parlay::parallel_for(0, grouped_by.size(), [&](size_t j) {
         auto &[index, candidates] = grouped_by[j];
-        size_t newsize = candidates.size() + G[index].size();
+	size_t newsize = candidates.size() + G[index].size();
         if (newsize <= BP.R) {
-          G[index].append_neighbors(candidates);
+	  add_neighbors_without_repeats(G[index], candidates);
+	  G[index].update_neighbors(candidates);
         } else {
           auto new_out_2_ = robustPrune(index, std::move(candidates), G, Points, alpha);
 	  G[index].update_neighbors(new_out_2_);    
@@ -380,7 +389,8 @@ struct knn_index {
       auto &[index, candidates] = grouped_by[j];
       size_t newsize = candidates.size() + G[index].size();
       if (newsize <= BP.R) {
-        G[index].append_neighbors(candidates);
+	  add_neighbors_without_repeats(G[index], candidates);
+	  G[index].update_neighbors(candidates);
         changed[index] = 1;
       } else {
         auto new_out_2_ = robustPrune(index, std::move(candidates), G, Points, alpha);  

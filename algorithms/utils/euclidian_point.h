@@ -72,7 +72,7 @@ struct Euclidian_Point {
   static bool is_metric() {return true;}
   T operator[](long i){return *(values + i);}
 
-  float distance(Euclidian_Point<T> x) {
+  float distance(const Euclidian_Point<T>& x) {
     return euclidian_distance(this->values, x.values, d);
   }
 
@@ -87,7 +87,7 @@ struct Euclidian_Point {
   Euclidian_Point(const T* values, unsigned int d, unsigned int ad, long id)
     : values(values), d(d), aligned_d(ad), id_(id) {}
 
-  bool operator==(Euclidian_Point<T> q){
+  bool operator==(const Euclidian_Point<T>& q){
     for (int i = 0; i < d; i++) {
       if (values[i] != q.values[i]) {
         return false;
@@ -95,6 +95,11 @@ struct Euclidian_Point {
     }
     return true;
   }
+
+  bool same_as(const Euclidian_Point<T>& q){
+    return values == q.values;
+  }
+
 
 private:
   const T* values;
