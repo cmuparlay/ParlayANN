@@ -75,8 +75,8 @@ if not os.path.exists("index_cache/"):
     os.mkdir("index_cache/")
 
 os.environ['PARLAY_NUM_THREADS'] = '8'
-INDEX_DIR = '../../big-ann-benchmarks/data/indices/filter/parlayivf/YFCC100MDataset-10000000/parlayivf_Euclidian_uint8'
-# INDEX_DIR = "index_cache/"
+# INDEX_DIR = '../../big-ann-benchmarks/data/indices/filter/parlayivf/YFCC100MDataset-10000000/parlayivf_Euclidian_uint8'
+INDEX_DIR = "index_cache/"
 
 # %%
 def parse_framework_output(data):
@@ -235,7 +235,7 @@ index = build_with_params(MAX_DEGREES, WEIGHT_CLASSES, CUTOFF, CLUSTER_SIZE, 10_
 # %%
 def objective(trial, recall_cutoff=0.9):
     tiny_cutoff = trial.suggest_int('tiny_cutoff', 10_000, 100_000, step=1_000)
-    target_points = trial.suggest_int('target_points', 5_000, 30_000, step=1_000)
+    target_points = trial.suggest_int('target_points', 5_000, 40_000, step=1_000)
     beam_width_s = trial.suggest_int('beam_width_s', 30, 130, step=5)
     beam_width_m = trial.suggest_int('beam_width_m', 30, 130, step=5)
     beam_width_l = trial.suggest_int('beam_width_l', 30, 130, step=5)
@@ -243,7 +243,7 @@ def objective(trial, recall_cutoff=0.9):
 
     update_search_params(index, target_points, tiny_cutoff, (beam_width_s, beam_width_m, beam_width_s), (search_limit, search_limit, search_limit))
 
-    r, qps, dcmps = run_index(index, I, NQ, runs=4)
+    r, qps, dcmps = run_index(index, I, NQ, runs=4, recall_cutoff=recall_cutoff)
 
     if r > recall_cutoff:
         return round(qps) + r
@@ -256,11 +256,11 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         recall_cutoff = float(sys.argv[1]) / 100
     else:
-        recall_cutoff = 0.9
+        recall_cutoff = 0.85
     
     print(f"Running with recall cutoff {recall_cutoff}")
 
-    study = optuna.create_study(direction='maximize')
+    study = optuna.create_study(direction='maximize', sampler=optuna.samplers.TPESampler())
     study.optimize(lambda trial: objective(trial, recall_cutoff), n_trials=10_000)
 # %%
 # def build_objective(trial):

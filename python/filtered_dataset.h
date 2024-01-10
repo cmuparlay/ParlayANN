@@ -88,6 +88,39 @@ struct FilteredDataset {
         
         return py::array_t<index_type>(intersection.size(), intersection.data());
     }
+
+    /* Writes the points to a file in fvec format
+
+    Writes the points as int32_t because CAPS only supports int32_t and float32_t
+    
+    fvec format:
+        <dim> <vector> <dim> <vector> ...
+    */
+    void write_fvec(std::string filename) {
+        auto outfile = fopen(filename.data(), "w");
+        int32_t dim = points.dimension();
+        std::unique_ptr<int32_t[]> point_buffer(new int32_t[dim]);
+
+        for (size_t i=0; i < points.size(); i++) {
+            T* p = points[i].get();
+            // write dim
+            fwrite(&dim, sizeof(int32_t), 1, outfile);
+            // cast vector to int32_t
+            for (size_t j=0; j < dim; j++) {
+                point_buffer[j] = (int32_t) p[j];
+            }
+            // write vector
+            fwrite(point_buffer.get(), sizeof(int32_t), dim, outfile);
+        }
+    }
+
+    /* Writes labels to the .txt format used by CAPS */
+    void write_labels(std::string filename) {
+        auto outfile = fopen(filename.data(), "w");
+        for (size_t i=0; i < points.size(); i++) {
+            fprintf(outfile, "%d ", points[i].id());
+        }
+    }
 };
 
 #endif // FILTERED_DATASET_H

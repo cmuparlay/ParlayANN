@@ -61,7 +61,7 @@ SMALL_R = 32
 SMALL_L = 100
 SMALL_ALPHA = 1.175
 
-LARGE_R = 256
+LARGE_R = 64
 LARGE_L = 100
 LARGE_ALPHA = 1.175
 
@@ -70,7 +70,12 @@ CUT = 1.35
 SEARCH_LIMIT = 10_000_000
 QUERY_LIMIT = 10_000_000
 
-sv_index = wp.init_stitched_vamana_index("Euclidian", "uint8")
+HYBRID_CUTOFF = 20_000
+
+# sv_index = wp.init_stitched_vamana_index("Euclidian", "uint8")
+sv_index = wp.init_hybrid_stitched_vamana_index("Euclidian", "uint8")
+
+sv_index.set_cutoff(HYBRID_CUTOFF)
 
 sv_index.set_build_params_small(SMALL_R, SMALL_L, SMALL_ALPHA)
 sv_index.set_build_params_large(LARGE_R, LARGE_L, LARGE_ALPHA)
@@ -87,7 +92,7 @@ if BUILD:
 else:
     print("----- Loading Stitched Vamana Index-----")
 
-    sv_index.load("index_cache/", DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat')
+    sv_index.load_from_filename("index_cache/", DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat')
 
 print("----- Querying Stitched Vamana Index-----")
 
@@ -126,6 +131,8 @@ print(neighbors.shape)
 print(neighbors[:10, :])
 print(distances[:10, :])
 
+# print(f"Average distance comparisons: {sv_index.get_dist_comparisons() / NQ}")
+
 GROUND_TRUTH_DIR = DATA_DIR + "data/yfcc100M/GT.public.ibin"
 
 def retrieve_ground_truth(fname):
@@ -153,5 +160,5 @@ for i in range(NQ):
     recall += local_recall / 10
 
 recall /= NQ
-print(f"Recall: {recall}")
+print(f"Recall: {recall * 100:.4f}% (1 / {1 / recall:.2f})")
 
