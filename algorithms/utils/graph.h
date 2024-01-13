@@ -144,8 +144,10 @@ struct Graph{
         indexType* degrees_start = new indexType[n];
         reader.read((char*)(degrees_start), sizeof(indexType)*n);
         indexType* degrees_end = degrees_start + n;
-        parlay::slice<indexType*, indexType*> degrees = parlay::make_slice(degrees_start, degrees_end);
+        parlay::slice<indexType*, indexType*> degrees0 = parlay::make_slice(degrees_start, degrees_end);
+        auto degrees = parlay::tabulate(degrees0.size(), [&] (size_t i){return static_cast<size_t>(degrees0[i]);});
         auto [offsets, total] = parlay::scan(degrees);
+        std::cout << "Total: " << total << std::endl;
         offsets.push_back(total);
 
         //write to graph object
