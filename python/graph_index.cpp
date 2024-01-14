@@ -77,8 +77,8 @@ struct GraphIndex{
             search_control ctrl{};
             if(QP.limit>0) {
                 ctrl.limit_eval = QP.limit;
-                ctrl.count_cmps = &dist_cmps;
             }
+            ctrl.count_cmps = &dist_cmps;
 
             seq_t frontier = HNSW_index->search(q, QP.k, QP.beamSize, ctrl);
             return pair(pair(std::move(frontier), seq_t{}), dist_cmps);
