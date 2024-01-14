@@ -755,7 +755,8 @@ HNSW<U,Allocator>::HNSW(Iter begin, Iter end, uint32_t dim_, float m_l_, uint32_
 	std::random_device rd;
 	auto perm = parlay::random_permutation<uint32_t>(n, rd());
 	auto rand_seq = parlay::delayed_seq<T>(n, [&](uint32_t i){
-		return *(begin+perm[i]);
+		//return *(begin+perm[i]);
+		return *(begin+i);
 	});
 
 	const auto level_ep = get_level_random();
