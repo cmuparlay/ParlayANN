@@ -108,7 +108,7 @@ beam_search_impl(Point p, GT &G, PointRange &Points,
   double total;
 
   // used as temporaries in the loop
-  std::vector<std::pair<indexType, distanceType>> new_frontier(QP.beamSize + G.max_degree());
+  std::vector<std::pair<indexType, distanceType>> new_frontier(std::max<size_t>(QP.beamSize,starting_points.size()) + G.max_degree());
   std::vector<std::pair<indexType, distanceType>> candidates;
   candidates.reserve(G.max_degree());
   std::vector<indexType> keep;
