@@ -1098,6 +1098,8 @@ auto HNSW<U,Allocator>::search_layer(const node &u, const parlay::sequence<node_
 	auto res = beam_search_impl<node_id>(u.data, g, points, eps, QP);
 	const auto &pairElts = std::get<0>(res);
 	const auto &frontier = std::get<0>(pairElts);
+	if(ctrl.count_cmps)
+		*ctrl.count_cmps.value() += std::get<1>(res);
 	return parlay::tabulate(frontier.size(), [&](size_t i){
 		const auto &f = frontier[i];
 		return dist{f.second, f.first};
