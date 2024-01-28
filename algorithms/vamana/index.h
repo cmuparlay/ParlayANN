@@ -310,7 +310,7 @@ struct knn_index {
 	  G[index].update_neighbors(candidates);
         } else {
           auto new_out_2_ = robustPrune(index, std::move(candidates), G, Points, alpha);
-	  G[index].update_neighbors(new_out_2_);    
+	        G[index].update_neighbors(new_out_2_);    
         }
       });
       t_prune.stop();
