@@ -92,10 +92,6 @@ struct edgeRange{
         edges[0] += r.size();
     }
 
-    void clear_neighbors(){
-        edges[0]=0;
-    }
-
     void prefetch(){
         int l = ((edges[0]+1) * sizeof(indexType))/64;
         for (int i=0; i < l; i++)
