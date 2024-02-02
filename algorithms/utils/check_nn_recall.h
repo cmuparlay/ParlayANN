@@ -31,9 +31,9 @@
 #include "types.h"
 #include "stats.h"
 
-template<typename Point, typename PointRange, typename indexType>
+template<typename Point, typename PointRange, typename indexType, typename GraphType>
 nn_result checkRecall(
-        Graph<indexType> &G,
+        GraphType &G,
         PointRange &Base_Points,
         PointRange &Query_Points,
         groundTruth<indexType> GT,
@@ -53,16 +53,16 @@ nn_result checkRecall(
   float query_time;
   stats<indexType> QueryStats(Query_Points.size());
   if(random){
-    all_ngh = beamSearchRandom<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, QP);
+    all_ngh = beamSearchRandom<Point, PointRange, indexType, GraphType>(Query_Points, G, Base_Points, QueryStats, QP);
     t.next_time();
     QueryStats.clear();
-    all_ngh = beamSearchRandom<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, QP);
+    all_ngh = beamSearchRandom<Point, PointRange, indexType, GraphType>(Query_Points, G, Base_Points, QueryStats, QP);
     query_time = t.next_time();
   }else{
-    all_ngh = searchAll<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_point, QP);
+    all_ngh = searchAll<Point, PointRange, indexType, GraphType>(Query_Points, G, Base_Points, QueryStats, start_point, QP);
     t.next_time();
     QueryStats.clear();
-    all_ngh = searchAll<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_point, QP);
+    all_ngh = searchAll<Point, PointRange, indexType, GraphType>(Query_Points, G, Base_Points, QueryStats, start_point, QP);
     query_time = t.next_time();
   }
 
@@ -156,8 +156,8 @@ parlay::sequence<long> calculate_limits(size_t upper_bound) {
   return limits;
 }
 
-template<typename Point, typename PointRange, typename indexType>
-void search_and_parse(Graph_ G_, Graph<indexType> &G, PointRange &Base_Points,
+template<typename Point, typename PointRange, typename indexType, typename GraphType>
+void search_and_parse(Graph_ G_, GraphType &G, PointRange &Base_Points,
    PointRange &Query_Points, 
   groundTruth<indexType> GT, char* res_file, long k,
   bool random=true, indexType start_point=0){
@@ -167,9 +167,14 @@ void search_and_parse(Graph_ G_, Graph<indexType> &G, PointRange &Base_Points,
   std::vector<long> allr;
   std::vector<double> cuts;
 
+  auto GG = G.Get_Graph_Read_Only();
+  long maxDeg = GG.max_degree();
+  size_t G_size = GG.size();
+  G.Release_Graph(std::move(GG));
+
   QueryParams QP;
-  QP.limit = (long) G.size();
-  QP.degree_limit = (long) G.max_degree();
+  QP.limit = maxDeg;
+  QP.degree_limit = (long) G_size;
   beams = {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 24, 26, 28, 30, 32, 
           34, 36, 38, 40, 45, 50, 55, 60, 65, 70, 80, 90, 100, 120, 140, 160, 
           180, 200, 225, 250, 275, 300, 375, 500, 750, 1000}; 
@@ -191,9 +196,9 @@ void search_and_parse(Graph_ G_, Graph<indexType> &G, PointRange &Base_Points,
       }
       // check "limited accuracy"
       parlay::sequence<long> limits = calculate_limits(results[0].avg_visited);
-      parlay::sequence<long> degree_limits = calculate_limits(G.max_degree());
-      degree_limits.push_back(G.max_degree());
-      QP = QueryParams(r, r, 1.35, (long) G.size(), (long) G.max_degree());
+      parlay::sequence<long> degree_limits = calculate_limits(maxDeg);
+      degree_limits.push_back(maxDeg);
+      QP = QueryParams(r, r, 1.35, (long) G_size, (long) maxDeg);
       for(long l : limits){
         QP.limit = l;
         QP.beamSize = std::max<long>(l, r);
@@ -203,7 +208,7 @@ void search_and_parse(Graph_ G_, Graph<indexType> &G, PointRange &Base_Points,
         }
       }
       // check "best accuracy"
-      QP = QueryParams((long) 100, (long) 1000, (double) 10.0, (long) G.size(), (long) G.max_degree());
+      QP = QueryParams((long) 100, (long) 1000, (double) 10.0, (long) G_size, (long) maxDeg);
       results.push_back(checkRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, random, start_point, r, QP));
 
     parlay::sequence<float> buckets =  {.1, .2, .3,  .4,  .5,  .6, .7, .75,  .8, .85,                                                                                            

@@ -38,12 +38,12 @@
 #include "../utils/beamSearch.h"
 
 
-template<typename Point, typename PointRange, typename indexType>
+template<typename Point, typename PointRange, typename indexType, typename GraphType>
 struct knn_index {
   using distanceType = typename Point::distanceType;
   using pid = std::pair<indexType, distanceType>;
   using PR = PointRange;
-  using GraphI = Graph<indexType>;
+  using GraphI = typename GraphType::Graph;
   
 
   BuildParams BP;
@@ -135,18 +135,19 @@ struct knn_index {
 
   void set_start(){start_point = 0;}
 
-  void build_index(GraphI &G, PR &Points, stats<indexType> &BuildStats){
+  void build_index(GraphType &Graph, PR &Points, stats<indexType> &BuildStats){
     std::cout << "Building graph..." << std::endl;
     set_start();
     parlay::sequence<indexType> inserts = parlay::tabulate(Points.size(), [&] (size_t i){
 					    return static_cast<indexType>(i);});
-
+    GraphI G = Graph.Get_Graph();
     if(BP.two_pass) batch_insert(inserts, G, Points, BuildStats, 1.0, true, 2, .02);
     batch_insert(inserts, G, Points, BuildStats, BP.alpha, true, 2, .02);
-    parlay::parallel_for (0, G.size(), [&] (long i) {
-      auto less = [&] (indexType j, indexType k) {
-		    return Points[i].distance(Points[j]) < Points[i].distance(Points[k]);};
-      G[i].sort(less);});
+    // parlay::parallel_for (0, G.size(), [&] (long i) {
+    //   auto less = [&] (indexType j, indexType k) {
+		//     return Points[i].distance(Points[j]) < Points[i].distance(Points[k]);};
+    //   G[i].sort(less);});
+    Graph.Update_Graph(std::move(G));
   }
 
   void lazy_delete(parlay::sequence<indexType> deletes, GraphI &G) {
@@ -269,7 +270,7 @@ struct knn_index {
         ceiling = std::min(count + static_cast<size_t>(max_batch_size), m);
         count += static_cast<size_t>(max_batch_size);
       }
-      parlay::sequence<parlay::sequence<indexType>> new_out_(ceiling-floor);
+      parlay::sequence<std::pair<indexType, parlay::sequence<indexType>>> new_out_(ceiling-floor);
       // search for each node starting from the start_point, then call
       // robustPrune with the visited list as its candidate set
       t_beam.start();
@@ -279,7 +280,9 @@ struct knn_index {
         parlay::sequence<pid> visited = 
           (beam_search<Point, PointRange, indexType>(Points[index], G, Points, start_point, QP)).first.second;
         BuildStats.increment_visited(index, visited.size());
-        new_out_[i-floor] = robustPrune(index, visited, G, Points, alpha); });
+        new_out_[i-floor] = std::make_pair(index, robustPrune(index, visited, G, Points, alpha)); 
+      });
+      G.batch_update(new_out_);
       t_beam.stop();
       // make each edge bidirectional by first adding each new edge
       //(i,j) to a sequence, then semisorting the sequence by key values
@@ -287,14 +290,10 @@ struct knn_index {
       auto to_flatten = parlay::tabulate(ceiling - floor, [&](size_t i) {
         indexType index = shuffled_inserts[i + floor];
         auto edges =
-            parlay::tabulate(new_out_[i].size(), [&](size_t j) {
-              return std::make_pair(new_out_[i][j], index);
+            parlay::tabulate(new_out_[i].second.size(), [&](size_t j) {
+              return std::make_pair(new_out_[i].second[j], index);
             });
         return edges;
-      });
-
-      parlay::parallel_for(floor, ceiling, [&](size_t i) {
-        G[shuffled_inserts[i]].update_neighbors(new_out_[i-floor]);
       });
       auto grouped_by = parlay::group_by_key(parlay::flatten(to_flatten));
       t_bidirect.stop();
@@ -302,17 +301,30 @@ struct knn_index {
       // finally, add the bidirectional edges; if they do not make
       // the vertex exceed the degree bound, just add them to out_nbhs;
       // otherwise, use robustPrune on the vertex with user-specified alpha
-      parlay::parallel_for(0, grouped_by.size(), [&](size_t j) {
+
+      auto bidirectional_edges = parlay::tabulate(grouped_by.size(), [&] (size_t j){
         auto &[index, candidates] = grouped_by[j];
-	size_t newsize = candidates.size() + G[index].size();
+	      size_t newsize = candidates.size() + G[index].size();
         if (newsize <= BP.R) {
-	  add_neighbors_without_repeats(G[index], candidates);
-	  G[index].update_neighbors(candidates);
+	        add_neighbors_without_repeats(G[index], candidates);
+	        return std::make_pair(index, std::move(candidates));
         } else {
           auto new_out_2_ = robustPrune(index, std::move(candidates), G, Points, alpha);
-	        G[index].update_neighbors(new_out_2_);    
+	        return std::make_pair(index, std::move(new_out_2_));   
         }
       });
+      G.batch_update(bidirectional_edges);
+      // parlay::parallel_for(0, grouped_by.size(), [&](size_t j) {
+      //   auto &[index, candidates] = grouped_by[j];
+	    //   size_t newsize = candidates.size() + G[index].size();
+      //   if (newsize <= BP.R) {
+	    //     add_neighbors_without_repeats(G[index], candidates);
+	    //     G[index].update_neighbors(candidates);
+      //   } else {
+      //     auto new_out_2_ = robustPrune(index, std::move(candidates), G, Points, alpha);
+	    //     G[index].update_neighbors(new_out_2_);    
+      //   }
+      // });
       t_prune.stop();
       if (print) {
         auto ind = frac * n;
@@ -327,84 +339,6 @@ struct knn_index {
     t_beam.total();
     t_bidirect.total();
     t_prune.total();
-  }
-
-  void batch_insert_with_stats(indexType p, Graph<indexType> &G) {
-    parlay::sequence<indexType> inserts;
-    inserts.push_back(p);
-    batch_insert(inserts, G, true);
-  }
-
-  bool did_prune_change(GraphI &G, indexType index, parlay::sequence<indexType> new_nbh){
-    if(G[index].size() != new_nbh.size()) return true;
-    else{
-      std::set<indexType> old_edges;
-      for(int j=0; j<G[index].size(); j++) old_edges.insert(G[index][j]);
-      for(auto j : new_nbh){
-        if(old_edges.find(j) == old_edges.end()) return true;
-      }
-    }
-    return false;
-  }
-
-  void batch_insert_with_stats_count(parlay::sequence<indexType> &inserts,
-                     GraphI &G, PR &Points, double alpha, parlay::sequence<int> &changed) {
-
-    size_t n = G.size();
-    size_t m = inserts.size();
-    bool random_order = true;
-    parlay::sequence<int> rperm;
-    if (random_order)
-      rperm = parlay::random_permutation<int>(static_cast<int>(m));
-    else
-      rperm = parlay::tabulate(m, [&](int i) { return i; });
-    auto shuffled_inserts =
-        parlay::tabulate(m, [&](size_t i) { return inserts[rperm[i]]; });
-
-    size_t floor = 0;
-    size_t ceiling = m;
-    parlay::sequence<parlay::sequence<indexType>> new_out_(m);
-    // search for each node starting from the start_point, then call
-    // robustPrune with the visited list as its candidate set
-    parlay::parallel_for(floor, ceiling, [&](size_t i) {
-      size_t index = shuffled_inserts[i];
-      QueryParams QP((long) 0, BP.L, (double) 0.0, (long) Points.size(), (long) G.max_degree());
-      parlay::sequence<pid> visited = 
-        (beam_search<Point, PointRange, indexType>(Points[index], G, Points, start_point, QP)).first.second;
-      new_out_[i-floor] = robustPrune(index, visited, G, Points, alpha); });
-    // make each edge bidirectional by first adding each new edge
-    //(i,j) to a sequence, then semisorting the sequence by key values
-    auto to_flatten = parlay::tabulate(ceiling - floor, [&](size_t i) {
-      indexType index = shuffled_inserts[i + floor];
-      auto edges =
-          parlay::tabulate(new_out_[i].size(), [&](size_t j) {
-            return std::make_pair(new_out_[i][j], index);
-          });
-      return edges;
-    });
-    // add edges corresponding to the inserted points
-    parlay::parallel_for(floor, ceiling, [&](size_t i) {
-      G[shuffled_inserts[i]].update_neighbors(new_out_[i-floor]);
-      changed[shuffled_inserts[i]] = 1;
-    });
-    auto grouped_by = parlay::group_by_key(parlay::flatten(to_flatten));
-    // finally, add the bidirectional edges; if they do not make
-    // the vertex exceed the degree bound, just add them to out_nbhs;
-    // otherwise, use robustPrune on the vertex with user-specified alpha
-    parlay::parallel_for(0, grouped_by.size(), [&](size_t j) {
-      auto &[index, candidates] = grouped_by[j];
-      size_t newsize = candidates.size() + G[index].size();
-      if (newsize <= BP.R) {
-	  add_neighbors_without_repeats(G[index], candidates);
-	  G[index].update_neighbors(candidates);
-        changed[index] = 1;
-      } else {
-        auto new_out_2_ = robustPrune(index, std::move(candidates), G, Points, alpha);  
-        G[index].update_neighbors(new_out_2_);    
-        // if(did_prune_change(G, index, new_out_2_)) changed[index] = 1;
-        changed[index] = 1;
-      }
-    });
   }
 
 };
