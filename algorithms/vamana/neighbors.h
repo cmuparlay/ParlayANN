@@ -29,70 +29,45 @@
 #include "../utils/stats.h"
 #include "../utils/types.h"
 #include "../utils/graph.h"
-// #include "../utils/aspen_graph.h"
+#include "../utils/aspen_graph.h"
 #include "index.h"
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 #include "parlay/random.h"
 
 
-template<typename Point, typename PointRange, typename indexType>
-void ANN(Graph<indexType> &G, long k, BuildParams &BP,
+template<typename Point, typename PointRange, typename indexType, typename GraphType>
+void ANN(GraphType &Graph, long k, BuildParams &BP,
          PointRange &Query_Points,
          groundTruth<indexType> GT, char *res_file,
          bool graph_built, PointRange &Points) {
   parlay::internal::timer t("ANN");
-  using findex = knn_index<Point, PointRange, indexType>;
+  using findex = knn_index<Point, PointRange, indexType, GraphType>;
   findex I(BP);
   double idx_time;
-  stats<unsigned int> BuildStats(G.size());
+  stats<unsigned int> BuildStats(Points.size());
   if(graph_built){
     idx_time = 0;
   } else{
-    I.build_index(G, Points, BuildStats);
+    I.build_index(Graph, Points, BuildStats);
     idx_time = t.next_time();
   }
-
-  
-
-  // I.set_start();
-  // parlay::sequence<indexType> inserts = parlay::tabulate(Points.size()/2, [&] (size_t i){
-	// 				    return static_cast<indexType>(i);});
-  // I.batch_insert(inserts, G, Points, BuildStats, BP.alpha, true, 2, .02);
-
-  // std::cout << "built on " << inserts.size() << " points" << std::endl; 
-
-
-  // size_t index = inserts[inserts.size()-1];
-  // size_t st = inserts[inserts.size()-1];
-  // parlay::sequence<int> changed(G.size(), 0);
-  // size_t num_batches = 50;
-  // size_t bs = 1000;
-  // size_t count = 0;
-
-  // while(count < num_batches){
-  //   parlay::sequence<indexType> next_inserts = parlay::tabulate(bs, [&] (size_t i){
-	// 				    return static_cast<indexType>(index+i);});
-  //   I.batch_insert_with_stats_count(next_inserts, G, Points, BP.alpha, changed);
-  //   count++;
-  //   index += bs;
-  //   size_t inserted_so_far = index - st;
-  //   std::cout << "Elements changed after " << inserted_so_far << " inserts: " << parlay::reduce(changed) << std::endl;
-    
-  // }
-  
 
   indexType start_point = I.get_start();
   std::string name = "Vamana";
   std::string params =
       "R = " + std::to_string(BP.R) + ", L = " + std::to_string(BP.L);
+
+  auto G = Graph.Get_Graph_Read_Only();
   auto [avg_deg, max_deg] = graph_stats_(G);
+  size_t G_size = G.size();
+  Graph.Release_Graph(std::move(G));
   auto vv = BuildStats.visited_stats();
   std::cout << "Average visited: " << vv[0] << ", Tail visited: " << vv[1]
             << std::endl;
-  Graph_ G_(name, params, G.size(), avg_deg, max_deg, idx_time);
+  Graph_ G_(name, params, G_size, avg_deg, max_deg, idx_time);
   G_.print();
-  if(Query_Points.size() != 0) search_and_parse<Point, PointRange, indexType>(G_, G, Points, Query_Points, GT, res_file, k, false, start_point);
+  if(Query_Points.size() != 0) search_and_parse<Point, PointRange, indexType>(G_, Graph, Points, Query_Points, GT, res_file, k, false, start_point);
 }
 
 
