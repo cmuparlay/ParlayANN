@@ -550,7 +550,7 @@ struct IVF_Squared {
   threadlocal::accumulator<size_t> largexlarge{};   // most vexing parse???
   threadlocal::accumulator<size_t> largexsmall{};
   threadlocal::accumulator<size_t> smallxsmall{};
-  threadlocal::accumulator<size_t>tinyxlarge{};  // also technically tinyxsmall
+  threadlocal::accumulator<size_t> tinyxlarge{};  // also technically tinyxsmall
   threadlocal::accumulator<size_t> large{};   // these are for non-and queries
   threadlocal::accumulator<size_t> small{};
 
