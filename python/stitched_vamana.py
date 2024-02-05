@@ -51,6 +51,7 @@ def read_sparse_matrix(fname, do_mmap=False):
 print(dir(pann))
 
 FERN_DATA_DIR = "/ssd1/anndata/bigann/"
+ALT_FERN_DATA_DIR = "/ssd2/ben/nhqdatasets/"
 AWARE_DATA_DIR = "/ssd1/data/bigann/"
 
 DATA_DIR = FERN_DATA_DIR
@@ -58,7 +59,7 @@ DATA_DIR = FERN_DATA_DIR
 BUILD = True
 
 SMALL_R = 32
-SMALL_L = 100
+SMALL_L = 101
 SMALL_ALPHA = 1.175
 
 LARGE_R = 64
@@ -70,12 +71,15 @@ CUT = 1.35
 SEARCH_LIMIT = 10_000_000
 QUERY_LIMIT = 10_000_000
 
-HYBRID_CUTOFF = 20_000
+HYBRID_CUTOFF = 100_000
 
-# sv_index = wp.init_stitched_vamana_index("Euclidian", "uint8")
-sv_index = wp.init_hybrid_stitched_vamana_index("Euclidian", "uint8")
+AUDIO = True
 
-sv_index.set_cutoff(HYBRID_CUTOFF)
+if AUDIO:
+    sv_index = wp.init_stitched_vamana_index("Euclidian", "float")
+else:
+    sv_index = wp.init_hybrid_stitched_vamana_index("Euclidian", "uint8")
+    sv_index.set_cutoff(HYBRID_CUTOFF)
 
 sv_index.set_build_params_small(SMALL_R, SMALL_L, SMALL_ALPHA)
 sv_index.set_build_params_large(LARGE_R, LARGE_L, LARGE_ALPHA)
@@ -86,20 +90,31 @@ sv_index.set_query_params(wp.QueryParams(10, QUERY_BEAM_WIDTH, CUT, SEARCH_LIMIT
 if BUILD:
     print("----- Building Stitched Vamana Index-----")
 
-    sv_index.fit_from_filename(DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat')
+    if AUDIO:
+        sv_index.fit_from_filename(ALT_FERN_DATA_DIR + "audio/audio_base.fvec", ALT_FERN_DATA_DIR + "audio/label_audio_base.spmat")
+    else:
+        sv_index.fit_from_filename(DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat')
 
     sv_index.save("index_cache/")
 else:
     print("----- Loading Stitched Vamana Index-----")
 
-    sv_index.load_from_filename("index_cache/", DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat')
+    if AUDIO:
+        sv_index.load_from_filename("index_cache/", ALT_FERN_DATA_DIR + "audio/audio_base.fvec", ALT_FERN_DATA_DIR + "audio/label_audio_base.spmat")
+    else:
+        sv_index.load_from_filename("index_cache/", DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR + 'data/yfcc100M/base.metadata.10M.spmat')
 
 print("----- Querying Stitched Vamana Index-----")
 
-X = np.fromfile(DATA_DIR + "data/yfcc100M/query.public.100K.u8bin",
-                dtype=np.uint8)[8:].reshape((100_000, 192))
-filters = read_sparse_matrix(
-    DATA_DIR + 'data/yfcc100M/query.metadata.public.100K.spmat')
+if AUDIO:
+    X = np.fromfile(ALT_FERN_DATA_DIR + "audio/audio_query.fvec", dtype=np.float32)
+    filters = read_sparse_matrix(
+        ALT_FERN_DATA_DIR + 'audio/label_audio_query.spmat')
+else:
+    X = np.fromfile(DATA_DIR + "data/yfcc100M/query.public.100K.u8bin",
+                    dtype=np.uint8)[8:].reshape((100_000, 192))
+    filters = read_sparse_matrix(
+        DATA_DIR + 'data/yfcc100M/query.metadata.public.100K.spmat')
 
 rows, cols = filters.nonzero()
 filter_dict = defaultdict(list)
@@ -133,7 +148,10 @@ print(distances[:10, :])
 
 # print(f"Average distance comparisons: {sv_index.get_dist_comparisons() / NQ}")
 
-GROUND_TRUTH_DIR = DATA_DIR + "data/yfcc100M/GT.public.ibin"
+if AUDIO:
+    GROUND_TRUTH_DIR = ALT_FERN_DATA_DIR + "audio/label_audio_groundtruth.ibin"
+else:
+    GROUND_TRUTH_DIR = DATA_DIR + "data/yfcc100M/GT.public.ibin"
 
 def retrieve_ground_truth(fname):
     n, d = map(int, np.fromfile(fname, dtype="uint32", count=2))

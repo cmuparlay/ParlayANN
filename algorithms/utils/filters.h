@@ -198,6 +198,16 @@ struct csr_filters{
         }
         return false;
     }
+    
+    /* Returns true if p matches filter f, which is equivalent to row p column f being nonzero
+
+    Uses std::find
+    */
+    bool std_match(int64_t p, int64_t f) const {
+        int64_t start = row_offsets[p];
+        int64_t end = row_offsets[p + 1];
+        return std::find(row_indices.get() + start, row_indices.get() + end, f) != row_indices.get() + end;
+    }
 
     /* returns indices of points matching QueryFilter
     */

@@ -160,3 +160,26 @@ def init_stitched_vamana_index(metric, dtype):
             raise Exception('Invalid data type ' + dtype)
     else:
         raise Exception('Invalid metric ' + metric)
+
+def init_hybrid_stitched_vamana_index(metric, dtype):
+    if metric == 'Euclidian':
+        if dtype == 'uint8':
+            return HybridStitchedVamanaUInt8EuclidianIndex()
+        elif dtype == 'int8':
+            return HybridStitchedVamanaInt8EuclidianIndex()
+        elif dtype == 'float':
+            return HybridStitchedVamanaFloatEuclidianIndex()
+        else:
+            raise Exception('Invalid data type ' + dtype)
+    elif metric == 'mips':
+        # raise Exception('MIPS commented out to speed up build')
+        if dtype == 'uint8':
+            return HybridStitchedVamanaUInt8MipsIndex()
+        elif dtype == 'int8':
+            return HybridStitchedVamanaInt8MipsIndex()
+        elif dtype == 'float':
+            return HybridStitchedVamanaFloatMipsIndex()
+        else:
+            raise Exception('Invalid data type ' + dtype)
+    else:
+        raise Exception('Invalid metric ' + metric)

@@ -153,7 +153,7 @@ private:
  */
 template<typename T, class Point, class PR = PointRange<T, Point>>
 struct SubsetPointRange {
-    PR *pr;
+    PR *pr = nullptr;
     parlay::sequence<int32_t> subset;
     std::unordered_map<int32_t, int32_t> real_to_subset;
     size_t n;
@@ -204,7 +204,47 @@ struct SubsetPointRange {
       for(int32_t i=0; i<n; i++) {
         real_to_subset[subset[i]] = i;
       }
-  }
+    }
+
+    // Move constructor
+    SubsetPointRange(SubsetPointRange&& other) noexcept
+        : pr(std::exchange(other.pr, nullptr)),
+          subset(std::move(other.subset)),
+          real_to_subset(std::move(other.real_to_subset)),
+          n(std::exchange(other.n, 0)),
+          dims(std::exchange(other.dims, 0)),
+          aligned_dims(std::exchange(other.aligned_dims, 0)),
+          heap_point_range(std::move(other.heap_point_range)) {}
+
+    // Move assignment operator
+    SubsetPointRange& operator=(SubsetPointRange&& other) noexcept {
+        if (this != &other) {
+            pr = std::exchange(other.pr, nullptr);
+            subset = std::move(other.subset);
+            real_to_subset = std::move(other.real_to_subset);
+            n = std::exchange(other.n, 0);
+            dims = std::exchange(other.dims, 0);
+            aligned_dims = std::exchange(other.aligned_dims, 0);
+            heap_point_range = std::move(other.heap_point_range);
+        }
+        return *this;
+    }
+
+    // Copy constructor with shallow copy semantics for heap_point_range
+    SubsetPointRange(const SubsetPointRange& other)
+        : pr(other.pr),  // Copy the pointer directly (shallow copy)
+          subset(other.subset),
+          real_to_subset(other.real_to_subset),
+          n(other.n),
+          dims(other.dims),
+          aligned_dims(other.aligned_dims),
+          heap_point_range(nullptr) {  // Do not take ownership of the heap_point_range
+        if (other.heap_point_range != nullptr) {
+            // Instead of copying the unique_ptr, just copy the raw pointer to maintain a shallow copy.
+            // This is a deliberate choice to avoid ownership transfer of heap_point_range.
+            heap_point_range = std::make_unique<PointRange<T, Point>>(*other.heap_point_range.get());
+        }
+    }
   
     size_t size() const { return n; }
   
@@ -220,7 +260,8 @@ struct SubsetPointRange {
     }
 
     int32_t subset_index(int32_t i) const {
-      return real_to_subset.at(i);
+      // return real_to_subset.at(i);
+      return std::find(subset.begin(), subset.end(), i) - subset.begin();
     }
 
     /* creates a subset of this subset without causing a chain of redirects every access
