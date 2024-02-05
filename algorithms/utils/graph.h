@@ -93,9 +93,9 @@ struct Flat_Graph{
         template<typename F>
         void sort(F&& less){std::sort(edges.begin()+1, edges.begin()+1+edges[0], less);}
 
-        indexType* begin(){return edges.begin()+1;}
-
-        indexType* end(){return edges.end()+1+edges[0];}
+        parlay::slice<indexType*, indexType*> neighbors(){
+            return parlay::make_slice(edges.begin()+1, edges.begin()+1+edges[0]);
+        }
 
         private:
             parlay::slice<indexType*, indexType*> edges;
@@ -190,6 +190,7 @@ struct Flat_Graph{
         }
 
         void batch_update(parlay::sequence<std::pair<indexType, parlay::sequence<indexType>>> &edges){
+            std::cout << "processing updates to " << edges.size() << " vertices" << std::endl;
             parlay::parallel_for(0, edges.size(), [&] (size_t i){
                 (*this)[edges[i].first].update_neighbors(edges[i].second);
             });

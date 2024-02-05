@@ -61,13 +61,12 @@ struct knn_index {
   parlay::sequence<indexType> robustPrune(indexType p, parlay::sequence<pid>& cand,
                     GraphI &G, PR &Points, double alpha, bool add = true) {
     // add out neighbors of p to the candidate set.
-    size_t out_size = G[p].size();
     std::vector<pid> candidates;
     for (auto x : cand) candidates.push_back(x);
 
     if(add){
-      for (size_t i=0; i<out_size; i++) {
-        candidates.push_back(std::make_pair(G[p][i], Points[G[p][i]].distance(Points[p])));
+      for (indexType i : G[p].neighbors()) {
+        candidates.push_back(std::make_pair(i, Points[i].distance(Points[p])));
       }
     }
 
@@ -228,13 +227,6 @@ struct knn_index {
                      GraphI &G, PR &Points, stats<indexType> &BuildStats, double alpha,
                     bool random_order = false, double base = 2,
                     double max_fraction = .02, bool print=true) {
-    for(int p : inserts){
-      if(p < 0 || p > (int) G.size()){
-        std::cout << "ERROR: invalid point "
-                  << p << " given to batch_insert" << std::endl;
-        abort();
-      }
-    }
     size_t n = G.size();
     size_t m = inserts.size();
     size_t inc = 0;
@@ -242,7 +234,7 @@ struct knn_index {
     float frac = 0.0;
     float progress_inc = .1;
     size_t max_batch_size = std::min(
-        static_cast<size_t>(max_fraction * static_cast<float>(n)), 1000000ul);
+        static_cast<size_t>(max_fraction * static_cast<float>(m)), 1000000ul);
     //fix bug where max batch size could be set to zero 
     if(max_batch_size == 0) max_batch_size = n;
     parlay::sequence<int> rperm;
@@ -306,7 +298,7 @@ struct knn_index {
         auto &[index, candidates] = grouped_by[j];
 	      size_t newsize = candidates.size() + G[index].size();
         if (newsize <= BP.R) {
-	        add_neighbors_without_repeats(G[index], candidates);
+	        add_neighbors_without_repeats(G[index].neighbors(), candidates);
 	        return std::make_pair(index, std::move(candidates));
         } else {
           auto new_out_2_ = robustPrune(index, std::move(candidates), G, Points, alpha);
@@ -314,20 +306,9 @@ struct knn_index {
         }
       });
       G.batch_update(bidirectional_edges);
-      // parlay::parallel_for(0, grouped_by.size(), [&](size_t j) {
-      //   auto &[index, candidates] = grouped_by[j];
-	    //   size_t newsize = candidates.size() + G[index].size();
-      //   if (newsize <= BP.R) {
-	    //     add_neighbors_without_repeats(G[index], candidates);
-	    //     G[index].update_neighbors(candidates);
-      //   } else {
-      //     auto new_out_2_ = robustPrune(index, std::move(candidates), G, Points, alpha);
-	    //     G[index].update_neighbors(new_out_2_);    
-      //   }
-      // });
       t_prune.stop();
       if (print) {
-        auto ind = frac * n;
+        auto ind = frac * m;
         if (floor <= ind && ceiling > ind) {
           frac += progress_inc;
           std::cout << "Pass " << 100 * frac << "% complete"

@@ -121,10 +121,11 @@ struct Aspen_Graph{
 
         Graph(version V, long maxDeg, bool read_only = true) : V(V), maxDeg(maxDeg) {
             if(read_only) G = V.graph;
-            else G = V.graph.functional_copy();
+            else G = (V.graph).functional_copy();
         }
 
         void batch_update(parlay::sequence<std::pair<indexType, parlay::sequence<indexType>>> &edges){
+            std::cout << "processing updates to " << edges.size() << " vertices" << std::endl;
             auto vals = parlay::tabulate(edges.size(), [&] (size_t i){
                 indexType index = edges[i].first;
                 size_t ngh_size = edges[i].second.size();
@@ -147,7 +148,7 @@ struct Aspen_Graph{
 
         version move_version(){return std::move(V);}
 
-        vertex operator [] (indexType i) {return G.get_vertex(i);}
+        Aspen_Vertex operator [] (indexType i) {return Aspen_Vertex(G.get_vertex(i), maxDeg, G);}
 
         private:
             long maxDeg;
@@ -158,28 +159,28 @@ struct Aspen_Graph{
     Aspen_Graph(){}
 
     Aspen_Graph(long md, size_t n) : maxDeg(md){
-        Graph GG = Graph(md);
+        GraphT GG;
         VG = aspen::versioned_graph<GraphT>(std::move(GG));
     }
 
     Aspen_Graph(char* gFile){}
 
-    Graph& Get_Graph(){
+    Graph Get_Graph(){
         auto S = VG.acquire_version();
         return Graph(std::move(S), maxDeg, false);
     }
 
-    Graph& Get_Graph_Read_Only(){
+    Graph Get_Graph_Read_Only(){
         auto S = VG.acquire_version();
         return Graph(std::move(S), maxDeg, true);
     }
 
-    void Release_Graph(Graph &G){
+    void Release_Graph(Graph G){
         auto S = G.move_version();
         VG.release_version(std::move(S));
     }
 
-    void Update_Graph(Graph &G){
+    void Update_Graph(Graph G){
         auto S = G.move_version();
         GraphT new_G = G.move_graph();
         VG.add_version_from_graph(std::move(new_G));
