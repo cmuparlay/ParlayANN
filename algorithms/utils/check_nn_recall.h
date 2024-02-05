@@ -173,8 +173,8 @@ void search_and_parse(Graph_ G_, GraphType &G, PointRange &Base_Points,
   G.Release_Graph(std::move(GG));
 
   QueryParams QP;
-  QP.limit = maxDeg;
-  QP.degree_limit = (long) G_size;
+  QP.degree_limit = maxDeg;
+  QP.limit = (long) G_size;
   beams = {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 24, 26, 28, 30, 32, 
           34, 36, 38, 40, 45, 50, 55, 60, 65, 70, 80, 90, 100, 120, 140, 160, 
           180, 200, 225, 250, 275, 300, 375, 500, 750, 1000}; 

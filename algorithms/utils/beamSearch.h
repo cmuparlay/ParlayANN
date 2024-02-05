@@ -124,8 +124,9 @@ beam_search(Point p, Graph &G, PointRange &Points,
     candidates.clear();
     keep.clear();
     long num_elts = std::min<long>(G[current.first].size(), QP.degree_limit);
+    auto ngh = G[current.first].neighbors();
     for (indexType i=0; i<num_elts; i++) {
-      auto a = G[current.first][i];
+      auto a = ngh[i];
       if (has_been_seen(a) || Points[a].same_as(p)) continue;  // skip if already seen
       keep.push_back(a);
       Points[a].prefetch();
