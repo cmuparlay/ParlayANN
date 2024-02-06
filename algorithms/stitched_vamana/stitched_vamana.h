@@ -120,49 +120,63 @@ struct StitchedVamana
         std::cout << "Finished building graphs for filters" << std::endl;
         // }
 
+        parlay::internal::timer t;
+        t.start();
+
         parlay::parallel_for(0, points.size(), [&](size_t i) {
+        // for (size_t i = 0; i < points.size(); i++) {
             parlay::sequence<index_type> edge_candidates;
             parlay::sequence<int32_t> i_filters = untransposed_filters.point_filters(i);
 
             // std::cout << "Point " << i << " has " << i_filters.size() << " filters" << std::endl;
-            
-            for (auto j : i_filters) {
-                // std::cout << "just before 131" << std::endl;
-                auto neighbor_range = filter_graphs[j][subset_pr[j].subset_index(i)];
+            if (i_filters.size() != 0) {
+                for (auto j : i_filters) {
+                    // std::cout << "just before 131" << std::endl;
+                    auto neighbor_range = filter_graphs[j][subset_pr[j].subset_index(i)];
 
-                // std::cout << "Filter " << j << " has " << neighbor_range.size() << " neighbors" << std::endl;
+                    if (subset_pr[j].real_index(neighbor_range[0]) == i) {
+                        printf("Warning: point %d is a neighbor of itself in filter %d\n", i, j);
+                    }
 
-                for (size_t k = 0; k < neighbor_range.size(); k++) {
-                    // pushing the real index of the k-th neighbor
-                    edge_candidates.push_back(subset_pr[j].real_index(neighbor_range[k]));
+                    // std::cout << "Filter " << j << " has " << neighbor_range.size() << " neighbors" << std::endl;
+
+                    for (size_t k = 0; k < neighbor_range.size(); k++) {
+                        // pushing the real index of the k-th neighbor
+                        edge_candidates.push_back(subset_pr[j].real_index(neighbor_range[k]));
+                    }
                 }
+
+                // std::cout << "Finished building edge candidates for point " << i << " with " << edge_candidates.size() << " candidates" << std::endl;
+
+                edge_candidates = parlay::remove_duplicates(edge_candidates);
+
+                // std::cout << "After removing duplicates, there are " << edge_candidates.size() << " candidates" << std::endl;
+
+                if (edge_candidates.size() == 0) {
+                    std::cout << "!!! Warning: point " << i << " has no edge candidates !!!" << std::endl;
+                }
+
+                auto edge_candidates_with_dist = parlay::tabulate(edge_candidates.size(), [&] (size_t j){
+                    float dist = points[edge_candidates[j]].distance(points[i]);
+                    return std::make_pair(edge_candidates[j], dist);
+                });
+
+                // std::cout << "Beginning prune for point " << i << std::endl;
+
+                auto edges = filteredRobustPrune(i, edge_candidates_with_dist, G, points, untransposed_filters);
+
+                // std::cout << "Finished prune for point " << i << " which now has " << edges.size() << " neighbor candidates" << std::endl;
+
+                G[i].update_neighbors(edges);
+
+                // std::cout << "Finished updating neighbors for point " << i << std::endl;
             }
+        }); // serial to debug
+        // }
 
-            // std::cout << "Finished building edge candidates for point " << i << " with " << edge_candidates.size() << " candidates" << std::endl;
+        auto [avgDegree, maxDegree] = graph_stats_(G);
 
-            edge_candidates = parlay::remove_duplicates(edge_candidates);
-
-            // std::cout << "After removing duplicates, there are " << edge_candidates.size() << " candidates" << std::endl;
-
-            if (edge_candidates.size() <= 1) {
-                std::cout << "!!! Warning: point " << i << " has no edge candidates !!!" << std::endl;
-            }
-
-            auto edge_candidates_with_dist = parlay::tabulate(edge_candidates.size(), [&] (size_t j){
-                float dist = points[edge_candidates[j]].distance(points[i]);
-                return std::make_pair(edge_candidates[j], dist);
-            });
-
-            // std::cout << "Beginning prune for point " << i << std::endl;
-
-            auto edges = filteredRobustPrune(i, edge_candidates_with_dist, G, points, untransposed_filters);
-
-            // std::cout << "Finished prune for point " << i << " which now has " << edges.size() << " neighbor candidates" << std::endl;
-
-            G[i].update_neighbors(edges);
-
-            // std::cout << "Finished updating neighbors for point " << i << std::endl;
-        }, 100000000); // serial to debug
+        std::cout << "Finished building graph with avg degree " << avgDegree << " and max degree " << maxDegree << " in " << t.next_time() << "s" << std::endl;
 
         // combining the graphs
 
@@ -279,6 +293,7 @@ template <typename T, class Point, class PR = PointRange<T, Point>>
 struct StitchedVamanaIndex {
     PR points; 
     csr_filters filters;
+    csr_filters untransposed_filters;
     parlay::sequence<index_type> starting_points;
 
     BuildParams build_params_small;
@@ -299,9 +314,9 @@ struct StitchedVamanaIndex {
         timer.start();
 
         this->points = points;
-        this->filters = filters;
+        this->untransposed_filters = filters;
 
-        filters.transpose_inplace();
+        this->filters = filters.transpose();
 
         this->G = Graph<index_type>(build_params_large.R, points.size());
 
@@ -322,6 +337,7 @@ struct StitchedVamanaIndex {
     void load(std::string prefix, PR points, csr_filters& filters) {
         this->points = points;
         this->filters = filters;
+        this->untransposed_filters = filters.transpose();
 
         // load the starting points
         std::string starting_points_filename = prefix + get_index_name() + ".starting_points";
@@ -380,7 +396,7 @@ struct StitchedVamanaIndex {
                 start_from[j] = starting_points[query_filters[j]];
             }
 
-            auto [pairElts, dist_cmps] = filtered_beam_search(q, query_filters, G, points, start_from, this->query_params, this->filters);
+            auto [pairElts, dist_cmps] = filtered_beam_search(q, query_filters, G, points, start_from, this->query_params, this->untransposed_filters);
 
             auto frontier = pairElts.first;
 
@@ -479,7 +495,6 @@ struct HybridStitchedVamanaIndex {
         this->points = points;
         this->filters = filters; // filters isn't a reference because we should own it
 
-        // transpose the filters
         filters.transpose_inplace();
 
         // determine which filters are above the cutoff
@@ -532,6 +547,9 @@ struct HybridStitchedVamanaIndex {
         csr_filters subset_filters = filters.subset_rows(subset_to_real_index);
 
         stitched_vamana_index.load(prefix + "Hybrid_cutoff" + std::to_string(cutoff) + "_", this->points, subset_filters);
+
+        auto [avgDegree, maxDegree] = graph_stats_(stitched_vamana_index.G);
+        std::cout << "Finished loading StitchedVamana index with avg degree " << avgDegree << " and max degree " << maxDegree << std::endl;
     }
 
     // TODO: querying
@@ -543,6 +561,7 @@ struct HybridStitchedVamanaIndex {
         py::array_t<float> dists({num_queries, knn});
 
         parlay::parallel_for(0, num_queries, [&](size_t i) {
+        // for (size_t i = 0; i < num_queries; i++) {
             Point q = Point(queries.data(i), this->points.dimension(),
                       this->points.aligned_dimension(), i);
             parlay::sequence<index_type> query_filters = filters[i].get_sequence();
@@ -564,7 +583,7 @@ struct HybridStitchedVamanaIndex {
                 auto starting_points = parlay::tabulate(graph_query_filters.size(), [&](size_t j) {
                     return this->stitched_vamana_index.starting_points[graph_query_filters[j]];
                 });
-                auto [pairElts, dist_cmps] = filtered_beam_search(q, graph_query_filters, this->stitched_vamana_index.G, this->points, starting_points, this->stitched_vamana_index.query_params, this->stitched_vamana_index.filters);
+                auto [pairElts, dist_cmps] = filtered_beam_search(q, graph_query_filters, this->stitched_vamana_index.G, this->points, starting_points, this->stitched_vamana_index.query_params, this->stitched_vamana_index.untransposed_filters);
 
                 frontier = pairElts.first;
             } else { // otherwise, initialize the frontier
@@ -612,9 +631,10 @@ struct HybridStitchedVamanaIndex {
                 dists.mutable_at(i, j) = frontier[j].second;
             }
 
-            return std::make_pair(std::move(ids), std::move(dists));
         });
+        // }
 
+        return std::make_pair(std::move(ids), std::move(dists));
      }
 
     std::string get_index_name() {

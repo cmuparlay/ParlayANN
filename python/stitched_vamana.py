@@ -56,7 +56,7 @@ AWARE_DATA_DIR = "/ssd1/data/bigann/"
 
 DATA_DIR = FERN_DATA_DIR
 
-BUILD = True
+BUILD = False
 
 SMALL_R = 32
 SMALL_L = 101
@@ -73,7 +73,7 @@ QUERY_LIMIT = 10_000_000
 
 HYBRID_CUTOFF = 100_000
 
-AUDIO = True
+AUDIO = False
 
 if AUDIO:
     sv_index = wp.init_stitched_vamana_index("Euclidian", "float")
@@ -110,6 +110,32 @@ if AUDIO:
     X = np.fromfile(ALT_FERN_DATA_DIR + "audio/audio_query.fvec", dtype=np.float32)
     filters = read_sparse_matrix(
         ALT_FERN_DATA_DIR + 'audio/label_audio_query.spmat')
+
+    def restrict_csr_to_two_nonzeros(csr):
+        rows, cols = csr.shape
+        new_data = []
+        new_indices = []
+        new_indptr = [0]
+        for i in range(rows):
+            row = csr.getrow(i)
+            # Get indices and values of the non-zeros
+            nz_indices = row.indices
+            nz_values = row.data
+            # If there are more than two non-zeros, retain only the two highest
+            if len(nz_values) > 2:
+                # argsort returns indices that would sort the array, so take the last two for the highest values
+                top_two_idx = np.argsort(nz_values)[-2:]
+                new_data.extend(nz_values[top_two_idx])
+                new_indices.extend(nz_indices[top_two_idx])
+            else:
+                new_data.extend(nz_values)
+                new_indices.extend(nz_indices)
+            new_indptr.append(len(new_data))
+
+        return csr_matrix((new_data, new_indices, new_indptr), shape=(rows, cols))
+    
+    filters = restrict_csr_to_two_nonzeros(filters)
+
 else:
     X = np.fromfile(DATA_DIR + "data/yfcc100M/query.public.100K.u8bin",
                     dtype=np.uint8)[8:].reshape((100_000, 192))

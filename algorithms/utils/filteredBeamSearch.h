@@ -96,7 +96,7 @@ filtered_beam_search(Point p, parlay::sequence<indexType> &query_filters, Graph<
       if (a == p.id() || has_been_seen(a)) continue;  // skip if already seen
       bool matches = false;
       for (auto f : query_filters) {
-        if (filters.bin_match(a, f)) {
+        if (filters.std_match(a, f)) { 
           matches = true;
           break;
         }
