@@ -56,9 +56,9 @@ AWARE_DATA_DIR = "/ssd1/data/bigann/"
 
 DATA_DIR = FERN_DATA_DIR
 
-BUILD = False
+BUILD = True
 
-SMALL_R = 32
+SMALL_R = 24
 SMALL_L = 101
 SMALL_ALPHA = 1.175
 
@@ -71,7 +71,7 @@ CUT = 1.35
 SEARCH_LIMIT = 10_000_000
 QUERY_LIMIT = 10_000_000
 
-HYBRID_CUTOFF = 100_000
+HYBRID_CUTOFF = 10_000
 
 AUDIO = False
 
@@ -169,6 +169,7 @@ print(f"Time taken: {end - start}s")
 print(f"QPS: {NQ / (end - start)}")
 
 print(neighbors.shape)
+print(sq_filters[:10])
 print(neighbors[:10, :])
 print(distances[:10, :])
 
@@ -197,7 +198,7 @@ sq_D = D[[i for i, f in enumerate(filters) if not f.is_and()]]
 recall = 0
 
 for i in range(NQ):
-    ground_truth = set(I[i][:10])
+    ground_truth = set(sq_I[i][:10])
     ann = set(neighbors[i][:10])
     local_recall = len(ground_truth & ann)
 

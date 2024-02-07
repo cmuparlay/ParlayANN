@@ -292,8 +292,8 @@ struct StitchedVamana
 template <typename T, class Point, class PR = PointRange<T, Point>>
 struct StitchedVamanaIndex {
     PR points; 
-    csr_filters filters;
-    csr_filters untransposed_filters;
+    csr_filters filters; // should be label-major
+    csr_filters untransposed_filters; // should be point-major
     parlay::sequence<index_type> starting_points;
 
     BuildParams build_params_small;
@@ -308,7 +308,8 @@ struct StitchedVamanaIndex {
     StitchedVamanaIndex() {};
 
     StitchedVamanaIndex(BuildParams build_params_small, BuildParams build_params_large) : build_params_small(build_params_small), build_params_large(build_params_large) {}
-
+    
+    /* filters here should be point-major */
     void fit(PR points, csr_filters filters) {
         auto timer = parlay::internal::timer();
         timer.start();
@@ -316,12 +317,14 @@ struct StitchedVamanaIndex {
         this->points = points;
         this->untransposed_filters = filters;
 
-        this->filters = filters.transpose();
+        this->filters = this->untransposed_filters.transpose();
+
+        this->validate_state();
 
         this->G = Graph<index_type>(build_params_large.R, points.size());
 
         StitchedVamana<T, Point, PR> builder(build_params_small, build_params_large);
-        starting_points = builder.build(points, G, filters);
+        starting_points = builder.build(points, G, this->filters);
 
         std::cout << "Finished building StitchedVamana graph in " << timer.stop() << " seconds" << std::endl;
     }
@@ -331,13 +334,18 @@ struct StitchedVamanaIndex {
         PointRange<T, Point> points(points_filename.c_str());
         csr_filters filters(filters_filename.c_str());
 
+
+
         fit(points, filters);
     }
 
+    /* We assume here that filters is filters-major, not necessarily literally transposed but effectively. */
     void load(std::string prefix, PR points, csr_filters& filters) {
         this->points = points;
         this->filters = filters;
-        this->untransposed_filters = filters.transpose();
+        this->untransposed_filters = this->filters.transpose();
+
+        this->validate_state();
 
         // load the starting points
         std::string starting_points_filename = prefix + get_index_name() + ".starting_points";
@@ -348,13 +356,13 @@ struct StitchedVamanaIndex {
             return;
         }
 
-        this->starting_points = parlay::sequence<index_type>(filters.n_points);
+        this->starting_points = parlay::sequence<index_type>(this->filters.n_points);
 
         // read the number of starting points, assert that it's the same as the number of filters
         size_t n_starting_points;
         infile.read((char*) &n_starting_points, sizeof(size_t));
 
-        assert(n_starting_points == filters.n_points);
+        assert(n_starting_points == this->filters.n_points);
 
         // read the starting points
         infile.read((char*) this->starting_points.data(), sizeof(index_type) * n_starting_points);
@@ -468,6 +476,37 @@ struct StitchedVamanaIndex {
         return dcmps.total();
     }
 
+    void validate_state() {
+        if (this->untransposed_filters.n_points < this->untransposed_filters.n_filters) {
+            throw std::invalid_argument("StitchedVamanaIndex: untransposed_filters should be label-major");
+        }
+        if (this->filters.n_points > this->filters.n_filters) {
+            throw std::invalid_argument("StitchedVamanaIndex: filters should be point-major");
+        }
+
+        if (this->filters.n_points != this->untransposed_filters.n_filters) {
+            throw std::invalid_argument("StitchedVamanaIndex: filters and untransposed_filters should have the same number of filters");
+        }
+        if (this->filters.n_filters != this->untransposed_filters.n_points) {
+            throw std::invalid_argument("StitchedVamanaIndex: filters and untransposed_filters should have the same number of points");
+        }
+
+        if (this->filters.n_filters != this->points.size()) {
+            throw std::invalid_argument("StitchedVamanaIndex: filters and points should have the same number of points");
+        }
+        if (this->untransposed_filters.n_points != this->points.size()) {
+            throw std::invalid_argument("StitchedVamanaIndex: untransposed_filters and points should have the same number of points");
+        }
+    }
+
+    void print_starting_points() {
+        std::cout << "Starting points: ";
+        for (size_t i = 0; i < starting_points.size(); i++) {
+            std::cout << i << ":" << starting_points[i] << " ";
+        }
+        std::cout << std::endl;
+    }
+
 };
 
 /* A stitched vamana index that only incorporates filters above a given size cutoff into the graph, doing exhaustive search for smaller filters
@@ -478,12 +517,13 @@ template <typename T, class Point>
 struct HybridStitchedVamanaIndex {
     StitchedVamanaIndex<T, Point> stitched_vamana_index;
     PointRange<T, Point> points;
-    csr_filters filters; // transposed after init
+    csr_filters filters; // should be label-major
 
     // the cutoff for when to use the stitched vamana index
     size_t cutoff;
     
-    std::unordered_map<index_type, index_type> real_to_subset_index;
+    // the below two map between real label indices and the subset label indices of the stitched vamana index
+    std::unordered_map<index_type, index_type> real_to_subset_index; 
     parlay::sequence<index_type> subset_to_real_index; // not sure this is actually needed outside of fit
 
     
@@ -495,11 +535,15 @@ struct HybridStitchedVamanaIndex {
         this->points = points;
         this->filters = filters; // filters isn't a reference because we should own it
 
-        filters.transpose_inplace();
+        if (filters.n_points < filters.n_filters) {
+            throw std::invalid_argument("HybridStitchedVamanaIndex: filters arg should be row-major");
+        }
+
+        this->filters.transpose_inplace();
 
         // determine which filters are above the cutoff
-        for (size_t i = 0; i < filters.n_points; i++) {
-            if (filters.row_offsets[i+1] - filters.row_offsets[i] > cutoff) {
+        for (size_t i = 0; i < this->filters.n_points; i++) {
+            if (this->filters.row_offsets[i+1] - this->filters.row_offsets[i] > cutoff) {
                 subset_to_real_index.push_back(i);
                 real_to_subset_index[i] = subset_to_real_index.size() - 1;
             }
@@ -509,7 +553,7 @@ struct HybridStitchedVamanaIndex {
 
         // build the subset point range and filters
         // SubsetPointRange<T, Point> subset_points(points, subset_to_real_index);
-        csr_filters subset_filters = filters.subset_rows(subset_to_real_index);
+        csr_filters subset_filters = this->filters.subset_rows(subset_to_real_index);
 
         subset_filters.transpose_inplace();
 
@@ -529,10 +573,10 @@ struct HybridStitchedVamanaIndex {
     }
 
     void load_from_filename(std::string prefix, std::string points_filename, std::string filters_filename) {
-        this->points = PointRange<T, Point>(points_filename.c_str());
-        this->filters = csr_filters(filters_filename.c_str());
+        this->points = PointRange<T, Point>(points_filename.c_str()); // original points
+        this->filters = csr_filters(filters_filename.c_str()); // original filters 
 
-        this->filters.transpose_inplace();
+        this->filters.transpose_inplace(); // transpose to conveniently get the subset filters
 
         // determine which filters are above the cutoff
         for (size_t i = 0; i < filters.n_points; i++) {
@@ -559,6 +603,11 @@ struct HybridStitchedVamanaIndex {
      uint64_t knn) {
         py::array_t<unsigned int> ids({num_queries, knn});
         py::array_t<float> dists({num_queries, knn});
+
+        // validating filters
+        if (this->filters.n_points > this->filters.n_filters) {
+            throw std::invalid_argument("HybridStitchedVamanaIndex: filters arg should be label-major");
+        }
 
         parlay::parallel_for(0, num_queries, [&](size_t i) {
         // for (size_t i = 0; i < num_queries; i++) {
@@ -596,9 +645,8 @@ struct HybridStitchedVamanaIndex {
             if (exhaustive_query_filters.size() > 0) {
                 // this could be improved by taking the union of matches of each label and checking the output of that union
                 // not really relevant to the current binary formulation though
-                for (size_t j = 0; j < exhaustive_query_filters.size(); j++) {
-                    auto filter = exhaustive_query_filters[j];
-                    auto filter_points = this->filters.point_filters(filter);
+                for (auto filter : exhaustive_query_filters) {
+                    auto filter_points = this->filters.point_filters(filter); // should be all the points associated with said filter, seems to work
 
                     for (size_t k = 0; k < filter_points.size(); k++) {
                         auto filter_point = filter_points[k];
@@ -609,18 +657,25 @@ struct HybridStitchedVamanaIndex {
                         }
 
                         // update the frontier
-                        // this approach to updating the frontier may be better or worse than all that sorting
-                        for (size_t l = knn - 2; l >= 0; l--) { // iterate backwards so we can break early, ignore the last element
-                        // we know that the last element of the frontier will get booted and the current element will be inserted
-                        // the only question is where the current element will end up
-                            if (dist >= frontier[l].second) { // s.t. the previous element is where we insert
-                                // move all the subsequent elements back to make room, not including the last element
-                                std::copy(frontier.begin() + l + 1, frontier.begin() + knn - 1, frontier.begin() + l + 2);
-                                // insert the current element
-                                frontier[l + 1] = std::make_pair(filter_point, dist); 
-                                break;
-                            }
-                        }
+                        // // this approach to updating the frontier may be better or worse than all that sorting
+                        // for (size_t l = knn - 2; l >= 0; l--) { // iterate backwards so we can break early, ignore the last element
+                        // // we know that the last element of the frontier will get booted and the current element will be inserted
+                        // // the only question is where the current element will end up
+                        //     if (dist >= frontier[l].second) { // s.t. the previous element is where we insert
+                        //         // move all the subsequent elements back to make room, not including the last element
+                        //         std::copy(frontier.begin() + l + 1, frontier.begin() + knn - 1, frontier.begin() + l + 2);
+                        //         // insert the current element
+                        //         frontier[l + 1] = std::make_pair(filter_point, dist); 
+                        //         break;
+                        //     }
+                        // }
+
+                        // pretty sure the above approach is terminally stupid, and at best overengineered.
+                        // we will do all the normal sorting stuff
+                        frontier[knn-1] = std::make_pair(filter_point, dist);
+                        std::sort(frontier.begin(), frontier.end(), [](std::pair<index_type, float> a, std::pair<index_type, float> b) {
+                            return a.second < b.second;
+                        });
                     }
                 }
             }

@@ -258,7 +258,7 @@ struct csr_filters{
 
     /* Transposes to make acessing points associated with a filter fast */
     csr_filters transpose() const {
-        auto out = *this;
+        csr_filters out = *this;
         out.transpose_inplace();
         return out;
     }
@@ -313,7 +313,7 @@ struct csr_filters{
         return;
     }
 
-    /* if the filters object is transposed, returns an un */
+    /* if the filters object is transposed, returns an untransposed version */
     csr_filters reverse_transpose() {
         if (~transposed) {
             std::cout << "This csr_filters is not transposed" << std::endl;
@@ -322,7 +322,7 @@ struct csr_filters{
         transposed = false;
         csr_filters out = transpose();
         out.transposed = false;
-        return out;
+        return std::move(out);
     }
 
     // csr_filters copy() {
