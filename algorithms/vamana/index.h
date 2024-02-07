@@ -149,6 +149,14 @@ struct knn_index {
     Graph.Update_Graph(std::move(G));
   }
 
+  void insert(GraphType &Graph, PR &Points, stats<indexType> &BuildStats, parlay::sequence<indexType> inserts){
+    std::cout << "Inserting points " << std::endl;
+    set_start();
+    GraphI G = Graph.Get_Graph();
+    batch_insert(inserts, G, Points, BuildStats, BP.alpha, true, 2, .02);
+    Graph.Update_Graph(std::move(G));
+  }
+
   void lazy_delete(parlay::sequence<indexType> deletes, GraphI &G) {
     for (indexType p : deletes) {
       if (p > (int)G.size()) {
