@@ -63,6 +63,23 @@ make
 ./range -R 32 -L 64 -alpha 1.2 -graph_outfile ../../data/sift/sift_learn_32_64 -query_path ../../data/sift/sift_query.fbin -gt_path ../../data/sift/sift-100K-range -data_type float -dist_func Euclidian -base_path ../../data/sift/sift_learn.fbin
 ```
 
+## HNSW
+
+HNSW is an algorithm proposed in [Efficient and Robust Approximate Nearest Neighbor Search Using Hierarchical Navigable Small World Graphs](https://dl.acm.org/doi/10.1109/TPAMI.2018.2889473) by Yu et al., of which an implementation is available at [hnswlib](https://github.com/nmslib/hnswlib) and is maintained by the paper authors. The HNSW incrementally builds a hierarchical structure consisting of multiple layers, where each layer is a proximity graphs with the Navigable Small World (NSW) property. The lower layers are always the supersets of the upper ones, and the bottom layer contains all the base points. In the process of constructions, each point is randomly assigned with a height in a logarithmic distribution and repeatedly inserted into all the layers below. As the two points incident to an edge in higher layers has longer distance, the hierarchical structures allows to quickly approach the query point at high layers first and then do fine-grained search at low layers.
+Its parameters are as follows:
+
+1. **m** (`long`): the degree bound. Typically between 16 and 64. The graph at the bottom layer (layer0) has the degree bound of $2m$ while graphs at upper layers have degree bound of $m$.
+2. **efc** (`long`): the beam width to use when building the graph. Should be set at least $2.5m$, and up to 500.
+3. **alpha** (`double`): the pruning parameter. Should be set between 1.0 and 1.15 for similarity measures that are not metrics (e.g. maximum inner product), and between 0.8 and 1.0 for metric spaces. 
+4. **ml** (`double`): optional argument to control the number of layers (height). Increasing $ml$ results in more layers which increases the build time but potentially improve the query performance; however, improper settings of $ml$ (too high or too low) can incur much work of query thus impacting the query performance. It should be set around $1/log~m$.
+
+A commandline with suggested parameters for HNSW for the BIGANN-100K dataset is as follows:
+```bash
+cd HNSW
+make
+./neighbors -m 20 -efc 50 -alpha 0.9 -ml 0.34 -graph_outfile ../../data/sift/sift_learn_20_50_034 -query_path ../../data/sift/sift_query.fbin -gt_path ../../data/sift/sift-100K -res_path ../../data/hnsw_res.csv -data_type float -dist_func Euclidian -base_path ../../data/sift/sift_learn.fbin
+```
+
 ## HCNNG
 
 HCNNG is an algorithm taken from [Hierarchical Clustering-Based Graphs for Large Scale Approximate Nearest Neighbor Search](https://www.researchgate.net/publication/334477189_Hierarchical_Clustering-Based_Graphs_for_Large_Scale_Approximate_Nearest_Neighbor_Search) by Munoz et al. and original implemented in [this repository](https://github.com/jalvarm/hcnng). Roughly, it builds a tree by recursively partitioning the data using random partitions until it reaches a leaf size of at most 1000 points, and then builds a bounded-degree MST with the points in each leaf. The edges from the MST are used as the edges in the graph. The algorithm repeats this process a total of $L$ times and merges the edges into the graph on each iteration. Its parameters are as follows:
