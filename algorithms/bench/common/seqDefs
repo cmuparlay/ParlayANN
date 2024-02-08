@@ -1,0 +1,13 @@
+ifeq (, $(shell which jemalloc-config))
+JEMALLOC =
+else
+JEMALLOCLD = $(shell jemalloc-config --libdir)
+JEMALLOC = -L$(JEMALLOCLD) -ljemalloc 
+endif
+
+CCFLAGS = -mcx16 -DPARLAY_SEQUENTIAL -O3 -std=c++17 -DNDEBUG
+CLFLAGS = $(JEMALLOC)
+
+CC = g++
+CFLAGS = $(CCFLAGS)
+LFLAGS = $(CLFLAGS)
