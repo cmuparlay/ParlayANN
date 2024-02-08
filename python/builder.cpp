@@ -24,6 +24,7 @@
 #include "../algorithms/vamana/index.h"
 #include "../algorithms/HCNNG/hcnng_index.h"
 #include "../algorithms/pyNNDescent/pynn_index.h"
+#include "../algorithms/HNSW/HNSW.hpp"
 #include "../algorithms/utils/types.h"
 #include "../algorithms/utils/point_range.h"
 #include "../algorithms/utils/graph.h"
@@ -163,3 +164,56 @@ template void build_pynndescent_index<uint8_t, Euclidian_Point<uint8_t>>(std::st
                                           uint32_t, double, double);
 template void build_pynndescent_index<uint8_t, Mips_Point<uint8_t>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
                                           uint32_t, double, double);
+
+
+template <typename T, typename Point>
+void build_hnsw_index(std::string metric, std::string &vector_bin_path,
+                         std::string &index_output_path, uint32_t graph_degree, uint32_t efc,
+                        float m_l, float alpha)
+{
+    //instantiate build params object
+    //BuildParams BP(graph_degree, efc, alpha);
+
+    //use file parsers to create Point object
+    PointRange<T, Point> Points = PointRange<T, Point>(vector_bin_path.data());
+    /*
+    //use max degree info to create Graph object
+    Graph<unsigned int> G = Graph<unsigned int>(graph_degree, Points.size());
+
+    //call the build function
+    using index = hnsw_index<Point, PointRange<T, Point>, unsigned int>;
+    index I(BP);
+    stats<unsigned int> BuildStats(G.size());
+    I.build_index(G, Points, BuildStats);
+
+    //save the graph object
+    G.save(index_output_path.data());
+    */
+    using desc = Desc_HNSW<T, Point>;
+    // using elem_t = typename desc::type_elem;
+
+    // point_converter_default<elem_t> to_point;
+    // auto [ps,dim] = load_point(vector_bin_path, to_point, cnt_points);
+    auto ps = parlay::delayed_seq<Point>(
+      Points.size(),
+      [&](size_t i){return Points[i];}
+    );
+    const auto dim = Points.get_dims();
+    auto G = ANN::HNSW<desc>(ps.begin(), ps.end(), dim, m_l, graph_degree, efc, alpha);
+    G.save(index_output_path);
+}
+
+template void build_hnsw_index<float, Euclidian_Point<float>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
+                                        float, float);
+template void build_hnsw_index<float, Mips_Point<float>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
+                                        float, float);
+
+template void build_hnsw_index<int8_t, Euclidian_Point<int8_t>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
+                                         float, float);
+template void build_hnsw_index<int8_t, Mips_Point<int8_t>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
+                                         float, float);
+
+template void build_hnsw_index<uint8_t, Euclidian_Point<uint8_t>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
+                                          float, float);
+template void build_hnsw_index<uint8_t, Mips_Point<uint8_t>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
+                                          float, float);
