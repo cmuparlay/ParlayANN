@@ -60,6 +60,10 @@ struct Flat_Graph{
             } else return edges[j+1];
         }
 
+        void clear(){
+            edges[0] = 0;
+        }
+
         template<typename rangeType>
         void update_neighbors(const rangeType& r){
             if(r.size() > maxDeg){
@@ -190,9 +194,14 @@ struct Flat_Graph{
         }
 
         void batch_update(parlay::sequence<std::pair<indexType, parlay::sequence<indexType>>> &edges){
-            std::cout << "processing updates to " << edges.size() << " vertices" << std::endl;
             parlay::parallel_for(0, edges.size(), [&] (size_t i){
                 (*this)[edges[i].first].update_neighbors(edges[i].second);
+            });
+        }
+
+        void batch_delete(parlay::sequence<indexType> deletes){
+            parlay::parallel_for(0, deletes.size(), [&] (size_t i){
+                (*this)[deletes[i]].clear();
             });
         }
 
