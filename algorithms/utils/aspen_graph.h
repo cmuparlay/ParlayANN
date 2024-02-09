@@ -125,7 +125,7 @@ struct Aspen_Graph{
         }
 
         void batch_update(parlay::sequence<std::pair<indexType, parlay::sequence<indexType>>> &edges){
-            std::cout << "processing updates to " << edges.size() << " vertices" << std::endl;
+            // std::cout << "processing updates to " << edges.size() << " vertices" << std::endl;
             auto vals = parlay::tabulate(edges.size(), [&] (size_t i){
                 indexType index = edges[i].first;
                 size_t ngh_size = edges[i].second.size();
@@ -140,8 +140,8 @@ struct Aspen_Graph{
             G.insert_vertices_batch(vals.size(), vals.begin());
         }
 
-        void batch_delete(parlay::sequence<indexType> &vertices){
-            G.delete_vertices_batch(vertices.size(), vertices.begin());
+        void batch_delete(parlay::sequence<indexType> &deletes){
+            G.delete_vertices_batch(deletes.size(), deletes.begin());
         }
 
         GraphT move_graph(){return std::move(G);}
@@ -167,11 +167,13 @@ struct Aspen_Graph{
 
     Graph Get_Graph(){
         auto S = VG.acquire_version();
+        std::cout << "Acquired writable version with timestamp " << S.timestamp << std::endl;
         return Graph(std::move(S), maxDeg, false);
     }
 
     Graph Get_Graph_Read_Only(){
         auto S = VG.acquire_version();
+        std::cout << "Acquired read-only version with timestamp " << S.timestamp << std::endl;
         return Graph(std::move(S), maxDeg, true);
     }
 

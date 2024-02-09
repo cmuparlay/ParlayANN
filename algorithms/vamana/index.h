@@ -27,6 +27,7 @@
 #include <algorithm>
 #include <random>
 #include <set>
+#include <mutex>
 
 #include "../utils/NSGDist.h"
 #include "../utils/point_range.h"
@@ -44,10 +45,14 @@ struct knn_index {
   using pid = std::pair<indexType, distanceType>;
   using PR = PointRange;
   using GraphI = typename GraphType::Graph;
+  using LockGuard = std::lock_guard<std::mutex>;
   
 
   BuildParams BP;
   std::set<indexType> delete_set; 
+  std::set<indexType> old_delete_set;
+  std::mutex delete_lock;  // lock for delete_set which can only be updated sequentially
+  bool epoch_running = false;
   indexType start_point;
 
 
@@ -140,8 +145,8 @@ struct knn_index {
     parlay::sequence<indexType> inserts = parlay::tabulate(Points.size(), [&] (size_t i){
 					    return static_cast<indexType>(i);});
     GraphI G = Graph.Get_Graph();
-    if(BP.two_pass) batch_insert(inserts, G, Points, BuildStats, 1.0, true, 2, .02);
-    batch_insert(inserts, G, Points, BuildStats, BP.alpha, true, 2, .02);
+    if(BP.two_pass) batch_insert(inserts, G, Points, BuildStats, 1.0, true, true, 2, .02);
+    batch_insert(inserts, G, Points, BuildStats, BP.alpha, true, true, 2, .02);
     // parlay::parallel_for (0, G.size(), [&] (long i) {
     //   auto less = [&] (indexType j, indexType k) {
 		//     return Points[i].distance(Points[j]) < Points[i].distance(Points[k]);};
@@ -153,88 +158,168 @@ struct knn_index {
     std::cout << "Inserting points " << std::endl;
     set_start();
     GraphI G = Graph.Get_Graph();
-    batch_insert(inserts, G, Points, BuildStats, BP.alpha, true, 2, .02);
+    batch_insert(inserts, G, Points, BuildStats, BP.alpha, false, true, 2, .02);
     Graph.Update_Graph(std::move(G));
   }
 
-  void lazy_delete(parlay::sequence<indexType> deletes, GraphI &G) {
-    for (indexType p : deletes) {
-      if (p > (int)G.size()) {
-        std::cout << "ERROR: invalid point " << p << " given to lazy_delete"
-                  << std::endl;
-        abort();
+  void lazy_delete(parlay::sequence<indexType> deletes) {
+    {
+      LockGuard guard(delete_lock);
+      for (indexType p : deletes) {
+        // if (p > (int)G.size()) {
+        //   std::cout << "ERROR: invalid point " << p << " given to lazy_delete"
+        //             << std::endl;
+        //   abort();
+        // }
+        if (p != start_point)
+          delete_set.insert(p);
+        else
+          std::cout << "Deleting start_point not permitted; continuing" << std::endl;
       }
-      if (p != start_point)
-        delete_set.insert(p);
-      else
-        std::cout << "Deleting start_point not permitted; continuing" << std::endl;
     }
   }
 
-  void lazy_delete(indexType p, GraphI &G) {
-    if (p > (int)G.size()) {
-      std::cout << "ERROR: invalid point " << p << " given to lazy_delete"
-                << std::endl;
+  void lazy_delete(indexType p) {
+    parlay::sequence<indexType> deletes = {p};
+    lazy_delete(deletes);
+  }
+
+   void start_delete_epoch() {
+    // freeze the delete set and start a new one before consolidation
+    if (!epoch_running) {
+      {
+        LockGuard guard(delete_lock);
+        delete_set.swap(old_delete_set);
+      }
+      epoch_running = true;
+    } else {
+      std::cout << "ERROR: cannot start new epoch while previous epoch is running"<< std::endl;
       abort();
     }
-    if (p == start_point) {
-      std::cout << "Deleting start_point not permitted; continuing" << std::endl;
-      return;
-    }
-    delete_set.insert(p);
   }
 
-  // void consolidate_deletes(parlay::sequence<Tvec_point<T>*> &v){
-  //   //clear deleted neighbors out of delete set for preprocessing
+  void end_delete_epoch(GraphType &Graph) {
+    if (epoch_running) {
+      parlay::sequence<indexType> delete_vec;
+      for (auto d : old_delete_set) delete_vec.push_back(d);
+      GraphI G = Graph.Get_Graph();
+      G.batch_delete(delete_vec);
+      Graph.Update_Graph(std::move(G));
+      old_delete_set.clear();
+      epoch_running = false;
+    } else {
+      std::cout << "ERROR: cannot end epoch while epoch is not running" << std::endl;
+      abort();
+    }
+  }
 
-  //   parlay::parallel_for(0, v.size(), [&] (size_t i){
-  //     if (delete_set.find(i) != delete_set.end()){
-  //       parlay::sequence<int> new_edges; 
-  //       for(int j=0; j<size_of(v[i]->out_nbh); j++){
-  //         if(delete_set.find(v[i]->out_nbh[j]) == delete_set.end())
-  //           new_edges.push_back(v[i]->out_nbh[j]);
-  //        }
-  //        if(new_edges.size() < size_of(v[i]->out_nbh))
-  //          add_out_nbh(new_edges, v[i]); 
-  //      } });
+  void consolidate(GraphType &Graph, PR &Points){
+    GraphI G = Graph.Get_Graph();
+    consolidate_deletes(G, Points);
+    check_deletes_correct(G, Points);
+    Graph.Update_Graph(std::move(G));
+  }
 
-  //   parlay::parallel_for(0, v.size(), [&] (size_t i){
-  //     if (delete_set.find(i) == delete_set.end() && size_of(v[i]->out_nbh) != 0) {
-  //       std::set<int> new_edges;
-  //       bool modify = false;
-  //       for(int j=0; j<size_of(v[i]->out_nbh); j++){
-  //         if(delete_set.find(v[i]->out_nbh[j]) == delete_set.end()){
-  //           new_edges.insert(v[i]->out_nbh[j]);
-  //         } else{
-  //           modify = true;
-  //           int index = v[i]->out_nbh[j];
-  //           for(int k=0; k<size_of(v[index]->out_nbh); k++)
-  //             new_edges.insert(v[index]->out_nbh[k]);
-  //         }
-  //       }
-  //       //TODO only prune if overflow happens
-  //       //TODO modify in separate step with new memory initialized in one block
-  //       if(modify){ 
-  //         parlay::sequence<int> candidates;
-  //         for(int j : new_edges) candidates.push_back(j);
-  //         parlay::sequence<int> new_neighbors(BP.R, -1);
-  //         v[i]->new_nbh = parlay::make_slice(new_neighbors.begin(), new_neighbors.end());
-  //         robustPrune(v[i], std::move(candidates), v, r2_alpha, false);
-  //         synchronize(v[i]);
-  //       }       
-  //     }  });
-  //   parlay::parallel_for(0, v.size(), [&] (size_t i){
-  //     if (delete_set.find(i) != delete_set.end()){
-  //       clear(v[i]);
-  //     } });
- 
-  //   delete_set.clear();
-  // }
+  void consolidate_deletes_simple(GraphI &G, PR &Points){
+    parlay::sequence<std::pair<indexType, parlay::sequence<indexType>>> edge_updates(Points.size());
+    parlay::sequence<bool> updated(Points.size(), false);
+    parlay::parallel_for(0, Points.size(), [&] (size_t i){
+      if(old_delete_set.find(i) == old_delete_set.end()){
+        auto nbh = G[i].neighbors();
+        parlay::sequence<indexType> new_nbh;
+        bool modify = false;
+        for(indexType j : nbh){
+          if(old_delete_set.find(j) == old_delete_set.end()){
+            new_nbh.push_back(j);
+          }else modify = true;
+        }
+        if(modify){
+          updated[i] = true;
+          edge_updates[i] = std::make_pair((indexType) i, new_nbh);
+        }
+      }
+    });
+    auto to_delete = parlay::pack(edge_updates, updated);
+    G.batch_update(to_delete);
+  }
+
+  void check_deletes_correct(GraphI &G, PR &Points){
+    parlay::sequence<std::pair<indexType, parlay::sequence<indexType>>> edge_updates(Points.size());
+    parlay::sequence<bool> updated(Points.size(), false);
+    parlay::parallel_for(0, Points.size(), [&] (size_t i){
+      if(old_delete_set.find(i) == old_delete_set.end()){
+        auto nbh = G[i].neighbors();
+        for(indexType j : nbh){
+          if(old_delete_set.find(j) != old_delete_set.end()){
+            std::cout << "ERROR: point " << i << " has deleted neighbor " << j << std::endl;
+            abort();
+          }
+        }
+      }
+    });
+  }
+
+  void consolidate_deletes(GraphI &G, PR &Points){
+    //clear deleted neighbors out of delete set for preprocessing
+    parlay::sequence<std::pair<indexType, parlay::sequence<indexType>>> edge_updates(Points.size());
+    parlay::sequence<bool> updated(Points.size(), false);
+    parlay::parallel_for(0, Points.size(), [&] (size_t i){
+      if(old_delete_set.find(i) != old_delete_set.end()){
+        auto nbh = G[i].neighbors();
+        parlay::sequence<indexType> new_nbh;
+        bool modify = false;
+        for(indexType j : nbh){
+          if(old_delete_set.find(j) == old_delete_set.end()) new_nbh.push_back(j);
+          else modify = true;
+        }
+        if(modify){
+          updated[i] = true;
+          edge_updates[i] = std::make_pair((indexType) i, new_nbh);
+        }
+      }
+    });
+    auto to_delete = parlay::pack(edge_updates, updated);
+    G.batch_update(to_delete);
+
+    parlay::sequence<std::pair<indexType, parlay::sequence<indexType>>> edge_updates_round2(Points.size());
+    parlay::sequence<bool> updated_round2(Points.size(), false);
+    parlay::parallel_for(0, Points.size(), [&] (size_t i){
+      if(old_delete_set.find(i) == old_delete_set.end()){
+        auto nbh = G[i].neighbors();
+        parlay::sequence<indexType> new_nbh;
+        bool modify = false;
+        for(indexType j : nbh){
+          if(old_delete_set.find(j) == old_delete_set.end()) new_nbh.push_back(j);
+          else{
+            modify = true;
+            auto j_nbh = G[j].neighbors();
+            for(auto l : j_nbh) {
+              if(old_delete_set.find(l) != old_delete_set.end()){
+                std::cout << "ERROR: deleted point " << j << " still contains deleted neighbor " << l << std::endl;
+                abort();
+              }
+              new_nbh.push_back(l);
+            }
+          }
+        }
+        if(modify){
+          updated_round2[i] = true;
+          new_nbh = parlay::remove_duplicates(new_nbh);
+          if(new_nbh.size() > BP.R){
+            auto pruned_nbh = robustPrune(i, new_nbh, G, Points, BP.alpha);
+            edge_updates_round2[i] = std::make_pair((indexType) i, pruned_nbh);
+          } else edge_updates_round2[i] = std::make_pair((indexType) i, new_nbh);
+        }
+      }
+    });
+    auto updates_round2 = parlay::pack(edge_updates_round2, updated_round2);
+    G.batch_update(updates_round2);
+  }
 
   void batch_insert(parlay::sequence<indexType> &inserts,
                      GraphI &G, PR &Points, stats<indexType> &BuildStats, double alpha,
-                    bool random_order = false, double base = 2,
-                    double max_fraction = .02, bool print=true) {
+                     bool print=true, bool random_order = false, double base = 2,
+                    double max_fraction = .02) {
     size_t n = G.size();
     size_t m = inserts.size();
     size_t inc = 0;

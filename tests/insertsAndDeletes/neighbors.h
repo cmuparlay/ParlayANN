@@ -30,7 +30,7 @@
 #include "../utils/types.h"
 #include "../utils/graph.h"
 #include "../utils/aspen_graph.h"
-#include "index.h"
+#include "../../algorithms/vamana/index.h"
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 #include "parlay/random.h"
@@ -41,16 +41,23 @@ void ANN(GraphType &Graph, long k, BuildParams &BP,
          PointRange &Query_Points,
          groundTruth<indexType> GT, char *res_file,
          bool graph_built, PointRange &Points) {
-  parlay::internal::timer t("ANN");
+  std::cout << "Size of dataset: " << Points.size() << std::endl;
   using findex = knn_index<Point, PointRange, indexType, GraphType>;
   findex I(BP);
-  double idx_time;
+  size_t n = Points.size();
   stats<unsigned int> BuildStats(Points.size());
-  if(graph_built){
-    idx_time = 0;
-  } else{
-    I.build_index(Graph, Points, BuildStats);
-    idx_time = t.next_time();
+  I.build_index(Graph, Points, BuildStats);
+  size_t parts = 20;
+  size_t s = n/parts;
+  for(int i=0; i<parts; i++){
+    parlay::sequence<indexType> indices = parlay::tabulate(s, [&] (size_t j){return static_cast<indexType>(i*s+j);});
+    I.lazy_delete(indices);
+    I.start_delete_epoch();
+    I.consolidate(Graph, Points);
+    I.end_delete_epoch(Graph);
+    std::cout << "Finished deleting" << std::endl;
+    I.insert(Graph, Points, BuildStats, indices);
+    std::cout << "Finished re-inserting" << std::endl;
   }
 
   indexType start_point = I.get_start();
@@ -65,16 +72,8 @@ void ANN(GraphType &Graph, long k, BuildParams &BP,
   auto vv = BuildStats.visited_stats();
   std::cout << "Average visited: " << vv[0] << ", Tail visited: " << vv[1]
             << std::endl;
-  Graph_ G_(name, params, G_size, avg_deg, max_deg, idx_time);
+  Graph_ G_(name, params, G_size, avg_deg, max_deg, 0.0);
   G_.print();
   if(Query_Points.size() != 0) search_and_parse<Point, PointRange, indexType>(G_, Graph, Points, Query_Points, GT, res_file, k, false, start_point);
+
 }
-
-
-
-
-
-
-
-
-
