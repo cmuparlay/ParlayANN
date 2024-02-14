@@ -171,12 +171,14 @@ struct Aspen_Graph{
         return Graph(std::move(S), maxDeg, false);
     }
 
+    //TODO add safeguard to avoid updating graph in read-only mode
     Graph Get_Graph_Read_Only(){
         auto S = VG.acquire_version();
         std::cout << "Acquired read-only version with timestamp " << S.timestamp << std::endl;
         return Graph(std::move(S), maxDeg, true);
     }
 
+    //TODO do we need to do anything with the copy of graph that's stored in the graph wrapper?
     void Release_Graph(Graph G){
         auto S = G.move_version();
         VG.release_version(std::move(S));
