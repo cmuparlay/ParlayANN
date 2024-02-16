@@ -9,6 +9,9 @@ compute_groundtruth : compute_groundtruth.cpp
 compute_range_groundtruth : compute_range_groundtruth.cpp
 	$(CC) $(CFLAGS) -o compute_range_groundtruth compute_range_groundtruth.cpp $(LFLAGS) 
 
+range_utils : range_utils.cpp
+	$(CC) $(CFLAGS) -o range_utils range_utils.cpp $(LFLAGS) 
+
 crop : crop.cpp
 	$(CC) $(CFLAGS) -o crop crop.cpp $(LFLAGS) 
 
