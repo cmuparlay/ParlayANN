@@ -1,12 +1,22 @@
 #pragma once
 
 //TODO can we get rid of this "weight" struct? It seems like it's always empty
+//TODO can we templatize over the edge and vertex ID types? it seems like at the moment
+//they are hardcoded
 
 
 namespace aspen {
 
 template <class weight>
 struct symmetric_graph {
+
+  //questions: how to store/allocate without wasting space?
+  //should we work with a max size and use parlay allocator or new?
+  //or have a variety of allocators based on size? it would need to be pretty granular
+  struct edge_array{
+
+  }; //end edge_array
+
   struct edge_entry {
     using key_t = vertex_id;  // a vertex_id
     using val_t = weight;     // placeholder
@@ -20,7 +30,7 @@ struct symmetric_graph {
   using edge_node = typename edge_tree::node;
 
   //TODO what is the augmentation doing here?
-  //it looks like it's keeping track of the size of something?
+  //it looks like it's keeping track of the size of the tree/subtrees?
   struct vertex_entry {
     using key_t = vertex_id;
     using val_t = edge_tree;
@@ -96,7 +106,7 @@ struct symmetric_graph {
       using T = _T;
       static T identity() { return 0; }
       static T add(T a, T b) { return a + b; }
-    };
+    }; //end Add
 
     // Count the number of neighbors satisfying the predicate p.
     template <class P>
