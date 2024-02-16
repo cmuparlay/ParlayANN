@@ -359,6 +359,7 @@ struct knn_index {
       // search for each node starting from the start_point, then call
       // robustPrune with the visited list as its candidate set
       t_beam.start();
+      std::cout << "Running next batch, floor = " << floor << " ceil = " << ceiling << std::endl;
       parlay::parallel_for(floor, ceiling, [&](size_t i) {
         size_t index = shuffled_inserts[i];
         QueryParams QP((long) 0, BP.L, (double) 0.0, (long) Points.size(), (long) G.max_degree());
@@ -367,6 +368,7 @@ struct knn_index {
         BuildStats.increment_visited(index, visited.size());
         new_out_[i-floor] = std::make_pair(index, robustPrune(index, visited, G, Points, alpha)); 
       });
+      std::cout << "Calling batch update!" << std::endl;
       G.batch_update(new_out_);
       t_beam.stop();
       // make each edge bidirectional by first adding each new edge
