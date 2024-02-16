@@ -18,15 +18,70 @@ struct symmetric_graph {
 
     template<typename RangeType>
     edge_array(RangeType R){
-      edges = (indexType*) malloc(sizeof(indexType)*R.size());
+      // +1 to include the ref_cnt
+      edges = (indexType*) malloc(sizeof(indexType)*R.size() + 1);
       size = R.size();
     }
 
+    // copy constructor, increment reference count
+    edge_array(const edge_array& E) {
+      edges = E.edges;
+      size = E.size;
+      increment(edges);
+    }
+
+    // move constructor
+    edge_array(edge_array&& E) {
+      edges = E.edges;
+      size = E.size;
+      E.edges = nullptr;
+      E.size = 0;
+    }
+
+    edge_array() {
+      edges = nullptr;
+      size = 0;
+    }
+
+    indexType* get_edges_start() {
+      return edges + 1;
+    }
+
+    size_t get_degree() {
+      return size;
+    }
+
+    size_t get_ref_cnt() {
+      if (edges) {
+        return edges[0];
+      }
+      return 0;
+    }
+
+    void increment() {
+      utils::write_add(edges, 1);
+    }
+
+    void decrement() {
+      // Check that the following is OK with unsigned integers (e.g.,
+      // indextType).
+      if (utils::fetch_and_add(edges, -1) == 1) {
+        // do the free since we were the last owner
+        free(edges);
+        edges = nullptr;
+        size = 0;
+      }
+      edges = nullptr;
+      size = 0;
+    }
+
+    // Implicitly we encode ref_cnt as the first entry of edges. The
+    // type of ref_cnt is indexType.
     indexType* edges;
     size_t size;
 
     ~edge_array(){
-      free(edges);
+      decrement();
     }
 
   }; //end edge_array
