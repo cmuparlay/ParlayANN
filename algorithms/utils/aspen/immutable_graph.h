@@ -1,55 +1,62 @@
 #pragma once
 
-//TODO can we get rid of this "weight" struct? It seems like it's always empty
-//TODO can we templatize over the edge and vertex ID types? it seems like at the moment
-//they are hardcoded
-
+// TODO can we get rid of this "weight" struct? It seems like it's always empty
+// TODO can we templatize over the edge and vertex ID types? it seems like at
+// the moment they are hardcoded
 
 namespace aspen {
 
 template <typename indexType>
 struct symmetric_graph {
 
-  //questions: how to store/allocate without wasting space?
-  //should we work with a max size and use parlay allocator or new?
-  //or have a variety of allocators based on size? it would need to be pretty granular
-  //TODO could we just have a parlay::sequence?
-  struct edge_array{
+  // questions: how to store/allocate without wasting space?
+  // should we work with a max size and use parlay allocator or new?
+  // or have a variety of allocators based on size? it would need to be pretty
+  // granular
+  // TODO could we just have a parlay::sequence?
+  struct edge_array {
 
-    template<typename RangeType>
-    edge_array(RangeType R){
+    template <typename RangeType>
+    edge_array(RangeType R) {
       // +1 to include the ref_cnt
-      edges = (indexType*) malloc(sizeof(indexType)*R.size() + 1);
-      size = R.size();
+      edges = (indexType*)malloc(sizeof(indexType) * R.size() + 1);
+      size_ = R.size();
     }
 
     // copy constructor, increment reference count
     edge_array(const edge_array& E) {
       edges = E.edges;
-      size = E.size;
-      increment(edges);
+      size_ = E.size_;
+      increment();
+    }
+
+    // copy assignment, clear target, increment reference count,
+    edge_array& operator = (const edge_array& E) {
+      clear();
+
+      edges = E.edges;
+      size_ = E.size_;
+      increment();
     }
 
     // move constructor
     edge_array(edge_array&& E) {
       edges = E.edges;
-      size = E.size;
+      size_ = E.size_;
       E.edges = nullptr;
-      E.size = 0;
+      E.size_ = 0;
     }
 
     edge_array() {
       edges = nullptr;
-      size = 0;
+      size_ = 0;
     }
 
-    indexType* get_edges_start() {
-      return edges + 1;
+    parlay::slice<indexType*, indexType*> get_edges() {
+      return parlay::make_slice(edges + 1, edges + 1 + size_);
     }
 
-    size_t get_degree() {
-      return size;
-    }
+    size_t size() { return size_; }
 
     size_t get_ref_cnt() {
       if (edges) {
@@ -58,55 +65,51 @@ struct symmetric_graph {
       return 0;
     }
 
-    void increment() {
-      utils::write_add(edges, 1);
-    }
+    void increment() { utils::write_add(edges, 1); }
 
-    void decrement() {
+    void clear() {
       // Check that the following is OK with unsigned integers (e.g.,
       // indextType).
-      if (utils::fetch_and_add(edges, -1) == 1) {
-        // do the free since we were the last owner
-        free(edges);
+      if (edges) {
+        if (utils::fetch_and_add(edges, -1) == 1) {
+          // do the free since we were the last owner
+          free(edges);
+          edges = nullptr;
+          size_ = 0;
+        }
         edges = nullptr;
-        size = 0;
+        size_ = 0;
       }
-      edges = nullptr;
-      size = 0;
     }
 
     // Implicitly we encode ref_cnt as the first entry of edges. The
     // type of ref_cnt is indexType.
     indexType* edges;
-    size_t size;
+    size_t size_;
 
-    ~edge_array(){
-      decrement();
-    }
+    ~edge_array() { clear(); }
 
-  }; //end edge_array
+  };   // end edge_array
 
-
-  //aug_t is (max_id, total # edges)
+  // aug_t is (max_id, total # edges)
   struct vertex_entry {
     using key_t = indexType;
     using val_t = edge_array;
     using entry_t = std::tuple<key_t, val_t>;
-    
-    static inline bool comp(key_t a, key_t b) { return a < b; }
 
-  }; //end vertex_entry
+    static inline bool comp(key_t a, key_t b) { return a < b; }
+  };   // end vertex_entry
 
   using vertex_tree = cpam::pam_map<vertex_entry>;
+  using vtx_entry = typename vertex_tree::Entry;
   using vertex_node = typename vertex_tree::node;
+  using vertex_gc = typename vertex_tree::GC;
   using SymGraph = symmetric_graph<indexType>;
 
   vertex_tree V;
 
   // Set from a provided root (no ref-ct bump)
-  symmetric_graph(vertex_node* root) {
-    set_root(root);
-  }
+  symmetric_graph(vertex_node* root) { set_root(root); }
 
   symmetric_graph(vertex_tree&& _V) : V(std::move(_V)) {}
 
@@ -118,47 +121,41 @@ struct symmetric_graph {
 
   vertex_node* get_root() { return V.root; }
 
-  size_t ref_cnt() {
-    return V.ref_cnt();
-  }
+  size_t ref_cnt() { return V.ref_cnt(); }
 
-  void set_root(vertex_node* root) {
-    V.root = root;
-  }
+  void set_root(vertex_node* root) { V.root = root; }
 
   // Note that it's important to use n and not V.size() here.
   // TODO replace with something that accurately counts vertices
   // use a foreach
-  size_t num_vertices() const { 
-    return V.size();
-  }
+  size_t num_vertices() const { return V.size(); }
 
   // size_t num_edges() const { return V.aug_val().second; }
 
-  //TODO can we return a pointer here instead?
-  vertex_entry get_vertex(indexType v) const{
+  // TODO can we return a pointer here instead?
+  edge_array get_vertex(indexType v) const {
     auto opt = V.find(v);
     return *opt;
   }
 
-
   // Reserve space for n vertices and m edges.
-  static void reserve(size_t n) {
-    vertex_tree::reserve(n);
-  }
+  static void reserve(size_t n) { vertex_tree::reserve(n); }
 
-  //TODO re-implement stats stuff
+  // TODO re-implement stats stuff
 
   // struct AddFourTup {
   //   using T = std::tuple<size_t, size_t, size_t, size_t>;
   //   static T identity() { return {0, 0, 0, 0}; }
   //   static T add(T a, T b) {
-  //     return {std::get<0>(a) + std::get<0>(b), std::get<1>(a) + std::get<1>(b),
-  //             std::get<2>(a) + std::get<2>(b), std::get<3>(a) + std::get<3>(b)};
+  //     return {std::get<0>(a) + std::get<0>(b), std::get<1>(a) +
+  //     std::get<1>(b),
+  //             std::get<2>(a) + std::get<2>(b), std::get<3>(a) +
+  //             std::get<3>(b)};
   //   }
   // };
 
-  // void get_tree_sizes(const std::string& graphname, const std::string& mode) {
+  // void get_tree_sizes(const std::string& graphname, const std::string& mode)
+  // {
   //   auto noop = [](const auto& q) { return 0; };
   //   size_t vertex_tree_bytes = V.size_in_bytes(noop);
   //   auto[outer_internal, outer_leafs, outer_leaf_sizes] = V.node_stats();
@@ -187,16 +184,19 @@ struct symmetric_graph {
 
   //   std::cout << "Num edge_trees outer_nodes = " << inner_internal
   //             << " Num edge_trees inner_nodes = " << inner_leaf
-  //             << " Total edge_trees leaf sizes = " << inner_sizes << std::endl;
+  //             << " Total edge_trees leaf sizes = " << inner_sizes <<
+  //             std::endl;
 
-  //   std::cout << "Edge trees size in bytes = " << edge_tree_bytes << std::endl;
-  //   std::cout << "Vertex tree size in bytes = " << vertex_tree_bytes
+  //   std::cout << "Edge trees size in bytes = " << edge_tree_bytes <<
+  //   std::endl; std::cout << "Vertex tree size in bytes = " <<
+  //   vertex_tree_bytes
   //             << std::endl;
 
   //   size_t total_bytes = edge_tree_bytes + vertex_tree_bytes;
   //   size_t m = num_edges();
 
-  //   std::cout << "csv: " << graphname << "," << num_vertices() << "," << num_edges() << "," << mode
+  //   std::cout << "csv: " << graphname << "," << num_vertices() << "," <<
+  //   num_edges() << "," << mode
   //             << "," << total_bytes << "," << vertex_tree_bytes << ","
   //             << edge_tree_bytes << std::endl;
   // }
@@ -227,12 +227,12 @@ struct symmetric_graph {
     timer pt("Insert", false);
     timer t("Insert", false);
     auto E_slice = parlay::make_slice(E, E + m);
-    auto key_less = [&] (const VtxEntry& l, const VtxEntry& r) {
+    auto key_less = [&](const VtxEntry& l, const VtxEntry& r) {
       return std::get<0>(l) < std::get<0>(r);
     };
     parlay::sort_inplace(E_slice, key_less);
 
-    auto combine_op = [&] (edge_tree cur, edge_tree inc) {
+    auto combine_op = [&](edge_array cur, edge_array inc) {
       // Let cur get decremented here.
       return inc;
     };
@@ -244,12 +244,12 @@ struct symmetric_graph {
     timer pt("Insert", false);
     timer t("Insert", false);
     auto E_slice = parlay::make_slice(E, E + m);
-    auto key_less = [&] (const VtxEntry& l, const VtxEntry& r) {
+    auto key_less = [&](const VtxEntry& l, const VtxEntry& r) {
       return std::get<0>(l) < std::get<0>(r);
     };
     parlay::sort_inplace(E_slice, key_less);
 
-    auto combine_op = [&] (edge_tree cur, edge_tree inc) {
+    auto combine_op = [&](edge_array cur, edge_array inc) {
       // Let cur get decremented here.
       return inc;
     };
@@ -258,8 +258,7 @@ struct symmetric_graph {
     return SymGraph(std::move(new_V));
   }
 
-
-  SymGraph functional_copy(){
+  SymGraph functional_copy() {
     auto new_V = V;
     return SymGraph(std::move(new_V));
   }
@@ -284,7 +283,6 @@ struct symmetric_graph {
     auto new_V = vertex_tree::multi_delete_sorted(V, D_slice);
     return SymGraph(std::move(new_V));
   }
-
 };
 
-}  // namespace aspen
+}   // namespace aspen
