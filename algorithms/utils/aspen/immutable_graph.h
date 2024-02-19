@@ -19,35 +19,53 @@ struct symmetric_graph {
     template <typename RangeType>
     edge_array(RangeType R) {
       // +1 to include the ref_cnt
-      edges = (indexType*)malloc(sizeof(indexType) * R.size() + 1);
+      edges = (indexType*)malloc(sizeof(indexType) * (R.size() + 1));
       size_ = R.size();
+      for (size_t i=0; i<R.size(); ++i) {
+        edges[i+1] = R[i];
+      }
+      edges[0] = 1;
+      std::cout << "End of range constructor, ref_cnt = " << get_ref_cnt() << std::endl;
     }
 
     // copy constructor, increment reference count
     edge_array(const edge_array& E) {
+      std::cout << "Copy constructor! ref_cnt of E = " << E.get_ref_cnt() << std::endl;
       edges = E.edges;
       size_ = E.size_;
       increment();
+      std::cout << "End of copy constructor! ref_cnt of our edges = " << get_ref_cnt() << std::endl;
     }
 
     // copy assignment, clear target, increment reference count,
     edge_array& operator = (const edge_array& E) {
+      std::cout << "Copy assignment!" << std::endl;
       clear();
 
       edges = E.edges;
       size_ = E.size_;
       increment();
+      return *this;
     }
 
     // move constructor
     edge_array(edge_array&& E) {
+      std::cout << "Move constructor!: edges = " << edges << std::endl;
       edges = E.edges;
       size_ = E.size_;
       E.edges = nullptr;
       E.size_ = 0;
     }
 
+    // move assignment, clear target, leave reference count as is
+    edge_array& operator = (edge_array&& E) {
+      std::cout << "Move assignment!" << std::endl;
+      if (this != &E) { clear(); }
+      return *this;
+    }
+
     edge_array() {
+      std::cout << "Default constructor" << std::endl;
       edges = nullptr;
       size_ = 0;
     }
@@ -58,7 +76,7 @@ struct symmetric_graph {
 
     size_t size() { return size_; }
 
-    size_t get_ref_cnt() {
+    size_t get_ref_cnt() const {
       if (edges) {
         return edges[0];
       }
@@ -70,8 +88,11 @@ struct symmetric_graph {
     void clear() {
       // Check that the following is OK with unsigned integers (e.g.,
       // indextType).
+      std::cout << "Clear on : " << edges << " ref_cnt = " << get_ref_cnt() << std::endl;
       if (edges) {
+        std::cout << "Before decrement, ref_cnt = " << get_ref_cnt() << std::endl;
         if (utils::fetch_and_add(edges, -1) == 1) {
+          std::cout << "After decrement, ref_cnt = " << get_ref_cnt() << std::endl;
           // do the free since we were the last owner
           free(edges);
           edges = nullptr;
@@ -84,7 +105,7 @@ struct symmetric_graph {
 
     // Implicitly we encode ref_cnt as the first entry of edges. The
     // type of ref_cnt is indexType.
-    indexType* edges;
+    indexType* edges = nullptr;
     size_t size_;
 
     ~edge_array() { clear(); }
@@ -135,6 +156,7 @@ struct symmetric_graph {
   // TODO can we return a pointer here instead?
   edge_array get_vertex(indexType v) const {
     auto opt = V.find(v);
+    std::cout << "Looking for v = " << v << " opt return value = " << opt.has_value() << std::endl;
     return *opt;
   }
 
