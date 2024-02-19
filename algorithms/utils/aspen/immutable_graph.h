@@ -87,7 +87,7 @@ struct symmetric_graph {
 
     void clear() {
       // Check that the following is OK with unsigned integers (e.g.,
-      // indextType).
+      // indexType).
       std::cout << "Clear on : " << edges << " ref_cnt = " << get_ref_cnt() << std::endl;
       if (edges) {
         std::cout << "Before decrement, ref_cnt = " << get_ref_cnt() << std::endl;
