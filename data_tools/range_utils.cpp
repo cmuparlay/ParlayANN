@@ -52,10 +52,10 @@ int main(int argc, char* argv[]) {
       "[-data_type <d>] [-r <r> ] [-dist_func <d>] [-gt_path <outfile>]");
 
   char* gFile = P.getOptionValue("-vec_path");
-  char* gtFile = P.getOptionValue("-gt_file");
+  char* gtFile = P.getOptionValue("-gt_path");
   char* qFile = P.getOptionValue("-query_path");
   char* vectype = P.getOptionValue("-data_type");
-  char* dfc = P.getOptionValue("dist_func");
+  char* dfc = P.getOptionValue("-dist_func");
 
   std::string df = std::string(dfc);
   if(df != "Euclidian" && df != "mips"){
