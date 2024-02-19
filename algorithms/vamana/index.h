@@ -54,6 +54,7 @@ struct knn_index {
   std::mutex delete_lock;  // lock for delete_set which can only be updated sequentially
   bool epoch_running = false;
   indexType start_point;
+  bool start_set = false;
 
 
   knn_index(BuildParams &BP) : BP(BP) {}
@@ -137,14 +138,21 @@ struct knn_index {
       if (a.count(ngh[i]) == 0) candidates.push_back(ngh[i]);
   }
 
-  void set_start(){start_point = 0;}
+  void set_start(GraphI &G){
+    start_point = 0;
+    parlay::sequence<indexType> nbh = {};
+    parlay::sequence<std::pair<indexType, parlay::sequence<indexType>>> update = {std::make_pair(start_point, nbh)};
+    G.batch_update(update);
+    start_set = true;
+  }
 
   void build_index(GraphType &Graph, PR &Points, stats<indexType> &BuildStats){
     std::cout << "Building graph..." << std::endl;
-    set_start();
+    
     parlay::sequence<indexType> inserts = parlay::tabulate(Points.size(), [&] (size_t i){
 					    return static_cast<indexType>(i);});
     GraphI G = Graph.Get_Graph();
+    if(!start_set) set_start(G);
     if(BP.two_pass) batch_insert(inserts, G, Points, BuildStats, 1.0, true, true, 2, .02);
     batch_insert(inserts, G, Points, BuildStats, BP.alpha, true, true, 2, .02);
     // parlay::parallel_for (0, G.size(), [&] (long i) {
@@ -156,8 +164,8 @@ struct knn_index {
 
   void insert(GraphType &Graph, PR &Points, stats<indexType> &BuildStats, parlay::sequence<indexType> inserts){
     std::cout << "Inserting points " << std::endl;
-    set_start();
     GraphI G = Graph.Get_Graph();
+    if(!start_set) set_start(G);
     batch_insert(inserts, G, Points, BuildStats, BP.alpha, false, true, 2, .02);
     Graph.Update_Graph(std::move(G));
   }
@@ -166,11 +174,6 @@ struct knn_index {
     {
       LockGuard guard(delete_lock);
       for (indexType p : deletes) {
-        // if (p > (int)G.size()) {
-        //   std::cout << "ERROR: invalid point " << p << " given to lazy_delete"
-        //             << std::endl;
-        //   abort();
-        // }
         if (p != start_point)
           delete_set.insert(p);
         else
