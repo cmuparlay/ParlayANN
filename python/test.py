@@ -53,7 +53,11 @@ print(dir(pann))
 FERN_DATA_DIR = "/ssd1/anndata/bigann/"
 AWARE_DATA_DIR = "/ssd1/data/bigann/"
 
+ALT_FERN_DATA_DIR = "/ssd2/ben/nhqdatasets/"
+
 DATA_DIR = FERN_DATA_DIR
+
+AUDIO = True
 
 # print("!!! FILTERED IVF !!!")
 # fivf = wp.init_filtered_ivf_index("Euclidian", "uint8")
@@ -71,18 +75,36 @@ DATA_DIR = FERN_DATA_DIR
 
 print("----- Building Squared IVF index... -----")
 
-CUTOFF = 5_000
-CLUSTER_SIZE = 5000
-NQ = 100_000
-WEIGHT_CLASSES = (100_000, 400_000)
-MAX_DEGREES = (8, 10, 12)
+if AUDIO:
+    CUTOFF = 0
+    CLUSTER_SIZE = 500
+    NQ = 200
+    WEIGHT_CLASSES = (5_000, 10_000)
+    MAX_DEGREES = (8, 10, 12)
 
-TINY_CUTOFF = 60000
-TARGET_POINTS = 15_000
-BEAM_WIDTHS = (85, 85, 85)
-SEARCH_LIMITS = (int(WEIGHT_CLASSES[0] * 0.2), int(WEIGHT_CLASSES[1] * 0.5), int(3_000_000 * 0.5))
+    TINY_CUTOFF = 1000 
+    TARGET_POINTS = 500
+    BEAM_WIDTHS = (85, 85, 85)
+    SEARCH_LIMITS = (int(WEIGHT_CLASSES[0] * 0.2), int(WEIGHT_CLASSES[1] * 0.5), int(3_000_000 * 0.5))
 
-ALPHA = 1.175
+    ALPHA = 1.175
+
+    BITVECTOR_CUTOFF = 1000
+else:
+    CUTOFF = 5_000
+    CLUSTER_SIZE = 5000
+    NQ = 100_000
+    WEIGHT_CLASSES = (100_000, 400_000)
+    MAX_DEGREES = (8, 10, 12)
+
+    TINY_CUTOFF = 60000
+    TARGET_POINTS = 15_000
+    BEAM_WIDTHS = (85, 85, 85)
+    SEARCH_LIMITS = (int(WEIGHT_CLASSES[0] * 0.2), int(WEIGHT_CLASSES[1] * 0.5), int(3_000_000 * 0.5))
+
+    ALPHA = 1.175
+
+    BITVECTOR_CUTOFF = 10000
 
 
 
@@ -91,27 +113,73 @@ start = time.time()
 if not os.path.exists("index_cache/"):
     os.mkdir("index_cache/")
 
+if AUDIO:
+    if not os.path.exists("index_cache/audio/"):
+        os.mkdir("index_cache/audio/")
+    CACHE_DIR = "index_cache/audio/"
+else:
+    if not os.path.exists("index_cache/yfcc100M/"):
+        os.mkdir("index_cache/yfcc100M/")
+    CACHE_DIR = "index_cache/yfcc100M/"
 
-index = wp.init_squared_ivf_index("Euclidian", "uint8")
+if AUDIO:
+    index = wp.init_squared_ivf_index("Euclidian", "float")
+else:
+    index = wp.init_squared_ivf_index("Euclidian", "uint8")
 
 for i in range(3):
     index.set_build_params(wp.BuildParams(MAX_DEGREES[i], 200, ALPHA), i)
     index.set_query_params(wp.QueryParams(10, BEAM_WIDTHS[i], 1.35, SEARCH_LIMITS[i], MAX_DEGREES[i]), i)
 
-index.set_bitvector_cutoff(10000)
+index.set_bitvector_cutoff(BITVECTOR_CUTOFF)
 
-index.fit_from_filename(DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR +
-                        'data/yfcc100M/base.metadata.10M.spmat', CUTOFF, CLUSTER_SIZE, "index_cache/", WEIGHT_CLASSES, True)
+if AUDIO:
+    index.fit_from_filename(ALT_FERN_DATA_DIR + "audio/audio_base.fvec", ALT_FERN_DATA_DIR + "audio/label_audio_base.spmat", CUTOFF, CLUSTER_SIZE, CACHE_DIR, WEIGHT_CLASSES, True)
+else:
+    index.fit_from_filename(DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR +
+                            'data/yfcc100M/base.metadata.10M.spmat', CUTOFF, CLUSTER_SIZE, CACHE_DIR, WEIGHT_CLASSES, True)
+    
+
 
 print(f"Time taken: {time.time() - start:.2f}s")
 
 print("----- Querying Squared IVF Index... -----")
 start = time.time()
 
-X = np.fromfile(DATA_DIR + "data/yfcc100M/query.public.100K.u8bin",
-                dtype=np.uint8)[8:].reshape((100_000, 192))
-filters = read_sparse_matrix(
-    DATA_DIR + 'data/yfcc100M/query.metadata.public.100K.spmat')
+if AUDIO:
+    X = np.fromfile(ALT_FERN_DATA_DIR + "audio/audio_query.fvec", dtype=np.float32)
+    filters = read_sparse_matrix(
+        ALT_FERN_DATA_DIR + 'audio/label_audio_query.spmat')
+
+    def restrict_csr_to_two_nonzeros(csr):
+        rows, cols = csr.shape
+        new_data = []
+        new_indices = []
+        new_indptr = [0]
+        for i in range(rows):
+            row = csr.getrow(i)
+            # Get indices and values of the non-zeros
+            nz_indices = row.indices
+            nz_values = row.data
+            # If there are more than two non-zeros, retain only the two highest
+            if len(nz_values) > 2:
+                # argsort returns indices that would sort the array, so take the last two for the highest values
+                top_two_idx = np.argsort(nz_values)[-2:]
+                new_data.extend(nz_values[top_two_idx])
+                new_indices.extend(nz_indices[top_two_idx])
+            else:
+                new_data.extend(nz_values)
+                new_indices.extend(nz_indices)
+            new_indptr.append(len(new_data))
+
+        return csr_matrix((new_data, new_indices, new_indptr), shape=(rows, cols))
+    
+    filters = restrict_csr_to_two_nonzeros(filters)
+else:
+    X = np.fromfile(DATA_DIR + "data/yfcc100M/query.public.100K.u8bin",
+                    dtype=np.uint8)[8:].reshape((100_000, 192))
+    filters = read_sparse_matrix(
+        DATA_DIR + 'data/yfcc100M/query.metadata.public.100K.spmat')
 
 rows, cols = filters.nonzero()
 filter_dict = defaultdict(list)
@@ -150,7 +218,7 @@ all_filters = wp.csr_filters(
 #           if i.is_and() else all_filters.point_count(i.a) for i in filters[:10]])
 
 # print(neighbors.shape)
-# print(neighbors[:10, :])
+print(neighbors[:10, :])
 # print(distances[:10, :])
 
 print(f"Time taken: {elapsed:.2f}s")
@@ -171,7 +239,7 @@ def retrieve_ground_truth(fname):
 
 
 I, D = retrieve_ground_truth(GROUND_TRUTH_DIR)
-print(len(I))
+# print(len(I))
 # print(len(D))
 print(I[:10, :])
 
