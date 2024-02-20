@@ -68,6 +68,30 @@ index_type largest_filter_hash(const csr_filters& filters, const QueryFilter& f)
   return largest_filter_size(filters, f) << 1 | f.is_and();
 }
 
+/* A hash function for pairs we can use for materialized joins 
+
+Intentionally, hash(a, b) == hash(b, a).
+*/
+struct pair_hash {
+    template <class T1, class T2>
+    const std::size_t operator () (const std::pair<T1,T2> &pair) const {
+        auto hash1 = std::hash<T1>{}(pair.first);
+        auto hash2 = std::hash<T2>{}(pair.second);
+        return hash1 ^ hash2;
+    }
+};
+
+/* equal function that ignores order */
+struct pair_equal {
+    template <class T1, class T2>
+    const bool operator () (const std::pair<T1, T2>& x, const std::pair<T1, T2>& y) const {
+        // Check if pairs are equal or reversed versions of each other
+        return x == y || (x.first == y.second && x.second == y.first);
+    }
+};
+
+pair_hash pair_hasher = pair_hash();
+
 /* A posting list of sorts which has an index over its elements.
 
 A virtual class for lists of points matching a filter with some index over the
@@ -545,6 +569,10 @@ struct IVF_Squared {
 
   index_type bitvector_cutoff = BITVECTOR_CUTOFF;
 
+  bool materialized_joins = true;
+  // the below is PostingListIndex because we need to map back to original coords
+  std::unordered_map<std::pair<index_type, index_type>, std::unique_ptr<PostingListIndex<T, Point>>, pair_hash, pair_equal> material_joins_map;
+
 #ifdef COUNTERS
   // number of queries in each case
   threadlocal::accumulator<size_t> largexlarge{};   // most vexing parse???
@@ -656,6 +684,38 @@ struct IVF_Squared {
                                                              : 0));
       }
     }, (parallel_build ? 0 : 10'000'000)); 
+
+    if (this->materialized_joins) {
+      this->material_joins_map = std::unordered_map<std::pair<index_type, index_type>, std::unique_ptr<PostingListIndex<T, Point>>, pair_hash, pair_equal>();
+      // we compute the size of the join for each pair of large filters
+      // and if a join is large enough, we build an index for it
+      for (size_t i = 0; i < filters.n_points; i++) {
+        for (size_t j = i; j < filters.n_points; j++) {
+          if (filters.point_count(i) > cutoff && filters.point_count(j) > cutoff) {
+            auto intersection = filters.point_intersection(i, j);
+
+            if (intersection.size() > cutoff) {
+              int weight_class = 0;
+              if (intersection.size() > this->large_cutoff) {
+                weight_class = 2;
+              } else if (intersection.size() > this->medium_cutoff) {
+                weight_class = 1;
+              }
+
+              int id = filters.n_points + this->material_joins_map.size(); // obviously not ideal
+
+              this->material_joins_map[std::make_pair(i, j)] = std::make_unique<PostingListIndex<T, Point>>(
+                this->points, intersection.begin(), intersection.end(),
+                KMeansClusterer<T, Point, index_type>(intersection.size() /
+                                                  cluster_size),
+                BP[weight_class], QP + weight_class, id, cache_path,
+                filters.n_filters);
+            }
+          }
+        }
+      }
+      std::cout << "IVF^2: materialized joins built, indexing " << this->material_joins_map.size() << " intersections" << std::endl;
+    }
   }
 
   void fit_from_filename(std::string filename, std::string filter_filename,
@@ -682,6 +742,20 @@ struct IVF_Squared {
     index_type b = f.b;
     index_type a_size = this->filters_transpose.point_count(a);
     index_type b_size = this->filters_transpose.point_count(b);
+
+    if (this->materialized_joins) {
+      // could check sizes are both above cutoff if really inclined,
+      // but no way that makes a measureable difference
+      auto and_index = this->material_joins_map.find(std::make_pair(a, b));
+      if (and_index != this->material_joins_map.end()) {
+        auto [output, dcmps] = and_index->second->knn(q, 10);
+        auto indices = parlay::sequence<index_type>(output.size());
+        for (size_t i = 0; i < output.size(); i++) {
+          indices[i] = output[i].first;
+        }
+        return std::make_pair(std::move(indices), dcmps);
+      }
+    }
 
     parlay::sequence<index_type> indices;
     size_t dist_cmps = 0;
@@ -1378,6 +1452,10 @@ struct IVF_Squared {
 
   void set_build_params(BuildParams bp, size_t weight_class) {
     this->BP[weight_class] = bp;
+  }
+
+  void set_materialized_joins(bool b) {
+    this->materialized_joins = b;
   }
 
   std::vector<py::tuple> get_log() const {
