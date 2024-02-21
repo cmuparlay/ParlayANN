@@ -42,16 +42,16 @@
 
 #include <mutex>
 
-#include "aspen/aspen.h"
+#include "aspen2/aspen.h"
 
 template <typename indexType>
-struct Aspen_Graph {
-  using GraphT = aspen::symmetric_graph<indexType>;
+struct Aspen_Flat_Graph {
+  using GraphT = aspenflat::symmetric_graph<indexType>;
   using vertex_tree = typename GraphT::vertex_tree;
   using vertex_entry = typename GraphT::vertex_entry;
   using vtx_entry = typename GraphT::vtx_entry;
   using edge_array = typename GraphT::edge_array;
-  using version = typename aspen::versioned_graph<GraphT>::version;
+  using version = typename aspenflat::versioned_graph<GraphT>::version;
 
   struct Aspen_Vertex {
 
@@ -155,14 +155,14 @@ struct Aspen_Graph {
     GraphT G;
   };
 
-  Aspen_Graph() {}
+  Aspen_Flat_Graph() {}
 
-  Aspen_Graph(long md, size_t n) : maxDeg(md) {
+  Aspen_Flat_Graph(long md, size_t n) : maxDeg(md) {
     GraphT GG;
-    VG = aspen::versioned_graph<GraphT>(std::move(GG));
+    VG = aspenflat::versioned_graph<GraphT>(std::move(GG));
   }
 
-  Aspen_Graph(char* gFile) {}
+  Aspen_Flat_Graph(char* gFile) {}
 
   Graph Get_Graph() {
     auto S = VG.acquire_version();
@@ -196,6 +196,6 @@ struct Aspen_Graph {
   void save(char* oFile) {}
 
  private:
-  aspen::versioned_graph<GraphT> VG;
+  aspenflat::versioned_graph<GraphT> VG;
   size_t maxDeg;
 };

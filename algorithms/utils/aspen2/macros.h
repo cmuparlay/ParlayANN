@@ -2,7 +2,7 @@
 
 #include <limits.h>
 
-namespace aspen {
+namespace aspenflat {
 #define LONG 1
 
 // size of edge-offsets.

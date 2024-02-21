@@ -2,9 +2,9 @@
 
 #include "parlay/primitives.h"
 
-namespace aspen {
+namespace aspenflat {
 
-  struct empty {};
+
 
   using vertex_id = uint32_t;
   using edge_id = size_t;
