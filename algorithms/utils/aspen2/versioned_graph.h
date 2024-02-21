@@ -8,7 +8,7 @@
 
 #include <limits>
 
-namespace aspen {
+namespace aspenflat {
 
 namespace refct_utils {
   static uint64_t make_refct(uint32_t current_ts, uint32_t ref_ct) {

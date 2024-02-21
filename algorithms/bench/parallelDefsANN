@@ -1,16 +1,16 @@
-# ifeq (, $(shell which jemalloc-config))
-# JEMALLOC =
-# else
-# JEMALLOCLD = $(shell jemalloc-config --libdir)
-# JEMALLOC = -L$(JEMALLOCLD) -ljemalloc 
-# endif
+ifeq (, $(shell which jemalloc-config))
+JEMALLOC =
+else
+JEMALLOCLD = $(shell jemalloc-config --libdir)
+JEMALLOC = -L$(JEMALLOCLD) -ljemalloc 
+endif
 
-CCFLAGS = -DPARLAY_SEQUENTIAL -mcx16 -O0 -g -std=c++17 -march=native -I .
+CCFLAGS = -mcx16 -O3 -std=c++17 -march=native -DNDEBUG -I .
 CLFLAGS = -ldl $(JEMALLOC)
 
 OMPFLAGS = -DPARLAY_OPENMP -fopenmp
 CILKFLAGS = -DPARLAY_CILK -fcilkplus
-PBBFLAGS = 
+PBBFLAGS = -DHOMEGROWN -pthread
 
 ifdef OPENMP
 CC = g++

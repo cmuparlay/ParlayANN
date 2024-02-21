@@ -4,7 +4,7 @@
 // TODO can we templatize over the edge and vertex ID types? it seems like at
 // the moment they are hardcoded
 
-namespace aspen {
+namespace aspenflat {
 
 template <typename indexType>
 struct symmetric_graph {
