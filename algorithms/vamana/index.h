@@ -70,11 +70,13 @@ struct knn_index {
     std::vector<pid> candidates;
     for (auto x : cand) candidates.push_back(x);
 
+    std::cout << "adding neighbors of candidate: " << p << std::endl;
     if(add){
       for (indexType i : G[p].neighbors()) {
         candidates.push_back(std::make_pair(i, Points[i].distance(Points[p])));
       }
     }
+    std::cout << "done adding neighbors" << std::endl;
 
     // Sort the candidate set according to distance from p
     auto less = [&](pid a, pid b) { return a.second < b.second; };
@@ -139,11 +141,14 @@ struct knn_index {
   }
 
   void set_start(GraphI &G){
+    std::cout << "setting start point" << std::endl;
     start_point = 0;
     parlay::sequence<indexType> nbh = {};
     parlay::sequence<std::pair<indexType, parlay::sequence<indexType>>> update = {std::make_pair(start_point, nbh)};
     G.batch_update(update);
     start_set = true;
+    std::cout << "start point set" << std::endl;
+    std::cout << std::endl;
   }
 
   void build_index(GraphType &Graph, PR &Points, stats<indexType> &BuildStats){
@@ -153,8 +158,8 @@ struct knn_index {
 					    return static_cast<indexType>(i);});
     GraphI G = Graph.Get_Graph();
     if(!start_set) set_start(G);
-    if(BP.two_pass) batch_insert(inserts, G, Points, BuildStats, 1.0, true, true, 2, .02);
-    batch_insert(inserts, G, Points, BuildStats, BP.alpha, true, true, 2, .02);
+    if(BP.two_pass) batch_insert(inserts, G, Points, BuildStats, 1.0, true, true, true, 2, .02);
+    batch_insert(inserts, G, Points, BuildStats, BP.alpha, true, true, false, 2, .02);
     // parlay::parallel_for (0, G.size(), [&] (long i) {
     //   auto less = [&] (indexType j, indexType k) {
 		//     return Points[i].distance(Points[j]) < Points[i].distance(Points[k]);};
@@ -321,7 +326,7 @@ struct knn_index {
 
   void batch_insert(parlay::sequence<indexType> &inserts,
                      GraphI &G, PR &Points, stats<indexType> &BuildStats, double alpha,
-                     bool print=true, bool random_order = false, double base = 2,
+                     bool print=true, bool random_order = false, bool second_round = false, double base = 2,
                     double max_fraction = .02) {
     size_t n = G.size();
     size_t m = inserts.size();
@@ -363,16 +368,26 @@ struct knn_index {
       // robustPrune with the visited list as its candidate set
       t_beam.start();
       std::cout << "Running next batch, floor = " << floor << " ceil = " << ceiling << std::endl;
+      std::cout << std::endl;
       parlay::parallel_for(floor, ceiling, [&](size_t i) {
         size_t index = shuffled_inserts[i];
         QueryParams QP((long) 0, BP.L, (double) 0.0, (long) Points.size(), (long) G.max_degree());
+        std::cout << "entering beam search" << std::endl;
         parlay::sequence<pid> visited = 
           (beam_search<Point, PointRange, indexType>(Points[index], G, Points, start_point, QP)).first.second;
+        std::cout << "end beam search" << std::endl;
+        std::cout << std::endl;
         BuildStats.increment_visited(index, visited.size());
-        new_out_[i-floor] = std::make_pair(index, robustPrune(index, visited, G, Points, alpha)); 
+        std::cout << "begin prune" << std::endl;
+        new_out_[i-floor] = std::make_pair(index, robustPrune(index, visited, G, Points, alpha, second_round)); 
+        std::cout << "end prune" << std::endl;
+        std::cout << std::endl;
       });
+      std::cout << std::endl;
       std::cout << "Calling batch update!" << std::endl;
       G.batch_update(new_out_);
+      std::cout << "End batch update" << std::endl;
+      std::cout << std::endl;
       t_beam.stop();
       // make each edge bidirectional by first adding each new edge
       //(i,j) to a sequence, then semisorting the sequence by key values
@@ -391,7 +406,7 @@ struct knn_index {
       // finally, add the bidirectional edges; if they do not make
       // the vertex exceed the degree bound, just add them to out_nbhs;
       // otherwise, use robustPrune on the vertex with user-specified alpha
-
+      std::cout << "begin computing bidirectional edges" << std::endl;
       auto bidirectional_edges = parlay::tabulate(grouped_by.size(), [&] (size_t j){
         auto &[index, candidates] = grouped_by[j];
 	      size_t newsize = candidates.size() + G[index].size();
@@ -403,7 +418,9 @@ struct knn_index {
 	        return std::make_pair(index, std::move(new_out_2_));   
         }
       });
+      std::cout << "updating bidirectional edges" << std::endl;
       G.batch_update(bidirectional_edges);
+      std::cout << "end update of bidirectional edge" << std::endl;
       t_prune.stop();
       if (print) {
         auto ind = frac * m;

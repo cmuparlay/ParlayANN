@@ -65,7 +65,7 @@ struct symmetric_graph {
     }
 
     edge_array() {
-      std::cout << "Default constructor" << std::endl;
+      // std::cout << "Default constructor" << std::endl;
       edges = nullptr;
       size_ = 0;
     }
@@ -88,8 +88,9 @@ struct symmetric_graph {
     void clear() {
       // Check that the following is OK with unsigned integers (e.g.,
       // indexType).
-      std::cout << "Clear on : " << edges << " ref_cnt = " << get_ref_cnt() << std::endl;
+      
       if (edges) {
+        std::cout << "Clear on : " << edges << " ref_cnt = " << get_ref_cnt() << std::endl;
         std::cout << "Before decrement, ref_cnt = " << get_ref_cnt() << std::endl;
         if (utils::fetch_and_add(edges, -1) == 1) {
           std::cout << "After decrement, ref_cnt = " << get_ref_cnt() << std::endl;

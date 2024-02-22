@@ -89,7 +89,10 @@ struct Aspen_Flat_Graph {
       return edge_data.get_edges();
     }
 
-    // TODO is reordering vertices possible here? probably not right?
+    template<typename F>
+    void reorder(F f){
+      //TODO
+    }
 
     void prefetch() {
       // TODO
