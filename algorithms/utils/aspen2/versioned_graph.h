@@ -38,7 +38,7 @@ struct versioned_graph {
   using K = uint64_t;
   using V = tuple<uint64_t, Node*>;
   using T = tuple<K, V>;
-  using table = sequentialHT<K, V>;
+  using table = sequentialHTFlat<K, V>;
   table live_versions;
 
   static constexpr typename table::T empty = std::make_tuple(max_ts, std::make_tuple(0, nullptr));
