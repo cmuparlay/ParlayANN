@@ -60,7 +60,13 @@ struct symmetric_graph {
     // move assignment, clear target, leave reference count as is
     edge_array& operator = (edge_array&& E) {
       std::cout << "Move assignment!" << std::endl;
-      if (this != &E) { clear(); }
+      if (this != &E) {
+        clear();
+        edges = E.edges;
+        size_ = E.size_;
+        E.edges = nullptr;
+        E.size_ = 0;
+      }
       return *this;
     }
 
@@ -88,7 +94,7 @@ struct symmetric_graph {
     void clear() {
       // Check that the following is OK with unsigned integers (e.g.,
       // indexType).
-      
+
       if (edges) {
         std::cout << "Clear on : " << edges << " ref_cnt = " << get_ref_cnt() << std::endl;
         std::cout << "Before decrement, ref_cnt = " << get_ref_cnt() << std::endl;
