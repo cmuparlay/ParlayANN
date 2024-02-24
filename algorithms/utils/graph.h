@@ -94,8 +94,13 @@ struct Flat_Graph{
                 __builtin_prefetch((char*) edges.begin() + i* 64);
         }
 
+        // template<typename F>
+        // void sort(F&& less){std::sort(edges.begin()+1, edges.begin()+1+edges[0], less);}
+
         template<typename F>
-        void sort(F&& less){std::sort(edges.begin()+1, edges.begin()+1+edges[0], less);}
+        void reorder(F&& f){
+            f(edges.begin()+1, edges.begin()+1+edges[0]);
+        }
 
         parlay::slice<indexType*, indexType*> neighbors(){
             return parlay::make_slice(edges.begin()+1, edges.begin()+1+edges[0]);

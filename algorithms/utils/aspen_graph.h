@@ -50,7 +50,7 @@
 template<typename indexType>
 struct Aspen_Graph{
     struct empty_weight {};
-    using GraphT = aspen::symmetric_graph<empty_weight>;
+    using GraphT = aspen::symmetric_graph<empty_weight, indexType>;
     using vertex = typename GraphT::vertex;
     using edge_tree = typename GraphT::edge_tree;
     using vertex_tree = typename GraphT::vertex_tree;
@@ -99,8 +99,9 @@ struct Aspen_Graph{
             return neighbors;
         }
 
-        //TODO is reordering vertices possible here? probably not right?
-
+        //prefetch and reorder not supported for this graph type
+        template<typename F>
+        void reorder(F&& f){}
         void prefetch(){}
 
         private:
@@ -150,6 +151,31 @@ struct Aspen_Graph{
 
         Aspen_Vertex operator [] (indexType i) {return Aspen_Vertex(G.get_vertex(i), maxDeg, G);}
 
+        void save(char* oFile){
+            size_t n = V.graph.num_vertices();
+            std::cout << "Writing graph with " << n << " points and max degree " << maxDeg
+                        << std::endl;
+            parlay::sequence<indexType> preamble = {static_cast<indexType>(n), static_cast<indexType>(maxDeg)};
+            parlay::sequence<indexType> sizes = parlay::tabulate(n, [&] (size_t i){return static_cast<indexType>((*this)[i].size());});
+            std::ofstream writer;
+            writer.open(oFile, std::ios::binary | std::ios::out);
+            writer.write((char*)preamble.begin(), 2 * sizeof(indexType));
+            writer.write((char*)sizes.begin(), sizes.size() * sizeof(indexType));
+            size_t BLOCK_SIZE = 1000000;
+            size_t index = 0;
+            while(index < n){
+                size_t floor = index;
+                size_t ceiling = index+BLOCK_SIZE <= n ? index+BLOCK_SIZE : n;
+                parlay::sequence<parlay::sequence<indexType>> edge_data = parlay::tabulate(ceiling-floor, [&] (size_t i){
+                    return parlay::tabulate(sizes[i+floor], [&] (size_t j){return (*this)[i+floor].neighbors()[j];});
+                });
+                parlay::sequence<indexType> data = parlay::flatten(edge_data);
+                writer.write((char*)data.begin(), data.size() * sizeof(indexType));
+                index = ceiling;
+            }
+            writer.close();
+        }
+
         private:
             long maxDeg;
             version V;
@@ -163,7 +189,65 @@ struct Aspen_Graph{
         VG = aspen::versioned_graph<GraphT>(std::move(GG));
     }
 
-    Aspen_Graph(char* gFile){}
+    Aspen_Graph(char* gFile){
+        GraphT GG;
+        std::ifstream reader(gFile);
+        assert(reader.is_open());
+
+        //read num points and max degree
+        indexType num_points;
+        indexType max_deg;
+        reader.read((char*)(&num_points), sizeof(indexType));
+        size_t n = num_points;
+        reader.read((char*)(&max_deg), sizeof(indexType));
+        maxDeg = max_deg;
+        std::cout << "Detected " << num_points << " points with max degree " << max_deg << std::endl;
+
+        //read degrees and perform scan to find offsets
+        indexType* degrees_start = new indexType[n];
+        reader.read((char*)(degrees_start), sizeof(indexType)*n);
+        indexType* degrees_end = degrees_start + n;
+        parlay::slice<indexType*, indexType*> degrees0 = parlay::make_slice(degrees_start, degrees_end);
+        auto degrees = parlay::tabulate(degrees0.size(), [&] (size_t i){return static_cast<size_t>(degrees0[i]);});
+        auto [offsets, total] = parlay::scan(degrees);
+        std::cout << "Total: " << total << std::endl;
+        offsets.push_back(total);
+
+
+        //write 1000000 vertices at a time
+        size_t BLOCK_SIZE=1000000;
+        size_t index = 0;
+        size_t total_size_read = 0;
+        while(index < n){
+            size_t g_floor = index;
+            size_t g_ceiling = g_floor + BLOCK_SIZE <= n ? g_floor + BLOCK_SIZE : n;
+            size_t total_size_to_read = offsets[g_ceiling]-offsets[g_floor];
+            indexType* edges_start = new indexType[total_size_to_read];
+            reader.read((char*)(edges_start), sizeof(indexType)*total_size_to_read);
+            indexType* edges_end = edges_start + total_size_to_read;
+            parlay::slice<indexType*, indexType*> edges = parlay::make_slice(edges_start, edges_end);
+            auto updates = parlay::tabulate(g_ceiling-g_floor, [&] (size_t i){
+                indexType index = g_floor+i;
+                parlay::sequence<indexType> nbh = parlay::tabulate(degrees[index], [&] (size_t j){
+                    return edges[offsets[index] - total_size_read + j];
+                });
+                return std::make_pair(index, nbh);
+            });
+            auto vals = parlay::tabulate(updates.size(), [&](size_t i) {
+                indexType index = updates[i].first;
+                size_t ngh_size = updates[i].second.size();
+                auto begin = (std::tuple<indexType, empty_weight>*)(updates[i].second.begin());
+                auto tree = edge_tree(begin, begin + ngh_size);
+                return std::make_tuple(index, std::move(tree));
+            });
+            GG.insert_vertices_batch(vals.size(), vals.begin());
+            total_size_read += total_size_to_read;
+            index = g_ceiling; 
+            delete[] edges_start;
+        }
+        delete[] degrees_start;
+        VG = aspen::versioned_graph<GraphT>(std::move(GG));
+    }
 
     Graph Get_Graph(){
         auto S = VG.acquire_version();
@@ -191,7 +275,14 @@ struct Aspen_Graph{
         VG.release_version(std::move(S));
     }
 
-    void save(char* oFile){}
+    void save(char* oFile) {
+        auto S = VG.acquire_version();
+        std::cout << "Acquired read-only version with timestamp " << S.timestamp
+                << std::endl;
+        Graph GG = Graph(std::move(S), maxDeg, true);
+        GG.save(oFile);
+    }
+
 
     private:
         aspen::versioned_graph<GraphT> VG;

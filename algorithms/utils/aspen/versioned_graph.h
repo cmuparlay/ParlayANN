@@ -4,11 +4,10 @@
 // graph and commit new versions, making them readable.
 // #include "traversable_graph.h"
 #include "sequentialHT.h"
-#include "macros.h"
 
 #include <limits>
 
-namespace aspenflat {
+namespace aspen {
 
 namespace refct_utils {
   static uint64_t make_refct(uint32_t current_ts, uint32_t ref_ct) {
@@ -38,7 +37,7 @@ struct versioned_graph {
   using K = uint64_t;
   using V = tuple<uint64_t, Node*>;
   using T = tuple<K, V>;
-  using table = sequentialHTFlat<K, V>;
+  using table = sequentialHT<K, V>;
   table live_versions;
 
   static constexpr typename table::T empty = std::make_tuple(max_ts, std::make_tuple(0, nullptr));
@@ -87,16 +86,6 @@ struct versioned_graph {
     G.clear_root();
   }
 
-
-  versioned_graph(std::tuple<size_t, size_t, uintT*, uintE*>& parsed_graph) : current_timestamp(0) {
-    size_t initial_ht_size = 512;
-    live_versions = table(initial_ht_size, empty, tombstone);
-
-    auto G = snapshot_graph(parsed_graph);
-    ts timestamp = current_timestamp++;
-    live_versions.insert(std::make_tuple(timestamp, std::make_tuple(refct_utils::make_refct(timestamp, 1), G.get_root())));
-    G.clear_root();
-  }
 
   ts latest_timestamp() {
     return current_timestamp-1;

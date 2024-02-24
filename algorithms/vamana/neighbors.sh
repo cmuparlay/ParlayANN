@@ -5,7 +5,13 @@ make
 P=/ssd1/data/bigann
 # ./neighbors -R 64 -L 128 -alpha 1.2 -data_type uint8 -dist_func Euclidian -base_path $P/base.1B.u8bin.crop_nb_1000000
 
-PARLAY_NUM_THREADS=1 ./neighbors -R 64 -L 128 -alpha 1.15 -two_pass 0 -data_type uint8 -dist_func Euclidian -graph_type aspen_flat -query_path /ssd1/data/bigann/query.public.10K.u8bin -gt_path /ssd1/data/bigann/bigann-1M -res_path aspen.csv -base_path /ssd1/data/bigann/base.1B.u8bin.crop_nb_1000000
+./neighbors -R 64 -L 128 -alpha 1.15 -two_pass 0 -data_type uint8 -dist_func Euclidian  -graph_type aspen_flat -query_path $P/query.public.10K.u8bin -gt_path $P/bigann-1M -res_path aspen_flat.csv -base_path $P/base.1B.u8bin.crop_nb_1000000
+./neighbors -R 64 -L 128 -alpha 1.15 -two_pass 0 -data_type uint8 -dist_func Euclidian  -graph_type aspen_flat -query_path $P/query.public.10K.u8bin -gt_path $P/bigann-10M -res_path aspen_flat.csv -base_path $P/base.1B.u8bin.crop_nb_10000000
+./neighbors -R 64 -L 128 -alpha 1.15 -two_pass 0 -data_type uint8 -dist_func Euclidian  -graph_type aspen_flat -query_path $P/query.public.10K.u8bin -gt_path $P/bigann-100M -res_path aspen_flat.csv -base_path $P/base.1B.u8bin.crop_nb_100000000
+# ./neighbors -R 64 -L 128 -alpha 1.15 -two_pass 0 -data_type uint8 -dist_func Euclidian -graph_path $P/vamana_R64_L128_test -graph_type aspen -query_path /ssd1/data/bigann/query.public.10K.u8bin -gt_path /ssd1/data/bigann/bigann-1M -res_path aspen.csv -base_path /ssd1/data/bigann/base.1B.u8bin.crop_nb_1000000
+
+# PARLAY_NUM_THREADS=1 ./neighbors -R 64 -L 128 -alpha 1.15 -two_pass 0 -data_type uint8 -dist_func Euclidian -graph_type aspen_flat -base_path /ssd1/data/bigann/query.public.10K.u8bin 
+
 # ./neighbors -R 64 -L 128 -alpha 1.15 -two_pass 0 -data_type uint8 -dist_func Euclidian -graph_type aspen -query_path /ssd1/data/bigann/query.public.10K.u8bin -gt_path /ssd1/data/bigann/bigann-10M -res_path aspen.csv -base_path /ssd1/data/bigann/base.1B.u8bin.crop_nb_10000000
 # ./neighbors -R 64 -L 128 -alpha 1.15 -two_pass 0 -data_type uint8 -dist_func Euclidian -graph_type aspen -query_path /ssd1/data/bigann/query.public.10K.u8bin -gt_path /ssd1/data/bigann/bigann-100M -res_path aspen.csv -base_path /ssd1/data/bigann/base.1B.u8bin.crop_nb_100000000
 
