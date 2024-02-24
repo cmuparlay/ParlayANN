@@ -25,21 +25,21 @@ struct symmetric_graph {
         edges[i+1] = R[i];
       }
       edges[0] = 1;
-      std::cout << "End of range constructor, ref_cnt = " << get_ref_cnt() << std::endl;
+      // std::cout << "End of range constructor, ref_cnt = " << get_ref_cnt() << std::endl;
     }
 
     // copy constructor, increment reference count
     edge_array(const edge_array& E) {
-      std::cout << "Copy constructor! ref_cnt of E = " << E.get_ref_cnt() << std::endl;
+      // std::cout << "Copy constructor! ref_cnt of E = " << E.get_ref_cnt() << std::endl;
       edges = E.edges;
       size_ = E.size_;
       increment();
-      std::cout << "End of copy constructor! ref_cnt of our edges = " << get_ref_cnt() << std::endl;
+      // std::cout << "End of copy constructor! ref_cnt of our edges = " << get_ref_cnt() << std::endl;
     }
 
     // copy assignment, clear target, increment reference count,
     edge_array& operator = (const edge_array& E) {
-      std::cout << "Copy assignment!" << std::endl;
+      // std::cout << "Copy assignment!" << std::endl;
       clear();
 
       edges = E.edges;
@@ -50,7 +50,7 @@ struct symmetric_graph {
 
     // move constructor
     edge_array(edge_array&& E) {
-      std::cout << "Move constructor!: edges = " << edges << std::endl;
+      // std::cout << "Move constructor!: edges = " << edges << std::endl;
       edges = E.edges;
       size_ = E.size_;
       E.edges = nullptr;
@@ -59,7 +59,7 @@ struct symmetric_graph {
 
     // move assignment, clear target, leave reference count as is
     edge_array& operator = (edge_array&& E) {
-      std::cout << "Move assignment!" << std::endl;
+      // std::cout << "Move assignment!" << std::endl;
       if (this != &E) {
         clear();
         edges = E.edges;
@@ -96,10 +96,10 @@ struct symmetric_graph {
       // indexType).
 
       if (edges) {
-        std::cout << "Clear on : " << edges << " ref_cnt = " << get_ref_cnt() << std::endl;
-        std::cout << "Before decrement, ref_cnt = " << get_ref_cnt() << std::endl;
+        // std::cout << "Clear on : " << edges << " ref_cnt = " << get_ref_cnt() << std::endl;
+        // std::cout << "Before decrement, ref_cnt = " << get_ref_cnt() << std::endl;
         if (utils::fetch_and_add(edges, -1) == 1) {
-          std::cout << "After decrement, ref_cnt = " << get_ref_cnt() << std::endl;
+          // std::cout << "After decrement, ref_cnt = " << get_ref_cnt() << std::endl;
           // do the free since we were the last owner
           free(edges);
           edges = nullptr;
@@ -163,7 +163,7 @@ struct symmetric_graph {
   // TODO can we return a pointer here instead?
   edge_array get_vertex(indexType v) const {
     auto opt = V.find(v);
-    std::cout << "Looking for v = " << v << " opt return value = " << opt.has_value() << std::endl;
+    // std::cout << "Looking for v = " << v << " opt return value = " << opt.has_value() << std::endl;
     return *opt;
   }
 

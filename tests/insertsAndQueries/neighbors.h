@@ -29,8 +29,10 @@
 #include "../utils/stats.h"
 #include "../utils/types.h"
 #include "../utils/graph.h"
-#include "../utils/aspen_graph.h"
+// #include "../utils/aspen_graph.h"
 #include "../../algorithms/vamana/index.h"
+#include "../utils/aspen_flat_graph.h"
+#include "../utils/aspen_graph.h"
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 #include "parlay/random.h"
@@ -44,7 +46,6 @@ void ANN(GraphType &Graph, long k, BuildParams &BP,
   std::cout << "Size of dataset: " << Points.size() << std::endl;
   using findex = knn_index<Point, PointRange, indexType, GraphType>;
   findex I(BP);
-  I.set_start();
   size_t n = Points.size();
   size_t update_batch_size = 50000;
   size_t query_batch_size = 10000;

@@ -1,7 +1,7 @@
 #pragma once
 
 template <class K, class V>
-class sequentialHTFlat {
+class sequentialHT {
  public:
   typedef tuple<K,V> T;
 
@@ -17,14 +17,14 @@ class sequentialHTFlat {
   inline size_t incrementIndex(size_t h) {return toRange(h+1);}
 
   // m must be a power of two
-  sequentialHTFlat(size_t _m, tuple<K, V> _empty, K _tombstone) :
+  sequentialHT(size_t _m, tuple<K, V> _empty, K _tombstone) :
     m((size_t)_m), mask(m-1), empty(_empty), tombstone(_tombstone)
   {
     max_key = std::get<0>(empty);
     table = parlay::sequence<T>(_m, empty);
   }
 
-  sequentialHTFlat() {}
+  sequentialHT() {}
 
   bool insert(tuple<K, V> v) {
     K key = std::get<0>(v);
