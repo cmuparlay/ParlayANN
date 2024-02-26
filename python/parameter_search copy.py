@@ -299,7 +299,7 @@ def search_objective(trial, recall_cutoff=0.75):
     r, qps, dcmps = run_index(index, I, dataset.nq, runs=4, recall_cutoff=recall_cutoff)
 
     if r > recall_cutoff:
-        return round(qps) * (-1 * log(1 - r))
+        return round(qps * (-1 * log(1 - r))) + r
     else:
         return 0
     
