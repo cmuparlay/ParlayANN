@@ -301,7 +301,7 @@ def search_objective(trial, recall_cutoff=0.75):
     if r > recall_cutoff:
         return round(qps * (-1 * log(1 - r))) + r
     else:
-        return 0
+        return r
     
 def build_objective(trial, recall_cutoff=0.75):
     max_degree = trial.suggest_int('max_degree', 5, 24)
@@ -319,9 +319,9 @@ def build_objective(trial, recall_cutoff=0.75):
     r, qps, dcmps = run_index(index, I, dataset.nq, runs=5)
 
     if r > recall_cutoff:
-        return round(qps) * (-1 * log(1 - r))
+        return round(qps * (-1 * log(1 - r))) + r
     else:
-        return 0
+        return r
 
 
     
