@@ -121,7 +121,9 @@ if not os.path.exists("index_cache/"):
 
 os.environ['PARLAY_NUM_THREADS'] = str(args.threads)
 # INDEX_DIR = '../../big-ann-benchmarks/data/indices/filter/parlayivf/YFCC100MDataset-10000000/parlayivf_Euclidian_uint8'
-INDEX_DIR = "index_cache/"
+INDEX_DIR = f"index_cache/{dataset.name}/"
+if not os.path.exists(INDEX_DIR):
+    os.mkdir(INDEX_DIR)
 
 # %%
 # def parse_framework_output(data):
