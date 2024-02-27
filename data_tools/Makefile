@@ -17,3 +17,8 @@ crop : crop.cpp
 
 random_sample : random_sample.cpp
 	$(CC) $(CFLAGS) -o random_sample random_sample.cpp $(LFLAGS) 
+
+graph_stats : graph_stats.cpp
+	$(CC) $(CFLAGS) -o graph_stats graph_stats.cpp $(LFLAGS) 
+
+	
