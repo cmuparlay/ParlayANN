@@ -12,7 +12,7 @@ auto convert_onebyte(const char* infile, const char* outfile) {
   int dims = *((int *) str.data());
   int n = str.size()/(dims+4);
   std::cout << "n = " << n << " d = " << dims << std::endl;
-  auto vects = parlay::tabulate(n, [&] (int i) {
+  auto vects = parlay::tabulate(n, [&] (size_t i) {
 		     return parlay::to_sequence(str.cut(4 + i * (4 + dims), (i+1) * (4 + dims)));});
   parlay::sequence<char> head(8);
   *((int *) head.data()) = n;
@@ -26,7 +26,7 @@ auto convert_fourbyte(const char* infile, const char* outfile) {
   int dims = *((int *) str.data());
   int n = str.size()/(4*dims+4);
   std::cout << "n = " << n << " d = " << dims << std::endl;
-  auto vects = parlay::tabulate(n, [&] (int i) {
+  auto vects = parlay::tabulate(n, [&] (size_t i) {
 		     return parlay::to_sequence(str.cut(4 + i * (4 + 4*dims), (i+1) * (4 + 4*dims)));});
   parlay::sequence<char> head(8);
   *((int *) head.data()) = n;
