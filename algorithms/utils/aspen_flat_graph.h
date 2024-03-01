@@ -59,7 +59,7 @@ struct Aspen_Flat_Graph {
     indexType id() { return id_; }
 
     Aspen_Vertex() {}
-    Aspen_Vertex(indexType id, edge_array edges, long maxDeg, GraphT& G)
+    Aspen_Vertex(indexType id, edge_array edges, long maxDeg, GraphT* G)
         : id_(id), edge_data(std::move(edges)), maxDeg(maxDeg), G(G) {}
 
     template <typename rangeType>
@@ -81,8 +81,8 @@ struct Aspen_Flat_Graph {
         abort();
       }
       auto edges = edge_array(r);
-      auto seq = {std::make_tuple(id_, std::move(edges))};
-      G.insert_vertices_batch(seq.size(), seq.begin());
+      parlay::sequence<std::tuple<indexType, edge_array>> seq = {std::make_tuple(id_, std::move(edges))};
+      G->insert_vertices_batch(seq.size(), seq.begin());
     }
 
     parlay::slice<indexType*, indexType*> neighbors() {
@@ -92,10 +92,10 @@ struct Aspen_Flat_Graph {
     template<typename F>
     void reorder(F&& f){
       //need to create a copy of neighbors
-      // auto nbh = edge_data.get_edges();
-      // parlay::sequence<indexType> to_reorder = parlay::tabulate(nbh.size(), [&] (size_t i) {return nbh[i];});
-      // f(to_reorder.begin(), to_reorder.end());
-      // update_neighbors(to_reorder);
+      auto nbh = edge_data.get_edges();  // slice
+      parlay::sequence<indexType> to_reorder = parlay::tabulate(nbh.size(), [&] (size_t i) {return nbh[i];});
+      f(to_reorder.begin(), to_reorder.end());
+      update_neighbors(to_reorder);
     }
 
     void prefetch() {
@@ -109,7 +109,7 @@ struct Aspen_Flat_Graph {
     indexType id_;
     edge_array edge_data;
     long maxDeg;
-    GraphT& G;
+    GraphT* G;
   };
 
   struct Graph {
@@ -189,7 +189,7 @@ struct Aspen_Flat_Graph {
     }
 
     Aspen_Vertex operator[](indexType i) {
-      return Aspen_Vertex(i, G.get_vertex(i), maxDeg, G);
+      return Aspen_Vertex(i, G.get_vertex(i), maxDeg, &G);
     }
 
    private:
