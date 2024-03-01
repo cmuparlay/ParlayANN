@@ -163,7 +163,7 @@ struct versioned_graph {
 
   // Returns the number of live versions in the versioning structure.
   size_t num_live_versions() {
-    return table.num_nonempty_slots();
+    return live_versions.num_nonempty_slots();
   }
 
 };
