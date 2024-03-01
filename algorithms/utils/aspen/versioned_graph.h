@@ -148,19 +148,23 @@ struct versioned_graph {
     }
   }
 
-  
+
 
   void add_version_from_graph(snapshot_graph G_next){
     live_versions.insert(std::make_tuple(current_timestamp,
                                     std::make_tuple(refct_utils::make_refct(current_timestamp, 1),
                                                G_next.get_root())));
     G_next.clear_root();
-    
+
     std::cout << "New version released with timestamp " << current_timestamp << std::endl;
     // 2. Make the new version visible
     cpam::utils::fetch_and_add(&current_timestamp, 1);
   }
 
+  // Returns the number of live versions in the versioning structure.
+  size_t num_live_versions() {
+    return table.num_nonempty_slots();
+  }
 
 };
 
