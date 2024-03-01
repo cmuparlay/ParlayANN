@@ -26,6 +26,17 @@ class sequentialHT {
 
   sequentialHT() {}
 
+  // Returns the number of non-empty slots.
+  size_t num_nonempty_slots() {
+    size_t count = 0;
+    for (size_t i=0; i<table.size(); ++i) {
+      if (std::get<0>(table[i]) != max_key && std::get<0>(table[i]) != tombstone) {
+        ++count;
+      }
+    }
+    return count;
+  }
+
   bool insert(tuple<K, V> v) {
     K key = std::get<0>(v);
     size_t h = firstIndex(key);
