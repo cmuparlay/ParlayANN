@@ -123,7 +123,8 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
         .def("set_bitvector_cutoff", &IVF_Squared<T, Point>::set_bitvector_cutoff, "bitvector_cutoff"_a)
         .def("get_log", &IVF_Squared<T, Point>::get_log, py::return_value_policy::copy)
         .def("get_dcmps", &IVF_Squared<T, Point>::get_dcmps)
-        .def("set_materialized_joins", &IVF_Squared<T, Point>::set_materialized_joins, "materialized_joins"_a);
+        .def("set_materialized_joins", &IVF_Squared<T, Point>::set_materialized_joins, "materialized_joins"_a)
+        .def("footprint", &IVF_Squared<T, Point>::footprint);
 
     py::class_<StitchedVamanaIndex<T, Point>>(m, ("StitchedVamana" + variant.agnostic_name + "Index").c_str())
         .def(py::init())

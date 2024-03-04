@@ -120,6 +120,7 @@ struct MatchingPoints {
   virtual std::pair<parlay::sequence<std::pair<index_type, float>>, size_t> knn(
      Point query, int k) = 0;
   virtual bool bitmatch(index_type i) const = 0;
+  virtual size_t footprint() const = 0;
 };
 
 /* An "index" which just stores an array of indices to matching points.
@@ -174,6 +175,10 @@ struct ArrayIndex : MatchingPoints<Point> {
 
   bool bitmatch(index_type i) const override {
     return this->bitvector.is_bit_set(i);
+  }
+
+  size_t footprint() const override {
+    return sizeof(index_type) * this->indices.size() + this->bitvector.footprint();
   }
 };
 
@@ -530,6 +535,13 @@ struct PostingListIndex : MatchingPoints<Point> {
 
   bool bitmatch(index_type i) const override {
     return this->bitvector.is_bit_set(i);
+  }
+
+  size_t footprint() const override {
+    return sizeof(index_type) * this->n // posting lists
+            + sizeof(T) * this->aligned_dim * this->clusters.size() // centroids
+            + this->bitvector.footprint() // bitvector
+            + sizeof(index_type) * this->BP.R * this->n; // graph
   }
 };
 
@@ -1301,6 +1313,14 @@ struct IVF_Squared {
   
       return 0;
 #endif
+  }
+
+  size_t footprint() const {
+    size_t total = 0;
+    for (const auto& pl : this->posting_lists) {
+      total += pl->footprint();
+    }
+    return total;
   }
 };
 

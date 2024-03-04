@@ -34,6 +34,11 @@ struct Bits {
     return (cur_word >> bit_pos) & 1;
   }
 
+  // Return the footprint of the bitvector in bytes.
+  size_t footprint() const {
+    return bits.size() * sizeof(size_t);
+  }
+
  private:
   // The compiler should optimize / 64 right? We can try the
   // shift-version too and check if it helps.
