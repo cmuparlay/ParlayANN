@@ -111,6 +111,7 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
         .def("fit_from_filename", &IVF_Squared<T, Point>::fit_from_filename, "filename"_a, "filter_filename"_a, "cutoff"_a, "cluster_size"_a, "cache_path"_a, "weight_classes"_a, py::arg("parallel_build") = false)
         // .def("fit_from_filename", &IVF_Squared<T, Point>::fit_from_filename, "filename"_a, "cutoff"_a, "cluster_size"_a, "cache_path"_a)
         .def("batch_filter_search", &IVF_Squared<T, Point>::sorted_batch_filter_search, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a)
+        .def("unsorted_batch_filter_search", &IVF_Squared<T, Point>::batch_filter_search, "queries"_a, "filters"_a, "num_queries"_a, "knn"_a)
         .def("set_target_points", &IVF_Squared<T, Point>::set_target_points, "target_points"_a)
         .def("set_sq_target_points", &IVF_Squared<T, Point>::set_sq_target_points, "sq_target_points"_a)
         .def("set_tiny_cutoff", &IVF_Squared<T, Point>::set_tiny_cutoff, "tiny_cutoff"_a)
@@ -236,6 +237,7 @@ PYBIND11_MODULE(_ParlayANNpy, m)
         .def("get_filter_points", &FilteredDataset::get_filter_points, "filter_id"_a)
         .def("get_point_filters", &FilteredDataset::get_point_filters, "point_id"_a)
         .def("get_filter_intersection", &FilteredDataset::get_filter_intersection, "filter_id_1"_a, "filter_id_2"_a)
-        .def("get_point_intersection", &FilteredDataset::get_point_intersection, "point_id_1"_a, "point_id_2"_a);
+        .def("get_point_intersection", &FilteredDataset::get_point_intersection, "point_id_1"_a, "point_id_2"_a)
+        .def("filtered_groundtruth", &FilteredDataset::filtered_groundtruth, "queries"_a, "k"_a);
 
 };
