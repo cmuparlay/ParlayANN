@@ -20,9 +20,10 @@
 
 
 namespace py = pybind11;
+using NeighborsAndDistances = std::pair<py::array_t<unsigned int>, py::array_t<float>>;
 
-using T = int8_t;
-using Point = Euclidian_Point<T>;
+using T = float;
+using Point = Mips_Point<T>;
 using index_type = int32_t;
 
 struct FilteredDataset {
@@ -120,6 +121,56 @@ struct FilteredDataset {
         for (size_t i=0; i < points.size(); i++) {
             fprintf(outfile, "%d ", points[i].id());
         }
+    }
+
+    /* Interprets the provided dataset as a set of queries, and returns a pair of 2d numpy arrays
+    describing the indices of the k-NN for each point and their distances respectively */
+    NeighborsAndDistances filtered_groundtruth(FilteredDataset &queries, size_t k = 100) {
+        // construct the output arrays
+        py::array_t<index_type> ids({queries.size(), k});
+        py::array_t<float> dists({queries.size(), k});
+
+        std::cout << queries.size() << std::endl;
+
+        parlay::parallel_for(0, queries.size(), [&](size_t i) {
+            // get the query point
+            Point query = queries.points[i];
+            // get the filter associated with the query point
+            parlay::sequence<index_type> query_filters = queries.filters.point_filters(i);
+
+            parlay::sequence<index_type> relevant_points;
+
+            // get the points associated with the filter
+            if (query_filters.size() == 0) {
+                throw std::runtime_error("Query point has no associated filters");
+            } else if (query_filters.size() == 1) {
+                // if the query point has only one associated filter, use the filter to find the k-NN
+                relevant_points = transpose_filters.point_filters(query_filters[0]);
+            } else {
+                // if the query point has multiple associated filters, use the intersection of the filters to find the k-NN
+                relevant_points = transpose_filters.point_intersection(query_filters[0], query_filters[1]);
+            }
+            
+            // get the k-NN
+            parlay::sequence<std::pair<index_type, float>> knn = parlay::tabulate(k, [&](size_t j) {
+                index_type point_id = relevant_points[j];
+                float dist = query.distance(points[point_id]);
+                return std::make_pair(point_id, dist);
+            });
+
+            // sort the k-NN by distance
+            parlay::sort_inplace(knn, [](auto a, auto b) {
+                return a.second < b.second;
+            });
+
+            // extract the indices and distances
+            for (size_t j=0; j < k; j++) {
+                ids.mutable_data(i)[j] = knn[j].first;
+                dists.mutable_data(i)[j] = knn[j].second;
+            }
+        });
+
+        return std::make_pair(std::move(ids), std::move(dists));
     }
 };
 
