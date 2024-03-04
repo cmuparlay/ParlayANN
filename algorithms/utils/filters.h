@@ -273,7 +273,7 @@ struct csr_filters{
         memset(new_row_offsets.get(), 0, (n_filters + 1) * sizeof(int64_t)); // initializing to 0s
 
         // counting points associated with each filter and scanning to get row offsets
-        for (int64_t i = 0; i <= n_nonzero; i++) {
+        for (int64_t i = 0; i < n_nonzero; i++) {
             new_row_offsets[row_indices[i] + 1]++;
         }
 
