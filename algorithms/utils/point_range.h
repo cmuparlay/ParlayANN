@@ -29,11 +29,9 @@
 #include "parlay/primitives.h"
 #include "parlay/internal/file_map.h"
 #include "../bench/parse_command_line.h"
-// #include "NSGDist.h"
 
 #include "../bench/parse_command_line.h"
 #include "types.h"
-// #include "common/time_loop.h"
 
 #include <fcntl.h>
 #include <sys/mman.h>
@@ -55,6 +53,8 @@ struct PointRange{
 
   long dimension(){return dims;}
   long aligned_dimension(){return aligned_dims;}
+
+  using pT = Point;
 
   PointRange() : values(std::shared_ptr<T[]>(nullptr, std::free)) {n=0;}
 

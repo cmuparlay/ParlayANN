@@ -53,6 +53,8 @@ struct Aspen_Flat_Graph {
   using edge_array = typename GraphT::edge_array;
   using version = typename aspen::versioned_graph<GraphT>::version;
 
+  using iT = indexType;
+
   struct Aspen_Vertex {
 
     size_t size() { return edge_data.size(); }
