@@ -57,6 +57,8 @@ struct Aspen_Graph{
     using vertex_node = typename GraphT::vertex_node;
     using version = typename aspen::versioned_graph<GraphT>::version;
 
+    using iT = indexType;
+
     struct Aspen_Vertex{
 
         size_t size(){return v.out_degree();}

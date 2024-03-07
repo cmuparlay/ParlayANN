@@ -43,6 +43,8 @@
 template<typename indexType>
 struct Flat_Graph{
 
+    using iT = indexType;
+
     struct edgeRange{
 
         size_t size() const {return edges[0];}
