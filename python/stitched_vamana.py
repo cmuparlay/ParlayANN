@@ -75,6 +75,10 @@ HYBRID_CUTOFF = 10_000
 
 AUDIO = False
 
+THREADS = 16 # ideally 8-180
+
+os.environ["PARLAY_NUM_THREADS"] = str(THREADS)
+
 if AUDIO:
     sv_index = wp.init_stitched_vamana_index("Euclidian", "float")
 else:
