@@ -14,3 +14,6 @@ crop : crop.cpp
 
 random_sample : random_sample.cpp
 	$(CC) $(CFLAGS) -o random_sample random_sample.cpp $(LFLAGS) 
+
+eval_graphs : eval_graphs.cpp
+	$(CC) $(CFLAGS) -o eval_graphs eval_graphs.cpp $(LFLAGS) 
