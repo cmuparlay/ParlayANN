@@ -64,11 +64,11 @@ struct My_Graph{
 
 
     //next 3 functions are graph constructors
-    Flat_Graph(){}
+    My_Graph(){}
 
-    Flat_Graph(long maxDeg, size_t n) {}
+    My_Graph(long maxDeg, size_t n) {}
 
-    Flat_Graph(char* gFile){G = Graph(gFile);}
+    My_Graph(char* gFile){G = Graph(gFile);}
 
     //see vamana/index.h and utils/beamSearch.h for use of these functions
 
