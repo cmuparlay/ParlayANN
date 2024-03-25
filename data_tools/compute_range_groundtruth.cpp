@@ -133,7 +133,6 @@ int main(int argc, char* argv[]) {
       PointRange<uint8_t, Euclidian_Point<uint8_t>> B = PointRange<uint8_t, Euclidian_Point<uint8_t>>(bFile);
       PointRange<uint8_t, Euclidian_Point<uint8_t>> Q = PointRange<uint8_t, Euclidian_Point<uint8_t>>(qFile);
       answers = compute_range_groundtruth<PointRange<uint8_t, Euclidian_Point<uint8_t>>>(B, Q, r);
-      write_nonzero_elts<PointRange<uint8_t, Euclidian_Point<uint8_t>>, uint8_t>(answers, Q, std::string(gFile));
     } else if(df == "mips"){
       PointRange<uint8_t, Mips_Point<uint8_t>> B = PointRange<uint8_t, Mips_Point<uint8_t>>(bFile);
       PointRange<uint8_t, Mips_Point<uint8_t>> Q = PointRange<uint8_t, Mips_Point<uint8_t>>(qFile);
@@ -151,7 +150,7 @@ int main(int argc, char* argv[]) {
       answers = compute_range_groundtruth<PointRange<int8_t, Mips_Point<int8_t>>>(B, Q, r);
     }
   }
-  // write_rangeres(answers, std::string(gFile));
+  write_rangeres(answers, std::string(gFile));
   
 
   return 0;
