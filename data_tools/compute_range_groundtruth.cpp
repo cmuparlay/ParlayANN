@@ -20,7 +20,7 @@ parlay::sequence<parlay::sequence<int>> compute_range_groundtruth(PointRange &B,
         parlay::sequence<int> results;
         for(size_t j=0; j<b; j++){
             float dist = Q[i].distance(B[j]);
-            if(dist <= r) results.push_back(j);
+            if(dist <= r && dist > 0) results.push_back(j);
         }
         return results;
     });
@@ -133,7 +133,7 @@ int main(int argc, char* argv[]) {
       PointRange<uint8_t, Euclidian_Point<uint8_t>> B = PointRange<uint8_t, Euclidian_Point<uint8_t>>(bFile);
       PointRange<uint8_t, Euclidian_Point<uint8_t>> Q = PointRange<uint8_t, Euclidian_Point<uint8_t>>(qFile);
       answers = compute_range_groundtruth<PointRange<uint8_t, Euclidian_Point<uint8_t>>>(B, Q, r);
-      write_nonzero_elts<PointRange<uint8_t, Euclidian_Point<uint8_t>>, uint8_t>(answers, Q, std::string(gFile));
+      //write_nonzero_elts<PointRange<uint8_t, Euclidian_Point<uint8_t>>, uint8_t>(answers, Q, std::string(gFile));
     } else if(df == "mips"){
       PointRange<uint8_t, Mips_Point<uint8_t>> B = PointRange<uint8_t, Mips_Point<uint8_t>>(bFile);
       PointRange<uint8_t, Mips_Point<uint8_t>> Q = PointRange<uint8_t, Mips_Point<uint8_t>>(qFile);

@@ -21,4 +21,9 @@ random_sample : random_sample.cpp
 graph_stats : graph_stats.cpp
 	$(CC) $(CFLAGS) -o graph_stats graph_stats.cpp $(LFLAGS) 
 
+threshold_histo : threshold_histo.cpp
+	$(CC) $(CFLAGS) -o threshold_histo threshold_histo.cpp $(LFLAGS) 
+
+data_union : data_union.cpp
+	$(CC) $(CFLAGS) -o data_union data_union.cpp $(LFLAGS) 
 	
