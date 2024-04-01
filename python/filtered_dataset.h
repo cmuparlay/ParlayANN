@@ -22,10 +22,12 @@
 namespace py = pybind11;
 using NeighborsAndDistances = std::pair<py::array_t<unsigned int>, py::array_t<float>>;
 
-using T = float;
-using Point = Mips_Point<T>;
+// using T = float;
+// using Point = Mips_Point<T>;
 using index_type = int32_t;
 
+
+template <typename T = float, typename Point = Mips_Point<float>>
 struct FilteredDataset {
     PointRange<T, Point> points;
     csr_filters filters;
@@ -58,6 +60,10 @@ struct FilteredDataset {
 
     size_t get_point_size(index_type point_id) {
         return filters.point_count(point_id);
+    }
+
+    size_t get_dim() {
+        return points.dimension();
     }
 
     /* returns a numpy array of the ids of points associated with a filter */
