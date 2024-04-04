@@ -229,5 +229,4 @@ dependencies:
       - threadpoolctl==3.2.0
       - urllib3==2.0.4
       - websocket-client==1.6.1
-      - window-ann==0.0.1
 prefix: /home/ben/miniconda3/envs/bigann
