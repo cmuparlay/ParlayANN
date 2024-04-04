@@ -93,7 +93,7 @@ struct DynamicPointRange{
         if(aligned_dims != dims) std::cout << "Aligning dimension to " << aligned_dims << std::endl;
         std::cout << "Allocating memory for " << max_size << " vectors" << std::endl;
         values = std::shared_ptr<T[]>((T*) aligned_alloc(64, max_size*aligned_dims*sizeof(T)), std::free);
-        slot_to_id = parlay::sequence<indexType>(max_size);
+        slot_to_id = parlay::sequence<indexType>(max_size, std::numeric_limits<indexType>::max());
         slots = parlay::sequence<std::atomic<bool>>(max_size);
         parlay::parallel_for(0, max_size, [&] (size_t i){slots[i].store(false);});
         size_t BLOCK_SIZE = 1000000;
@@ -157,7 +157,8 @@ struct DynamicPointRange{
       parlay::random_generator gen(ids[0]);
       std::uniform_int_distribution<indexType> dis(0, max_size-1);
       parlay::sequence<std::pair<indexType, indexType>> id_slot_pairs(ids.size());
-      parlay::parallel_for(0, ids.size(), [&] (size_t i){
+      // parlay::parallel_for(0, ids.size(), [&] (size_t i){
+      for(size_t i=0; i<ids.size(); i++){
         indexType slot;
         auto r = gen[i];
         indexType start = dis(r);
@@ -177,9 +178,17 @@ struct DynamicPointRange{
         id_slot_pairs[i] = std::make_pair(ids[i], slot);
         T* destination = values.get() + aligned_dims*slot;
         std::memmove(data.begin()+i*dims, destination, sizeof(T)*dims);
-      });
+      // });
+      }
       for(auto p : id_slot_pairs){
         id_to_slot[p.first] = p.second;
+        if(slot_to_id[p.second] != p.first){
+          std::cout << "ERROR: slot and id do not match" << std::endl;
+          std::cout << "Id: " << p.first << " maps to slot " << p.second << " in table" << std::endl;
+          std::cout << "But slots[" << p.second << "] maps to id " << slots[p.second] << std::endl;
+        }if(slots[p.second].load() != true){
+          std::cout << "ERROR: slot " << p.second << " should be full, but is empty " << std::endl;
+        }
       }
       n += ids.size();
     }
@@ -194,27 +203,28 @@ struct DynamicPointRange{
         return pool.retire(slots_to_delete[i]);
       });
       //TODO check for duplicates here
-      auto test = parlay::flatten(old_ids);
-      std::cout << "Got " << test.size() << " points to delete, after removing duplicates size is ";
-      parlay::remove_duplicates(test);
-      std::cout << test.size() << std::endl;
+      auto to_delete = parlay::flatten(old_ids);
+      std::cout << "Got " << to_delete.size() << " points to delete, after removing duplicates size is ";
+      parlay::remove_duplicates(to_delete);
+      std::cout << to_delete.size() << std::endl;
       check();
-      auto sizes = parlay::tabulate(old_ids.size(), [&] (size_t i){
-        for(indexType j : old_ids[i]){
-          //do a CAS here as a way to check for errors
-          bool test = slots[j].load();
-          bool expected = true;
-          bool success = slots[j].compare_exchange_strong(expected, false);
-          if(!success){
-            std::cout << "ERROR: compare-and-swap on slot " << j << " (id " << slot_to_id[j] << ") failed" << std::endl; 
-            std::cout << "Test val: " << test << std::endl;
-          }
+      for(size_t i=0; i<to_delete.size(); i++){
+      // parlay::parallel_for(0, to_delete.size(), [&] (size_t i) {
+        //do a CAS here as a way to check for errors
+        indexType j = to_delete[i];
+        // bool test = slots[j].load();
+        bool expected = true;
+        bool success = slots[j].load();
+        slots[j].store(false);
+        if(!success){
+          std::cout << "ERROR: compare-and-swap on slot " << j << " (id " << slot_to_id[j] << ") failed" << std::endl; 
+          std::cout << "Id " << slot_to_id[j] << " matches to slot " << id_to_slot[slot_to_id[j]] << std::endl;
+          std::cout << "Test val: " << success << std::endl;
         }
-        return old_ids[i].size();
-      });
-      
+      // });
+      }
       std::cout << "Before deletion size: " << n;
-      n -= parlay::reduce(sizes);
+      n -= to_delete.size();
       std::cout << ", After deletion size: " << n << std::endl;
     }
 

@@ -68,6 +68,7 @@ void ANN(GraphType &Graph, long k, BuildParams &BP,
             << std::endl;
   Graph_ G_(name, params, G_size, avg_deg, max_deg, idx_time);
   G_.print();
+  //write the code to find an additional starting point based on the ground truth
   if(Query_Points.size() != 0) search_and_parse<Point, PointRange, indexType>(G_, Graph, Points, Query_Points, GT, res_file, k, false, start_point);
 }
 
