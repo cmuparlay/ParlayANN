@@ -183,3 +183,26 @@ def init_hybrid_stitched_vamana_index(metric, dtype):
             raise Exception('Invalid data type ' + dtype)
     else:
         raise Exception('Invalid metric ' + metric)
+    
+def init_filtered_dataset(metric, dtype):
+    if metric == 'Euclidian':
+        if dtype == 'uint8':
+            return FilteredUInt8EuclidianDataset
+        elif dtype == 'int8':
+            return FilteredInt8EuclidianDataset
+        elif dtype == 'float':
+            return FilteredFloatEuclidianDataset
+        else:
+            raise Exception('Invalid data type ' + dtype)
+    elif metric == 'mips':
+        # raise Exception('MIPS commented out to speed up build')
+        if dtype == 'uint8':
+            return FilteredUInt8MipsDataset
+        elif dtype == 'int8':
+            return FilteredInt8MipsDataset
+        elif dtype == 'float':
+            return FilteredFloatMipsDataset
+        else:
+            raise Exception('Invalid data type ' + dtype)
+    else:
+        raise Exception('Invalid metric ' + metric)
