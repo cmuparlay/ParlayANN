@@ -199,9 +199,10 @@ struct DynamicPointRange{
     void delete_points(parlay::sequence<indexType> ids){
       std::cout << "Preparing to delete " << ids.size() << " elements" << std::endl;
       parlay::sequence<indexType> slots_to_delete = parlay::tabulate(ids.size(), [&] (size_t i) {return id_to_slot[ids[i]];});
-      auto old_ids = parlay::tabulate(slots_to_delete.size(), [&] (size_t i){
-        return pool.retire(slots_to_delete[i]);
-      });
+      parlay::sequence<parlay::sequence<indexType>> old_ids(slots_to_delete.size());
+      parlay::parallel_for(0, slots_to_delete.size(), [&] (size_t i){
+        old_ids[i] = pool.retire(slots_to_delete[i]);
+      },100,true);
       //TODO check for duplicates here
       auto to_delete = parlay::flatten(old_ids);
       std::cout << "Got " << to_delete.size() << " points to delete, after removing duplicates size is ";
