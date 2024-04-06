@@ -68,21 +68,40 @@ struct cluster {
                parlay::sequence<indexType>& active_indices, parlay::random& rnd,
                size_t cluster_size, F f, long MSTDeg, indexType first,
                indexType second) {
-    // Split points based on which of the two points are closer.
-    // does all the distance calculations twice ???
-    auto closer_first =
-        parlay::filter(parlay::make_slice(active_indices), [&](size_t ind) {
-          distanceType dist_first = Points[ind].distance(Points[first]);
-          distanceType dist_second = Points[ind].distance(Points[second]);
-          return dist_first <= dist_second;
-        });
+    // // Split points based on which of the two points are closer.
+    // // does all the distance calculations twice ???
+    // auto closer_first =
+    //     parlay::filter(parlay::make_slice(active_indices), [&](size_t ind) {
+    //       distanceType dist_first = Points[ind].distance(Points[first]);
+    //       distanceType dist_second = Points[ind].distance(Points[second]);
+    //       return dist_first <= dist_second;
+    //     });
 
-    auto closer_second =
-        parlay::filter(parlay::make_slice(active_indices), [&](size_t ind) {
-          distanceType dist_first = Points[ind].distance(Points[first]);
-          distanceType dist_second = Points[ind].distance(Points[second]);
-          return dist_second < dist_first;
-        });
+    // auto closer_second =
+    //     parlay::filter(parlay::make_slice(active_indices), [&](size_t ind) {
+    //       distanceType dist_first = Points[ind].distance(Points[first]);
+    //       distanceType dist_second = Points[ind].distance(Points[second]);
+    //       return dist_second < dist_first;
+    //     });
+
+    // computes all the distances once, sorts points by relative distance to the two points, and then splits the points in half
+    auto ids_and_rel_distances = parlay::tabulate(active_indices.size(), [&](size_t i) {
+      distanceType dist_first = Points[active_indices[i]].distance(Points[first]);
+      distanceType dist_second = Points[active_indices[i]].distance(Points[second]);
+      return std::make_pair(active_indices[i], dist_first - dist_second);
+    });
+
+    std::sort(ids_and_rel_distances.begin(), ids_and_rel_distances.end(), [](auto a, auto b) {
+      return a.second < b.second;
+    });
+
+    auto closer_first = parlay::tabulate(active_indices.size() / 2, [&](size_t i) {
+      return ids_and_rel_distances[i].first;
+    });
+
+    auto closer_second = parlay::tabulate(active_indices.size() - active_indices.size() / 2, [&](size_t i) {
+      return ids_and_rel_distances[i + active_indices.size() / 2].first;
+    });
 
     auto left_rnd = rnd.fork(0);
     auto right_rnd = rnd.fork(1);
