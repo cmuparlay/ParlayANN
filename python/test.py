@@ -87,7 +87,7 @@ if AUDIO:
     BEAM_WIDTHS = (85, 85, 85)
     SEARCH_LIMITS = (int(WEIGHT_CLASSES[0] * 0.2), int(WEIGHT_CLASSES[1] * 0.5), int(3_000_000 * 0.5))
 
-    ALPHA = 1.175
+    ALPHA = 0.11
 
     BITVECTOR_CUTOFF = 1000
 else:
@@ -123,7 +123,7 @@ else:
     CACHE_DIR = "index_cache/yfcc100M/"
 
 if AUDIO:
-    index = wp.init_squared_ivf_index("Euclidian", "float")
+    index = wp.init_squared_ivf_index("mips", "float")
 else:
     index = wp.init_squared_ivf_index("Euclidian", "uint8")
 
