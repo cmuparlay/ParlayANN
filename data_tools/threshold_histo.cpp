@@ -197,10 +197,10 @@ int main(int argc, char* argv[]) {
   }
 
     //PointRange<uint8_t, Euclidian_Point<uint8_t>> B = PointRange<uint8_t, Euclidian_Point<uint8_t>>(bFile);
-    PointRange<float, Mips_Point<float>> B = PointRange<float, Mips_Point<float>>(bFile);
+    //PointRange<float, Mips_Point<float>> B = PointRange<float, Mips_Point<float>>(bFile);
     //PointRange<uint8_t, Euclidian_Point<uint8_t>> Q = PointRange<uint8_t, Euclidian_Point<uint8_t>>(qFile);
 
-    Graph<unsigned int> G =  Graph<unsigned int>(gFile);
+    //Graph<unsigned int> G =  Graph<unsigned int>(gFile);
     
 
     ball_histogram(G,B);

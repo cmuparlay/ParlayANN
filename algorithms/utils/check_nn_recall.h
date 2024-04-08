@@ -114,6 +114,106 @@ nn_result checkRecall(
   return N;
 }
 
+template<typename Point, typename PointRange, typename indexType>
+nn_result checkRecall_multi(
+        Graph<indexType> &G,
+        PointRange &Base_Points,
+        PointRange &Query_Points,
+        groundTruth<indexType> GT,
+        bool random,
+        parlay::sequence<indexType> start_point_multi, 
+        long k,
+        QueryParams &QP) {
+  
+  std::cout << "checkR0" <<std::endl;
+  if (GT.size() > 0 && k > GT.dimension()) {
+    std::cout << k << "@" << k << " too large for ground truth data of size "
+              << GT.dimension() << std::endl;
+    abort();
+  }
+
+  std::cout << "checkR1" <<std::endl;
+
+  parlay::sequence<parlay::sequence<indexType>> all_ngh;
+
+  parlay::internal::timer t;
+  float query_time;
+  stats<indexType> QueryStats(Query_Points.size());
+  if(random){
+    std::cout << "checkR2" <<std::endl;
+    all_ngh = beamSearchRandom<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, QP);
+    t.next_time();
+    QueryStats.clear();
+    all_ngh = beamSearchRandom<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, QP);
+    query_time = t.next_time();
+  }else{
+    std::cout << "checkR3" <<std::endl;
+    all_ngh = searchAll<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_point_multi, QP);
+    std::cout << "checkR11" <<std::endl;
+    t.next_time();
+    std::cout << "checkR12" <<std::endl;
+    QueryStats.clear();
+    std::cout << "checkR13" <<std::endl;
+    all_ngh = searchAll<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_point_multi, QP);
+    std::cout << "checkR14" <<std::endl;
+    query_time = t.next_time();
+    std::cout << "checkR6" <<std::endl;
+  }
+
+  std::cout << "checkR7" <<std::endl;
+
+  float recall = 0.0;
+  //TODO deprecate this after further testing
+  bool dists_present = true;
+  if (GT.size() > 0 && !dists_present) {
+    std::cout << "checkR8" <<std::endl;
+    size_t n = Query_Points.size();
+    int numCorrect = 0;
+    for (indexType i = 0; i < n; i++) {
+      std::set<indexType> reported_nbhs;
+      for (indexType l = 0; l < k; l++) reported_nbhs.insert((all_ngh[i])[l]);
+      for (indexType l = 0; l < k; l++) {
+        if (reported_nbhs.find((GT.coordinates(i,l))) !=
+            reported_nbhs.end()) {
+          numCorrect += 1;
+        }
+      }
+    }
+    recall = static_cast<float>(numCorrect) / static_cast<float>(k * n);
+  } else if (GT.size() > 0 && dists_present) {
+    std::cout << "checkR9" <<std::endl;
+    size_t n = Query_Points.size();
+    int numCorrect = 0;
+    for (indexType i = 0; i < n; i++) {
+      parlay::sequence<int> results_with_ties;
+      for (indexType l = 0; l < k; l++)
+        results_with_ties.push_back(GT.coordinates(i,l));
+      float last_dist = GT.distances(i, k-1);
+      for (indexType l = k; l < GT.dimension(); l++) {
+        if (GT.distances(i,l) == last_dist) {
+          results_with_ties.push_back(GT.coordinates(i,l));
+        }
+      }
+      std::set<int> reported_nbhs;
+      for (indexType l = 0; l < k; l++) reported_nbhs.insert((all_ngh[i])[l]);
+      for (indexType l = 0; l < results_with_ties.size(); l++) {
+        if (reported_nbhs.find(results_with_ties[l]) != reported_nbhs.end()) {
+          numCorrect += 1;
+        }
+      }
+    }
+    recall = static_cast<float>(numCorrect) / static_cast<float>(k * n);
+    std::cout << "checkR10" <<std::endl;
+  }
+  std::cout << "checkR4" <<std::endl;
+  float QPS = Query_Points.size() / query_time;
+  auto stats_ = {QueryStats.dist_stats(), QueryStats.visited_stats()};
+  parlay::sequence<indexType> stats = parlay::flatten(stats_);
+  nn_result N(recall, stats, QPS, k, QP.beamSize, QP.cut, Query_Points.size(), QP.limit, QP.degree_limit, k);
+  std::cout << "checkR5" <<std::endl;
+  return N;
+}
+
 void write_to_csv(std::string csv_filename, parlay::sequence<float> buckets,
                   parlay::sequence<nn_result> results, Graph_ G) {
   csvfile csv(csv_filename);
@@ -215,3 +315,74 @@ void search_and_parse(Graph_ G_, Graph<indexType> &G, PointRange &Base_Points,
       write_to_csv(std::string(res_file), ret_buckets, res, G_);
   }
 }
+
+// change start_point to multiple_start_point
+template<typename Point, typename PointRange, typename indexType>
+void search_and_parse_multi(Graph_ G_, Graph<indexType> &G, PointRange &Base_Points,
+   PointRange &Query_Points, 
+  groundTruth<indexType> GT, char* res_file, long k,
+  bool random, parlay::sequence<indexType> multiple_start_point){
+    
+  parlay::sequence<nn_result> results;
+  std::vector<long> beams;
+  std::vector<long> allr;
+  std::vector<double> cuts;
+
+  std::cout << "res_file: " << res_file << std::endl;
+
+  QueryParams QP;
+  QP.limit = (long) G.size();
+  QP.degree_limit = (long) G.max_degree();
+  beams = {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 24, 26, 28, 30, 32, 
+          34, 36, 38, 40, 45, 50, 55, 60, 65, 70, 80, 90, 100, 120, 140, 160, 
+          180, 200, 225, 250, 275, 300, 375, 500, 750, 1000}; 
+  if(k==0) allr = {10};
+  else allr = {k};
+  cuts = {1.35};
+
+  std::cout << "cp1" <<std::endl;
+
+    for (long r : allr) {
+      results.clear();
+      QP.k = r;
+      for (float cut : cuts){
+        QP.cut = cut;
+        for (float Q : beams){
+          QP.beamSize = Q;
+          if (Q > r){
+            results.push_back(checkRecall_multi<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, random, multiple_start_point, r, QP));
+          }
+        }
+      }
+      std::cout << "cp2" <<std::endl;
+      // check "limited accuracy"
+      parlay::sequence<long> limits = calculate_limits(results[0].avg_visited);
+      parlay::sequence<long> degree_limits = calculate_limits(G.max_degree());
+      degree_limits.push_back(G.max_degree());
+      QP = QueryParams(r, r, 1.35, (long) G.size(), (long) G.max_degree());
+      for(long l : limits){
+        QP.limit = l;
+        QP.beamSize = std::max<long>(l, r);
+        for(long dl : degree_limits){
+          QP.degree_limit = dl;
+	        results.push_back(checkRecall_multi<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, random, multiple_start_point, r, QP));
+        }
+      }
+      std::cout << "cp3" <<std::endl;
+      // check "best accuracy"
+      QP = QueryParams((long) 100, (long) 1000, (double) 10.0, (long) G.size(), (long) G.max_degree());
+      results.push_back(checkRecall_multi<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, random, multiple_start_point, r, QP));
+
+    parlay::sequence<float> buckets =  {.1, .2, .3,  .4,  .5,  .6, .7, .75,  .8, .85,                                                                                            
+                                        .9, .93, .95, .97, .98, .99, .995, .999, .9995, 
+                                        .9999, .99995, .99999};
+    std::cout << "cp4" <<std::endl;
+    auto [res, ret_buckets] = parse_result(results, buckets);
+    std::cout << std::endl;
+    if (res_file != NULL){
+      std::cout << "cp5" <<std::endl;
+      write_to_csv(std::string(res_file), ret_buckets, res, G_);
+    }
+  }
+}
+

@@ -39,7 +39,7 @@ template<typename Point, typename PointRange, typename indexType>
 void ANN(Graph<indexType> &G, long k, BuildParams &BP,
          PointRange &Query_Points,
          groundTruth<indexType> GT, char *res_file,
-         bool graph_built, PointRange &Points) {
+         bool graph_built, PointRange &Points) {  
   parlay::internal::timer t("ANN");
   using findex = knn_index<Point, PointRange, indexType>;
   findex I(BP);
@@ -91,7 +91,17 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
             << std::endl;
   Graph_ G_(name, params, G.size(), avg_deg, max_deg, idx_time);
   G_.print();
-  if(Query_Points.size() != 0) search_and_parse<Point, PointRange, indexType>(G_, G, Points, Query_Points, GT, res_file, k, false, start_point);
+
+  //add code to deal with sequences
+
+  //first start assuming that GT has only nonzero queries
+
+  parlay::sequence<indexType> start_point_multi = parlay::tabulate(GT.size(),[&](size_t i){return GT.coordinates(i,0);});
+
+  
+
+  if(Query_Points.size() != 0) search_and_parse_multi<Point, PointRange, indexType>(G_, G, Points, Query_Points, GT, res_file, k, false, start_point_multi);
+  //if(Query_Points.size() != 0) search_and_parse<Point, PointRange, indexType>(G_, G, Points, Query_Points, GT, res_file, k, false, start_point);
 }
 
 

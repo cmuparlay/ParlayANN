@@ -26,4 +26,7 @@ threshold_histo : threshold_histo.cpp
 
 data_union : data_union.cpp
 	$(CC) $(CFLAGS) -o data_union data_union.cpp $(LFLAGS) 
+
+match_base_search : match_base_search.cpp
+	$(CC) $(CFLAGS) -o match_base_search match_base_search.cpp $(LFLAGS) 
 	

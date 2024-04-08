@@ -56,6 +56,8 @@ beam_search(Point p, Graph<indexType> &G, PointRange &Points,
 
   // compare two (node_id,distance) pairs, first by distance and then id if
   // equal
+
+  //std::cout << "checkbs1" <<std::endl;
   using distanceType = typename Point::distanceType; 
   auto less = [&](std::pair<indexType, distanceType> a, std::pair<indexType, distanceType> b) {
     return a.second < b.second || (a.second == b.second && a.first < b.first);
@@ -72,6 +74,8 @@ beam_search(Point p, Graph<indexType> &G, PointRange &Points,
     hash_filter[loc] = a;
     return false;
   };
+  //std::cout << "checkbs2" <<std::endl;
+
 
   // Frontier maintains the closest points found so far and its size
   // is always at most beamSize.  Each entry is a (id,distance) pair.
@@ -104,11 +108,15 @@ beam_search(Point p, Graph<indexType> &G, PointRange &Points,
   std::vector<indexType> keep;
   keep.reserve(G.max_degree());
 
+  //std::cout << "checkbs3" <<std::endl;
+
   // The main loop.  Terminate beam search when the entire frontier
   // has been visited or have reached max_visit.
   while (remain > 0 && num_visited < QP.limit) {
     // the next node to visit is the unvisited frontier node that is closest to
     // p
+
+    std::cout << "checkbs3" <<std::endl;
     std::pair<indexType, distanceType> current = unvisited_frontier[0];
     G[current.first].prefetch();
     // add to visited set
@@ -131,6 +139,7 @@ beam_search(Point p, Graph<indexType> &G, PointRange &Points,
       Points[a].prefetch();
     }
 
+    std::cout << "checkbs4" <<std::endl;
     // Further filter on whether distance is greater than current
     // furthest distance in current frontier (if full).
     distanceType cutoff = ((frontier.size() < QP.beamSize)
@@ -148,6 +157,7 @@ beam_search(Point p, Graph<indexType> &G, PointRange &Points,
     // sort the candidates by distance from p
     std::sort(candidates.begin(), candidates.end(), less);
 
+    std::cout << "checkbs5" <<std::endl;
     // union the frontier and candidates into new_frontier, both are sorted
     auto new_frontier_size =
         std::set_union(frontier.begin(), frontier.end(), candidates.begin(),
@@ -178,6 +188,8 @@ beam_search(Point p, Graph<indexType> &G, PointRange &Points,
                             visited.end(), unvisited_frontier.begin(), less) -
         unvisited_frontier.begin();
   }
+  
+  std::cout << "checkbs6" <<std::endl;
 
   return std::make_pair(std::make_pair(parlay::to_sequence(frontier),
                                        parlay::to_sequence(visited)),
@@ -404,6 +416,7 @@ template<typename Point, typename PointRange, typename indexType>
 parlay::sequence<parlay::sequence<indexType>> searchAll(PointRange& Query_Points,
 	                                       Graph<indexType> &G, PointRange &Base_Points, stats<indexType> &QueryStats,
 	                                      indexType starting_point, QueryParams &QP) {
+    std::cout << "checksa1" <<std::endl;
     parlay::sequence<indexType> start_points = {starting_point};
     return searchAll<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_points, QP);
 }
@@ -413,23 +426,33 @@ parlay::sequence<parlay::sequence<indexType>> searchAll(PointRange &Query_Points
 	                                       Graph<indexType> &G, PointRange &Base_Points, stats<indexType> &QueryStats, 
                                         parlay::sequence<indexType> starting_points,
 	                                      QueryParams &QP) {
+  std::cout << "checksa2" <<std::endl;                                        
   if (QP.k > QP.beamSize) {
     std::cout << "Error: beam search parameter Q = " << QP.beamSize
               << " same size or smaller than k = " << QP.k << std::endl;
     abort();
   }
+
+  std::cout << "checksa3" <<std::endl;
   parlay::sequence<parlay::sequence<indexType>> all_neighbors(Query_Points.size());
   parlay::parallel_for(0, Query_Points.size(), [&](size_t i) {
     parlay::sequence<indexType> neighbors = parlay::sequence<indexType>(QP.k);
+    std::cout << "checksa5" <<std::endl;
     auto [pairElts, dist_cmps] = beam_search(Query_Points[i], G, Base_Points, starting_points, QP);
     auto [beamElts, visitedElts] = pairElts;
+    std::cout << "checksa10" <<std::endl;
     for (indexType j = 0; j < QP.k; j++) {
       neighbors[j] = beamElts[j].first;
     }
+    std::cout << "checksa6" <<std::endl;
     all_neighbors[i] = neighbors;
+    std::cout << "checksa7" <<std::endl;
     QueryStats.increment_visited(i, visitedElts.size());
+    std::cout << "checksa8" <<std::endl;
     QueryStats.increment_dist(i, dist_cmps);
+    std::cout << "checksa9" <<std::endl;
   });
+  std::cout << "checksa4" <<std::endl;
 
   return all_neighbors;
 }
