@@ -53,6 +53,8 @@ long dim_round_up(long dim, long tp_size){
 template<typename T, class Point>
 struct PointRange{
 
+  using TT = T;
+
   long dimension(){return dims;}
   long aligned_dimension(){return aligned_dims;}
 

@@ -62,34 +62,24 @@ struct HCNNGClusterer {
         return;
       }
       indexType cluster_index = active_indices[0];
-      // clusters[cluster_index] = parlay::tabulate(cluster_size, [&] (size_t i)
-      // {return static_cast<indexType>(active_indices[i]);});
+
       indexType* cluster = new indexType[active_indices.size()];
 
       std::memcpy(cluster, active_indices.begin(),
                   active_indices.size() * sizeof(indexType));
 
-      // for (size_t i = 0; i < active_indices.size(); i++) {
-      //     cluster[i] = active_indices[i];
-      //     // if (active_indices[i] > n) {
-      //     //     // std::cout << "assign: active_indices[i] > num_points" <<
-      //     std::endl;
-      //     //     throw std::runtime_error("assign: active_indices[i] > n");
-      //     //     break;
-      //     // }
-      // }
+
       auto tmp = std::make_pair(cluster, active_indices.size());
       clusters[cluster_index] = tmp;
       return;
     };
 
-    // std::cout << "HCNNGClusterer::cluster: calling random_clustering_wrapper"
-    // << std::endl; should populate the clusters sequence
+
+    //should populate the clusters sequence
     cluster_struct<Point, PointRange, indexType>().active_indices_rcw(
        G, points, indices, cluster_size, assign, 0);
 
-    // std::cout << "HCNNGClusterer::cluster: filtering empty clusters" <<
-    // std::endl;
+
 
     // remove empty clusters
     // clusters = parlay::filter(clusters, [&] (parlay::sequence<indexType>
@@ -167,18 +157,20 @@ struct KMeansClusterer {
     size_t num_points = indices.size();
     size_t dim = points.dimension();
     size_t aligned_dim = points.aligned_dimension();
-    // std::cout << "KMeans run on: " << num_points << " many points to obtain: " << n_clusters << " many clusters." << std::endl;
+    std::cout << "KMeans run on: " << num_points << " many points to obtain: " << n_clusters << " many clusters." << std::endl;
     auto centroid_data = parlay::sequence<T>(n_clusters * aligned_dim);
     auto centroids = parlay::tabulate(n_clusters, [&](size_t i) {
       return Point(centroid_data.begin() + i * aligned_dim, dim, aligned_dim, i);
     });
+
+    
 
     // initially run HCNNGClusterer to get initial set of clusters
     auto clusters = HCNNGClusterer<Point, PointRange<T, Point>, indexType>(
                        num_points / n_clusters)
                        .cluster(points, input_indices);
 
-    parlay::sort(clusters, [&](parlay::sequence<indexType> a,
+    parlay::sort_inplace(clusters, [&](parlay::sequence<indexType> a,
                                parlay::sequence<indexType> b) {
       return a.size() < b.size();
     });
@@ -217,6 +209,7 @@ struct KMeansClusterer {
     bool not_converged;
     size_t num_iters = 0;
     do {
+      std::cout << "Beginning iteration " << num_iters << "..." << std::endl;
       num_iters++;
       not_converged = false;
 
@@ -255,7 +248,6 @@ struct KMeansClusterer {
         cluster_assignments[i] = min_index;
       });
     } while (not_converged && num_iters < max_iters);
-    // std::cout << "Finished running." << std::endl;
 
     num_points = input_indices.size();
     parlay::sequence<size_t> all_cluster_assignments =
@@ -278,10 +270,10 @@ struct KMeansClusterer {
       return std::make_pair(all_cluster_assignments[i], input_indices[i]);
     });
 
-    // std::cout << "Num KMeans Iters:" << num_iters << " on: " << num_points << " points." << std::endl;
-    // std::cout << "KMeansClustering Time: " << t.stop() << std::endl;
+
+    std::cout << "KMeansClustering Time: " << t.stop() << std::endl;
     auto ret_clusters = parlay::group_by_index(output, n_clusters);
-		// cluster_stats(ret_clusters);
+		cluster_stats(ret_clusters);
 		return ret_clusters;
   }
 

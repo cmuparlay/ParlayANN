@@ -166,6 +166,10 @@ struct BuildParams{
     else if(R != 0 && alpha != 0 && num_clusters != 0 && cluster_size != 0 && delta != 0){alg_type = "pyNNDescent";}
   }
 
+  BuildParams(long nc) : num_clusters(nc){
+    alg_type = "ivf";
+  }
+
   BuildParams() {}
 
   BuildParams(long R, long L, double a, bool tp) : R(R), L(L), alpha(a), two_pass(tp) {alg_type = "Vamana";}
