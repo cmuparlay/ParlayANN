@@ -53,9 +53,13 @@ struct PostingListIndex {
     std::cout << "Move constructor called" << std::endl;
   };
 
+  void save(char* filename){
+    save_posting_list(std::string(filename));
+  }
+
   template <typename Clusterer>
   PostingListIndex(PointRange<T, Point>& Points, Clusterer clusterer, indexType id,
-                   std::string cache_path = "index_cache/")
+                   char* index_path)
       : id(id),
         Points(Points)
      {
@@ -68,11 +72,12 @@ struct PostingListIndex {
     n = Points.size();
     cluster_params = clusterer.get_build_params();
 
-    if (cache_path != "" &&
-        std::filesystem::exists(pl_filename(cache_path))) {
-      load_posting_list(cache_path);
+    if (index_path != nullptr &&
+        std::filesystem::exists(pl_filename(std::string(index_path)))) {
+      load_posting_list(std::string(index_path));
     } else {
 
+      std::cout << "Calculating clusters" << std::endl;
       clusters = clusterer.cluster(Points, indices);
 
       centroid_data =
@@ -82,6 +87,7 @@ struct PostingListIndex {
         throw std::runtime_error("PostingListIndex: no clusters generated");
       }
 
+      std::cout << "Calculating centroids" << std::endl;
       for (size_t i = 0; i < clusters.size(); i++) {
         size_t offset = i * aligned_dim;
         parlay::sequence<double> tmp_centroid(dim);
@@ -102,9 +108,7 @@ struct PostingListIndex {
                                         dim, aligned_dim, i));
       }
 
-      if (cache_path != "") {
-        save_posting_list(cache_path);
-      }
+      std::cout << "Found " << centroids.size() << " centroids" << std::endl;
     }
 
 
@@ -141,13 +145,14 @@ struct PostingListIndex {
   std::pair<parlay::sequence<std::pair<indexType, float>>, size_t> ivf_knn(
      Point query, int k, int n_probes) {
       // we do linear traversal over the centroids to get the nearest ones
-      parlay::sequence<std::pair<indexType, float>> pl_frontier(n_probes, std::make_pair(0, std::numeric_limits<float>::max()));
+      size_t pl_frontier_size = n_probes < centroids.size() ? n_probes : centroids.size();
+      parlay::sequence<std::pair<indexType, float>> pl_frontier(pl_frontier_size, std::make_pair(0, std::numeric_limits<float>::max()));
 
       size_t dist_cmps = centroids.size();
 
       for (indexType i = 0; i < centroids.size(); i++) {
         float dist = query.distance(centroids[i]);
-        if (dist < pl_frontier[n_probes - 1].second) {
+        if (dist < pl_frontier[pl_frontier_size - 1].second) {
           pl_frontier.pop_back();
           pl_frontier.push_back(std::make_pair(i, dist));
           std::sort(pl_frontier.begin(), pl_frontier.end(),
@@ -160,13 +165,13 @@ struct PostingListIndex {
 
       // now we do search on the points in the posting lists
       parlay::sequence<std::pair<indexType, float>> frontier(
-         n_probes, std::make_pair(0, std::numeric_limits<float>::max()));
+         k, std::make_pair(0, std::numeric_limits<float>::max()));
 
       for (indexType i = 0; i < pl_frontier.size(); i++) {
         dist_cmps += clusters[pl_frontier[i].first].size();
         for (indexType j = 0; j < clusters[pl_frontier[i].first].size(); j++) {
           float dist = query.distance(Points[clusters[pl_frontier[i].first][j]]);
-          if (dist < frontier[n_probes - 1].second) {
+          if (dist < frontier[k - 1].second) {
             frontier.pop_back();
             frontier.push_back(std::make_pair(clusters[pl_frontier[i].first][j], dist));
             std::sort(frontier.begin(), frontier.end(),
@@ -287,6 +292,9 @@ struct PostingListIndex {
   }
 
 }; //end PostingListIndex
+
+
+
 
 
 
