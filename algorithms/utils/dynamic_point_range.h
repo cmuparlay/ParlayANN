@@ -157,8 +157,8 @@ struct DynamicPointRange{
       parlay::random_generator gen(ids[0]);
       std::uniform_int_distribution<indexType> dis(0, max_size-1);
       parlay::sequence<std::pair<indexType, indexType>> id_slot_pairs(ids.size());
-      // parlay::parallel_for(0, ids.size(), [&] (size_t i){
-      for(size_t i=0; i<ids.size(); i++){
+      parlay::parallel_for(0, ids.size(), [&] (size_t i){
+      // for(size_t i=0; i<ids.size(); i++){
         indexType slot;
         auto r = gen[i];
         indexType start = dis(r);
@@ -178,10 +178,10 @@ struct DynamicPointRange{
         id_slot_pairs[i] = std::make_pair(ids[i], slot);
         T* destination = values.get() + aligned_dims*slot;
         std::memmove(data.begin()+i*dims, destination, sizeof(T)*dims);
-      // });
-      }
+      });
+      // }
       for(auto p : id_slot_pairs){
-        id_to_slot[p.first] = p.second;
+        id_to_slot[p.first] = p.second; //std::unordered_map
         if(slot_to_id[p.second] != p.first){
           std::cout << "ERROR: slot and id do not match" << std::endl;
           std::cout << "Id: " << p.first << " maps to slot " << p.second << " in table" << std::endl;
@@ -194,20 +194,29 @@ struct DynamicPointRange{
     }
 
 
-    //TODO convert ids to slots
+
     //TODO make sure absent slots cannot be deleted?
     void delete_points(parlay::sequence<indexType> ids){
       std::cout << "Preparing to delete " << ids.size() << " elements" << std::endl;
-      parlay::sequence<indexType> slots_to_delete = parlay::tabulate(ids.size(), [&] (size_t i) {return id_to_slot[ids[i]];});
+      std::cout << "Calling deletion on points " << ids[0] << " to " << ids[ids.size()-1] << std::endl;
+      parlay::sequence<indexType> slots_to_delete = parlay::tabulate(ids.size(), [&] (size_t i) {
+        indexType slot = id_to_slot[ids[i]];
+        if(slots[slot].load() == false){
+          std::cout << "ERROR: trying to delete empty slot " << slot << " corresponding to id " << ids[i] << std::endl;
+        }
+        return slot;
+      });
       parlay::sequence<parlay::sequence<indexType>> old_ids(slots_to_delete.size());
       parlay::parallel_for(0, slots_to_delete.size(), [&] (size_t i){
         old_ids[i] = pool.retire(slots_to_delete[i]);
-      },100,true);
-      //TODO check for duplicates here
+      },1000,true);
+
       auto to_delete = parlay::flatten(old_ids);
-      std::cout << "Got " << to_delete.size() << " points to delete, after removing duplicates size is ";
-      parlay::remove_duplicates(to_delete);
-      std::cout << to_delete.size() << std::endl;
+      parlay::parallel_for(0, to_delete.size(), [&] (size_t i) {
+        if(slots[to_delete[i]].load() == false){
+          std::cout << "ERROR: trying to delete empty slot " << to_delete[i] << " corresponding to id " << slot_to_id[to_delete[i]] << std::endl;
+        }
+      });
       check();
       for(size_t i=0; i<to_delete.size(); i++){
       // parlay::parallel_for(0, to_delete.size(), [&] (size_t i) {

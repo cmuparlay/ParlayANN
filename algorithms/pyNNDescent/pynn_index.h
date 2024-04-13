@@ -86,9 +86,10 @@ struct pyNN_index{
     void nn_descent_chunk(PR &Points, parlay::sequence<int> &changed, 
 		parlay::sequence<int> &new_changed, std::pair<indexType, parlay::sequence<indexType>> *begin, 
 		std::pair<indexType, parlay::sequence<indexType>> *end){
+
         size_t stride = end - begin;
-	auto less = [&] (pid a, pid b) {return a.second < b.second;};
-	auto grouped_labelled = parlay::tabulate(stride, [&] (size_t i){
+        auto less = [&] (pid a, pid b) {return a.second < b.second;};
+        auto grouped_labelled = parlay::tabulate(stride, [&] (size_t i){
             indexType index = (begin+i)->first;
             std::set<indexType> to_filter;
             to_filter.insert(index);
@@ -97,35 +98,35 @@ struct pyNN_index{
             }
             auto f = [&] (indexType a) {return (to_filter.find(a) == to_filter.end());};
             auto filtered_candidates = parlay::filter((begin+i)->second, f);
-	    parlay::sequence<labelled_edge> edges;
-	    edges.reserve(K*2);
-	    for(indexType l=0; l<filtered_candidates.size(); l++){
+            parlay::sequence<labelled_edge> edges;
+            edges.reserve(K*2);
+            for(indexType l=0; l<filtered_candidates.size(); l++){
                 indexType j=filtered_candidates[l];
-		distanceType j_max = old_neighbors[j][old_neighbors[j].size()-1].second;
-		for(indexType m=l+1; m<filtered_candidates.size(); m++){
+                distanceType j_max = old_neighbors[j][old_neighbors[j].size()-1].second;
+                for(indexType m=l+1; m<filtered_candidates.size(); m++){
                     indexType k=filtered_candidates[m];
-		    if (changed[j] || changed[k]) {
-              distanceType dist = Points[j].distance(Points[k]);
-		      distanceType k_max = old_neighbors[k][old_neighbors[k].size()-1].second;
-		      if(dist < j_max) edges.push_back(std::make_pair(j, std::make_pair(k, dist)));
-		      if(dist < k_max) edges.push_back(std::make_pair(k, std::make_pair(j, dist)));
-		    }
-		}
-	    }
+                    if (changed[j] || changed[k]) {
+                        distanceType dist = Points[j].distance(Points[k]);
+                        distanceType k_max = old_neighbors[k][old_neighbors[k].size()-1].second;
+                        if(dist < j_max) edges.push_back(std::make_pair(j, std::make_pair(k, dist)));
+                        if(dist < k_max) edges.push_back(std::make_pair(k, std::make_pair(j, dist)));
+                    }
+                }
+            }
             for(indexType l=0; l<old_neighbors[index].size(); l++){
                 indexType j = old_neighbors[index][l].first;
                 for(const indexType& k : filtered_candidates){
-		  if (changed[index] || changed[k]) {
-                    distanceType dist = Points[j].distance(Points[k]);
-                    distanceType j_max = old_neighbors[j][old_neighbors[j].size()-1].second;
-                    distanceType k_max = old_neighbors[k][old_neighbors[k].size()-1].second;
-                    if(dist < j_max) edges.push_back(std::make_pair(j, std::make_pair(k, dist)));
-                    if(dist < k_max) edges.push_back(std::make_pair(k, std::make_pair(j, dist)));
-		  }
+                    if (changed[index] || changed[k]) {
+                        distanceType dist = Points[j].distance(Points[k]);
+                        distanceType j_max = old_neighbors[j][old_neighbors[j].size()-1].second;
+                        distanceType k_max = old_neighbors[k][old_neighbors[k].size()-1].second;
+                        if(dist < j_max) edges.push_back(std::make_pair(j, std::make_pair(k, dist)));
+                        if(dist < k_max) edges.push_back(std::make_pair(k, std::make_pair(j, dist)));
+                    }
                 }
             }
-			return edges;
-								 }, 1);
+            return edges;
+        }, 1);
 		auto candidates = parlay::group_by_key(parlay::flatten(grouped_labelled));
         parlay::parallel_for(0, candidates.size(), [&] (size_t i){
             auto less2 = [&] (pid a, pid b) {
