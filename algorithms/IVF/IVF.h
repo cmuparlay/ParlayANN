@@ -584,6 +584,7 @@ struct IVF_Squared {
   bool materialized_joins = true;
   // the below is PostingListIndex because we need to map back to original coords
   std::unordered_map<std::pair<index_type, index_type>, std::unique_ptr<PostingListIndex<T, Point>>, pair_hash, pair_equal> material_joins_map;
+  size_t join_cutoff = 50000;
 
 #ifdef COUNTERS
   // number of queries in each case
@@ -706,7 +707,7 @@ struct IVF_Squared {
           if (filters.point_count(i) > cutoff && filters.point_count(j) > cutoff) {
             auto intersection = filters.point_intersection(i, j);
 
-            if (intersection.size() > cutoff) {
+            if (intersection.size() > join_cutoff) {
               int weight_class = 0;
               if (intersection.size() > this->large_cutoff) {
                 weight_class = 2;
@@ -1281,6 +1282,10 @@ struct IVF_Squared {
 
   void set_materialized_joins(bool b) {
     this->materialized_joins = b;
+  }
+
+  void set_materialized_join_cutoff(size_t n) {
+    this->join_cutoff = n;
   }
 
   std::vector<py::tuple> get_log() const {
