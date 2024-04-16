@@ -12,6 +12,7 @@ import yaml
 import psutil
 from itertools import product
 import gc
+import sys
 
 
 DATA_DIR = "../../big-ann-benchmarks/data/"
@@ -112,7 +113,22 @@ with open('../../big-ann-benchmarks/neurips23/filter/parlayivf/config.yaml') as 
     config = yaml.unsafe_load(f)
 
 def get_build_config_dict(dataset, index_name):
-    return yaml.unsafe_load(config[dataset][index_name]['run-groups']['base']['args'])[0]
+    configs = config[dataset][index_name]['run-groups']['base']['args']
+    if type(configs) is dict:
+        return configs
+    elif type(configs) is list:
+        return configs[0]
+    elif type(configs) is str:
+        configs = yaml.unsafe_load(configs)
+        if type(configs) is dict:
+            return configs
+        elif type(configs) is list:
+            return configs[0]
+        else:
+            raise Exception("Invalid config type " + str(type(configs)))
+    else:
+        raise Exception("Invalid config type " + str(type(configs)))
+        
 
 def build_and_measure(dataset, index_name):
     """builds a ParlayIVF index and measures the time it takes + footprint"""
@@ -156,22 +172,25 @@ def get_dataset_size(dataset):
     metadata_size = os.path.getsize(DATA_DIR + metadata_extensions[dataset])
     return vector_size + metadata_size
 
-ABLATIONS = ['parlayivf']
+# ABLATIONS = ['parlayivf-no-bitvector', 'parlayivf']
 
-DATASETS = ['audio']
+# DATASETS = ['audio']
 
 RESULT_FILE = 'footprint_build_results.csv'
 
 if not os.path.exists(RESULT_FILE):
     with open(RESULT_FILE, 'w') as f:
-        f.write('dataset,index_name,build_time,footprint,total_memory,index_files_size,base_dataset_size, run_timestamp\n')
+        f.write('dataset,index_name,build_time,footprint,total_memory,index_files_size,dataset_size, run_timestamp\n')
 
-results = pd.read_csv(RESULT_FILE)
+# results = pd.read_csv(RESULT_FILE)
 
-for index, dataset in product(ABLATIONS, DATASETS):
+if __name__ == '__main__':
+    index = sys.argv[1]
+    dataset = sys.argv[2]
+
     build_time, footprint, total_memory, index_files_size = build_and_measure(dataset, index)
     with open(RESULT_FILE, 'a') as f:
-        f.write(f"{dataset},{index},{build_time},{footprint},{total_memory},{index_files_size},{datetime.now()}\n")
+        f.write(f"{dataset},{index},{build_time},{footprint},{total_memory},{index_files_size},{get_dataset_size(dataset)},{datetime.now()}\n")
     print(f"Built {index} on {dataset} in {build_time} seconds, with a footprint of {footprint} bytes, memory usage of {total_memory} bytes and index files size of {index_files_size} bytes")
 
     # delete all files in the tmp cache
@@ -179,7 +198,7 @@ for index, dataset in product(ABLATIONS, DATASETS):
         os.remove("tmp_index_cache/" + file)
 
     # run gc
-    gc.collect()
-    time.sleep(1)
+    # gc.collect()
+    # time.sleep(1)
 
 

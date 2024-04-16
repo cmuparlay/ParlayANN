@@ -4,3 +4,4 @@ pyann/builder.cpython-310-x86_64-linux-gnu.so
 python/index_cache/*
 python/logs/*
 python/index_cache
+python/tmp_index_cache
