@@ -71,7 +71,7 @@ nhq_properties = {
     "msong" : {"nb" : 992272, "d" : 420, "nq" : 200, "dtype" : "float32", "distance" : "euclidian"},
     "audio" : {"nb" : 53387, "d" : 192, "nq" : 200, "dtype" : "float32", "distance" : "euclidian"},
     "sift" : {"nb" : 1000000, "d" : 128, "nq" : 10000, "dtype" : "float32", "distance" : "euclidian"},
-    "uqv" : {"nb" : 1000000, "d" : 192, "nq" : 1000, "dtype" : "float32", "distance" : "euclidian"},
+    "uqv" : {"nb" : 1000000, "d" : 256, "nq" : 10000, "dtype" : "float32", "distance" : "euclidian"},
 }
 
 class NHQ_Dataset:
@@ -246,7 +246,13 @@ def retrieve_ground_truth(fname):
 I, D = retrieve_ground_truth(GROUND_TRUTH_DIR)
 
 def recall(I, I_gt):
-    return np.mean([len(set(I[i]) & set(I_gt[i])) / len(I_gt[i]) for i in range(len(I))])
+    I_gt = I_gt[:,:10]
+    # if (len(I) and len(I_gt)):
+    #     print()
+    #     print("Computed neighbors:", I[0])
+    #     print()
+    #     print("Actual neighbors", I_gt[0])
+    return np.mean([len(np.intersect1d(I[i], I_gt[i], assume_unique=True)) / min(10, len(I[i])) for i in range(len(I))])
 # %%
 # assumed here that the dtype is 32 bits 
 X = np.fromfile(os.path.join(DATA_DIR, 'data', dataset.name, dataset.qs_fn), dtype=dataset.dtype)[2:].reshape((dataset.nq, dataset.d))
@@ -288,18 +294,18 @@ def run_index(index, I_gt, nq, runs=4, recall_cutoff=0.9):
 def search_objective(trial, recall_cutoff=0.75):
     tiny_cutoff = trial.suggest_int('tiny_cutoff', 10_000, 100_000, step=1_000)
     target_points = trial.suggest_int('target_points', 5_000, 40_000, step=1_000)
-    # beam_width_s = trial.suggest_int('beam_width_s', 30, 130, step=5)
-    # beam_width_m = trial.suggest_int('beam_width_m', 30, 130, step=5)
-    # beam_width_l = trial.suggest_int('beam_width_l', 30, 130, step=5)
-    beam_width = trial.suggest_int('beam_width', 30, 130, step=5)
+    beam_width_s = trial.suggest_int('beam_width_s', 30, 130, step=5)
+    beam_width_m = trial.suggest_int('beam_width_m', 30, 130, step=5)
+    beam_width_l = trial.suggest_int('beam_width_l', 30, 130, step=5)
+    # beam_width = trial.suggest_int('beam_width', 30, 130, step=5)
     search_limit = trial.suggest_int('search_limit', 30, 1000, step=5)
 
-    update_search_params(index, target_points, tiny_cutoff, (round(beam_width * 0.85), beam_width, round(beam_width * 1.15)), (search_limit, search_limit, search_limit))
+    update_search_params(index, target_points, tiny_cutoff, (beam_width_s, beam_width_m, beam_width_s), (search_limit, search_limit, search_limit))
 
     r, qps, dcmps = run_index(index, I, dataset.nq, runs=4, recall_cutoff=recall_cutoff)
 
     if r > recall_cutoff:
-        return round(qps * (-1 * log(1 - r))) + r
+        return round(qps) + r
     else:
         return r
     
@@ -319,7 +325,7 @@ def build_objective(trial, recall_cutoff=0.75):
     r, qps, dcmps = run_index(index, I, dataset.nq, runs=5)
 
     if r > recall_cutoff:
-        return round(qps * (-1 * log(1 - r))) + r
+        return round(qps) + r
     else:
         return r
 
@@ -333,15 +339,18 @@ if __name__ == "__main__":
     print(f"Running with recall cutoff {recall_cutoff}")
 
     if args.build:
+        print("Running build phase")
         study = optuna.create_study(direction='maximize', sampler=optuna.samplers.TPESampler())
         study.optimize(lambda trial: build_objective(trial, recall_cutoff), n_trials=100)
         best_params = study.best_params
         print(f"Best build parameters: {best_params}")
         index = build_with_params((best_params['max_degree'], best_params['max_degree'], best_params['max_degree']), WEIGHT_CLASSES, best_params['cutoff'], best_params['cluster_size'], 10_000, 15)
     else:
+        print("Skipping build phase")
         index = build_with_params(MAX_DEGREES, WEIGHT_CLASSES, CUTOFF, CLUSTER_SIZE, 10_000, 15)
 
     if args.search:
+        print("Running search phase")
         study = optuna.create_study(direction='maximize', sampler=optuna.samplers.TPESampler())
         study.optimize(lambda trial: search_objective(trial, recall_cutoff), n_trials=500)
         best_params = study.best_params
