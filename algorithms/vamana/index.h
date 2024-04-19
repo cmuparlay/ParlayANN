@@ -262,8 +262,8 @@ struct knn_index {
       size_t ceiling;
       if (pow(base, inc) <= max_batch_size) {
         floor = static_cast<size_t>(pow(base, inc)) - 1;
-        ceiling = std::min(static_cast<size_t>(pow(base, inc + 1)), m) - 1;
-        count = std::min(static_cast<size_t>(pow(base, inc + 1)), m) - 1;
+        ceiling = std::min(static_cast<size_t>(pow(base, inc + 1)) - 1, m);
+        count = std::min(static_cast<size_t>(pow(base, inc + 1)) - 1, m);
       } else {
         floor = count;
         ceiling = std::min(count + static_cast<size_t>(max_batch_size), m);
