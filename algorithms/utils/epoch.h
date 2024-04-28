@@ -66,6 +66,7 @@ struct alignas(64) epoch_s {
 
   std::pair<bool,int> announce() {
       size_t id = worker_id();
+<<<<<<< HEAD
       // by the time it is announced current_e could be out of date, but that should be OK
       if (announcements[id].last.load() == -1) {
         announcements[id].last = get_current();
@@ -73,6 +74,15 @@ struct alignas(64) epoch_s {
       } else {
         return std::pair(false, id);
       }
+=======
+    while (true) {
+      long current_e = get_current();
+      long tmp = current_e;
+      // apparently an exchange is faster than a store (write and fence)
+      announcements[id].last.exchange(tmp, std::memory_order_seq_cst);
+      if (get_current() == current_e) return std::pair(true, id);
+    }
+>>>>>>> 84da043e36aae30acbbbd466fb38a6d22f173699
   }
 
   void unannounce(size_t id) {

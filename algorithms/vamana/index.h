@@ -192,7 +192,11 @@ struct knn_index {
   void lazy_delete(indexType p) {
     parlay::sequence<indexType> deletes = {p};
     lazy_delete(deletes);
+<<<<<<< HEAD
   } 
+=======
+  }
+>>>>>>> 84da043e36aae30acbbbd466fb38a6d22f173699
 
    void start_delete_epoch() {
     // freeze the delete set and start a new one before consolidation
@@ -202,10 +206,13 @@ struct knn_index {
         delete_set.swap(old_delete_set);
       }
       epoch_running = true;
+<<<<<<< HEAD
       //create a set of indices that are active at the time of freezing the old delete set
       //create an array of bools to indicate which indices have been consolidated
       //at end time, throw an error if some remain undone
       std::cout << "Starting delete epoch with " << old_delete_set.size() << " elements" << std::endl;
+=======
+>>>>>>> 84da043e36aae30acbbbd466fb38a6d22f173699
     } else {
       std::cout << "ERROR: cannot start new epoch while previous epoch is running"<< std::endl;
       abort();
@@ -214,8 +221,11 @@ struct knn_index {
 
   void end_delete_epoch(GraphType &Graph) {
     if (epoch_running) {
+<<<<<<< HEAD
       //TODO check that all of the elements in the bool array have been consolidated, and consolidate them otherwise(?)
       //TODO should we consolidate or throw error?
+=======
+>>>>>>> 84da043e36aae30acbbbd466fb38a6d22f173699
       parlay::sequence<indexType> delete_vec;
       for (auto d : old_delete_set) delete_vec.push_back(d);
       GraphI G = Graph.Get_Graph();
