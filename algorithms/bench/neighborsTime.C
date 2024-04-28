@@ -31,6 +31,8 @@
 #include "../utils/point_range.h"
 #include "../utils/mips_point.h"
 #include "../utils/graph.h"
+#include "../utils/aspen_graph.h"
+#include "../utils/aspen_flat_graph.h"
 
 
 

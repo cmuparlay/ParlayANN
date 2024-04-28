@@ -66,13 +66,13 @@ struct alignas(64) epoch_s {
 
   std::pair<bool,int> announce() {
       size_t id = worker_id();
-    while (true) {
-      long current_e = get_current();
-      long tmp = current_e;
-      // apparently an exchange is faster than a store (write and fence)
-      announcements[id].last.exchange(tmp, std::memory_order_seq_cst);
-      if (get_current() == current_e) return std::pair(true, id);
-    }
+      // by the time it is announced current_e could be out of date, but that should be OK
+      if (announcements[id].last.load() == -1) {
+        announcements[id].last = get_current();
+        return std::pair(true, id);
+      } else {
+        return std::pair(false, id);
+      }
   }
 
   void unannounce(size_t id) {
@@ -124,8 +124,8 @@ struct alignas(64) memory_pool {
 
       // each thread keeps one of these
       struct old_current {
-        parlay::sequence<indexType> old;
-        parlay::sequence<indexType> current; // linked list of retired items from current epoch
+        std::vector<indexType> old;
+        std::vector<indexType> current; // linked list of retired items from current epoch
         long epoch; // epoch on last retire, updated on a retire
         long count; // number of retires so far, reset on updating the epoch
         sys_time time; // time of last epoch update
@@ -135,7 +135,7 @@ struct alignas(64) memory_pool {
       std::vector<old_current> pools;
       int workers;
 
-      parlay::sequence<indexType> add_to_current_list(indexType p) {
+      std::vector<indexType> add_to_current_list(indexType p) {
         auto i = parlay::worker_id();
         auto &pid = pools[i];
         auto ids = advance_epoch(i, pid);
@@ -144,15 +144,15 @@ struct alignas(64) memory_pool {
       }
 
       // returns list of objects to delete
-      parlay::sequence<indexType> clear_list(parlay::sequence<indexType> &ids) {
-        parlay::sequence<indexType> id_copy = ids;
+      std::vector<indexType> clear_list(std::vector<indexType> &ids) {
+        std::vector<indexType> id_copy = ids;
         ids.clear();
         return id_copy;
       }
 
-      parlay::sequence<indexType> advance_epoch(int i, old_current& pid) {
+      std::vector<indexType> advance_epoch(int i, old_current& pid) {
         epoch::epoch_s& epoch = epoch::get_epoch();
-        parlay::sequence<indexType> ids;
+        std::vector<indexType> ids;
         if (pid.epoch + 1 < epoch.get_current()) {
           ids = clear_list(pid.old);
           pid.old = pid.current;
@@ -197,7 +197,7 @@ struct alignas(64) memory_pool {
         }
       }
 
-      parlay::sequence<indexType> retire(indexType p){
+      std::vector<indexType> retire(indexType p){
         return add_to_current_list(p);
       }
 

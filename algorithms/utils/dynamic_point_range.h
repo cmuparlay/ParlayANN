@@ -147,6 +147,15 @@ struct DynamicPointRange{
       return Point(values.get()+i*aligned_dims, dims, aligned_dims, i);
     }
 
+
+    //return indices of all currently live points
+    parlay::sequence<indexType> active_indices(){
+      parlay::sequence<indexType> indices = parlay::tabulate(max_size, [&] (size_t i){return i;});
+      parlay::sequence<bool> active_slots = parlay::tabulate(max_size, [&] (size_t i){return slots[i].load();});
+      parlay::sequence<indexType> active = parlay::pack(indices, active_slots);
+      return active;
+    }
+
     indexType real_id(indexType id) {return slot_to_id[id];}
 
     void insert(parlay::slice<T*, T*> data, parlay::sequence<indexType> ids){
@@ -206,24 +215,15 @@ struct DynamicPointRange{
         }
         return slot;
       });
-      parlay::sequence<parlay::sequence<indexType>> old_ids(slots_to_delete.size());
+      parlay::sequence<std::vector<indexType>> old_ids(slots_to_delete.size());
       parlay::parallel_for(0, slots_to_delete.size(), [&] (size_t i){
         old_ids[i] = pool.retire(slots_to_delete[i]);
       },1000,true);
 
       auto to_delete = parlay::flatten(old_ids);
-      parlay::parallel_for(0, to_delete.size(), [&] (size_t i) {
-        if(slots[to_delete[i]].load() == false){
-          std::cout << "ERROR: trying to delete empty slot " << to_delete[i] << " corresponding to id " << slot_to_id[to_delete[i]] << std::endl;
-        }
-      });
       check();
-      for(size_t i=0; i<to_delete.size(); i++){
-      // parlay::parallel_for(0, to_delete.size(), [&] (size_t i) {
-        //do a CAS here as a way to check for errors
+      parlay::parallel_for(0, to_delete.size(), [&] (size_t i) {
         indexType j = to_delete[i];
-        // bool test = slots[j].load();
-        bool expected = true;
         bool success = slots[j].load();
         slots[j].store(false);
         if(!success){
@@ -231,8 +231,8 @@ struct DynamicPointRange{
           std::cout << "Id " << slot_to_id[j] << " matches to slot " << id_to_slot[slot_to_id[j]] << std::endl;
           std::cout << "Test val: " << success << std::endl;
         }
-      // });
-      }
+      });
+
       std::cout << "Before deletion size: " << n;
       n -= to_delete.size();
       std::cout << ", After deletion size: " << n << std::endl;
@@ -248,7 +248,6 @@ struct DynamicPointRange{
         std::cout << "ERROR: num occuped slots " << num_points << " not equal to n: " << n << std::endl;
       } else std::cout << "Check passed" << std::endl;
     }
-
 
 
   private:

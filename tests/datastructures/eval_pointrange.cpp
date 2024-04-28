@@ -42,23 +42,23 @@ int main(int argc, char* argv[]) {
   using T = uint8_t;
 
   // auto modifier = [&] () {
-    PointRange& Points = test.Get_PointRange();
-    while(index < num_points){
-      size_t floor = index;
-      size_t ceiling = index+BLOCK_SIZE <= n ? index+BLOCK_SIZE : n;
-      T* data_start = new T[(ceiling-floor)*d];
-      reader.read((char*)(data_start), sizeof(T)*(ceiling-floor)*d);
-      T* data_end = data_start + (ceiling-floor)*d;
-      parlay::slice<T*, T*> data = parlay::make_slice(data_start, data_end);
-      parlay::sequence<unsigned int> ids = parlay::tabulate(ceiling-floor, [&] (size_t i) {return static_cast<unsigned int>(floor+i);});
-      Points.insert(data, ids);
-      Points.check();
-      parlay::sequence<unsigned int> to_delete = parlay::tabulate((ceiling-floor)/2, [&] (size_t i){return static_cast<unsigned int>(floor+i);});
-      Points.delete_points(to_delete);
-      Points.check();
-      index = ceiling;
-    }
-    test.Release_PointRange();
+  PointRange& Points = test.Get_PointRange();
+  while(index < num_points){
+    size_t floor = index;
+    size_t ceiling = index+BLOCK_SIZE <= n ? index+BLOCK_SIZE : n;
+    T* data_start = new T[(ceiling-floor)*d];
+    reader.read((char*)(data_start), sizeof(T)*(ceiling-floor)*d);
+    T* data_end = data_start + (ceiling-floor)*d;
+    parlay::slice<T*, T*> data = parlay::make_slice(data_start, data_end);
+    parlay::sequence<unsigned int> ids = parlay::tabulate(ceiling-floor, [&] (size_t i) {return static_cast<unsigned int>(floor+i);});
+    Points.insert(data, ids);
+    Points.check();
+    parlay::sequence<unsigned int> to_delete = parlay::tabulate((ceiling-floor)/2, [&] (size_t i){return static_cast<unsigned int>(floor+i);});
+    Points.delete_points(to_delete);
+    Points.check();
+    index = ceiling;
+  }
+  test.Release_PointRange();
   // };
 
   // auto reader = [&] (){

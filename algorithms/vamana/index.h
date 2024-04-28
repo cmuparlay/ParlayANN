@@ -192,7 +192,7 @@ struct knn_index {
   void lazy_delete(indexType p) {
     parlay::sequence<indexType> deletes = {p};
     lazy_delete(deletes);
-  }
+  } 
 
    void start_delete_epoch() {
     // freeze the delete set and start a new one before consolidation
@@ -202,6 +202,10 @@ struct knn_index {
         delete_set.swap(old_delete_set);
       }
       epoch_running = true;
+      //create a set of indices that are active at the time of freezing the old delete set
+      //create an array of bools to indicate which indices have been consolidated
+      //at end time, throw an error if some remain undone
+      std::cout << "Starting delete epoch with " << old_delete_set.size() << " elements" << std::endl;
     } else {
       std::cout << "ERROR: cannot start new epoch while previous epoch is running"<< std::endl;
       abort();
@@ -210,6 +214,8 @@ struct knn_index {
 
   void end_delete_epoch(GraphType &Graph) {
     if (epoch_running) {
+      //TODO check that all of the elements in the bool array have been consolidated, and consolidate them otherwise(?)
+      //TODO should we consolidate or throw error?
       parlay::sequence<indexType> delete_vec;
       for (auto d : old_delete_set) delete_vec.push_back(d);
       GraphI G = Graph.Get_Graph();
@@ -270,7 +276,7 @@ struct knn_index {
   }
 
   void consolidate_deletes(GraphI &G, PR &Points){
-    //clear deleted neighbors out of delete set for preprocessing
+    //clear deleted neighbors out of delete set for preprocessing--this way we don't have to check it when adding extra edges
     parlay::sequence<std::pair<indexType, parlay::sequence<indexType>>> edge_updates(Points.size());
     parlay::sequence<bool> updated(Points.size(), false);
     parlay::parallel_for(0, Points.size(), [&] (size_t i){
@@ -290,10 +296,10 @@ struct knn_index {
     });
     auto to_delete = parlay::pack(edge_updates, updated);
     G.batch_update(to_delete);
-
+    //now clear deleted neighbors out of each remaining vertex
     parlay::sequence<std::pair<indexType, parlay::sequence<indexType>>> edge_updates_round2(Points.size());
     parlay::sequence<bool> updated_round2(Points.size(), false);
-    parlay::parallel_for(0, Points.size(), [&] (size_t i){
+    parlay::parallel_for(0, Points.size(), [&] (size_t i){ //TODO these iterators will need to be changed
       if(old_delete_set.find(i) == old_delete_set.end()){
         auto nbh = G[i].neighbors();
         parlay::sequence<indexType> new_nbh;
@@ -316,7 +322,7 @@ struct knn_index {
           updated_round2[i] = true;
           new_nbh = parlay::remove_duplicates(new_nbh);
           if(new_nbh.size() > BP.R){
-            auto pruned_nbh = robustPrune(i, new_nbh, G, Points, BP.alpha);
+            auto pruned_nbh = robustPrune(i, new_nbh, G, Points, BP.alpha, false);
             edge_updates_round2[i] = std::make_pair((indexType) i, pruned_nbh);
           } else edge_updates_round2[i] = std::make_pair((indexType) i, new_nbh);
         }
