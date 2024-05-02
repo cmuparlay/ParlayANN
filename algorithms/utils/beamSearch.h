@@ -195,6 +195,50 @@ beam_search_impl(Point p, GT &G, PointRange &Points,
                         dist_cmps);
 }
 
+// a range search that first finds a close point using a beam search,
+// and then uses BFS to find all points within the range
+template<typename indexType, typename Point, typename PointRange, class GT>
+std::pair<std::vector<indexType>, typename Point::distanceType>
+range_search(Point p, GT &G, PointRange &Points,
+             parlay::sequence<indexType> starting_points, typename Point::distanceType radius,
+             QueryParams &QP) {
+  // first search for a starting point within the radius
+  auto [beam_visited, dist_cmps] = beam_search(p, G, Points, starting_points, QP);
+  auto [beam, visited] = beam_visited;
+  indexType good_point = beam[0].first;
+  long distance_comparisons = dist_cmps;
+
+  std::vector<indexType> result;
+  std::unordered_set<indexType> seen;
+  // if no good starting point found, return empty set
+  if (p.distance(Points[good_point]) > radius)
+    return std::pair(result, distance_comparisons);
+
+  // now do a BFS over all vertices with distance less than radius
+  result.push_back(good_point);
+  seen.insert(good_point);
+  long position = 0;
+  while (position < result.size()) {
+    indexType next = result[position++];
+    std::vector<indexType> unseen;
+    for (long i = 0; i < G[next].size(); i++) {
+      auto v = G[next][i];
+      if (seen.count(v) > 0 || Points[v].same_as(p))
+        continue;  // skip if already seen
+      unseen.push_back(v);
+      seen.insert(v);
+      Points[v].prefetch();
+    }
+    for (auto v : unseen) {
+      distance_comparisons++;
+      if (Points[v].distance(p) < radius)
+        result.push_back(v);
+    }
+  }
+    
+  return std::pair(result, distance_comparisons);
+}
+
 // //a variant specialized for range searching
 // //TODO pass in visited list also? would need to make sure it's in has_been_seen
 // template<typename Point, typename PointRange, typename indexType>
