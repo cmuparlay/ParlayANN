@@ -58,6 +58,9 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
       "R = " + std::to_string(BP.R) + ", L = " + std::to_string(BP.L);
   auto [avg_deg, max_deg] = graph_stats_(G);
   auto vv = BuildStats.visited_stats();
+
+  long build_num_distances = parlay::reduce(parlay::map(BuildStats.distances, [] (auto x) {return (long) x;}));
+
   Graph_ G_(name, params, G.size(), avg_deg, max_deg, idx_time);
   G_.print();
 
@@ -74,14 +77,15 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
   parlay::parallel_for(0, G.size(), [&] (long i) {
     parlay::sequence<indexType> pts;
     pts.push_back(Points[i].id()); //Points[i].id());
-    auto [r, dc] = range_search(Points[i], G, Points, pts, 10000, QP);
+    auto [r, dc] = range_search(Points[i], G, Points, pts, k, QP);
     counts[i] = r.size();
     distance_comps[i] = dc;});
   t_range.total();
+  long range_num_distances = parlay::reduce(distance_comps);
 
-  std::cout << "count: " << parlay::reduce(counts)
-            << ", distance comparisons = " << (parlay::reduce(distance_comps) + vv[0] * Points.size())
-            << std::endl;
+  std::cout << "edges within range: " << parlay::reduce(counts) << std::endl;
+  std::cout << "distance comparisons during build = " << build_num_distances << std::endl;
+  std::cout << "distance comparisons during range = " << range_num_distances << std::endl;
 
   //std::cout << "Average visited: " << vv[0] << ", Tail visited: " << vv[1]
   // << std::endl;

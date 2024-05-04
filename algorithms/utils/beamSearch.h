@@ -228,7 +228,6 @@ range_search(Point p, GT &G, PointRange &Points,
     if (seen.count(v) > 0 || Points[v].same_as(p)) continue;
     distance_comparisons++;
     if (p.distance(Points[v]) > radius ) break;
-    if (p.distance(Points[v]) > radius ) break;
     result.push_back(v);
     seen.insert(v);
   }
