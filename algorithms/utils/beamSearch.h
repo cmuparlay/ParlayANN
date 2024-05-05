@@ -205,7 +205,7 @@ template<typename indexType, typename Point, typename PointRange, class GT>
 std::pair<std::vector<indexType>, typename Point::distanceType>
 range_search(Point p, GT &G, PointRange &Points,
              parlay::sequence<indexType> seeds, typename Point::distanceType radius,
-             QueryParams &QP, bool use_existing = true) {
+             QueryParams &QP, bool use_existing = false) {
   // first search for a starting point within the radius
 
   std::vector<indexType> result;
@@ -227,7 +227,7 @@ range_search(Point p, GT &G, PointRange &Points,
   for (auto v : starting_points) {
     if (seen.count(v) > 0 || Points[v].same_as(p)) continue;
     distance_comparisons++;
-    if (p.distance(Points[v]) > radius ) break;
+    if (p.distance(Points[v]) > radius ) continue;
     result.push_back(v);
     seen.insert(v);
   }

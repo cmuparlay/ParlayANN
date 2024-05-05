@@ -40,15 +40,15 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
          PointRange &Query_Points,
          groundTruth<indexType> GT, char *res_file,
          bool graph_built, PointRange &Points) {
-  parlay::internal::timer t("ANN");
   using findex = knn_index<Point, PointRange, indexType>;
   findex I(BP);
   double idx_time;
   stats<unsigned int> BuildStats(G.size());
+  parlay::internal::timer t("ANN");
   if(graph_built){
     idx_time = 0;
   } else{
-    I.build_index(G, Points, BuildStats);
+    I.build_index(G, Points, BuildStats, false);
     idx_time = t.next_time();
   }
 
@@ -77,7 +77,7 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
   parlay::parallel_for(0, G.size(), [&] (long i) {
     parlay::sequence<indexType> pts;
     pts.push_back(Points[i].id()); //Points[i].id());
-    auto [r, dc] = range_search(Points[i], G, Points, pts, k, QP);
+    auto [r, dc] = range_search(Points[i], G, Points, pts, k, QP, true);
     counts[i] = r.size();
     distance_comps[i] = dc;});
   t_range.total();
@@ -96,7 +96,7 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
       parlay::sequence<indexType> pts;
       long cnt = 0;
       for (long j=0; j <= i; j++) 
-        if (Points[i].distance(Points[j]) < 10000) cnt++;
+        if (Points[i].distance(Points[j]) < k) cnt++;
       counts[i] = cnt;});
     std::cout << "gt count: " << parlay::reduce(counts) << std::endl;
   }
