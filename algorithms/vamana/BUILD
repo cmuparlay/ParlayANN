@@ -1,5 +1,9 @@
 # Vamana algorithm.
 
+package(
+    default_visibility = ["//visibility:public"],
+)
+
 cc_library(
     name = "index",
     hdrs = ["index.h"],

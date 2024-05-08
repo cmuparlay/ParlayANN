@@ -1,9 +1,8 @@
 # ANNS utilility.
 
-package(default_visibility = [
-  "//:__subpackages__",
-])
-
+package(
+    default_visibility = ["//visibility:public"],
+)
 
 cc_library(
     name = "benchUtils",
