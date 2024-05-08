@@ -29,9 +29,6 @@
 #include "parlay/primitives.h"
 #include "parlay/internal/file_map.h"
 #include "../bench/parse_command_line.h"
-// #include "NSGDist.h"
-
-#include "../bench/parse_command_line.h"
 #include "types.h"
 // #include "common/time_loop.h"
 

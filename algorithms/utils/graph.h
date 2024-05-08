@@ -31,7 +31,6 @@
 #include "../bench/parse_command_line.h"
 #include "NSGDist.h"
 
-#include "../bench/parse_command_line.h"
 #include "types.h"
 
 #include <fcntl.h>
