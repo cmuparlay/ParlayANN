@@ -26,11 +26,11 @@
 #include "parlay/primitives.h"
 #include "parse_command_line.h"
 #include "time_loop.h"
-#include "../utils/NSGDist.h"
-#include "../utils/euclidian_point.h"
-#include "../utils/point_range.h"
-#include "../utils/mips_point.h"
-#include "../utils/graph.h"
+#include "algorithms/utils/NSGDist.h"
+#include "algorithms/utils/euclidian_point.h"
+#include "algorithms/utils/point_range.h"
+#include "algorithms/utils/mips_point.h"
+#include "algorithms/utils/graph.h"
 
 
 

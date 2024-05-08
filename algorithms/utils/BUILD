@@ -1,6 +1,6 @@
 # ANNS utilility.
 
-package(default_visibility = ["//algorithms:__subpackages__"])
+package(default_visibility = ["//:__subpackages__"])
 
 
 cc_library(
@@ -51,8 +51,8 @@ cc_library(
 )
 
 cc_library(
-    name = "euclidean_point",
-    hdrs = ["euclidean_point.h"],
+    name = "euclidian_point",
+    hdrs = ["euclidian_point.h"],
     deps = [
         "@parlaylib//parlay:parallel",
         "@parlaylib//parlay:primitives",
@@ -146,15 +146,6 @@ cc_library(
         "@parlaylib//parlay:parallel",
         "@parlaylib//parlay:primitives",
         ":mmap",
-    ],
-)
-
-cc_library(
-    name = "types",
-    hdrs = ["types.h"],
-    deps = [
-        "@parlaylib//parlay:parallel",
-        "@parlaylib//parlay:primitives",
     ],
 )
 

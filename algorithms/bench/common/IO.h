@@ -27,10 +27,10 @@
 #include <string>
 #include <string>
 #include <cstring>
-#include "../parlay/primitives.h"
-#include "../parlay/parallel.h"
-#include "../parlay/io.h"
-#include "../parlay/internal/get_time.h"
+#include "parlay/primitives.h"
+#include "parlay/parallel.h"
+#include "parlay/io.h"
+#include "parlay/internal/get_time.h"
 
 namespace benchIO {
   using namespace std;

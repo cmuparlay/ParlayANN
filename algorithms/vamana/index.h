@@ -28,14 +28,14 @@
 #include <random>
 #include <set>
 
-#include "../utils/NSGDist.h"
-#include "../utils/point_range.h"
-#include "../utils/graph.h"
-#include "../utils/types.h"
+#include "algorithms/utils/beamSearch.h"
+#include "algorithms/utils/NSGDist.h"
+#include "algorithms/utils/point_range.h"
+#include "algorithms/utils/graph.h"
+#include "algorithms/utils/types.h"
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 #include "parlay/random.h"
-#include "../utils/beamSearch.h"
 
 
 template<typename Point, typename PointRange, typename indexType>

@@ -22,13 +22,13 @@
 
 #include <algorithm>
 
-#include "../utils/NSGDist.h"
-#include "../utils/beamSearch.h"
-#include "../utils/check_nn_recall.h"
-#include "../utils/parse_results.h"
-#include "../utils/stats.h"
-#include "../utils/types.h"
-#include "../utils/graph.h"
+#include "algorithms/utils/NSGDist.h"
+#include "algorithms/utils/beamSearch.h"
+#include "algorithms/utils/check_nn_recall.h"
+#include "algorithms/utils/parse_results.h"
+#include "algorithms/utils/stats.h"
+#include "algorithms/utils/types.h"
+#include "algorithms/utils/graph.h"
 #include "index.h"
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"

@@ -21,8 +21,8 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #pragma once
-#include "../parlay/parallel.h"
-#include "../parlay/primitives.h"
+#include "parlay/parallel.h"
+#include "parlay/primitives.h"
 #include "geometry.h"
 #include "IO.h"
 
