@@ -97,8 +97,8 @@ int main(int argc, char* argv[]) {
   if(num_clusters<0) P.badArgument();
   long cluster_size = P.getOptionIntValue("-cluster_size", 0);
   if(cluster_size<0) P.badArgument();
-  long k = P.getOptionIntValue("-k", 0);
-  //if (k > 1000 || k < 0) P.badArgument();
+  long k = (long) P.getOptionIntValue("-k", 0);
+  double radius  = P.getOptionDoubleValue("-radius", 0.0);
   double alpha = P.getOptionDoubleValue("-alpha", 1.0);
   int two_pass = P.getOptionIntValue("-two_pass", 0);
   if(two_pass > 1 | two_pass < 0) P.badArgument();
@@ -106,11 +106,11 @@ int main(int argc, char* argv[]) {
   double delta = P.getOptionDoubleValue("-delta", 0);
   if(delta<0) P.badArgument();
   char* dfc = P.getOptionValue("-dist_func");
-
+  
   std::string df = std::string(dfc);
   std::string tp = std::string(vectype);
 
-  BuildParams BP = BuildParams(R, L, alpha, pass, num_clusters, cluster_size, MST_deg, delta);
+  BuildParams BP = BuildParams(R, L, alpha, pass, num_clusters, cluster_size, MST_deg, delta, radius);
   long maxDeg = BP.max_degree();
 
   if((tp != "uint8") && (tp != "int8") && (tp != "float")){

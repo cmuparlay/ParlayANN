@@ -26,6 +26,7 @@
 #include "../utils/beamSearch.h"
 #include "../utils/check_nn_recall.h"
 #include "../utils/parse_results.h"
+#include "../utils/mips_point.h"
 #include "../utils/stats.h"
 #include "../utils/types.h"
 #include "../utils/graph.h"
@@ -35,13 +36,25 @@
 #include "parlay/random.h"
 
 
-template<typename Point, typename PointRange, typename indexType>
+template<typename Point_, typename PointRange_, typename indexType>
 void ANN(Graph<indexType> &G, long k, BuildParams &BP,
-         PointRange &Query_Points,
+         PointRange_ &Query_Points_,
          groundTruth<indexType> GT, char *res_file,
-         bool graph_built, PointRange &Points) {
+         bool graph_built, PointRange_ &Points_) {
   parlay::internal::timer t("ANN");
-  using findex = knn_index<Point, PointRange, indexType>;
+
+  using QT = uint16_t;
+  using Point = Quantized_Mips_Point<QT>;
+  using PR = PointRange<QT, Point>;
+  PR Points(Points_);
+  PR Query_Points(Query_Points_, Points.params);
+  
+  // using Point = Point_;
+  // using PR = PointRange_;
+  // PR& Points = Points_;
+  // PR& Query_Points = Query_Points_;
+
+  using findex = knn_index<Point, PR, indexType>;
   findex I(BP);
   double idx_time;
   stats<unsigned int> BuildStats(G.size());
@@ -91,7 +104,7 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
             << std::endl;
   Graph_ G_(name, params, G.size(), avg_deg, max_deg, idx_time);
   G_.print();
-  if(Query_Points.size() != 0) search_and_parse<Point, PointRange, indexType>(G_, G, Points, Query_Points, GT, res_file, k, false, start_point);
+  if(Query_Points.size() != 0) search_and_parse<Point, PR, indexType>(G_, G, Points, Query_Points, GT, res_file, k, false, start_point);
 }
 
 

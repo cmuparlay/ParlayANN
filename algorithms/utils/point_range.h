@@ -50,13 +50,29 @@ long dim_round_up(long dim, long tp_size){
 }
 
   
-template<typename T, class Point>
+template<typename T_, class Point>
 struct PointRange{
+  using T = T_;
+  using parameters = typename Point::parameters;
 
-  long dimension(){return dims;}
-  long aligned_dimension(){return aligned_dims;}
+  long dimension() const {return dims;}
+  long aligned_dimension() const {return aligned_dims;}
 
   PointRange() : values(std::shared_ptr<T[]>(nullptr, std::free)) {n=0;}
+
+  template <typename PR>
+  PointRange(const PR& pr, const parameters& p) : params(p)  {
+    n = pr.size();
+    dims = pr.dimension();
+    aligned_dims =  dim_round_up(dims, sizeof(T));
+    values = std::shared_ptr<T[]>((T*) aligned_alloc(64, n*aligned_dims*sizeof(T)), std::free);
+    T* vptr = values.get();
+    parlay::parallel_for(0, n, [&] (long i) {
+      Point::translate_point(vptr + i * aligned_dims, pr[i], params);});
+  }
+
+  template <typename PR>
+  PointRange (PR& pr) : PointRange(pr, Point::generate_parameters(pr)) { }
 
   PointRange(char* filename) : values(std::shared_ptr<T[]>(nullptr, std::free)){
       if(filename == NULL) {
@@ -74,6 +90,7 @@ struct PointRange{
       n = num_points;
       reader.read((char*)(&d), sizeof(unsigned int));
       dims = d;
+      params = parameters(d);
       std::cout << "Detected " << num_points << " points with dimension " << d << std::endl;
       aligned_dims =  dim_round_up(dims, sizeof(T));
       if(aligned_dims != dims) std::cout << "Aligning dimension to " << aligned_dims << std::endl;
@@ -96,18 +113,19 @@ struct PointRange{
       }
   }
 
-  size_t size() { return n; }
+  size_t size() const { return n; }
 
   unsigned int get_dims() const { return dims; }
   
-  Point operator [] (long i) {
-    return Point(values.get()+i*aligned_dims, dims, aligned_dims, i);
+  Point operator [] (long i) const {
+    return Point(values.get()+i*aligned_dims, i, params);
   }
+
+  parameters params;
 
 private:
   std::shared_ptr<T[]> values;
   unsigned int dims;
   unsigned int aligned_dims;
   size_t n;
-
 };
