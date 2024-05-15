@@ -124,7 +124,7 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
       parlay::sequence<indexType> pts;
       long cnt = 0;
       for (long j=0; j < i; j++) 
-        if (Points[i].distance(Points[j]) < radius) {
+        if (Points[i].distance(Points[j]) <= radius) {
           in_radius[i].push_back(j);
           //in_radius[j].push_back(i);
         }
