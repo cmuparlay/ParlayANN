@@ -92,7 +92,8 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
 
   parlay::internal::timer t_range("range search time");
   double radius = BP.radius;
-  std::cout << "radius = " << radius << std::endl;
+  double radius_2 = BP.radius_2;
+  std::cout << "radius = " << radius << " radius_2 = " << radius_2 << std::endl;
   QueryParams QP;
   QP.limit = (long) G.size();
   QP.degree_limit = (long) G.max_degree();
@@ -105,7 +106,7 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
   parlay::parallel_for(0, G.size(), [&] (long i) {
     parlay::sequence<indexType> pts;
     pts.push_back(Points[i].id()); //Points[i].id());
-    auto [r, dc] = range_search(Points[i], G, Points, pts, radius, QP, true);
+    auto [r, dc] = range_search(Points[i], G, Points, pts, radius, radius_2, QP, true);
     counts[i] = r.size();
     distance_comps[i] = dc;});
   t_range.total();
@@ -119,7 +120,7 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
   if (false) {
     parlay::sequence<parlay::sequence<indexType>> in_radius(G.size());
     parlay::parallel_for(0, G.size(), [&] (long i) {
-      if (i % 10000 == 0) std::cout << ".";
+      if (i % 10000 == 0) std::cout << "." << std::flush;
       parlay::sequence<indexType> pts;
       long cnt = 0;
       for (long j=0; j < i; j++) 

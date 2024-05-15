@@ -43,16 +43,16 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
          bool graph_built, PointRange_ &Points_) {
   parlay::internal::timer t("ANN");
 
-  using QT = uint16_t;
-  using Point = Quantized_Mips_Point<QT>;
-  using PR = PointRange<QT, Point>;
-  PR Points(Points_);
-  PR Query_Points(Query_Points_, Points.params);
+  // using QT = uint16_t;
+  // using Point = Quantized_Mips_Point<QT>;
+  // using PR = PointRange<QT, Point>;
+  // PR Points(Points_);
+  // PR Query_Points(Query_Points_, Points.params);
   
-  // using Point = Point_;
-  // using PR = PointRange_;
-  // PR& Points = Points_;
-  // PR& Query_Points = Query_Points_;
+  using Point = Point_;
+  using PR = PointRange_;
+  PR& Points = Points_;
+  PR& Query_Points = Query_Points_;
 
   using findex = knn_index<Point, PR, indexType>;
   findex I(BP);

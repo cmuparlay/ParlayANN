@@ -61,7 +61,7 @@ float euclidian_distance(const uint8_t *p, const uint8_t *q, unsigned d) {
 }
 
 float euclidian_distance(const uint16_t *p, const uint16_t *q, unsigned d) {
-  int32_t result = 0;
+  int64_t result = 0;
   for (int i = 0; i < d; i++) {
     int32_t qi = (int32_t) p[i];
     int32_t pi = (int32_t) q[i];
@@ -84,16 +84,21 @@ float euclidian_distance(const float *p, const float *q, unsigned d) {
   return distfunc.compare(p, q, d);
 }
 
-template<typename T>
+template<typename T, long range=(1l << sizeof(T)*8) - 1>
 struct Euclidian_Point {
   static constexpr bool is_quantized = false;
   using distanceType = float;
-  
-  // no parameters
+
   struct parameters {
+    float slope;
+    int32_t offset;
     int dims;
-    parameters() : dims(0) {}
-    parameters(int dims) : dims(dims) {}
+    parameters() : slope(0), offset(0), dims(0) {}
+    parameters(int dims) : slope(0), offset(0), dims(dims) {}
+    parameters(float min_val, float max_val, int dims)
+      : slope(range / (max_val - min_val)),
+        offset((int32_t) round(min_val * slope)),
+        dims(dims) {}
   };
 
   static distanceType d_min() {return 0;}
@@ -132,12 +137,35 @@ struct Euclidian_Point {
   
   template <typename Point>
   static void translate_point(T* values, const Point& p, const parameters& params) {
-    for (int j = 0; j < params.dims; j++) values[j] = (T) p[j];
+    float slope = params.slope;
+    int32_t offset = params.offset;
+    for (int j = 0; j < params.dims; j++) {
+      auto x = p[j];
+      int64_t r = (int64_t) (std::round(x * slope)) - offset;
+      if (r < 0 || r > range) {
+        std::cout << "out of range: " << r << ", " << range << std::endl;
+        abort();
+      }
+      values[j] = (T) r;
+    }
   }
   
   template <typename PR>
   static parameters generate_parameters(const PR& pr) {
-    return parameters(pr.dimension());}
+    long n = pr.size();
+    int dims = pr.dimension();
+    parlay::sequence<typename PR::T> mins(n);
+    parlay::sequence<typename PR::T> maxs(n);
+    parlay::parallel_for(0, n, [&] (long i) {
+      mins[i] = 0.0;
+      maxs[i] = 0.0;
+      for (int j = 0; j < dims; j++) {
+        mins[i]= std::min(mins[i], pr[i][j]);
+        maxs[i]= std::max(maxs[i], pr[i][j]);}});
+    float min_val = *parlay::min_element(mins);
+    float max_val = *parlay::max_element(maxs);
+    return parameters(min_val, max_val, dims);
+  }
 
 private:
   T* values;
