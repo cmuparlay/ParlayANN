@@ -204,7 +204,9 @@ beam_search_impl(Point p, GT &G, PointRange &Points,
 template<typename indexType, typename Point, typename PointRange, class GT>
 std::pair<std::vector<indexType>, typename Point::distanceType>
 range_search(Point p, GT &G, PointRange &Points,
-             parlay::sequence<indexType> seeds, typename Point::distanceType radius,
+             parlay::sequence<indexType> seeds,
+             typename Point::distanceType radius,
+             typename Point::distanceType radius_2,
              QueryParams &QP, bool use_existing = false) {
   // first search for a starting point within the radius
 
@@ -227,7 +229,7 @@ range_search(Point p, GT &G, PointRange &Points,
   for (auto v : starting_points) {
     if (seen.count(v) > 0 || Points[v].same_as(p)) continue;
     distance_comparisons++;
-    if (p.distance(Points[v]) > radius ) continue;
+    if (p.distance(Points[v]) > radius_2 ) continue;
     result.push_back(v);
     seen.insert(v);
   }
@@ -247,12 +249,19 @@ range_search(Point p, GT &G, PointRange &Points,
     }
     for (auto v : unseen) {
       distance_comparisons++;
-      if (Points[v].distance(p) < radius)
+      if (Points[v].distance(p) <= radius_2)
         result.push_back(v);
     }
   }
-    
-  return std::pair(result, distance_comparisons);
+
+  
+  std::vector<indexType> result1;
+  for (auto v : result) {
+    if (p.distance(Points[v]) > radius ) continue;
+    result1.push_back(v);
+  }
+
+  return std::pair(result1, distance_comparisons);
 }
 
 // //a variant specialized for range searching
