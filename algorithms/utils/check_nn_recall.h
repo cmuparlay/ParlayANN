@@ -53,15 +53,15 @@ nn_result checkRecall(
   float query_time;
   stats<indexType> QueryStats(Query_Points.size());
   if(random){
-    all_ngh = beamSearchRandom<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, QP);
-    t.next_time();
+    //all_ngh = beamSearchRandom<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, QP);
     QueryStats.clear();
+    t.next_time();
     all_ngh = beamSearchRandom<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, QP);
     query_time = t.next_time();
   }else{
-    all_ngh = searchAll<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_point, QP);
-    t.next_time();
+    //all_ngh = searchAll<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_point, QP);
     QueryStats.clear();
+    t.next_time();
     all_ngh = searchAll<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_point, QP);
     query_time = t.next_time();
   }
