@@ -22,6 +22,7 @@
 
 #pragma once
 
+#include <sys/mman.h>
 #include <algorithm>
 #include <iostream>
 
@@ -94,7 +95,10 @@ struct PointRange{
       std::cout << "Detected " << num_points << " points with dimension " << d << std::endl;
       aligned_dims =  dim_round_up(dims, sizeof(T));
       if(aligned_dims != dims) std::cout << "Aligning dimension to " << aligned_dims << std::endl;
-      values = std::shared_ptr<T[]>((T*) aligned_alloc(64, n*aligned_dims*sizeof(T)), std::free);
+      long num_bytes = n*aligned_dims*sizeof(T);
+      T* ptr = (T*) aligned_alloc(1l << 21, num_bytes);
+      madvise(ptr, num_bytes, MADV_HUGEPAGE);
+      values = std::shared_ptr<T[]>(ptr, std::free);
       size_t BLOCK_SIZE = 1000000;
       size_t index = 0;
       while(index < n){
