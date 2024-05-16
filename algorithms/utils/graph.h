@@ -123,99 +123,6 @@ private:
 
 template<typename indexType>
 struct Graph{
-<<<<<<< HEAD
-    long max_degree() const {return maxDeg;}
-    size_t size() const {return n;}
-
-    Graph(){}
-
-    Graph(long maxDeg, size_t n) : maxDeg(maxDeg), n(n) {
-        graph = parlay::sequence<indexType>(n*(maxDeg+1),0);
-    }
-
-    Graph(char* gFile){
-        std::ifstream reader(gFile);
-        assert(reader.is_open());
-
-        //read num points and max degree
-        indexType num_points;
-        indexType max_deg;
-        reader.read((char*)(&num_points), sizeof(indexType));
-        n = num_points;
-        reader.read((char*)(&max_deg), sizeof(indexType));
-        maxDeg = max_deg;
-        std::cout << "Detected " << num_points << " points with max degree " << max_deg << std::endl;
-
-        //read degrees and perform scan to find offsets
-        indexType* degrees_start = new indexType[n];
-        reader.read((char*)(degrees_start), sizeof(indexType)*n);
-        indexType* degrees_end = degrees_start + n;
-        parlay::slice<indexType*, indexType*> degrees0 = parlay::make_slice(degrees_start, degrees_end);
-        auto degrees = parlay::tabulate(degrees0.size(), [&] (size_t i){return static_cast<size_t>(degrees0[i]);});
-        auto [offsets, total] = parlay::scan(degrees);
-        std::cout << "Total: " << total << std::endl;
-        offsets.push_back(total);
-
-        //write to graph object
-        graph = parlay::sequence<indexType>(n*(maxDeg+1),0);
-        //write 1000000 vertices at a time
-        size_t BLOCK_SIZE=1000000;
-        size_t index = 0;
-        size_t total_size_read = 0;
-        while(index < n){
-            size_t g_floor = index;
-            size_t g_ceiling = g_floor + BLOCK_SIZE <= n ? g_floor + BLOCK_SIZE : n;
-            size_t total_size_to_read = offsets[g_ceiling]-offsets[g_floor];
-            indexType* edges_start = new indexType[total_size_to_read];
-            reader.read((char*)(edges_start), sizeof(indexType)*total_size_to_read);
-            indexType* edges_end = edges_start + total_size_to_read;
-            parlay::slice<indexType*, indexType*> edges = parlay::make_slice(edges_start, edges_end);
-            parlay::parallel_for(g_floor, g_ceiling, [&] (size_t i){
-               graph[i*(maxDeg+1)] = degrees[i]; 
-                for(size_t j=0; j<degrees[i]; j++){
-                    graph[i*(maxDeg+1)+1+j] = edges[offsets[i] - total_size_read + j];
-                }
-            });
-            total_size_read += total_size_to_read;
-            index = g_ceiling; 
-            delete[] edges_start;
-        }
-        delete[] degrees_start;
-    }
-
-    void save(char* oFile){
-        std::cout << "Writing graph with " << n << " points and max degree " << maxDeg
-                    << std::endl;
-        parlay::sequence<indexType> preamble = {static_cast<indexType>(n), static_cast<indexType>(maxDeg)};
-        parlay::sequence<indexType> sizes = parlay::tabulate(n, [&] (size_t i){return static_cast<indexType>((*this)[i].size());});
-        std::ofstream writer;
-        writer.open(oFile, std::ios::binary | std::ios::out);
-        writer.write((char*)preamble.begin(), 2 * sizeof(indexType));
-        writer.write((char*)sizes.begin(), sizes.size() * sizeof(indexType));
-        size_t BLOCK_SIZE = 1000000;
-        size_t index = 0;
-        while(index < n){
-            size_t floor = index;
-            size_t ceiling = index+BLOCK_SIZE <= n ? index+BLOCK_SIZE : n;
-            parlay::sequence<parlay::sequence<indexType>> edge_data = parlay::tabulate(ceiling-floor, [&] (size_t i){
-                return parlay::tabulate(sizes[i+floor], [&] (size_t j){return (*this)[i+floor][j];});
-            });
-            parlay::sequence<indexType> data = parlay::flatten(edge_data);
-            writer.write((char*)data.begin(), data.size() * sizeof(indexType));
-            index = ceiling;
-        }
-        writer.close();
-    }
-
-    edgeRange<indexType> operator [] (indexType i) {return edgeRange<indexType>(graph.begin()+i*(maxDeg+1), graph.begin()+(i+1)*(maxDeg+1), i);}
-
-    private:
-        size_t n;
-        long maxDeg;
-        parlay::sequence<indexType> graph;
-        
-        
-=======
   long max_degree() const {return maxDeg;}
   size_t size() const {return n;}
 
@@ -329,5 +236,4 @@ private:
   size_t n;
   long maxDeg;
   std::shared_ptr<indexType[]> graph;
->>>>>>> 889955dcc0c40dba385245c4a4a08fba3d06a5e7
 };
