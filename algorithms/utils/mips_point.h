@@ -30,8 +30,11 @@
 #include "parlay/internal/file_map.h"
 #include "../bench/parse_command_line.h"
 #include "NSGDist.h"
+<<<<<<< HEAD
 
 #include "../bench/parse_command_line.h"
+=======
+>>>>>>> 889955dcc0c40dba385245c4a4a08fba3d06a5e7
 #include "types.h"
 
 #include <fcntl.h>

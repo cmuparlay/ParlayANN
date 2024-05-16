@@ -63,7 +63,11 @@ beam_search(Point p, Graph<indexType> &G, PointRange &Points,
 template<typename indexType, typename Point, typename PointRange, class GT>
 std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>, parlay::sequence<std::pair<indexType, typename Point::distanceType>>>, size_t>
 beam_search_impl(Point p, GT &G, PointRange &Points,
-	      parlay::sequence<indexType> starting_points, QueryParams &QP) {
+                 parlay::sequence<indexType> starting_points, QueryParams &QP) {
+  if (starting_points.size() == 0) {
+    std::cout << "beam search expects at least one start point" << std::endl;
+    abort();
+  }
 
   // compare two (node_id,distance) pairs, first by distance and then id if
   // equal
@@ -180,7 +184,7 @@ beam_search_impl(Point p, GT &G, PointRange &Points,
 
     // copy new_frontier back to the frontier
     frontier.clear();
-    for (indexType i = 0; i < new_frontier_size; i++)
+    for (indexType i = 0; i < new_frontier_size; i++) 
       frontier.push_back(new_frontier[i]);
 
     // get the unvisited frontier (we only care about the first one)
@@ -193,6 +197,62 @@ beam_search_impl(Point p, GT &G, PointRange &Points,
   return std::make_pair(std::make_pair(parlay::to_sequence(frontier),
                                        parlay::to_sequence(visited)),
                         dist_cmps);
+}
+
+// a range search that first finds a close point using a beam search,
+// and then uses BFS to find all points within the range
+template<typename indexType, typename Point, typename PointRange, class GT>
+std::pair<std::vector<indexType>, typename Point::distanceType>
+range_search(Point p, GT &G, PointRange &Points,
+             parlay::sequence<indexType> seeds, typename Point::distanceType radius,
+             QueryParams &QP, bool use_existing = false) {
+  // first search for a starting point within the radius
+
+  std::vector<indexType> result;
+  std::unordered_set<indexType> seen;
+  std::vector<indexType> starting_points;
+  long distance_comparisons = 0;
+  
+  if (use_existing) {
+    for (indexType i=0; i<G[p.id()].size(); i++)
+      starting_points.push_back(G[p.id()][i]);
+  } else {
+    auto [beam_visited, dist_cmps] = beam_search(p, G, Points, seeds, QP);
+    auto [beam, visited] = beam_visited;
+    distance_comparisons = dist_cmps;
+    for (auto x : beam)
+      starting_points.push_back(x.first);
+  }
+
+  for (auto v : starting_points) {
+    if (seen.count(v) > 0 || Points[v].same_as(p)) continue;
+    distance_comparisons++;
+    if (p.distance(Points[v]) > radius ) continue;
+    result.push_back(v);
+    seen.insert(v);
+  }
+
+  // now do a BFS over all vertices with distance less than radius
+  long position = 0;
+  while (position < result.size()) {
+    indexType next = result[position++];
+    std::vector<indexType> unseen;
+    for (long i = 0; i < G[next].size(); i++) {
+      auto v = G[next][i];
+      if (seen.count(v) > 0 || Points[v].same_as(p))
+        continue;  // skip if already seen
+      unseen.push_back(v);
+      seen.insert(v);
+      Points[v].prefetch();
+    }
+    for (auto v : unseen) {
+      distance_comparisons++;
+      if (Points[v].distance(p) < radius)
+        result.push_back(v);
+    }
+  }
+    
+  return std::pair(result, distance_comparisons);
 }
 
 // //a variant specialized for range searching

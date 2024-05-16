@@ -34,6 +34,7 @@
 #include "../utils/types.h"
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
+#include "parlay/delayed.h"
 #include "parlay/random.h"
 #include "../utils/beamSearch.h"
 
@@ -50,7 +51,6 @@ struct knn_index {
   std::set<indexType> delete_set; 
   indexType start_point;
 
-
   knn_index(BuildParams &BP) : BP(BP) {}
 
   indexType get_start() { return start_point; }
@@ -58,15 +58,18 @@ struct knn_index {
   //robustPrune routine as found in DiskANN paper, with the exception
   //that the new candidate set is added to the field new_nbhs instead
   //of directly replacing the out_nbh of p
-  parlay::sequence<indexType> robustPrune(indexType p, parlay::sequence<pid>& cand,
-                    GraphI &G, PR &Points, double alpha, bool add = true) {
+  std::pair<parlay::sequence<indexType>, long>
+  robustPrune(indexType p, parlay::sequence<pid>& cand,
+              GraphI &G, PR &Points, double alpha, bool add = true) {
     // add out neighbors of p to the candidate set.
     size_t out_size = G[p].size();
     std::vector<pid> candidates;
+    long distance_comps = 0;
     for (auto x : cand) candidates.push_back(x);
 
     if(add){
       for (size_t i=0; i<out_size; i++) {
+        distance_comps++;
         candidates.push_back(std::make_pair(G[p][i], Points[G[p][i]].distance(Points[p])));
       }
     }
@@ -98,6 +101,7 @@ struct knn_index {
       for (size_t i = candidate_idx; i < candidates.size(); i++) {
         int p_prime = candidates[i].first;
         if (p_prime != -1) {
+          distance_comps++;
           distanceType dist_starprime = Points[p_star].distance(Points[p_prime]);
           distanceType dist_pprime = candidates[i].second;
           if (alpha * dist_starprime <= dist_pprime) {
@@ -108,20 +112,24 @@ struct knn_index {
     }
 
     auto new_neighbors_seq = parlay::to_sequence(new_nbhs);
-    return new_neighbors_seq;
+    return std::pair(new_neighbors_seq, distance_comps);
   }
 
   //wrapper to allow calling robustPrune on a sequence of candidates 
   //that do not come with precomputed distances
-  parlay::sequence<indexType> robustPrune(indexType p, parlay::sequence<indexType> candidates,
-                    GraphI &G, PR &Points, double alpha, bool add = true){
+  std::pair<parlay::sequence<indexType>, long>
+  robustPrune(indexType p, parlay::sequence<indexType> candidates,
+              GraphI &G, PR &Points, double alpha, bool add = true){
 
     parlay::sequence<pid> cc;
+    long distance_comps = 0;
     cc.reserve(candidates.size()); // + size_of(p->out_nbh));
     for (size_t i=0; i<candidates.size(); ++i) {
+      distance_comps++;
       cc.push_back(std::make_pair(candidates[i], Points[candidates[i]].distance(Points[p])));
     }
-    return robustPrune(p, cc, G, Points, alpha, add);
+    auto [ngh_seq, dc] = robustPrune(p, cc, G, Points, alpha, add);
+    return std::pair(ngh_seq, dc + distance_comps);
   }
 
   // add ngh to candidates without adding any repeats
@@ -135,7 +143,7 @@ struct knn_index {
 
   void set_start(){start_point = 0;}
 
-  void build_index(GraphI &G, PR &Points, stats<indexType> &BuildStats){
+  void build_index(GraphI &G, PR &Points, stats<indexType> &BuildStats, bool sort_neighbors = true){
     std::cout << "Building graph..." << std::endl;
     set_start();
     parlay::sequence<indexType> inserts = parlay::tabulate(Points.size(), [&] (size_t i){
@@ -143,85 +151,13 @@ struct knn_index {
 
     if(BP.two_pass) batch_insert(inserts, G, Points, BuildStats, 1.0, true, 2, .02);
     batch_insert(inserts, G, Points, BuildStats, BP.alpha, true, 2, .02);
-    parlay::parallel_for (0, G.size(), [&] (long i) {
-      auto less = [&] (indexType j, indexType k) {
-		    return Points[i].distance(Points[j]) < Points[i].distance(Points[k]);};
-      G[i].sort(less);});
-  }
-
-  void lazy_delete(parlay::sequence<indexType> deletes, GraphI &G) {
-    for (indexType p : deletes) {
-      if (p > (int)G.size()) {
-        std::cout << "ERROR: invalid point " << p << " given to lazy_delete"
-                  << std::endl;
-        abort();
-      }
-      if (p != start_point)
-        delete_set.insert(p);
-      else
-        std::cout << "Deleting start_point not permitted; continuing" << std::endl;
+    if (sort_neighbors) {
+      parlay::parallel_for (0, G.size(), [&] (long i) {
+        auto less = [&] (indexType j, indexType k) {
+                      return Points[i].distance(Points[j]) < Points[i].distance(Points[k]);};
+        G[i].sort(less);});
     }
   }
-
-  void lazy_delete(indexType p, GraphI &G) {
-    if (p > (int)G.size()) {
-      std::cout << "ERROR: invalid point " << p << " given to lazy_delete"
-                << std::endl;
-      abort();
-    }
-    if (p == start_point) {
-      std::cout << "Deleting start_point not permitted; continuing" << std::endl;
-      return;
-    }
-    delete_set.insert(p);
-  }
-
-  // void consolidate_deletes(parlay::sequence<Tvec_point<T>*> &v){
-  //   //clear deleted neighbors out of delete set for preprocessing
-
-  //   parlay::parallel_for(0, v.size(), [&] (size_t i){
-  //     if (delete_set.find(i) != delete_set.end()){
-  //       parlay::sequence<int> new_edges; 
-  //       for(int j=0; j<size_of(v[i]->out_nbh); j++){
-  //         if(delete_set.find(v[i]->out_nbh[j]) == delete_set.end())
-  //           new_edges.push_back(v[i]->out_nbh[j]);
-  //        }
-  //        if(new_edges.size() < size_of(v[i]->out_nbh))
-  //          add_out_nbh(new_edges, v[i]); 
-  //      } });
-
-  //   parlay::parallel_for(0, v.size(), [&] (size_t i){
-  //     if (delete_set.find(i) == delete_set.end() && size_of(v[i]->out_nbh) != 0) {
-  //       std::set<int> new_edges;
-  //       bool modify = false;
-  //       for(int j=0; j<size_of(v[i]->out_nbh); j++){
-  //         if(delete_set.find(v[i]->out_nbh[j]) == delete_set.end()){
-  //           new_edges.insert(v[i]->out_nbh[j]);
-  //         } else{
-  //           modify = true;
-  //           int index = v[i]->out_nbh[j];
-  //           for(int k=0; k<size_of(v[index]->out_nbh); k++)
-  //             new_edges.insert(v[index]->out_nbh[k]);
-  //         }
-  //       }
-  //       //TODO only prune if overflow happens
-  //       //TODO modify in separate step with new memory initialized in one block
-  //       if(modify){ 
-  //         parlay::sequence<int> candidates;
-  //         for(int j : new_edges) candidates.push_back(j);
-  //         parlay::sequence<int> new_neighbors(BP.R, -1);
-  //         v[i]->new_nbh = parlay::make_slice(new_neighbors.begin(), new_neighbors.end());
-  //         robustPrune(v[i], std::move(candidates), v, r2_alpha, false);
-  //         synchronize(v[i]);
-  //       }       
-  //     }  });
-  //   parlay::parallel_for(0, v.size(), [&] (size_t i){
-  //     if (delete_set.find(i) != delete_set.end()){
-  //       clear(v[i]);
-  //     } });
- 
-  //   delete_set.clear();
-  // }
 
   void batch_insert(parlay::sequence<indexType> &inserts,
                      GraphI &G, PR &Points, stats<indexType> &BuildStats, double alpha,
@@ -276,27 +212,32 @@ struct knn_index {
       parlay::parallel_for(floor, ceiling, [&](size_t i) {
         size_t index = shuffled_inserts[i];
         QueryParams QP((long) 0, BP.L, (double) 0.0, (long) Points.size(), (long) G.max_degree());
-        parlay::sequence<pid> visited = 
-          (beam_search<Point, PointRange, indexType>(Points[index], G, Points, start_point, QP)).first.second;
+        auto [beam_visited, bs_distance_comps] =
+          beam_search<Point, PointRange, indexType>(Points[index], G, Points, start_point, QP);
+        auto [beam, visited] = beam_visited;
+        BuildStats.increment_dist(index, bs_distance_comps);
         BuildStats.increment_visited(index, visited.size());
-        new_out_[i-floor] = robustPrune(index, visited, G, Points, alpha); });
+
+        long rp_distance_comps;
+        std::tie(new_out_[i-floor], rp_distance_comps) = robustPrune(index, visited, G, Points, alpha);
+        BuildStats.increment_dist(index, rp_distance_comps);
+      });
       t_beam.stop();
+
       // make each edge bidirectional by first adding each new edge
       //(i,j) to a sequence, then semisorting the sequence by key values
       t_bidirect.start();
-      auto to_flatten = parlay::tabulate(ceiling - floor, [&](size_t i) {
+
+      auto flattened = parlay::delayed::flatten(parlay::tabulate(ceiling - floor, [&](size_t i) {
         indexType index = shuffled_inserts[i + floor];
-        auto edges =
-            parlay::tabulate(new_out_[i].size(), [&](size_t j) {
-              return std::make_pair(new_out_[i][j], index);
-            });
-        return edges;
+        return parlay::delayed::map(new_out_[i], [=] (indexType ngh) {
+                                      return std::pair(ngh, index);});}));
+      auto grouped_by = parlay::group_by_key_ordered(parlay::delayed::to_sequence(flattened));
+      
+      parlay::parallel_for(floor, ceiling, [&](size_t i) {
+         G[shuffled_inserts[i]].update_neighbors(new_out_[i-floor]);
       });
 
-      parlay::parallel_for(floor, ceiling, [&](size_t i) {
-        G[shuffled_inserts[i]].update_neighbors(new_out_[i-floor]);
-      });
-      auto grouped_by = parlay::group_by_key(parlay::flatten(to_flatten));
       t_bidirect.stop();
       t_prune.start();
       // finally, add the bidirectional edges; if they do not make
@@ -309,8 +250,9 @@ struct knn_index {
 	  add_neighbors_without_repeats(G[index], candidates);
 	  G[index].update_neighbors(candidates);
         } else {
-          auto new_out_2_ = robustPrune(index, std::move(candidates), G, Points, alpha);
+          auto [new_out_2_, distance_comps] = robustPrune(index, std::move(candidates), G, Points, alpha);
 	  G[index].update_neighbors(new_out_2_);    
+          BuildStats.increment_dist(index, distance_comps);
         }
       });
       t_prune.stop();
@@ -327,84 +269,6 @@ struct knn_index {
     t_beam.total();
     t_bidirect.total();
     t_prune.total();
-  }
-
-  void batch_insert_with_stats(indexType p, Graph<indexType> &G) {
-    parlay::sequence<indexType> inserts;
-    inserts.push_back(p);
-    batch_insert(inserts, G, true);
-  }
-
-  bool did_prune_change(GraphI &G, indexType index, parlay::sequence<indexType> new_nbh){
-    if(G[index].size() != new_nbh.size()) return true;
-    else{
-      std::set<indexType> old_edges;
-      for(int j=0; j<G[index].size(); j++) old_edges.insert(G[index][j]);
-      for(auto j : new_nbh){
-        if(old_edges.find(j) == old_edges.end()) return true;
-      }
-    }
-    return false;
-  }
-
-  void batch_insert_with_stats_count(parlay::sequence<indexType> &inserts,
-                     GraphI &G, PR &Points, double alpha, parlay::sequence<int> &changed) {
-
-    size_t n = G.size();
-    size_t m = inserts.size();
-    bool random_order = true;
-    parlay::sequence<int> rperm;
-    if (random_order)
-      rperm = parlay::random_permutation<int>(static_cast<int>(m));
-    else
-      rperm = parlay::tabulate(m, [&](int i) { return i; });
-    auto shuffled_inserts =
-        parlay::tabulate(m, [&](size_t i) { return inserts[rperm[i]]; });
-
-    size_t floor = 0;
-    size_t ceiling = m;
-    parlay::sequence<parlay::sequence<indexType>> new_out_(m);
-    // search for each node starting from the start_point, then call
-    // robustPrune with the visited list as its candidate set
-    parlay::parallel_for(floor, ceiling, [&](size_t i) {
-      size_t index = shuffled_inserts[i];
-      QueryParams QP((long) 0, BP.L, (double) 0.0, (long) Points.size(), (long) G.max_degree());
-      parlay::sequence<pid> visited = 
-        (beam_search<Point, PointRange, indexType>(Points[index], G, Points, start_point, QP)).first.second;
-      new_out_[i-floor] = robustPrune(index, visited, G, Points, alpha); });
-    // make each edge bidirectional by first adding each new edge
-    //(i,j) to a sequence, then semisorting the sequence by key values
-    auto to_flatten = parlay::tabulate(ceiling - floor, [&](size_t i) {
-      indexType index = shuffled_inserts[i + floor];
-      auto edges =
-          parlay::tabulate(new_out_[i].size(), [&](size_t j) {
-            return std::make_pair(new_out_[i][j], index);
-          });
-      return edges;
-    });
-    // add edges corresponding to the inserted points
-    parlay::parallel_for(floor, ceiling, [&](size_t i) {
-      G[shuffled_inserts[i]].update_neighbors(new_out_[i-floor]);
-      changed[shuffled_inserts[i]] = 1;
-    });
-    auto grouped_by = parlay::group_by_key(parlay::flatten(to_flatten));
-    // finally, add the bidirectional edges; if they do not make
-    // the vertex exceed the degree bound, just add them to out_nbhs;
-    // otherwise, use robustPrune on the vertex with user-specified alpha
-    parlay::parallel_for(0, grouped_by.size(), [&](size_t j) {
-      auto &[index, candidates] = grouped_by[j];
-      size_t newsize = candidates.size() + G[index].size();
-      if (newsize <= BP.R) {
-	  add_neighbors_without_repeats(G[index], candidates);
-	  G[index].update_neighbors(candidates);
-        changed[index] = 1;
-      } else {
-        auto new_out_2_ = robustPrune(index, std::move(candidates), G, Points, alpha);  
-        G[index].update_neighbors(new_out_2_);    
-        // if(did_prune_change(G, index, new_out_2_)) changed[index] = 1;
-        changed[index] = 1;
-      }
-    });
   }
 
 };

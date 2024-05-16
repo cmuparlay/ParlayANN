@@ -25,6 +25,9 @@
 #ifndef UNION
 #define UNION
 
+#include "parlay/parallel.h"
+#include "parlay/primitives.h"
+
 // takes in two sorted sequences and returns a sorted union
 // of length at most K, with a bool denoting whether P has changed
 template <typename F, typename T>
