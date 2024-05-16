@@ -20,43 +20,44 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#pragma once
-
 #include <algorithm>
 #include <set>
 
-#include "beamSearch.h"
-#include "csvfile.h"
-#include "parse_results.h"
+
+#include "utils/csvfile.h"
+#include "utils/parse_results.h"
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
-#include "types.h"
-#include "stats.h"
+#include "utils/types.h"
+#include "utils/stats.h"
 
-template<typename Point, typename PointRange, typename indexType>
-void checkRangeRecall(
-        Graph<indexType> &G,
+template<typename Point, typename PointRange, typename indexType, typename PL>
+ivf_range_result checkRangeRecall(
+        PL &PostingList,
         PointRange &Base_Points,
         PointRange &Query_Points,
         RangeGroundTruth<indexType> GT,
-        RangeParams RP,
-        long start_point) {
+        long n_probes, 
+        double rad) {
 
 
-  parlay::sequence<parlay::sequence<indexType>> all_rr;
+    parlay::sequence<parlay::sequence<indexType>> all_rr(Query_Points.size());
 
-  parlay::internal::timer t;
-  float query_time;
-  stats<indexType> QueryStats(Query_Points.size());
- 
-  all_rr = RangeSearch<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_point, RP);
-  query_time = t.next_time();
-  
+    parlay::internal::timer t;
+    float query_time;
+    stats<indexType> QueryStats(Query_Points.size());
+    parlay::parallel_for(0, Query_Points.size(), [&] (size_t i){
+        auto [frontier, dist_cmps] = PostingList.ivf_range(Query_Points[i], rad, n_probes);
+        QueryStats.increment_dist(i, dist_cmps);
+        all_rr[i] = parlay::tabulate(frontier.size(), [&] (size_t j) {return frontier[j].first;});
+    });
+    query_time = t.next_time();
 
-  float pointwise_recall = 0.0;
-  float reported_results = 0.0;
-  float total_results = 0.0;
-  float num_nonzero = 0.0;
+    
+    float pointwise_recall = 0.0;
+    float reported_results = 0.0;
+    float total_results = 0.0;
+    float num_nonzero = 0.0;
 
     //since distances are exact, just have to cross-check number of results
     size_t n = Query_Points.size();
@@ -64,7 +65,6 @@ void checkRangeRecall(
     for (indexType i = 0; i < n; i++) {
       float num_reported_results = all_rr[i].size();
       float num_actual_results = GT[i].size();
-      if(num_reported_results > 0){ std::cout << num_reported_results << std::endl;}
       reported_results += num_reported_results;
       total_results += num_actual_results;
       if(num_actual_results != 0) {pointwise_recall += num_reported_results/num_actual_results; num_nonzero++;}
@@ -74,31 +74,41 @@ void checkRangeRecall(
     float cumulative_recall = reported_results/total_results;
   
   float QPS = Query_Points.size() / query_time;
-  auto stats_ = {QueryStats.dist_stats(), QueryStats.visited_stats()};
-  
-  std::cout << "For ";
-  RP.print();
-  std::cout << ", Pointwise Recall = " << pointwise_recall << ", Cumulative Recall = " << cumulative_recall << ", QPS = " << QPS << std::endl;
-  
-  
+  auto stats_ = QueryStats.dist_stats();
+
+  parlay::sequence<size_t> cast_stats = {static_cast<size_t>(stats_[0]), static_cast<size_t>(stats_[1])};
+  ivf_range_result N(pointwise_recall, cumulative_recall, cast_stats, QPS, rad, n_probes, Query_Points.size());
+
+  N.print();
+  return N;
 }
 
 
-template<typename Point, typename PointRange, typename indexType>
-void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
+
+
+
+template<typename Point, typename PointRange, typename indexType, typename PL>
+void search_and_parse_range(PL &PostingList, PointRange &Base_Points,
    PointRange &Query_Points, 
-  RangeGroundTruth<indexType> GT, double rad,
-  indexType start_point=0){
+  RangeGroundTruth<indexType> GT, char* res_file, double rad, IVF_ I){
 
-  std::vector<long> beams;
+  parlay::sequence<ivf_range_result> results;
+  std::vector<long> n_probes;
 
-  beams = {10, 20, 30, 40, 50, 100, 1000, 2000, 3000}; 
 
-  for(long b: beams){
-    RangeParams RP(rad, b);
-    checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point);
-  }
-  
+
+//   n_probes = {1,2,5,10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 24, 26, 28, 30, 32, 
+//           34, 36, 38, 40, 45, 50, 55, 60, 65, 70, 80, 90, 100, 120, 140, 160, 
+//           180, 200, 225, 250, 275, 300, 375, 500, 750, 1000}; 
+
+    n_probes = {1,5,10,20,50,100,200,500,1000};
+
+
+    for (long np : n_probes) {
+        results.push_back(checkRangeRecall<Point, PointRange, indexType>(PostingList, Base_Points, Query_Points, GT, np, rad));
+    }
+
+
 
   
 }

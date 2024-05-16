@@ -185,6 +185,47 @@ struct PostingListIndex {
     return std::make_pair(frontier, dist_cmps);
   }
 
+  /* computes range results with the ivf index */
+  std::pair<parlay::sequence<std::pair<indexType, float>>, size_t> ivf_range(
+     Point query, double rad, int n_probes) {
+      // we do linear traversal over the centroids to get the nearest ones
+      // TODO should we exclude centroids that are too far away from the radius?
+      size_t pl_frontier_size = n_probes < centroids.size() ? n_probes : centroids.size();
+      parlay::sequence<std::pair<indexType, float>> pl_frontier(pl_frontier_size, std::make_pair(0, std::numeric_limits<float>::max()));
+
+      size_t dist_cmps = centroids.size();
+
+      for (indexType i = 0; i < centroids.size(); i++) {
+        float dist = query.distance(centroids[i]);
+        if (dist < pl_frontier[pl_frontier_size - 1].second) {
+          pl_frontier.pop_back();
+          pl_frontier.push_back(std::make_pair(i, dist));
+          std::sort(pl_frontier.begin(), pl_frontier.end(),
+                    [&](std::pair<indexType, float> a,
+                        std::pair<indexType, float> b) {
+                      return a.second < b.second;
+                    });
+        }
+      }
+
+      // now we do search on the points in the posting lists
+      parlay::sequence<std::pair<indexType, float>> frontier;
+
+      for (indexType i = 0; i < pl_frontier.size(); i++) {
+        dist_cmps += clusters[pl_frontier[i].first].size();
+        for (indexType j = 0; j < clusters[pl_frontier[i].first].size(); j++) {
+          float dist = query.distance(Points[clusters[pl_frontier[i].first][j]]);
+          if (dist < rad) {
+            frontier.push_back(std::make_pair(clusters[pl_frontier[i].first][j], dist));
+          }
+        }
+      }
+
+      return std::make_pair(frontier, dist_cmps);
+  } 
+
+
+
   std::string pl_filename(std::string filename_prefix) {
     return filename_prefix + std::to_string(id) + "_postingList_" +
            std::to_string(cluster_params.first) + "_" +

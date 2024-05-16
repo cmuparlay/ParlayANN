@@ -203,6 +203,35 @@ struct ivf_result {
   }
 };
 
+struct ivf_range_result {
+  double pointwise_recall;
+  double cumulative_recall;
+
+  size_t avg_cmps;
+  size_t tail_cmps;
+
+  float QPS;
+
+  int k;
+  long n_probes;
+  long num_queries;
+
+  ivf_range_result(double pr, double cr, parlay::sequence<size_t> stats, float qps, int K, int n,
+             long q)
+      : pointwise_recall(pr), cumulative_recall(cr), QPS(qps), k(K), n_probes(n), num_queries(q) {
+    if (stats.size() != 2) abort();
+    avg_cmps = stats[0];
+    tail_cmps = stats[1];
+  }
+
+
+
+    void print() {
+    std::cout << "For pointwise recall = " << pointwise_recall << " and cumulative recall = " << cumulative_recall 
+              << ", QPS = " << QPS << ", n_probes = " << n_probes << ", average cmps = " << avg_cmps << std::endl;
+  }
+};
+
 template <typename res>
 auto parse_result(parlay::sequence<res> results,
                   parlay::sequence<float> buckets) {

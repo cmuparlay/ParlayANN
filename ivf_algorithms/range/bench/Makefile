@@ -1,5 +1,5 @@
-include ../../algorithms/bench/parallelDefsANN
-BNCHMRK = ivf
+include ../../../algorithms/bench/parallelDefsANN
+BNCHMRK = range
 
 CHECKFILES = $(BNCHMRK)Check.o
 

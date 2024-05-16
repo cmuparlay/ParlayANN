@@ -24,8 +24,8 @@
 #include <algorithm>
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
-#include "../../algorithms/bench/parse_command_line.h"
-#include "../../algorithms/bench/time_loop.h"
+#include "../../../algorithms/bench/parse_command_line.h"
+#include "../../../algorithms/bench/time_loop.h"
 #include "utils/NSGDist.h"
 #include "utils/euclidian_point.h"
 #include "utils/point_range.h"

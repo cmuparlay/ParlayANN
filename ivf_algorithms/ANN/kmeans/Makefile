@@ -1,4 +1,4 @@
-include ../../algorithms/bench/parallelDefsANN
+include ../../../algorithms/bench/parallelDefsANN
 
 REQUIRE = 
 BENCH = ivf
