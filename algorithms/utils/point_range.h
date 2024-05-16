@@ -51,9 +51,10 @@ long dim_round_up(long dim, long tp_size){
 }
 
   
-template<typename T_, class Point>
+template<typename T_, class Point_>
 struct PointRange{
   using T = T_;
+  using Point = Point_;
   using parameters = typename Point::parameters;
 
   long dimension() const {return dims;}

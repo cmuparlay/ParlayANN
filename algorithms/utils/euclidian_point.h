@@ -67,7 +67,7 @@ float euclidian_distance(const uint16_t *p, const uint16_t *q, unsigned d) {
     int32_t pi = (int32_t) q[i];
     result += (qi - pi) * (qi - pi);
   }
-  return (float)result;
+  return (float) (result >> 8);
 }
 
 float euclidian_distance(const int8_t *p, const int8_t *q, unsigned d) {
@@ -86,7 +86,6 @@ float euclidian_distance(const float *p, const float *q, unsigned d) {
 
 template<typename T, long range=(1l << sizeof(T)*8) - 1>
 struct Euclidian_Point {
-  static constexpr bool is_quantized = false;
   using distanceType = float;
 
   struct parameters {
@@ -146,6 +145,8 @@ struct Euclidian_Point {
         std::cout << "out of range: " << r << ", " << range << std::endl;
         abort();
       }
+      //if (j < 30) 
+      //  std::cout << j << " : " << (T) r << ", " << x << std::endl;
       values[j] = (T) r;
     }
   }
@@ -164,11 +165,13 @@ struct Euclidian_Point {
         maxs[i]= std::max(maxs[i], pr[i][j]);}});
     float min_val = *parlay::min_element(mins);
     float max_val = *parlay::max_element(maxs);
+    std::cout << min_val << ", " << max_val << std::endl;
     return parameters(min_val, max_val, dims);
   }
+
+  parameters params;
 
 private:
   T* values;
   long id_;
-  parameters params;
 };

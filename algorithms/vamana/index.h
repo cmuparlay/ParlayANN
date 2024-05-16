@@ -38,8 +38,9 @@
 #include "../utils/beamSearch.h"
 
 
-template<typename Point, typename PointRange, typename indexType>
+template<typename PointRange, typename indexType>
 struct knn_index {
+  using Point = typename PointRange::Point;
   using distanceType = typename Point::distanceType;
   using pid = std::pair<indexType, distanceType>;
   using PR = PointRange;

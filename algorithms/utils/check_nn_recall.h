@@ -31,11 +31,13 @@
 #include "types.h"
 #include "stats.h"
 
-template<typename Point, typename PointRange, typename indexType>
+template<typename Point, typename PointRange, typename QPointRange, typename indexType>
 nn_result checkRecall(
         Graph<indexType> &G,
         PointRange &Base_Points,
         PointRange &Query_Points,
+        QPointRange &Q_Base_Points,
+        QPointRange &Q_Query_Points,
         groundTruth<indexType> GT,
         bool random,
         long start_point, 
@@ -59,7 +61,7 @@ nn_result checkRecall(
   if (random) {
     all_ngh = beamSearchRandom<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, QP);
   } else {
-    all_ngh = searchAll<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_point, QP);
+    all_ngh = qsearchAll<Point, PointRange, QPointRange, indexType>(Query_Points, Q_Query_Points, G, Base_Points, Q_Base_Points, QueryStats, start_point, QP);
   }
   query_time = t.next_time();
 
@@ -153,12 +155,14 @@ parlay::sequence<long> calculate_limits(size_t upper_bound) {
   return limits;
 }
 
-template<typename Point, typename PointRange, typename indexType>
-void search_and_parse(Graph_ G_, Graph<indexType> &G, PointRange &Base_Points,
-   PointRange &Query_Points, 
-  groundTruth<indexType> GT, char* res_file, long k,
-  bool random=true, indexType start_point=0){
-
+template<typename Point, typename PointRange, typename QPointRange, typename indexType>
+void search_and_parse(Graph_ G_, Graph<indexType> &G,
+                      PointRange &Base_Points,
+                      PointRange &Query_Points,
+                      QPointRange &Q_Base_Points,
+                      QPointRange &Q_Query_Points, 
+                      groundTruth<indexType> GT, char* res_file, long k,
+                      bool random=true, indexType start_point=0){
   parlay::sequence<nn_result> results;
   std::vector<long> beams;
   std::vector<long> allr;
@@ -182,7 +186,7 @@ void search_and_parse(Graph_ G_, Graph<indexType> &G, PointRange &Base_Points,
         for (float Q : beams){
           QP.beamSize = Q;
           if (Q > r){
-            results.push_back(checkRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, random, start_point, r, QP));
+            results.push_back(checkRecall<Point, PointRange, QPointRange, indexType>(G, Base_Points, Query_Points, Q_Base_Points, Q_Query_Points, GT, random, start_point, r, QP));
           }
         }
       }
@@ -196,12 +200,15 @@ void search_and_parse(Graph_ G_, Graph<indexType> &G, PointRange &Base_Points,
         QP.beamSize = std::max<long>(l, r);
         for(long dl : degree_limits){
           QP.degree_limit = dl;
-	        results.push_back(checkRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, random, start_point, r, QP));
+          results.push_back(checkRecall<Point, PointRange, QPointRange, indexType>(G,
+                                                                                   Base_Points, Query_Points,
+                                                                                   Q_Base_Points, Q_Query_Points,
+                                                                                   GT, random, start_point, r, QP));
         }
       }
       // check "best accuracy"
       QP = QueryParams((long) 100, (long) 1000, (double) 10.0, (long) G.size(), (long) G.max_degree());
-      results.push_back(checkRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, random, start_point, r, QP));
+      results.push_back(checkRecall<Point, PointRange, QPointRange, indexType>(G, Base_Points, Query_Points, Q_Base_Points, Q_Query_Points, GT, random, start_point, r, QP));
 
     parlay::sequence<float> buckets =  {.1, .2, .3,  .4,  .5,  .6, .7, .75,  .8, .85,                                                                                            
                                         .9, .93, .95, .97, .98, .99, .995, .999, .9995, 
