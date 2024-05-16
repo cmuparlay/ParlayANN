@@ -64,7 +64,6 @@ void checkRangeRecall(
     for (indexType i = 0; i < n; i++) {
       float num_reported_results = all_rr[i].size();
       float num_actual_results = GT[i].size();
-      if(num_reported_results > 0){ std::cout << num_reported_results << std::endl;}
       reported_results += num_reported_results;
       total_results += num_actual_results;
       if(num_actual_results != 0) {pointwise_recall += num_reported_results/num_actual_results; num_nonzero++;}
