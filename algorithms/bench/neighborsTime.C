@@ -161,15 +161,16 @@ int main(int argc, char* argv[]) {
       if(gFile == NULL) G = Graph<unsigned int>(maxDeg, Points.size());
       else G = Graph<unsigned int>(gFile);
       if (quantize == 8) {
-        using QT = uint8_t;
-        using Point = Quantized_Mips_Point<uint8_t>;
-        using PR = PointRange<uint8_t, Point>;
+        using QT = int8_t;
+        using Point = Quantized_Mips_Point<QT>;
+        using PR = PointRange<QT, Point>;
         PR Points_(Points);
         PR Query_Points_(Query_Points, Points_.params);
         timeNeighbors<Point, PR, uint>(G, Query_Points_, k, BP, oFile, GT, rFile, graph_built, Points_);
       } else if (quantize == 16) {
-        using Point = Quantized_Mips_Point<uint16_t>;
-        using PR = PointRange<uint16_t, Point>;
+        using QT = int16_t;
+        using Point = Quantized_Mips_Point<QT>;
+        using PR = PointRange<QT, Point>;
         PR Points_(Points);
         PR Query_Points_(Query_Points, Points_.params);
         timeNeighbors<Point, PR, uint>(G, Query_Points_, k, BP, oFile, GT, rFile, graph_built, Points_);
