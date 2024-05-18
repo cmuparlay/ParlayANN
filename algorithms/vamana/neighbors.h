@@ -73,7 +73,7 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
          groundTruth<indexType> GT, char *res_file,
          bool graph_built, PointRange_ &Points) {
 
-  if (sizeof(typename PointRange_::T) >= 4) {
+  if (BP.quantize && sizeof(typename PointRange_::T) >= 2) {
     if (Point::is_metric()) {
       using QT = uint8_t;
       using QPoint = Euclidian_Point<QT>;

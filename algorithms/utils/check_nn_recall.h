@@ -84,15 +84,18 @@ nn_result checkRecall(
     recall = static_cast<float>(numCorrect) / static_cast<float>(k * n);
   } else if (GT.size() > 0 && dists_present) {
     size_t n = Query_Points.size();
-    
+
     int numCorrect = 0;
     for (indexType i = 0; i < n; i++) {
       parlay::sequence<int> results_with_ties;
       for (indexType l = 0; l < k; l++)
         results_with_ties.push_back(GT.coordinates(i,l));
-      float last_dist = GT.distances(i, k-1);
+      Point qp = Query_Points[i];
+      float last_dist = qp.distance(Base_Points[GT.coordinates(i, k-1)]);
+      //float last_dist = GT.distances(i, k-1);
       for (indexType l = k; l < GT.dimension(); l++) {
-        if (GT.distances(i,l) == last_dist) {
+        //if (GT.distances(i,l) == last_dist) {
+        if (qp.distance(Base_Points[GT.coordinates(i, l)]) == last_dist) {
           results_with_ties.push_back(GT.coordinates(i,l));
         }
       }

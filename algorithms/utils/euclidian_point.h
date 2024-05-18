@@ -145,8 +145,6 @@ struct Euclidian_Point {
         std::cout << "out of range: " << r << ", " << range << std::endl;
         abort();
       }
-      //if (j < 30) 
-      //  std::cout << j << " : " << (T) r << ", " << x << std::endl;
       values[j] = (T) r;
     }
   }
@@ -165,7 +163,7 @@ struct Euclidian_Point {
         maxs[i]= std::max(maxs[i], pr[i][j]);}});
     float min_val = *parlay::min_element(mins);
     float max_val = *parlay::max_element(maxs);
-    std::cout << min_val << ", " << max_val << std::endl;
+    //std::cout << min_val << ", " << max_val << std::endl;
     return parameters(min_val, max_val, dims);
   }
 
