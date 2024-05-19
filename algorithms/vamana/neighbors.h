@@ -64,7 +64,12 @@ void ANN_(Graph<indexType> &G, long k, BuildParams &BP,
             << std::endl;
   Graph_ G_(name, params, G.size(), avg_deg, max_deg, idx_time);
   G_.print();
-  if(Query_Points.size() != 0) search_and_parse<Point, PointRange, QPointRange, indexType>(G_, G, Points, Query_Points, Q_Points, Q_Query_Points, GT, res_file, k, false, start_point);
+  bool verbose = false;
+  if(Query_Points.size() != 0)
+    search_and_parse<Point, PointRange, QPointRange, indexType>(G_, G, Points, Query_Points,
+                                                                Q_Points, Q_Query_Points, GT,
+                                                                res_file, k, false, start_point,
+                                                                verbose);
 }
 
 template<typename Point, typename PointRange_, typename indexType>
@@ -72,8 +77,8 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
          PointRange_ &Query_Points,
          groundTruth<indexType> GT, char *res_file,
          bool graph_built, PointRange_ &Points) {
-
   if (BP.quantize && sizeof(typename PointRange_::T) >= 2) {
+    std::cout << "quantizing build and first pass of search to 1 byte" << std::endl;
     if (Point::is_metric()) {
       using QT = uint8_t;
       using QPoint = Euclidian_Point<QT>;
@@ -82,7 +87,7 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
       QPR Q_Query_Points(Query_Points, Q_Points.params);
       ANN_<Point, PointRange_, QPR, indexType>(G, k, BP, Query_Points, Q_Query_Points, GT, res_file, graph_built, Points, Q_Points);
     } else {
-      using QT = uint8_t;
+      using QT = int8_t;
       using QPoint = Quantized_Mips_Point<QT>;
       using QPR = PointRange<QT, QPoint>;
       QPR Q_Points(Points);

@@ -133,7 +133,7 @@ struct Euclidian_Point {
   bool same_as(const Euclidian_Point<T>& q){
     return values == q.values;
   }
-  
+
   template <typename Point>
   static void translate_point(T* values, const Point& p, const parameters& params) {
     float slope = params.slope;
@@ -153,16 +153,20 @@ struct Euclidian_Point {
   static parameters generate_parameters(const PR& pr) {
     long n = pr.size();
     int dims = pr.dimension();
-    parlay::sequence<typename PR::T> mins(n);
-    parlay::sequence<typename PR::T> maxs(n);
+    parlay::sequence<typename PR::T> mins(n, 0.0);
+    parlay::sequence<typename PR::T> maxs(n, 0.0);
+    parlay::sequence<bool> ni(n, true);
     parlay::parallel_for(0, n, [&] (long i) {
-      mins[i] = 0.0;
-      maxs[i] = 0.0;
       for (int j = 0; j < dims; j++) {
+        ni[i] = ni[i] && (pr[i][j] >= 0) && (pr[i][j] - (long) pr[i][j]) == 0;
         mins[i]= std::min(mins[i], pr[i][j]);
         maxs[i]= std::max(maxs[i], pr[i][j]);}});
     float min_val = *parlay::min_element(mins);
     float max_val = *parlay::max_element(maxs);
+    bool all_ints = *parlay::min_element(ni);
+    if (all_ints)
+      if (sizeof(T) == 1 && max_val < 256) max_val = 255;
+      else if (sizeof(T) == 2 && max_val < 65536) max_val = 65536;
     //std::cout << min_val << ", " << max_val << std::endl;
     return parameters(min_val, max_val, dims);
   }

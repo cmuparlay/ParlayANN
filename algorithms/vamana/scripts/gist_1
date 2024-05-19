@@ -1,0 +1,4 @@
+# bash                                                                                                                                   
+                                                                                                                                         
+numactl -i all ./neighbors -R 32 -L 64 -alpha 1.1 -data_type float -file_type bin -dist_func Euclidian -base_path data/gist/gist_b\
+ase.fbin -query_path data/gist/gist_query.fbin -gt_path data/gist/gist-1M -quantize 16 -two_pass 1

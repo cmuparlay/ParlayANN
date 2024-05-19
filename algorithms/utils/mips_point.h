@@ -110,11 +110,20 @@ struct Mips_Point {
     return values == q.values;
   }
 
+  void normalize() {
+    double norm = 0.0;
+    for (int j = 0; j < params.dims; j++)
+      norm += values[j] * values[j];
+    norm = std::sqrt(norm);
+    for (int j = 0; j < params.dims; j++)
+      values[j] = values[j] / norm;
+  }
+
   template <typename Point>
   static void translate_point(T* values, const Point& p, const parameters& params) {
     for (int j = 0; j < params.dims; j++) values[j] = (T) p[j];
   }
-  
+
   template <typename PR>
   static parameters generate_parameters(const PR& pr) {
     return parameters(pr.dimension());}
@@ -130,14 +139,11 @@ struct Quantized_Mips_Point{
   using distanceType = float; 
   
   struct parameters {
-    float slope;
-    int32_t offset;
+    float max_val;
     int dims;
-    parameters(int dims) : slope(0), offset(0), dims(dims) {}
-    parameters(float min_val, float max_val, int dims)
-      : slope(range / (max_val - min_val)),
-        offset((int32_t) round(min_val * slope)),
-        dims(dims) {}
+    parameters(int dims) : max_val(1), dims(dims) {}
+    parameters(float max_val, int dims)
+      : max_val(max_val), dims(dims) {}
   };
 
   static distanceType d_min() {return -std::numeric_limits<float>::max();}
@@ -146,24 +152,26 @@ struct Quantized_Mips_Point{
   //T& operator [] (long j) const {if (j >= d) abort(); return *(values+j);}
   T operator [] (long j) const {return *(values+j);}
 
-  float distance(uint8_t* p, uint8_t* q, int32_t o) const {
+  float distance(int8_t* p, int8_t* q) const {
     int32_t result = 0;
+    //int64_t r = std::ceil(range/(2 * params.max_val));
     for (int i = 0; i < params.dims; i++){
-      result += (p[i] + o) * (q[i] + o);
+      result += (int16_t) p[i] * (int16_t) q[i];
     }
-    return - (float) result;
+    //return (float) (r * r - result);
+    return (float) -result;
   }
 
-  float distance(uint16_t* p, uint16_t* q, int32_t o) const {
+  float distance(int16_t* p, int16_t* q) const {
     int64_t result = 0;
     for (int i = 0; i < params.dims; i++){
-      result += (p[i] + o) * (q[i] + o);
+      result += (int32_t) p[i] * (int32_t) q[i];
     }
-    return - (float) result;
+    return (float) -result;
   }
 
   float distance(const Quantized_Mips_Point &x) const {
-    return distance(this->values, x.values, params.offset);
+    return distance(this->values, x.values);
   }
 
   void prefetch() const {
@@ -191,15 +199,33 @@ struct Quantized_Mips_Point{
     return true;
   }
 
+  void normalize() {
+    std::cout << "can't normalize quantized point" << std::endl;
+    abort();
+  }
+
   template <typename Point>
   static void translate_point(T* values, const Point& p, const parameters& params) {
-    float slope = params.slope;
-    int32_t offset = params.offset;
     for (int j = 0; j < params.dims; j++) {
-      auto x = p[j];
-      values[j] = (T) (std::round(x * slope)) - offset;
+      float mv = params.max_val;
+      float pj = p[j];
+      if (pj < -mv || pj > mv) {
+        std::cout << pj << " is out of range, should be in [" << -mv << ":" << mv << "]" << std::endl;
+        abort();
+      }
+      int32_t x = std::round(pj * (range/2) / mv);
+      values[j] = (T) x;
     }
   }
+
+  // template <typename Point>
+  // static void translate_point(T* values, const Point& p, const parameters& params) {
+  //   for (int j = 0; j < params.dims; j++) {
+  //     int32_t x = (std::round(p[j] * (range/2) / params.max_val));
+  //     if (x < -(range/2) || x > (range/2)) abort();
+  //     values[j] = (T) x;
+  //   }
+  // }
 
   template <typename PR>
   static parameters generate_parameters(const PR& pr) {
@@ -215,7 +241,7 @@ struct Quantized_Mips_Point{
         maxs[i]= std::max(maxs[i], pr[i][j]);}});
     float min_val = *parlay::min_element(mins);
     float max_val = *parlay::max_element(maxs);
-    return parameters(min_val, max_val, dims);
+    return parameters(std::max(max_val, -min_val), dims);
   }
 
 private:

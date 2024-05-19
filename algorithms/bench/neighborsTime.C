@@ -109,6 +109,8 @@ int main(int argc, char* argv[]) {
   char* dfc = P.getOptionValue("-dist_func");
   int quantize = P.getOptionIntValue("-quantize", 0);
   bool quantize_build = P.getOption("-quantize_build");
+  bool verbose = P.getOption("-verbose");
+  bool normalize = P.getOption("-normalize");
     
   std::string df = std::string(dfc);
   std::string tp = std::string(vectype);
@@ -138,6 +140,7 @@ int main(int argc, char* argv[]) {
       if(gFile == NULL) G = Graph<unsigned int>(maxDeg, Points.size());
       else G = Graph<unsigned int>(gFile);
       if (quantize == 8) {
+        std::cout << "quantizing data to 1 byte" << std::endl;
         using QT = uint8_t;
         using QPoint = Euclidian_Point<QT>;
         using PR = PointRange<QT, QPoint>;
@@ -145,6 +148,7 @@ int main(int argc, char* argv[]) {
         PR Query_Points_(Query_Points, Points_.params);
         timeNeighbors<QPoint, PR, uint>(G, Query_Points_, k, BP, oFile, GT, rFile, graph_built, Points_);
       } else if (quantize == 16) {
+        std::cout << "quantizing data to 2 bytes" << std::endl;
         using Point = Euclidian_Point<uint16_t>;
         using PR = PointRange<uint16_t, Point>;
         PR Points_(Points);
@@ -158,19 +162,29 @@ int main(int argc, char* argv[]) {
     } else if(df == "mips"){
       PointRange<float, Mips_Point<float>> Points = PointRange<float, Mips_Point<float>>(iFile);
       PointRange<float, Mips_Point<float>> Query_Points = PointRange<float, Mips_Point<float>>(qFile);
+      if (normalize) {
+        std::cout << "normalizing data" << std::endl;
+        for (int i=0; i < Points.size(); i++) 
+          Points[i].normalize();
+        for (int i=0; i < Query_Points.size(); i++) 
+          Query_Points[i].normalize();
+      }
       Graph<unsigned int> G; 
       if(gFile == NULL) G = Graph<unsigned int>(maxDeg, Points.size());
       else G = Graph<unsigned int>(gFile);
       if (quantize == 8) {
-        using QT = uint8_t;
-        using Point = Quantized_Mips_Point<uint8_t>;
-        using PR = PointRange<uint8_t, Point>;
+        std::cout << "quantizing data to 1 byte" << std::endl;
+        using QT = int8_t;
+        using Point = Quantized_Mips_Point<QT>;
+        using PR = PointRange<QT, Point>;
         PR Points_(Points);
         PR Query_Points_(Query_Points, Points_.params);
         timeNeighbors<Point, PR, uint>(G, Query_Points_, k, BP, oFile, GT, rFile, graph_built, Points_);
       } else if (quantize == 16) {
-        using Point = Quantized_Mips_Point<uint16_t>;
-        using PR = PointRange<uint16_t, Point>;
+        std::cout << "quantizing data to 2 bytes" << std::endl;
+        using QT = int16_t;
+        using Point = Quantized_Mips_Point<QT>;
+        using PR = PointRange<QT, Point>;
         PR Points_(Points);
         PR Query_Points_(Query_Points, Points_.params);
         timeNeighbors<Point, PR, uint>(G, Query_Points_, k, BP, oFile, GT, rFile, graph_built, Points_);

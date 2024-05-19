@@ -1,0 +1,5 @@
+# bash
+
+numactl -i all ./neighbors -R 64 -L 128 -a 1.13 -alpha 1.13 -data_type int8 -file_type bin -dist_func Euclidian -base_path data/MSSPACEV1B/spacev1b_base.i8bin.crop_nb_1000000 -query_path data/MSSPACEV1B/query.i8bin -gt_path data/MSSPACEV1B/msspacev-1M -two_pass 1
+
+

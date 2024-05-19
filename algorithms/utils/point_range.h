@@ -67,7 +67,10 @@ struct PointRange{
     n = pr.size();
     dims = pr.dimension();
     aligned_dims =  dim_round_up(dims, sizeof(T));
-    values = std::shared_ptr<T[]>((T*) aligned_alloc(64, n*aligned_dims*sizeof(T)), std::free);
+    long num_bytes = n*aligned_dims*sizeof(T);
+    T* ptr = (T*) aligned_alloc(1l << 21, num_bytes);
+    madvise(ptr, num_bytes, MADV_HUGEPAGE);
+    values = std::shared_ptr<T[]>(ptr, std::free);
     T* vptr = values.get();
     parlay::parallel_for(0, n, [&] (long i) {
       Point::translate_point(vptr + i * aligned_dims, pr[i], params);});
