@@ -81,6 +81,13 @@ struct pair_hash {
     }
 };
 
+size_t cantor_pairing(int a, int b) {
+    if (a >= b) {
+        throw std::invalid_argument("a must be less than b");
+    }
+    return static_cast<size_t>(a + b) * (a + b + 1) / 2 + b;
+}
+
 /* equal function that ignores order */
 struct pair_equal {
     template <class T1, class T2>
@@ -720,7 +727,7 @@ struct IVF_Squared {
           manifest_file.read(reinterpret_cast<char*>(&b), sizeof(b));
           manifest_file.read(reinterpret_cast<char*>(&size), sizeof(size));
           
-          int id = filters.n_points + i; 
+          size_t id = filters.n_points + cantor_pairing(a, b); 
 
           int weight_class = 0;
           if (size > this->large_cutoff) {
@@ -760,7 +767,7 @@ struct IVF_Squared {
                     weight_class = 1;
                   }
 
-                  int id = filters.n_points + this->material_joins_map.size(); // obviously not ideal
+                  size_t id = filters.n_points + cantor_pairing(i, j)
 
                   this->material_joins_map[std::make_pair(i, j)] = std::make_unique<PostingListIndex<T, Point>>(
                     this->points, intersection.begin(), intersection.end(),
