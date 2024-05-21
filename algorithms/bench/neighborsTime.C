@@ -115,7 +115,7 @@ int main(int argc, char* argv[]) {
   std::string df = std::string(dfc);
   std::string tp = std::string(vectype);
 
-  BuildParams BP = BuildParams(R, L, alpha, pass, num_clusters, cluster_size, MST_deg, delta, quantize_build, radius, radius_2);
+  BuildParams BP = BuildParams(R, L, alpha, pass, num_clusters, cluster_size, MST_deg, delta, verbose, quantize_build, radius, radius_2);
   long maxDeg = BP.max_degree();
 
   if((tp != "uint8") && (tp != "int8") && (tp != "float")){

@@ -43,18 +43,22 @@ void ANN_(Graph<indexType> &G, long k, BuildParams &BP,
           bool graph_built, PointRange &Points, QPointRange &Q_Points) {
   parlay::internal::timer t("ANN");
 
+  bool verbose = BP.verbose;
   using findex = knn_index<QPointRange, indexType>;
   findex I(BP);
+  indexType start_point;
   double idx_time;
   stats<unsigned int> BuildStats(G.size());
   if(graph_built){
     idx_time = 0;
+    start_point = 0;
   } else{
     I.build_index(G, Q_Points, BuildStats);
+    start_point = I.get_start();
     idx_time = t.next_time();
   }
-  
-  indexType start_point = I.get_start();
+  std::cout << "start index = " << start_point << std::endl;
+
   std::string name = "Vamana";
   std::string params =
       "R = " + std::to_string(BP.R) + ", L = " + std::to_string(BP.L);
@@ -64,7 +68,6 @@ void ANN_(Graph<indexType> &G, long k, BuildParams &BP,
             << std::endl;
   Graph_ G_(name, params, G.size(), avg_deg, max_deg, idx_time);
   G_.print();
-  bool verbose = false;
   if(Query_Points.size() != 0)
     search_and_parse<Point, PointRange, QPointRange, indexType>(G_, G, Points, Query_Points,
                                                                 Q_Points, Q_Query_Points, GT,

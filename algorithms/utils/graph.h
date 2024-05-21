@@ -53,7 +53,7 @@ struct edgeRange{
 
   indexType operator [] (indexType j) const {
     if (j > edges[0]) {
-      std::cout << "ERROR: tried to exceed range" << std::endl;
+      std::cout << "ERROR: index exceeds degree while accessing neighbors" << std::endl;
       abort();
     } else return edges[j+1];
   }
@@ -164,7 +164,7 @@ struct Graph{
     auto degrees = parlay::tabulate(degrees0.size(), [&] (size_t i){
       return static_cast<size_t>(degrees0[i]);});
     auto [offsets, total] = parlay::scan(degrees);
-    std::cout << "Total: " << total << std::endl;
+    //std::cout << "Total edges read from file: " << total << std::endl;
     offsets.push_back(total);
 
     allocate_graph(max_deg, n);
@@ -225,6 +225,10 @@ struct Graph{
   }
 
   edgeRange<indexType> operator [] (indexType i) {
+    if (i > n) {
+      std::cout << "ERROR: graph index out of range: " << i << std::endl;
+      abort();
+    }
     return edgeRange<indexType>(graph.get() + i * (maxDeg + 1),
                                 graph.get() + (i + 1) * (maxDeg + 1),
                                 i);

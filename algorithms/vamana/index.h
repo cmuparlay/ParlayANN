@@ -52,7 +52,7 @@ struct knn_index {
   indexType start_point;
 
 
-  knn_index(BuildParams &BP) : BP(BP) {}
+  knn_index(BuildParams &BP) : BP(BP), start_point(0) {}
 
   indexType get_start() { return start_point; }
 
