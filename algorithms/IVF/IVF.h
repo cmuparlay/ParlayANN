@@ -699,6 +699,8 @@ struct IVF_Squared {
     }, (parallel_build ? 0 : 10'000'000)); 
 
     if (this->materialized_joins) {
+      std::cout << "Materializing joins larger than " << join_cutoff << " elements" << std::endl;
+
       this->material_joins_map = std::unordered_map<std::pair<index_type, index_type>, std::unique_ptr<PostingListIndex<T, Point>>, pair_hash, pair_equal>();
 
       // we store a 'manifest' of the intersection sizes so we don't have to recompute it every load
@@ -707,6 +709,9 @@ struct IVF_Squared {
       if (std::filesystem::exists(manifest_filename)) {
         std::ifstream manifest_file(manifest_filename);
         size_t n_intersections;
+
+        std::cout << "Manifest file found with " << n_intersections << " intersections, loading..." << std::endl;
+
         manifest_file.read(reinterpret_cast<char*>(&n_intersections), sizeof(n_intersections)); // read number of materialized intersections
         for (size_t i = 0; i < n_intersections; i++) {
           index_type a, b;
@@ -726,6 +731,7 @@ struct IVF_Squared {
 
           auto intersection = filters.point_intersection(a, b);
 
+          // these should really be parallelized constructions
           this->material_joins_map[std::make_pair(a, b)] = std::make_unique<PostingListIndex<T, Point>>(
                   this->points, intersection.begin(), intersection.end(),
                   KMeansClusterer<T, Point, index_type>(1), 
@@ -734,31 +740,34 @@ struct IVF_Squared {
         }
         manifest_file.close();
       } else {
+        std::cout << "No intersection manifest found, building materialized joins..." << std::endl;
         parlay::sequence<std::tuple<index_type, index_type, size_t>> intersection_sizes;
         // we compute the size of the join for each pair of large filters
         // and if a join is large enough, we build an index for it
         for (size_t i = 0; i < filters.n_points; i++) {
-          for (size_t j = i; j < filters.n_points; j++) {
-            if (filters.point_count(i) > cutoff && filters.point_count(j) > cutoff) {
-              auto intersection = filters.point_intersection(i, j);
+          if (filters.point_count(i) > join_cutoff) {
+            for (size_t j = i; j < filters.n_points; j++) {
+              if (filters.point_count(j) > join_cutoff) {
+                auto intersection = filters.point_intersection(i, j);
 
-              if (intersection.size() > join_cutoff) {
-                intersection_sizes.push_back(std::make_tuple(i, j, intersection.size()));
+                if (intersection.size() > join_cutoff) {
+                  intersection_sizes.push_back(std::make_tuple(i, j, intersection.size()));
 
-                int weight_class = 0;
-                if (intersection.size() > this->large_cutoff) {
-                  weight_class = 2;
-                } else if (intersection.size() > this->medium_cutoff) {
-                  weight_class = 1;
+                  int weight_class = 0;
+                  if (intersection.size() > this->large_cutoff) {
+                    weight_class = 2;
+                  } else if (intersection.size() > this->medium_cutoff) {
+                    weight_class = 1;
+                  }
+
+                  int id = filters.n_points + this->material_joins_map.size(); // obviously not ideal
+
+                  this->material_joins_map[std::make_pair(i, j)] = std::make_unique<PostingListIndex<T, Point>>(
+                    this->points, intersection.begin(), intersection.end(),
+                    KMeansClusterer<T, Point, index_type>(1),
+                    BP[weight_class], QP + weight_class, id, cache_path,
+                    filters.n_filters);
                 }
-
-                int id = filters.n_points + this->material_joins_map.size(); // obviously not ideal
-
-                this->material_joins_map[std::make_pair(i, j)] = std::make_unique<PostingListIndex<T, Point>>(
-                  this->points, intersection.begin(), intersection.end(),
-                  KMeansClusterer<T, Point, index_type>(1),
-                  BP[weight_class], QP + weight_class, id, cache_path,
-                  filters.n_filters);
               }
             }
           }
