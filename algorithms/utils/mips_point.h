@@ -40,6 +40,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <immintrin.h>
 
   float mips_distance(const uint8_t *p, const uint8_t *q, unsigned d) {
     int result = 0;
@@ -57,6 +58,29 @@
     return -((float)result);
   }
 
+
+#ifdef __AVX512F__
+  float mips_distance(const float *p, const float *q, unsigned d) {
+    __m512 sum = _mm512_setzero_ps();
+    for (int i = 0; i < d - 15; i += 16) {
+      __m512 p_vec = _mm512_loadu_ps(p + i);
+      __m512 q_vec = _mm512_loadu_ps(q + i);
+      sum = _mm512_add_ps(sum, _mm512_mul_ps(p_vec, q_vec));
+    }
+
+    if (d % 16 != 0) {
+      __mmask16 mask = (1 << (d % 16)) - 1;
+      __m512 p_vec = _mm512_maskz_loadu_ps(mask, p + d - d % 16);
+      __m512 q_vec = _mm512_maskz_loadu_ps(mask, q + d - d % 16);
+      sum = _mm512_maskz_add_ps(mask, sum, _mm512_maskz_mul_ps(mask, p_vec, q_vec));
+    }
+
+    float result[16];
+    _mm512_storeu_ps(result, sum);
+
+    return - (result[0] + result[1] + result[2] + result[3] + result[4] + result[5] + result[6] + result[7] + result[8] + result[9] + result[10] + result[11] + result[12] + result[13] + result[14] + result[15]);
+  }
+#else
   float mips_distance(const float *p, const float *q, unsigned d) {
     float result = 0;
     for (int i = 0; i < (int) d; i++) {
@@ -64,6 +88,7 @@
     }
     return -result;
   }
+#endif
 
 template<typename T>
 struct Mips_Point {
