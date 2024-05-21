@@ -757,7 +757,7 @@ struct IVF_Squared {
         // and if a join is large enough, we build an index for it
         for (size_t i = 0; i < filters.n_points; i++) {
           if (filters.point_count(i) > join_cutoff) {
-            for (size_t j = i; j < filters.n_points; j++) {
+            for (size_t j = i + 1; j < filters.n_points; j++) {
               if (filters.point_count(j) > join_cutoff) {
                 auto intersection = filters.point_intersection(i, j);
 
