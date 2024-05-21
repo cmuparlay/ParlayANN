@@ -700,33 +700,81 @@ struct IVF_Squared {
 
     if (this->materialized_joins) {
       this->material_joins_map = std::unordered_map<std::pair<index_type, index_type>, std::unique_ptr<PostingListIndex<T, Point>>, pair_hash, pair_equal>();
-      // we compute the size of the join for each pair of large filters
-      // and if a join is large enough, we build an index for it
-      for (size_t i = 0; i < filters.n_points; i++) {
-        for (size_t j = i; j < filters.n_points; j++) {
-          if (filters.point_count(i) > cutoff && filters.point_count(j) > cutoff) {
-            auto intersection = filters.point_intersection(i, j);
 
-            if (intersection.size() > join_cutoff) {
-              int weight_class = 0;
-              if (intersection.size() > this->large_cutoff) {
-                weight_class = 2;
-              } else if (intersection.size() > this->medium_cutoff) {
-                weight_class = 1;
+      // we store a 'manifest' of the intersection sizes so we don't have to recompute it every load
+      std::string manifest_filename = cache_path + "manifest_" + std::to_string(cutoff) + "_" + std::to_string(join_cutoff);
+
+      if (std::filesystem::exists(manifest_filename)) {
+        std::ifstream manifest_file(manifest_filename);
+        size_t n_intersections;
+        manifest_file.read(reinterpret_cast<char*>(&n_intersections), sizeof(n_intersections)); // read number of materialized intersections
+        for (size_t i = 0; i < n_intersections; i++) {
+          index_type a, b;
+          size_t size;
+          manifest_file.read(reinterpret_cast<char*>(&a), sizeof(a));
+          manifest_file.read(reinterpret_cast<char*>(&b), sizeof(b));
+          manifest_file.read(reinterpret_cast<char*>(&size), sizeof(size));
+          
+          int id = filters.n_points + i; 
+
+          int weight_class = 0;
+          if (size > this->large_cutoff) {
+            weight_class = 2;
+          } else if (size > this->medium_cutoff) {
+            weight_class = 1;
+          }
+
+          auto intersection = filters.point_intersection(a, b);
+
+          this->material_joins_map[std::make_pair(a, b)] = std::make_unique<PostingListIndex<T, Point>>(
+                  this->points, intersection.begin(), intersection.end(),
+                  KMeansClusterer<T, Point, index_type>(1), 
+                  BP[weight_class], QP + weight_class, id, cache_path,
+                  filters.n_filters);
+        }
+        manifest_file.close();
+      } else {
+        parlay::sequence<std::tuple<index_type, index_type, size_t>> intersection_sizes;
+        // we compute the size of the join for each pair of large filters
+        // and if a join is large enough, we build an index for it
+        for (size_t i = 0; i < filters.n_points; i++) {
+          for (size_t j = i; j < filters.n_points; j++) {
+            if (filters.point_count(i) > cutoff && filters.point_count(j) > cutoff) {
+              auto intersection = filters.point_intersection(i, j);
+
+              if (intersection.size() > join_cutoff) {
+                intersection_sizes.push_back(std::make_tuple(i, j, intersection.size()));
+
+                int weight_class = 0;
+                if (intersection.size() > this->large_cutoff) {
+                  weight_class = 2;
+                } else if (intersection.size() > this->medium_cutoff) {
+                  weight_class = 1;
+                }
+
+                int id = filters.n_points + this->material_joins_map.size(); // obviously not ideal
+
+                this->material_joins_map[std::make_pair(i, j)] = std::make_unique<PostingListIndex<T, Point>>(
+                  this->points, intersection.begin(), intersection.end(),
+                  KMeansClusterer<T, Point, index_type>(1),
+                  BP[weight_class], QP + weight_class, id, cache_path,
+                  filters.n_filters);
               }
-
-              int id = filters.n_points + this->material_joins_map.size(); // obviously not ideal
-
-              this->material_joins_map[std::make_pair(i, j)] = std::make_unique<PostingListIndex<T, Point>>(
-                this->points, intersection.begin(), intersection.end(),
-                KMeansClusterer<T, Point, index_type>(intersection.size() /
-                                                  cluster_size),
-                BP[weight_class], QP + weight_class, id, cache_path,
-                filters.n_filters);
             }
           }
         }
+        // write manifest file
+        std::ofstream manifest_file(manifest_filename);
+        size_t n_intersections = intersection_sizes.size();
+        manifest_file.write(reinterpret_cast<const char*>(&(n_intersections)), sizeof(size_t));
+        for (auto [a, b, size] : intersection_sizes) {
+          manifest_file.write(reinterpret_cast<const char*>(&a), sizeof(a));
+          manifest_file.write(reinterpret_cast<const char*>(&b), sizeof(b));
+          manifest_file.write(reinterpret_cast<const char*>(&size), sizeof(size));
+        }
+        manifest_file.close();
       }
+
       std::cout << "IVF^2: materialized joins built, indexing " << this->material_joins_map.size() << " intersections" << std::endl;
     }
   }
