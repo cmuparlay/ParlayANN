@@ -744,6 +744,10 @@ struct IVF_Squared {
                   KMeansClusterer<T, Point, index_type>(1), 
                   BP[weight_class], QP + weight_class, id, cache_path,
                   filters.n_filters);
+
+          if (i % 100 == 0) {
+            std::cout << "===============  IVF^2: " << i << " / " << n_intersections << " materialized joins loaded  ===============" << std::endl;
+          }
         }
         manifest_file.close();
       } else {
@@ -777,6 +781,9 @@ struct IVF_Squared {
                 }
               }
             }
+          }
+          if (i % 100 == 0) {
+            std::cout << "===============  IVF^2: " << i << " / " << filters.n_points << " filters processed for joins  ===============" << std::endl;
           }
         }
         // write manifest file
