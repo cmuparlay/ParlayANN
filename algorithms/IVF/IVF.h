@@ -771,7 +771,7 @@ struct IVF_Squared {
                     weight_class = 1;
                   }
 
-                  size_t id = filters.n_points + cantor_pairing(i, j)
+                  size_t id = filters.n_points + cantor_pairing(i, j);
 
                   this->material_joins_map[std::make_pair(i, j)] = std::make_unique<PostingListIndex<T, Point>>(
                     this->points, intersection.begin(), intersection.end(),
