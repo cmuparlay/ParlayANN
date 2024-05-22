@@ -136,6 +136,13 @@ int main(int argc, char* argv[]) {
     if(df == "Euclidian"){
       PointRange<float, Euclidian_Point<float>> Points = PointRange<float, Euclidian_Point<float>>(iFile);
       PointRange<float, Euclidian_Point<float>> Query_Points = PointRange<float, Euclidian_Point<float>>(qFile);
+      if (normalize) {
+        std::cout << "normalizing data" << std::endl;
+        for (int i=0; i < Points.size(); i++) 
+          Points[i].normalize();
+        for (int i=0; i < Query_Points.size(); i++) 
+          Query_Points[i].normalize();
+      }
       Graph<unsigned int> G; 
       if(gFile == NULL) G = Graph<unsigned int>(maxDeg, Points.size());
       else G = Graph<unsigned int>(gFile);

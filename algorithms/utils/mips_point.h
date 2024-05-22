@@ -115,6 +115,7 @@ struct Mips_Point {
     for (int j = 0; j < params.dims; j++)
       norm += values[j] * values[j];
     norm = std::sqrt(norm);
+    if (norm == 0) norm = 1.0;
     for (int j = 0; j < params.dims; j++)
       values[j] = values[j] / norm;
   }
@@ -154,7 +155,6 @@ struct Quantized_Mips_Point{
 
   float distance(int8_t* p, int8_t* q) const {
     int32_t result = 0;
-    //int64_t r = std::ceil(range/(2 * params.max_val));
     for (int i = 0; i < params.dims; i++){
       result += (int16_t) p[i] * (int16_t) q[i];
     }
@@ -218,15 +218,6 @@ struct Quantized_Mips_Point{
     }
   }
 
-  // template <typename Point>
-  // static void translate_point(T* values, const Point& p, const parameters& params) {
-  //   for (int j = 0; j < params.dims; j++) {
-  //     int32_t x = (std::round(p[j] * (range/2) / params.max_val));
-  //     if (x < -(range/2) || x > (range/2)) abort();
-  //     values[j] = (T) x;
-  //   }
-  // }
-
   template <typename PR>
   static parameters generate_parameters(const PR& pr) {
     long n = pr.size();
@@ -241,6 +232,8 @@ struct Quantized_Mips_Point{
         maxs[i]= std::max(maxs[i], pr[i][j]);}});
     float min_val = *parlay::min_element(mins);
     float max_val = *parlay::max_element(maxs);
+    std::cout << scala quantization: min value = " << min_val
+              << ", max value = " << max_val << std::endl;
     return parameters(std::max(max_val, -min_val), dims);
   }
 
@@ -249,3 +242,4 @@ private:
   long id_;
   parameters params;
 };
+

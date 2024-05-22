@@ -104,8 +104,18 @@ struct Euclidian_Point {
   static bool is_metric() {return true;}
   T operator[](long i) const {return *(values + i);}
 
-  float distance(const Euclidian_Point<T>& x) const {
+  float distance(const Euclidian_Point& x) const {
     return euclidian_distance(this->values, x.values, params.dims);
+  }
+
+  void normalize() {
+    double norm = 0.0;
+    for (int j = 0; j < params.dims; j++)
+      norm += values[j] * values[j];
+    norm = std::sqrt(norm);
+    if (norm == 0) norm = 1.0;
+    for (int j = 0; j < params.dims; j++)
+      values[j] = values[j] / norm;
   }
 
   void prefetch() const {
@@ -121,7 +131,7 @@ struct Euclidian_Point {
   Euclidian_Point(T* values, long id, parameters params)
     : values(values), id_(id), params(params) {}
 
-  bool operator==(const Euclidian_Point<T>& q) const {
+  bool operator==(const Euclidian_Point& q) const {
     for (int i = 0; i < params.dims; i++) {
       if (values[i] != q.values[i]) {
         return false;
@@ -130,7 +140,7 @@ struct Euclidian_Point {
     return true;
   }
 
-  bool same_as(const Euclidian_Point<T>& q){
+  bool same_as(const Euclidian_Point& q){
     return values == q.values;
   }
 
@@ -138,11 +148,17 @@ struct Euclidian_Point {
   static void translate_point(T* values, const Point& p, const parameters& params) {
     float slope = params.slope;
     int32_t offset = params.offset;
+    float min_val = std::floor(offset / slope);
+    float max_val = std::ceil((range + offset) / slope);
     for (int j = 0; j < params.dims; j++) {
       auto x = p[j];
+      if (x < min_val || x > max_val) {
+        std::cout << x << " is out of range: [" << min_val << "," << max_val << "]" << std::endl;
+        abort();
+      }
       int64_t r = (int64_t) (std::round(x * slope)) - offset;
       if (r < 0 || r > range) {
-        std::cout << "out of range: " << r << ", " << range << std::endl;
+        std::cout << "out of range: " << r << ", " << range << ", " << x << ", " << std::round(x * slope) - offset << ", " << slope << ", " << offset << std::endl;
         abort();
       }
       values[j] = (T) r;

@@ -92,6 +92,7 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
     } else {
       using QT = int8_t;
       using QPoint = Quantized_Mips_Point<QT>;
+      //using QPoint = Quantized_Mips_Point_4;
       using QPR = PointRange<QT, QPoint>;
       QPR Q_Points(Points);
       QPR Q_Query_Points(Query_Points, Q_Points.params);

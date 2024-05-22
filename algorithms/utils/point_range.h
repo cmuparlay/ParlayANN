@@ -114,7 +114,9 @@ struct PointRange{
           parlay::slice<T*, T*> data = parlay::make_slice(data_start, data_end);
           int data_bytes = dims*sizeof(T);
           parlay::parallel_for(floor, ceiling, [&] (size_t i){
-            std::memmove(values.get() + i*aligned_dims, data.begin() + (i-floor)*dims, data_bytes);
+            for (int j=0; j < dims; j++)
+              values.get()[i * aligned_dims + j] = data[(i - floor) * dims + j];
+            //std::memmove(values.get() + i*aligned_dims, data.begin() + (i-floor)*dims, data_bytes);
           });
           delete[] data_start;
           index = ceiling;
