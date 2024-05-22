@@ -183,7 +183,8 @@ struct Euclidian_Point {
     if (all_ints)
       if (sizeof(T) == 1 && max_val < 256) max_val = 255;
       else if (sizeof(T) == 2 && max_val < 65536) max_val = 65536;
-    //std::cout << min_val << ", " << max_val << std::endl;
+    std::cout << "scalar quantization: min value = " << min_val
+              << ", max value = " << max_val << std::endl;
     return parameters(min_val, max_val, dims);
   }
 

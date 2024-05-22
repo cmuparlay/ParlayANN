@@ -61,18 +61,46 @@ void ANN_(Graph<indexType> &G, long k, BuildParams &BP,
 
   std::string name = "Vamana";
   std::string params =
-      "R = " + std::to_string(BP.R) + ", L = " + std::to_string(BP.L);
+    "R = " + std::to_string(BP.R) + ", L = " + std::to_string(BP.L);
   auto [avg_deg, max_deg] = graph_stats_(G);
   auto vv = BuildStats.visited_stats();
   std::cout << "Average visited: " << vv[0] << ", Tail visited: " << vv[1]
             << std::endl;
   Graph_ G_(name, params, G.size(), avg_deg, max_deg, idx_time);
   G_.print();
-  if(Query_Points.size() != 0)
+
+  long build_num_distances = parlay::reduce(parlay::map(BuildStats.distances,
+                                                        [] (auto x) {return (long) x;}));
+
+  if(Query_Points.size() != 0) {
     search_and_parse<Point, PointRange, QPointRange, indexType>(G_, G, Points, Query_Points,
                                                                 Q_Points, Q_Query_Points, GT,
                                                                 res_file, k, false, start_point,
                                                                 verbose);
+  } else if (BP.self) {
+    if (BP.range) {
+      parlay::internal::timer t_range("range search time");
+      double radius = BP.radius;
+      double radius_2 = BP.radius_2;
+      std::cout << "radius = " << radius << " radius_2 = " << radius_2 << std::endl;
+      QueryParams QP;
+      long n = Points.size();
+      parlay::sequence<long> counts(n);
+      parlay::sequence<long> distance_comps(n);
+      parlay::parallel_for(0, G.size(), [&] (long i) {
+        parlay::sequence<indexType> pts;
+        pts.push_back(Points[i].id());
+        auto [r, dc] = range_search(Points[i], G, Points, pts, radius, radius_2, QP, true);
+        counts[i] = r.size();
+        distance_comps[i] = dc;});
+      t_range.total();
+      long range_num_distances = parlay::reduce(distance_comps);
+
+      std::cout << "edges within range: " << parlay::reduce(counts) << std::endl;
+      std::cout << "distance comparisons during build = " << build_num_distances << std::endl;
+      std::cout << "distance comparisons during range = " << range_num_distances << std::endl;
+    }
+  }
 }
 
 template<typename Point, typename PointRange_, typename indexType>
@@ -92,7 +120,6 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
     } else {
       using QT = int8_t;
       using QPoint = Quantized_Mips_Point<QT>;
-      //using QPoint = Quantized_Mips_Point_4;
       using QPR = PointRange<QT, QPoint>;
       QPR Q_Points(Points);
       QPR Q_Query_Points(Query_Points, Q_Points.params);
@@ -102,4 +129,3 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
     ANN_<Point, PointRange_, PointRange_, indexType>(G, k, BP, Query_Points, Query_Points, GT, res_file, graph_built, Points, Points);
   }
 }
-  

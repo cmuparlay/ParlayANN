@@ -111,11 +111,13 @@ int main(int argc, char* argv[]) {
   bool quantize_build = P.getOption("-quantize_build");
   bool verbose = P.getOption("-verbose");
   bool normalize = P.getOption("-normalize");
+  bool self = P.getOption("-self");
+  bool range = P.getOption("-range");
     
   std::string df = std::string(dfc);
   std::string tp = std::string(vectype);
 
-  BuildParams BP = BuildParams(R, L, alpha, pass, num_clusters, cluster_size, MST_deg, delta, verbose, quantize_build, radius, radius_2);
+  BuildParams BP = BuildParams(R, L, alpha, pass, num_clusters, cluster_size, MST_deg, delta, verbose, quantize_build, radius, radius_2, self, range);
   long maxDeg = BP.max_degree();
 
   if((tp != "uint8") && (tp != "int8") && (tp != "float")){

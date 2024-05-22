@@ -232,7 +232,7 @@ struct Quantized_Mips_Point{
         maxs[i]= std::max(maxs[i], pr[i][j]);}});
     float min_val = *parlay::min_element(mins);
     float max_val = *parlay::max_element(maxs);
-    std::cout << scala quantization: min value = " << min_val
+    std::cout << "scalar quantization: min value = " << min_val
               << ", max value = " << max_val << std::endl;
     return parameters(std::max(max_val, -min_val), dims);
   }

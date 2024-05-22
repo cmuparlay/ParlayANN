@@ -162,13 +162,16 @@ struct BuildParams{
   bool quantize; // use quantization for build
   double radius; // for radius search
   double radius_2; // for radius search
+  bool self;
+  bool range;
 
   std::string alg_type;
 
   BuildParams(long R, long L, double a, bool tp, long nc, long cs, long mst, double de,
-              bool verbose = false, bool quantize = false, double radius = 0.0, double radius_2 = 0.0)
+              bool verbose = false, bool quantize = false, double radius = 0.0, double radius_2 = 0.0,
+              bool self = false, bool range = false)
     : R(R), L(L), alpha(a), two_pass(tp), num_clusters(nc), cluster_size(cs), MST_deg(mst), delta(de),
-      verbose(verbose), quantize(quantize), radius(radius), radius_2(radius_2) {
+      verbose(verbose), quantize(quantize), radius(radius), radius_2(radius_2), self(self), range(range) {
     if(R != 0 && L != 0 && alpha != 0){alg_type = m_l>0? "HNSW": "Vamana";}
     else if(num_clusters != 0 && cluster_size != 0 && MST_deg != 0){alg_type = "HCNNG";}
     else if(R != 0 && alpha != 0 && num_clusters != 0 && cluster_size != 0 && delta != 0){alg_type = "pyNNDescent";}
