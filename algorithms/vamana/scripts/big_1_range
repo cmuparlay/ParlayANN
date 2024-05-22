@@ -1,0 +1,6 @@
+# bash
+# radius 10000, gt = 1590124, 99% = 1574222
+
+numactl -i all ./neighbors -R 20 -L 10 -alpha 1 -data_type uint8 -file_type bin -dist_func Euclidian -base_path data/bigann/base.1B.u8bin.crop_nb_1000000 -self -range -radius 10000 -radius_2 17000
+
+

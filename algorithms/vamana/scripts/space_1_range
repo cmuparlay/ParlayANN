@@ -1,0 +1,6 @@
+# bash
+# radius 450, gt = 1714462, 99% = 1697317
+
+numactl -i all ./neighbors -R 40 -L 20 -alpha 1.03 -data_type int8 -file_type bin -dist_func Euclidian -base_path data/MSSPACEV1B/spacev1b_base.i8bin.crop_nb_1000000 -radius 450 -radius_2 600 -self -range
+
+
