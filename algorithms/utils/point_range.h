@@ -54,11 +54,37 @@ template<typename T, class Point>
 struct PointRange{
 
   using TT = T;
-
+  
   long dimension(){return dims;}
   long aligned_dimension(){return aligned_dims;}
 
   PointRange() : values(std::shared_ptr<T[]>(nullptr, std::free)) {n=0;}
+
+  //TODO: constrcuter shared pointer, size, dimension
+
+  PointRange(std::shared_ptr<T[]> data, size_t size, long dimension): values(std::shared_ptr<T[]>(nullptr, std::free)){
+    n = size;
+    dims = dimension;
+    aligned_dims =  dim_round_up(dims, sizeof(T));
+    if(aligned_dims != dims) std::cout << "Aligning dimension to " << aligned_dims << std::endl;
+    size_t BLOCK_SIZE = 1000000;
+    size_t index = 0;
+    while(index < n){
+        size_t floor = index;
+        size_t ceiling = index+BLOCK_SIZE <= n ? index+BLOCK_SIZE : n;
+        // T* data_start = new T[(ceiling-floor)*dims];
+        // //reader.read((char*)(data_start), sizeof(T)*(ceiling-floor)*dims);
+        // T* data_end = data_start + (ceiling-floor)*dims;
+        // parlay::slice<T*, T*> data = parlay::make_slice(data_start, data_end);
+        int data_bytes = dims*sizeof(T);
+        parlay::parallel_for(floor, ceiling, [&] (size_t i){
+          std::memmove(values.get() + i*aligned_dims, data.begin() + (i-floor)*dims, data_bytes);
+        });
+        //delete[] data_start;
+        index = ceiling;
+    }
+  }
+
 
   PointRange(char* filename) : values(std::shared_ptr<T[]>(nullptr, std::free)){
       if(filename == NULL) {

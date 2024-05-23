@@ -1,6 +1,6 @@
 include ../../algorithms/bench/parallelDefsANN
 
 REQUIRE = 
-BENCH = ivf
+BENCH = ivfGraph
 
 include ../bench/MakeBench

@@ -108,7 +108,7 @@ struct RangeGroundTruth{
   size_t num_matches;
 
   RangeGroundTruth() : sizes(parlay::make_slice<T*, T*>(nullptr, nullptr)){}
-
+  
   RangeGroundTruth(char* gtFile) : sizes(parlay::make_slice<T*, T*>(nullptr, nullptr)){
     if(gtFile == NULL){
         n = 0;
@@ -119,10 +119,9 @@ struct RangeGroundTruth{
         n = *((T*) fileptr);
         num_matches = *((T*) (fileptr+sizeof(T)));
 
-        T* sizes_begin = (T*)(fileptr + 2*sizeof(T)) ;
+        T* sizes_begin = (T*)(fileptr + 2*sizeof(T));
         T* sizes_end = sizes_begin+n;
         sizes = parlay::make_slice(sizes_begin, sizes_end);
-
         auto [offsets0, total] = parlay::scan(sizes);
         offsets0.push_back(total);
         offsets = offsets0;
