@@ -195,91 +195,91 @@ beam_search_impl(Point p, GT &G, PointRange &Points,
                         dist_cmps);
 }
 
-// //a variant specialized for range searching
-// //TODO pass in visited list also? would need to make sure it's in has_been_seen
-// template<typename Point, typename PointRange, typename indexType>
-// std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>, size_t>
-// range_search(Point p, Graph<indexType> &G, PointRange &Points,
-// 	      parlay::sequence<indexType> starting_points, RangeParams &RP) {
-//   // compare two (node_id,distance) pairs, first by distance and then id if
-//   // equal
-//   using distanceType = typename Point::distanceType; 
-//   auto less = [&](std::pair<indexType, distanceType> a, std::pair<indexType, distanceType> b) {
-//     return a.second < b.second || (a.second == b.second && a.first < b.first);
-//   };
+//a variant specialized for range searching
+//TODO pass in visited list also? would need to make sure it's in has_been_seen
+template<typename Point, typename PointRange, typename indexType>
+std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>, size_t>
+range_search(Point p, Graph<indexType> &G, PointRange &Points,
+	      parlay::sequence<indexType> starting_points, RangeParams &RP) {
+  // compare two (node_id,distance) pairs, first by distance and then id if
+  // equal
+  using distanceType = typename Point::distanceType; 
+  auto less = [&](std::pair<indexType, distanceType> a, std::pair<indexType, distanceType> b) {
+    return a.second < b.second || (a.second == b.second && a.first < b.first);
+  };
   
 
-//   // used as a hash filter (can give false negative -- i.e. can say
-//   // not in table when it is)
-//   int bits = 10;
-//   std::vector<indexType> hash_filter(1 << bits, -1);
-//   auto has_been_seen = [&](indexType a) -> bool {
-//     int loc = parlay::hash64_2(a) & ((1 << bits) - 1);
-//     if (hash_filter[loc] == a) return true;
-//     hash_filter[loc] = a;
-//     return false;
-//   };
+  // used as a hash filter (can give false negative -- i.e. can say
+  // not in table when it is)
+  int bits = 10;
+  std::vector<indexType> hash_filter(1 << bits, -1);
+  auto has_been_seen = [&](indexType a) -> bool {
+    int loc = parlay::hash64_2(a) & ((1 << bits) - 1);
+    if (hash_filter[loc] == a) return true;
+    hash_filter[loc] = a;
+    return false;
+  };
 
-//   // Frontier maintains the points within radius found so far 
-//   // Each entry is a (id,distance) pair.
-//   // Initialized with starting points 
-//   std::queue<std::pair<indexType, distanceType>> frontier;
-//   for (auto q : starting_points)
-//     frontier.push(std::pair<indexType, distanceType>(q, Points[q].distance(p)));
+  // Frontier maintains the points within radius found so far 
+  // Each entry is a (id,distance) pair.
+  // Initialized with starting points 
+  std::queue<std::pair<indexType, distanceType>> frontier;
+  for (auto q : starting_points)
+    frontier.push(std::pair<indexType, distanceType>(q, Points[q].distance(p)));
   
 
-//   // maintains set of visited vertices (id-distance pairs)
-//   std::vector<std::pair<indexType, distanceType>> visited;
+  // maintains set of visited vertices (id-distance pairs)
+  std::vector<std::pair<indexType, distanceType>> visited;
 
-//   // counters
-//   size_t dist_cmps = starting_points.size();
-//   int remain = 1;
-//   int num_visited = 0;
-//   double total;
+  // counters
+  size_t dist_cmps = starting_points.size();
+  int remain = 1;
+  int num_visited = 0;
+  double total;
 
-//   // used as temporaries in the loop
-//   std::vector<indexType> keep;
-//   keep.reserve(G.max_degree());
+  // used as temporaries in the loop
+  std::vector<indexType> keep;
+  keep.reserve(G.max_degree());
 
-//   // The main loop.  Terminate beam search when the entire frontier
-//   // has been visited or have reached max_visit.
-//   while (frontier.size() > 0) {
-//     // the next node to visit is the unvisited frontier node that is closest to
-//     // p
-//     std::pair<indexType, distanceType> current = frontier.front();
-//     frontier.pop();
-//     G[current.first].prefetch();
-//     // add to visited set
-//     visited.push_back(current);
-//     num_visited++;
+  // The main loop.  Terminate beam search when the entire frontier
+  // has been visited or have reached max_visit.
+  while (frontier.size() > 0) {
+    // the next node to visit is the unvisited frontier node that is closest to
+    // p
+    std::pair<indexType, distanceType> current = frontier.front();
+    frontier.pop();
+    G[current.first].prefetch();
+    // add to visited set
+    visited.push_back(current);
+    num_visited++;
 
-//     // keep neighbors that have not been visited (using approximate
-//     // hash). Note that if a visited node is accidentally kept due to
-//     // approximate hash it will be removed below by the union or will
-//     // not bump anyone else.
-//     keep.clear();
-//     for (indexType i=0; i<G[current.first].size(); i++) {
-//       auto a = G[current.first][i];
-//       //TODO this is a bug when searching for a point not in the graph???
-//       if (a == p.id() || has_been_seen(a)) continue;  // skip if already seen
-//       keep.push_back(a);
-//       Points[a].prefetch();
-//     }
+    // keep neighbors that have not been visited (using approximate
+    // hash). Note that if a visited node is accidentally kept due to
+    // approximate hash it will be removed below by the union or will
+    // not bump anyone else.
+    keep.clear();
+    for (indexType i=0; i<G[current.first].size(); i++) {
+      auto a = G[current.first][i];
+      //TODO this is a bug when searching for a point not in the graph???
+      if (a == p.id() || has_been_seen(a)) continue;  // skip if already seen
+      keep.push_back(a);
+      Points[a].prefetch();
+    }
 
-//     // std::cout << keep.size() << std::endl;
+    // std::cout << keep.size() << std::endl;
 
-//     for (auto a : keep) {
-//       distanceType dist = Points[a].distance(p);
-//       total += dist;
-//       dist_cmps++;
-//       // filter out if not within radius
-//       if (dist > RP.rad) continue;
-//       frontier.push(std::pair{a, dist});
-//     }
-//   }
+    for (auto a : keep) {
+      distanceType dist = Points[a].distance(p);
+      total += dist;
+      dist_cmps++;
+      // filter out if not within radius
+      if (dist > RP.rad) continue;
+      frontier.push(std::pair{a, dist});
+    }
+  }
 
-//   return std::make_pair(parlay::to_sequence(visited), dist_cmps);    
-//   }
+  return std::make_pair(parlay::to_sequence(visited), dist_cmps);    
+  }
 
 
 
@@ -460,7 +460,7 @@ parlay::sequence<parlay::sequence<indexType>> RangeSearch(PointRange &Query_Poin
 	                                      RangeParams &RP) {
 
   parlay::sequence<parlay::sequence<indexType>> all_neighbors(Query_Points.size());
-  // parlay::sequence<int> second_round(Query_Points.size(), 0);
+  parlay::sequence<int> second_round(Query_Points.size(), 0);
   parlay::parallel_for(0, Query_Points.size(), [&](size_t i) {
     parlay::sequence<indexType> neighbors;
     QueryParams QP(RP.initial_beam, RP.initial_beam, 0.0, G.size(), G.max_degree());
@@ -469,25 +469,23 @@ parlay::sequence<parlay::sequence<indexType>> RangeSearch(PointRange &Query_Poin
     for (indexType j = 0; j < beamElts.size(); j++) {
       if(beamElts[j].second <= RP.rad) neighbors.push_back(beamElts[j].first);
     }
-    all_neighbors[i] = neighbors;
-    // if(neighbors.size() < RP.initial_beam){
-    //   all_neighbors[i] = neighbors;
-    // } else{
-    //   auto [in_range, dist_cmps] = range_search(Query_Points[i], G, Base_Points, neighbors, RP);
-    //   parlay::sequence<indexType> ans;
-    //   for (auto r : in_range) ans.push_back(r.first);
-    //   if(in_range.size() > neighbors.size()) std::cout << "Range search found additional candidates" << std::endl;
-    //   all_neighbors[i] = ans;
-    //   second_round[i] = 1;
-    //   QueryStats.increment_visited(i, in_range.size());
-    //   QueryStats.increment_dist(i, dist_cmps);
-    // }
+    if(neighbors.size() < RP.initial_beam){
+      all_neighbors[i] = neighbors;
+    } else{
+      // auto [in_range, dist_cmps] = range_search(Query_Points[i], G, Base_Points, neighbors, RP);
+      // parlay::sequence<indexType> ans;
+      // for (auto r : in_range) ans.push_back(r.first);
+      // all_neighbors[i] = ans;
+      // second_round[i] = 1;
+      // QueryStats.increment_visited(i, in_range.size());
+      // QueryStats.increment_dist(i, dist_cmps);
+    }
     
     QueryStats.increment_visited(i, visitedElts.size());
     QueryStats.increment_dist(i, dist_cmps);
   });
 
-  // std::cout << parlay::reduce(second_round) << " elements advanced to round two" << std::endl;
+  std::cout << parlay::reduce(second_round) << " elements advanced to round two" << std::endl;
 
   return all_neighbors;
 }

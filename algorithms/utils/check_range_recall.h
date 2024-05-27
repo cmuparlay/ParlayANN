@@ -91,7 +91,7 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
 
   std::vector<long> beams;
 
-  beams = {10, 20, 30, 40, 50, 100, 1000, 2000, 3000}; 
+  beams = {10}; 
 
   for(long b: beams){
     RangeParams RP(rad, b);

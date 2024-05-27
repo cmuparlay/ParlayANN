@@ -132,7 +132,7 @@ struct hcnng_index{
 	}
 
 	//parameters dim and K are just to interface with the cluster tree code
-	static void MSTk(GraphI &G, PR &Points, parlay::sequence<size_t> &active_indices, 
+	static void MSTk(GraphI &G, PR &Points, parlay::sequence<indexType> &active_indices, 
 		long MSTDeg){
 		//preprocessing for Kruskal's
 		size_t N = active_indices.size();

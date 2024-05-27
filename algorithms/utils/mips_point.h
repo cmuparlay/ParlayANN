@@ -101,7 +101,7 @@ struct Mips_Point {
     return true;
   }
 
-  bool same_as(const Mips_Point<T>& q){
+  bool same_as(const Mips_Point<T>& q) const {
     return values == q.values;
   }
 

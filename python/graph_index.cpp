@@ -41,6 +41,7 @@
 
 namespace py = pybind11;
 using NeighborsAndDistances = std::pair<py::array_t<unsigned int>, py::array_t<float>>;
+using RangeNeighborsAndDistances = std::pair<py::array_t<unsigned int>, NeighborsAndDistances>;
 
 template<typename T, typename Point> 
 struct GraphIndex{
@@ -132,6 +133,90 @@ struct GraphIndex{
         return std::make_pair(std::move(ids), std::move(dists));
     }
 
+    // Range search results are represented like a sparse CSR matrix with 3 components:
+
+    // lims, I, D
+
+    // The results for query #q are:
+
+    // I[lims[q]:lims[q + 1]] in int
+
+    // And the corresponding distances are:
+
+    // D[lims[q]:lims[q + 1]] in float
+
+    // Thus, len(lims) = nq + 1, lims[i + 1] >= lims[i] forall i
+    // and len(D) = len(I) = lims[-1].
+    RangeNeighborsAndDistances batch_range_search(py::array_t<T, py::array::c_style | py::array::forcecast> &queries, uint64_t num_queries, double radius,
+                        uint64_t beam_width){
+
+        QueryParams QP(beam_width, beam_width, 1.35, G.size(), G.max_degree());
+
+        parlay::sequence<parlay::sequence<std::pair<unsigned int, float>>> results(num_queries);
+
+
+        parlay::parallel_for(0, num_queries, [&] (size_t i){
+            Point q = Point(queries.data(i), Points.dimension(), Points.aligned_dimension(), i);
+            auto [pairElts, dist_cmps] = beam_search<Point, PointRange<T, Point>, unsigned int>(q, G, Points, 0, QP);
+            auto [frontier, visited] = pairElts;
+            parlay::sequence<std::pair<unsigned int, float>> res;
+            for(auto i : frontier){
+                if(i.second <= radius) res.push_back(i);
+            }
+            results[i] = res;
+        });
+
+        return process_range_results(results);
+        
+    }
+
+    RangeNeighborsAndDistances batch_range_search_from_string(std::string &queries, uint64_t num_queries, double radius,
+                                    uint64_t beam_width){
+         QueryParams QP(beam_width, beam_width, 1.35, G.size(), G.max_degree());
+        PointRange<T, Point> QueryPoints = PointRange<T, Point>(queries.data());
+
+        parlay::sequence<parlay::sequence<std::pair<unsigned int, float>>> results(num_queries);
+
+        parlay::parallel_for(0, num_queries, [&] (size_t i){
+            auto [pairElts, dist_cmps] = beam_search<Point, PointRange<T, Point>, unsigned int>(QueryPoints[i], G, Points, 0, QP);
+            auto [frontier, visited] = pairElts;
+            parlay::sequence<std::pair<unsigned int, float>> res;
+            for(auto i : frontier){
+                if(i.second <= radius) res.push_back(i);
+            }
+            results[i] = res;
+        });
+        return process_range_results(results);
+    }
+
+    //processes the output of range search into the format expected by the competition framework
+    RangeNeighborsAndDistances process_range_results(parlay::sequence<parlay::sequence<std::pair<unsigned int, float>>> results){
+        auto sizes = parlay::tabulate(results.size(), [&] (size_t i){
+            return results[i].size();
+        });
+
+        auto [offsets, total] = parlay::scan(sizes);
+        offsets.push_back(total);
+
+        py::array_t<unsigned int> lims(offsets.size());
+        py::array_t<unsigned int> ids(total);
+        py::array_t<float> dists(total);
+
+        parlay::parallel_for(0, offsets.size(), [&] (size_t i){
+            lims.mutable_data()[i] = offsets[i];
+        });
+
+        parlay::parallel_for(0, results.size(), [&] (size_t i){
+            size_t start = offsets[i];
+            for(size_t j=0; j<results[i].size(); j++){
+                ids.mutable_data()[start+j] = results[i][j].first;
+                dists.mutable_data()[start+j] = results[i][j].second;
+            }
+        });
+
+        return std::make_pair(std::move(lims), std::make_pair(std::move(ids), std::move(dists)));
+    }
+ 
     void check_recall(std::string &gFile, py::array_t<unsigned int, py::array::c_style | py::array::forcecast> &neighbors, int k){
         groundTruth<unsigned int> GT = groundTruth<unsigned int>(gFile.data());
 
@@ -159,5 +244,33 @@ struct GraphIndex{
         float recall = static_cast<float>(numCorrect) / static_cast<float>(k * n);
         std::cout << "Recall: " << recall << std::endl;
     }
+
+    void check_range_recall(std::string &gFile, py::array_t<unsigned int, py::array::c_style | py::array::forcecast> &lims){
+
+        RangeGroundTruth<unsigned int> RGT = RangeGroundTruth<unsigned int>(gFile.data());
+
+        float pointwise_recall = 0.0;
+        float reported_results = 0.0;
+        float total_results = 0.0;
+        float num_nonzero = 0.0;
+
+        //since distances are exact, just have to cross-check number of results
+        size_t n = lims.size()-1;
+        int numCorrect = 0;
+        for (size_t i = 0; i < n; i++) {
+            float num_reported_results = lims.mutable_data()[i+1] - lims.mutable_data()[i];
+            float num_actual_results = RGT[i].size();
+            reported_results += num_reported_results;
+            total_results += num_actual_results;
+            if(num_actual_results != 0) {pointwise_recall += num_reported_results/num_actual_results; num_nonzero++;}
+        }
+        
+        pointwise_recall /= num_nonzero;
+        float cumulative_recall = reported_results/total_results;
+
+        std::cout << "Pointwise Recall = " << pointwise_recall << ", Cumulative Recall = " << cumulative_recall << std::endl;
+    }
+
+    
 
 };
