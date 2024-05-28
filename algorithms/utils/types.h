@@ -37,61 +37,61 @@ struct groundTruth{
   size_t n;
 
   groundTruth() : coords(parlay::make_slice<T*, T*>(nullptr, nullptr)),
-    dists(parlay::make_slice<float*, float*>(nullptr, nullptr)){}
+                  dists(parlay::make_slice<float*, float*>(nullptr, nullptr)){}
 
   groundTruth(char* gtFile) : coords(parlay::make_slice<T*, T*>(nullptr, nullptr)),
-    dists(parlay::make_slice<float*, float*>(nullptr, nullptr)){
-      if(gtFile == NULL){
-        n = 0;
-        dim = 0;
-      } else{
-        auto [fileptr, length] = mmapStringFromFile(gtFile);
+                              dists(parlay::make_slice<float*, float*>(nullptr, nullptr)){
+    if(gtFile == NULL){
+      n = 0;
+      dim = 0;
+    } else{
+      auto [fileptr, length] = mmapStringFromFile(gtFile);
 
-        int num_vectors = *((T*) fileptr);
-        int d = *((T*) (fileptr+4));
+      int num_vectors = *((T*) fileptr);
+      int d = *((T*) (fileptr + 4));
 
-        std::cout << "Detected " << num_vectors << " points with num results " << d << std::endl;
+      std::cout << "Detected " << num_vectors << " points with num results " << d << std::endl;
 
-        T* start_coords = (T*)(fileptr+8);
-        T* end_coords = start_coords + d*num_vectors;
+      T* start_coords = (T*)(fileptr+8);
+      T* end_coords = start_coords + d*num_vectors;
 
-        float* start_dists = (float*)(end_coords);
-        float* end_dists = start_dists + d*num_vectors;
+      float* start_dists = (float*)(end_coords);
+      float* end_dists = start_dists + d*num_vectors;
 
-        n = num_vectors;
-        dim = d;
-        coords = parlay::make_slice(start_coords, end_coords);
-        dists = parlay::make_slice(start_dists, end_dists);
-      }
+      n = num_vectors;
+      dim = d;
+      coords = parlay::make_slice(start_coords, end_coords);
+      dists = parlay::make_slice(start_dists, end_dists);
+    }
   }
 
   groundTruth(parlay::sequence<parlay::sequence<T>> gt) : coords(parlay::make_slice<T*, T*>(nullptr, nullptr)),
-    dists(parlay::make_slice<float*, float*>(nullptr, nullptr)){
-      n = gt.size();
-      dim = gt[0].size();
-      auto flat_gt = parlay::flatten(gt);
-      coords = parlay::make_slice(flat_gt.begin(), flat_gt.end());
-      parlay::sequence<float> dummy_ds = parlay::sequence<float>(dim*n, 0.0);
-      dists = parlay::make_slice(dummy_ds.begin(), dummy_ds.end());
-    }
+                                                          dists(parlay::make_slice<float*, float*>(nullptr, nullptr)){
+    n = gt.size();
+    dim = gt[0].size();
+    auto flat_gt = parlay::flatten(gt);
+    coords = parlay::make_slice(flat_gt.begin(), flat_gt.end());
+    parlay::sequence<float> dummy_ds = parlay::sequence<float>(dim * n, 0.0);
+    dists = parlay::make_slice(dummy_ds.begin(), dummy_ds.end());
+  }
 
   //saves in binary format
   //assumes gt is not so big that it needs block saving
   void save(char* save_path){
-     std::cout << "Writing groundtruth for " << n << " points and num results " << dim
-                    << std::endl;
-      parlay::sequence<T> preamble = {static_cast<T>(n), static_cast<T>(dim)};
-      std::ofstream writer;
-      writer.open(save_path, std::ios::binary | std::ios::out);
-      writer.write((char*)preamble.begin(), 2 * sizeof(T));
-      writer.write((char*)coords.begin(), dim*n*sizeof(T));
-      writer.write((char*)dists.begin(), dim*n*sizeof(float));
-      writer.close();
+    std::cout << "Writing groundtruth for " << n << " points and num results " << dim
+              << std::endl;
+    parlay::sequence<T> preamble = {static_cast<T>(n), static_cast<T>(dim)};
+    std::ofstream writer;
+    writer.open(save_path, std::ios::binary | std::ios::out);
+    writer.write((char*)preamble.begin(), 2 * sizeof(T));
+    writer.write((char*)coords.begin(), dim*n*sizeof(T));
+    writer.write((char*)dists.begin(), dim*n*sizeof(float));
+    writer.close();
   }
 
-  T coordinates(long i, long j){return *(coords.begin() + i*dim + j);}
+  T coordinates(long i, long j){return *(coords.begin() + i * dim + j);}
 
-  float distances(long i, long j){return *(dists.begin() + i*dim + j);}
+  float distances(long i, long j){return *(dists.begin() + i * dim + j);}
 
   size_t size(){return n;}
 
@@ -111,31 +111,31 @@ struct RangeGroundTruth{
 
   RangeGroundTruth(char* gtFile) : sizes(parlay::make_slice<T*, T*>(nullptr, nullptr)){
     if(gtFile == NULL){
-        n = 0;
-        num_matches = 0;
-      } else{
-        auto [fileptr, length] = mmapStringFromFile(gtFile);
+      n = 0;
+      num_matches = 0;
+    } else{
+      auto [fileptr, length] = mmapStringFromFile(gtFile);
 
-        n = *((T*) fileptr);
-        num_matches = *((T*) (fileptr+sizeof(T)));
+      n = *((T*) fileptr);
+      num_matches = *((T*) (fileptr + sizeof(T)));
 
-        T* sizes_begin = (T*)(fileptr + 2*sizeof(T)) ;
-        T* sizes_end = sizes_begin+n;
-        sizes = parlay::make_slice(sizes_begin, sizes_end);
+      T* sizes_begin = (T*)(fileptr + 2 * sizeof(T)) ;
+      T* sizes_end = sizes_begin+n;
+      sizes = parlay::make_slice(sizes_begin, sizes_end);
 
-        auto [offsets0, total] = parlay::scan(sizes);
-        offsets0.push_back(total);
-        offsets = offsets0;
+      auto [offsets0, total] = parlay::scan(sizes);
+      offsets0.push_back(total);
+      offsets = offsets0;
 
-        std::cout << "Detected " << n << " points with num matches " << num_matches << std::endl;
+      std::cout << "Detected " << n << " points with num matches " << num_matches << std::endl;
 
-        coords = sizes_end;     
-      }
+      coords = sizes_end;
+    }
   }
 
   parlay::slice<T*, T*> operator[] (long i){
     T* begin = coords + offsets[i];
-    T* end = coords + offsets[i+1];
+    T* end = coords + offsets[i + 1];
     return parlay::make_slice(begin, end);
   }
 
@@ -149,7 +149,8 @@ struct BuildParams{
   long R; //vamana and pynnDescent
   double m_l = 0; // HNSW
   double alpha; //vamana and pyNNDescent
-  bool two_pass; //vamana
+  int num_passes; //vamana
+  int single_batch; //vamana
 
   long num_clusters; // HCNNG and pyNNDescent
   long cluster_size; //HCNNG and pyNNDescent
@@ -157,10 +158,21 @@ struct BuildParams{
 
   double delta; //pyNNDescent
 
+  bool verbose;
+
+  bool quantize; // use quantization for build
+  double radius; // for radius search
+  double radius_2; // for radius search
+  bool self;
+  bool range;
+
   std::string alg_type;
 
-  BuildParams(long R, long L, double a, bool tp, long nc, long cs, long mst, double de) : R(R), L(L), 
-            alpha(a), two_pass(tp), num_clusters(nc), cluster_size(cs), MST_deg(mst), delta(de) {
+  BuildParams(long R, long L, double a, int num_passes, long nc, long cs, long mst, double de,
+              bool verbose = false, bool quantize = false, double radius = 0.0, double radius_2 = 0.0,
+              bool self = false, bool range = false, int single_batch = 0)
+    : R(R), L(L), alpha(a), num_passes(num_passes), num_clusters(nc), cluster_size(cs), MST_deg(mst), delta(de),
+      verbose(verbose), quantize(quantize), radius(radius), radius_2(radius_2), self(self), range(range), single_batch(single_batch) {
     if(R != 0 && L != 0 && alpha != 0){alg_type = m_l>0? "HNSW": "Vamana";}
     else if(num_clusters != 0 && cluster_size != 0 && MST_deg != 0){alg_type = "HCNNG";}
     else if(R != 0 && alpha != 0 && num_clusters != 0 && cluster_size != 0 && delta != 0){alg_type = "pyNNDescent";}
@@ -168,15 +180,21 @@ struct BuildParams{
 
   BuildParams() {}
 
-  BuildParams(long R, long L, double a, bool tp) : R(R), L(L), alpha(a), two_pass(tp) {alg_type = "Vamana";}
+  BuildParams(long R, long L, double a, int num_passes, bool verbose = false)
+    : R(R), L(L), alpha(a), num_passes(num_passes), single_batch(0), verbose(verbose)
+  {alg_type = "Vamana";}
 
-  BuildParams(long R, long L, double m_l, double a) : R(R), L(L), m_l(m_l), alpha(a) {alg_type = "HNSW";}
+  BuildParams(long R, long L, double m_l, double a)
+    : R(R), L(L), m_l(m_l), alpha(a), verbose(false)
+  {alg_type = "HNSW";}
 
-  BuildParams(long nc, long cs, long mst) : num_clusters(nc), cluster_size(cs), MST_deg(mst) {alg_type = "HCNNG";}
+  BuildParams(long nc, long cs, long mst)
+    : num_clusters(nc), cluster_size(cs), MST_deg(mst), verbose(false)
+  {alg_type = "HCNNG";}
 
-  BuildParams(long R, double a, long nc, long cs, double de) : R(R), alpha(a), num_clusters(nc), cluster_size(cs),
-              delta(de)
-    {alg_type = "pyNNDescent";}
+  BuildParams(long R, double a, long nc, long cs, double de)
+    : R(R), alpha(a), num_clusters(nc), cluster_size(cs), delta(de), verbose(false)
+  {alg_type = "pyNNDescent";}
 
   long max_degree(){
     if(alg_type == "HCNNG") return num_clusters*MST_deg;
@@ -188,7 +206,7 @@ struct BuildParams{
 
 struct QueryParams{
   long k;
-  long beamSize; 
+  long beamSize;
   double cut;
   long limit;
   long degree_limit;

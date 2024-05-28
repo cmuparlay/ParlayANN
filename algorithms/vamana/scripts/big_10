@@ -1,0 +1,3 @@
+# bash
+
+numactl -i all ./neighbors -R 64 -L 128 -a 1.15 -data_type uint8 -file_type bin -dist_func Euclidian -base_path data/bigann/base.1B.u8bin.crop_nb_10000000 -query_path data/bigann/query.public.10K.u8bin -gt_path data/bigann/bigann-10M -two_pass 1
