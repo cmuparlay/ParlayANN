@@ -148,9 +148,30 @@ struct knn_index {
     set_start();
     parlay::sequence<indexType> inserts = parlay::tabulate(Points.size(), [&] (size_t i){
 					    return static_cast<indexType>(i);});
+    if (BP.single_batch != 0) {
+      int degree = BP.single_batch;
+      std::cout << "Using single batch per round with " << degree << " random start edges" << std::endl;
+      parlay::random_generator gen;
+      std::uniform_int_distribution<long> dis(0, G.size());
+      parlay::parallel_for(0, G.size(), [&] (long i) {
+        std::vector<indexType> outEdges(degree);
+        for (int j = 0; j < degree; j++) {
+          auto r = gen[i*degree + j];
+          outEdges[j] = dis(r);
+        }
+        G[i].update_neighbors(outEdges);
+      });
+    }
 
-    if(BP.two_pass) batch_insert(inserts, G, Points, BuildStats, 1.0, true, 2, .02);
-    batch_insert(inserts, G, Points, BuildStats, BP.alpha, true, 2, .02);
+    // last pass uses alpha
+    std::cout << "number of passes = " << BP.num_passes << std::endl;
+    for (int i=0; i < BP.num_passes; i++) {
+      if (i == BP.num_passes - 1)
+        batch_insert(inserts, G, Points, BuildStats, BP.alpha, true, 2, .02);
+      else
+        batch_insert(inserts, G, Points, BuildStats, 1.0, true, 2, .02);
+    }
+
     if (sort_neighbors) {
       parlay::parallel_for (0, G.size(), [&] (long i) {
         auto less = [&] (indexType j, indexType k) {
@@ -160,7 +181,7 @@ struct knn_index {
   }
 
   void batch_insert(parlay::sequence<indexType> &inserts,
-                     GraphI &G, PR &Points, stats<indexType> &BuildStats, double alpha,
+                    GraphI &G, PR &Points, stats<indexType> &BuildStats, double alpha,
                     bool random_order = false, double base = 2,
                     double max_fraction = .02, bool print=true) {
     for(int p : inserts){
@@ -205,15 +226,24 @@ struct knn_index {
         ceiling = std::min(count + static_cast<size_t>(max_batch_size), m);
         count += static_cast<size_t>(max_batch_size);
       }
+
+      if (BP.single_batch != 0) {
+        floor = 0;
+        ceiling = m;
+        count = m;
+      }
+      
       parlay::sequence<parlay::sequence<indexType>> new_out_(ceiling-floor);
       // search for each node starting from the start_point, then call
       // robustPrune with the visited list as its candidate set
       t_beam.start();
+
       parlay::parallel_for(floor, ceiling, [&](size_t i) {
         size_t index = shuffled_inserts[i];
+        int sp = BP.single_batch ? i : start_point;
         QueryParams QP((long) 0, BP.L, (double) 0.0, (long) Points.size(), (long) G.max_degree());
         auto [beam_visited, bs_distance_comps] =
-          beam_search<Point, PointRange, indexType>(Points[index], G, Points, start_point, QP);
+          beam_search<Point, PointRange, indexType>(Points[index], G, Points, sp, QP);
         auto [beam, visited] = beam_visited;
         BuildStats.increment_dist(index, bs_distance_comps);
         BuildStats.increment_visited(index, visited.size());
@@ -256,7 +286,7 @@ struct knn_index {
         }
       });
       t_prune.stop();
-      if (print) {
+      if (print && BP.single_batch == 0) {
         auto ind = frac * n;
         if (floor <= ind && ceiling > ind) {
           frac += progress_inc;

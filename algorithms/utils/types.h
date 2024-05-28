@@ -149,7 +149,8 @@ struct BuildParams{
   long R; //vamana and pynnDescent
   double m_l = 0; // HNSW
   double alpha; //vamana and pyNNDescent
-  bool two_pass; //vamana
+  int num_passes; //vamana
+  int single_batch; //vamana
 
   long num_clusters; // HCNNG and pyNNDescent
   long cluster_size; //HCNNG and pyNNDescent
@@ -167,11 +168,11 @@ struct BuildParams{
 
   std::string alg_type;
 
-  BuildParams(long R, long L, double a, bool tp, long nc, long cs, long mst, double de,
+  BuildParams(long R, long L, double a, int num_passes, long nc, long cs, long mst, double de,
               bool verbose = false, bool quantize = false, double radius = 0.0, double radius_2 = 0.0,
-              bool self = false, bool range = false)
-    : R(R), L(L), alpha(a), two_pass(tp), num_clusters(nc), cluster_size(cs), MST_deg(mst), delta(de),
-      verbose(verbose), quantize(quantize), radius(radius), radius_2(radius_2), self(self), range(range) {
+              bool self = false, bool range = false, int single_batch = 0)
+    : R(R), L(L), alpha(a), num_passes(num_passes), num_clusters(nc), cluster_size(cs), MST_deg(mst), delta(de),
+      verbose(verbose), quantize(quantize), radius(radius), radius_2(radius_2), self(self), range(range), single_batch(single_batch) {
     if(R != 0 && L != 0 && alpha != 0){alg_type = m_l>0? "HNSW": "Vamana";}
     else if(num_clusters != 0 && cluster_size != 0 && MST_deg != 0){alg_type = "HCNNG";}
     else if(R != 0 && alpha != 0 && num_clusters != 0 && cluster_size != 0 && delta != 0){alg_type = "pyNNDescent";}
@@ -179,14 +180,20 @@ struct BuildParams{
 
   BuildParams() {}
 
-  BuildParams(long R, long L, double a, bool tp) : R(R), L(L), alpha(a), two_pass(tp) {alg_type = "Vamana";}
+  BuildParams(long R, long L, double a, int num_passes, bool verbose = false)
+    : R(R), L(L), alpha(a), num_passes(num_passes), single_batch(0), verbose(verbose)
+  {alg_type = "Vamana";}
 
-  BuildParams(long R, long L, double m_l, double a) : R(R), L(L), m_l(m_l), alpha(a) {alg_type = "HNSW";}
+  BuildParams(long R, long L, double m_l, double a)
+    : R(R), L(L), m_l(m_l), alpha(a), verbose(false)
+  {alg_type = "HNSW";}
 
-  BuildParams(long nc, long cs, long mst) : num_clusters(nc), cluster_size(cs), MST_deg(mst) {alg_type = "HCNNG";}
+  BuildParams(long nc, long cs, long mst)
+    : num_clusters(nc), cluster_size(cs), MST_deg(mst), verbose(false)
+  {alg_type = "HCNNG";}
 
-  BuildParams(long R, double a, long nc, long cs, double de) : R(R), alpha(a), num_clusters(nc), cluster_size(cs),
-                                                               delta(de)
+  BuildParams(long R, double a, long nc, long cs, double de)
+    : R(R), alpha(a), num_clusters(nc), cluster_size(cs), delta(de), verbose(false)
   {alg_type = "pyNNDescent";}
 
   long max_degree(){

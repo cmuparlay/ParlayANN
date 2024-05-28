@@ -166,7 +166,8 @@ parlay::sequence<long> calculate_limits(size_t upper_bound) {
 }
 
 template<typename Point, typename PointRange, typename QPointRange, typename indexType>
-void search_and_parse(Graph_ G_, Graph<indexType> &G,
+void search_and_parse(Graph_ G_,
+                      Graph<indexType> &G,
                       PointRange &Base_Points,
                       PointRange &Query_Points,
                       QPointRange &Q_Base_Points,
@@ -232,3 +233,17 @@ void search_and_parse(Graph_ G_, Graph<indexType> &G,
       write_to_csv(std::string(res_file), ret_buckets, res, G_);
   }
 }
+
+template<typename Point, typename PointRange, typename indexType>
+void search_and_parse(Graph_ G_,
+                      Graph<indexType> &G,
+                      PointRange &Base_Points,
+                      PointRange &Query_Points,
+                      groundTruth<indexType> GT, char* res_file, long k,
+                      bool random=true, indexType start_point=0,
+                      bool verbose=false) {
+  search_and_parse<Point>(G_, G, Base_Points, Query_Points, Base_Points, Query_Points, GT,
+                   res_file, k, random, start_point, verbose);
+}
+
+

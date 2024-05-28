@@ -76,9 +76,9 @@ int main(int argc, char* argv[]) {
     commandLine P(argc,argv,
     "[-a <alpha>] [-d <delta>] [-R <deg>]"
         "[-L <bm>] [-k <k> ]  [-gt_path <g>] [-query_path <qF>]"
-        "[-graph_path <gF>] [-graph_outfile <oF>] [-res_path <rF>]"
-        "[-memory_flag <algoOpt>] [-mst_deg <q>] [num_clusters <nc>] [cluster_size <cs>]"
-        "[-data_type <tp>] [-dist_func <df>][-base_path <b>] <inFile>");
+        "[-graph_path <gF>] [-graph_outfile <oF>] [-res_path <rF>]" "[-num_passes <np>]"
+        "[-memory_flag <algoOpt>] [-mst_deg <q>] [-num_clusters <nc>] [-cluster_size <cs>]"
+        "[-data_type <tp>] [-dist_func <df>] [-base_path <b>] <inFile>");
 
   char* iFile = P.getOptionValue("-base_path");
   char* oFile = P.getOptionValue("-graph_outfile");
@@ -101,9 +101,10 @@ int main(int argc, char* argv[]) {
   double radius  = P.getOptionDoubleValue("-radius", 0.0);
   double radius_2  = P.getOptionDoubleValue("-radius_2", radius);
   double alpha = P.getOptionDoubleValue("-alpha", 1.0);
+  int num_passes = P.getOptionIntValue("-num_passes", 1);
   int two_pass = P.getOptionIntValue("-two_pass", 0);
   if(two_pass > 1 | two_pass < 0) P.badArgument();
-  bool pass = (two_pass == 1);
+  if (two_pass == 1) num_passes = 2;
   double delta = P.getOptionDoubleValue("-delta", 0);
   if(delta<0) P.badArgument();
   char* dfc = P.getOptionValue("-dist_func");
@@ -113,11 +114,12 @@ int main(int argc, char* argv[]) {
   bool normalize = P.getOption("-normalize");
   bool self = P.getOption("-self");
   bool range = P.getOption("-range");
+  int single_batch = P.getOptionIntValue("-single_batch", 0);
     
   std::string df = std::string(dfc);
   std::string tp = std::string(vectype);
 
-  BuildParams BP = BuildParams(R, L, alpha, pass, num_clusters, cluster_size, MST_deg, delta, verbose, quantize_build, radius, radius_2, self, range);
+  BuildParams BP = BuildParams(R, L, alpha, num_passes, num_clusters, cluster_size, MST_deg, delta, verbose, quantize_build, radius, radius_2, self, range, single_batch);
   long maxDeg = BP.max_degree();
 
   if((tp != "uint8") && (tp != "int8") && (tp != "float")){
