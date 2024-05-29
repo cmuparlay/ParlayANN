@@ -139,7 +139,7 @@ struct Euclidian_Point {
     return true;
   }
 
-  bool same_as(const Euclidian_Point& q){
+  bool same_as(const Euclidian_Point& q) const {
     return values == q.values;
   }
 

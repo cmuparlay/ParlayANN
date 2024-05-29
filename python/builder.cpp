@@ -40,7 +40,7 @@ void build_vamana_index(std::string metric, std::string &vector_bin_path,
 {
     
     //instantiate build params object
-    BuildParams BP(graph_degree, beam_width, alpha, two_pass);
+  BuildParams BP(graph_degree, beam_width, alpha, two_pass ? 2 : 1);
 
     //use file parsers to create Point object
 
@@ -49,7 +49,7 @@ void build_vamana_index(std::string metric, std::string &vector_bin_path,
     Graph<unsigned int> G = Graph<unsigned int>(graph_degree, Points.size());
 
     //call the build function
-    using index = knn_index<Point, PointRange<T, Point>, unsigned int>;
+    using index = knn_index<PointRange<T, Point>, unsigned int>;
     index I(BP);
     stats<unsigned int> BuildStats(G.size());
     I.build_index(G, Points, BuildStats);

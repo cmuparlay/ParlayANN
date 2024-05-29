@@ -14,7 +14,7 @@ See the following documentation for help getting started:
 - [Algorithms](https://cmuparlay.github.io/ParlayANN/algorithms)
 - [Data Tools](https://cmuparlay.github.io/ParlayANN/data_tools)
 
-This repository was built for our paper [Scaling Graph-Based ANNS Algorithms to Billion-Size Datasets: A Comparative Analysis](https://arxiv.org/abs/2305.04359). If you use this repository for your own work, please cite us:
+This repository was built for our paper [Scaling Graph-Based ANNS Algorithms to Billion-Size Datasets: A Comparative Analsyis](https://arxiv.org/abs/2305.04359). If you use this repository for your own work, please cite us:
 
 ```bibtex
 @article{ANNScaling,

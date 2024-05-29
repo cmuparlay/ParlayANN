@@ -98,9 +98,13 @@ struct GraphIndex{
         parlay::sequence<unsigned int> point_ids;
         parlay::sequence<float> point_distances;
 
+        using parameters = typename Point::parameters;
 
         parlay::parallel_for(0, num_queries, [&] (size_t i){
-            Point q = Point(queries.data(i), Points.dimension(), Points.aligned_dimension(), i);
+          std::vector<T> v(Points.dimension());
+          for (int j=0; j < v.size(); j++)
+            v[j] = queries.data(i)[j];
+          Point q = Point(v.data(), i, Points.params); 
             auto [pairElts, dist_cmps] = search_dispatch(q, QP);
             auto [frontier, visited] = pairElts;
             parlay::sequence<unsigned int> point_ids;

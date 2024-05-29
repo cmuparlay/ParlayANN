@@ -104,7 +104,7 @@ struct Mips_Point {
     return true;
   }
 
-  bool same_as(const Mips_Point<T>& q){
+  bool same_as(const Mips_Point<T>& q) const {
     return values == q.values;
   }
 
@@ -230,9 +230,19 @@ struct Quantized_Mips_Point{
         maxs[i]= std::max(maxs[i], pr[i][j]);}});
     float min_val = *parlay::min_element(mins);
     float max_val = *parlay::max_element(maxs);
+    float bound = std::max(max_val, -min_val);
+    // if (sizeof(T) == 1) {
+    //   auto x = parlay::flatten(parlay::tabulate(n, [&] (long i) {
+    //     return parlay::tabulate(dims, [&] (long j) {
+    //       return 128 + (int8_t) (std::round(pr[i][j] * (range/2) / bound));});}));
+    //   auto y = parlay::histogram_by_index(x, 256);
+    //   for (int i = 0; i < 256; i++)
+    //     std::cout << i - 128 << ":" << y[i] << ", ";
+    //   std::cout << std::endl;
+    // }
     std::cout << "scalar quantization: min value = " << min_val
               << ", max value = " << max_val << std::endl;
-    return parameters(std::max(max_val, -min_val), dims);
+    return parameters(bound, dims);
   }
 
 private:
