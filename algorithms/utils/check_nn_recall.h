@@ -114,7 +114,10 @@ nn_result checkRecall(
   if (verbose)
     std::cout << "search: Q=" << QP.beamSize << ", k=" << QP.k
               << ", limit=" << QP.limit << ", dlimit=" << QP.degree_limit
-              << ", recall=" << recall << ", QPS=" << QPS << std::endl;
+              << ", recall=" << recall
+              << ", visited=" << QueryStats.visited_stats()[0]
+              << ", comparisons=" << QueryStats.dist_stats()[0]
+              << ", QPS=" << QPS << std::endl;
 
   auto stats_ = {QueryStats.dist_stats(), QueryStats.visited_stats()};
   parlay::sequence<indexType> stats = parlay::flatten(stats_);

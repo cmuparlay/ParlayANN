@@ -188,11 +188,12 @@ beam_search_impl(Point p, GT &G, PointRange &Points,
 
     // get the unvisited frontier (we only care about the first one)
     remain =
-        std::set_difference(frontier.begin(), frontier.end(), visited.begin(),
-                            visited.end(), unvisited_frontier.begin(), less) -
+      std::set_difference(frontier.begin(), frontier.end(),
+                          visited.begin(), visited.end(),
+                          unvisited_frontier.begin(), less) -
         unvisited_frontier.begin();
   }
-
+  
   return std::make_pair(std::make_pair(parlay::to_sequence(frontier),
                                        parlay::to_sequence(visited)),
                         dist_cmps);
@@ -352,9 +353,11 @@ beam_search_rerank(const Point &p,
   auto [pairElts, dist_cmps] = beam_search(pq, G, Q_Base_Points, starting_points, QP);
   auto [beamElts, visitedElts] = pairElts;
 
+  int exp_factor = 5;
+  
   // recalculate distances with non-quantized points and sort
   std::vector<std::pair<indexType, typename Point::distanceType>> pts;
-  for (auto [j, ignore] : beamElts)
+  for (auto [j, ignore] : parlay::tabulate(std::min<int>(QP.k*exp_factor,beamElts.size()), [&] (long i) {return beamElts[i];}))
     pts.push_back(std::pair(j, p.distance(Base_Points[j])));
   std::sort(pts.begin(), pts.end(), [] (auto a, auto b) {return a.second < b.second;});
 

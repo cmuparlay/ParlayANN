@@ -210,6 +210,7 @@ struct QueryParams{
   double cut;
   long limit;
   long degree_limit;
+  float pad = 1.0;
 
   QueryParams(long k, long Q, double cut, long limit, long dg) : k(k), beamSize(Q), cut(cut), limit(limit), degree_limit(dg) {}
 
