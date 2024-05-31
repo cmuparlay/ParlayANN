@@ -165,14 +165,15 @@ struct BuildParams{
   double radius_2; // for radius search
   bool self;
   bool range;
+  long Q = 0; //beam width to pass onto query (0 indicates none specified)
 
   std::string alg_type;
 
   BuildParams(long R, long L, double a, int num_passes, long nc, long cs, long mst, double de,
               bool verbose = false, bool quantize = false, double radius = 0.0, double radius_2 = 0.0,
-              bool self = false, bool range = false, int single_batch = 0)
+              bool self = false, bool range = false, int single_batch = 0, long Q = 0)
     : R(R), L(L), alpha(a), num_passes(num_passes), num_clusters(nc), cluster_size(cs), MST_deg(mst), delta(de),
-      verbose(verbose), quantize(quantize), radius(radius), radius_2(radius_2), self(self), range(range), single_batch(single_batch) {
+      verbose(verbose), quantize(quantize), radius(radius), radius_2(radius_2), self(self), range(range), single_batch(single_batch), Q(Q) {
     if(R != 0 && L != 0 && alpha != 0){alg_type = m_l>0? "HNSW": "Vamana";}
     else if(num_clusters != 0 && cluster_size != 0 && MST_deg != 0){alg_type = "HCNNG";}
     else if(R != 0 && alpha != 0 && num_clusters != 0 && cluster_size != 0 && delta != 0){alg_type = "pyNNDescent";}

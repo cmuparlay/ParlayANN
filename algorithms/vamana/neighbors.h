@@ -76,7 +76,7 @@ void ANN_(Graph<indexType> &G, long k, BuildParams &BP,
     search_and_parse<Point, PointRange, QPointRange, indexType>(G_, G, Points, Query_Points,
                                                                 Q_Points, Q_Query_Points, GT,
                                                                 res_file, k, false, start_point,
-                                                                verbose);
+                                                                verbose, BP.Q);
   } else if (BP.self) {
     if (BP.range) {
       parlay::internal::timer t_range("range search time");

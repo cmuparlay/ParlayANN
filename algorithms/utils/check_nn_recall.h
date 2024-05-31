@@ -40,7 +40,7 @@ nn_result checkRecall(
         QPointRange &Q_Query_Points,
         groundTruth<indexType> GT,
         bool random,
-        long start_point, 
+        long start_point,
         long k,
         QueryParams &QP,
         bool verbose) {
@@ -49,7 +49,7 @@ nn_result checkRecall(
               << GT.dimension() << std::endl;
     abort();
   }
-  
+
   parlay::sequence<parlay::sequence<indexType>> all_ngh;
 
   parlay::internal::timer t;
@@ -174,10 +174,11 @@ void search_and_parse(Graph_ G_,
                       PointRange &Base_Points,
                       PointRange &Query_Points,
                       QPointRange &Q_Base_Points,
-                      QPointRange &Q_Query_Points, 
+                      QPointRange &Q_Query_Points,
                       groundTruth<indexType> GT, char* res_file, long k,
                       bool random=true, indexType start_point=0,
-                      bool verbose=false) {
+                      bool verbose=false,
+                      long fixed_beam_width=0) {
   parlay::sequence<nn_result> results;
   std::vector<long> beams;
   std::vector<long> allr;
@@ -186,13 +187,20 @@ void search_and_parse(Graph_ G_,
   QueryParams QP;
   QP.limit = (long) G.size();
   QP.degree_limit = (long) G.max_degree();
-  beams = {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 24, 26, 28, 30, 32, 
-          34, 36, 38, 40, 45, 50, 55, 60, 65, 70, 80, 90, 100, 120, 140, 160, 
-          180, 200, 225, 250, 275, 300, 375, 500, 750, 1000}; 
+  beams = {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 24, 26, 28, 30, 32,
+    34, 36, 38, 40, 45, 50, 55, 60, 65, 70, 80, 90, 100, 120, 140, 160,
+    180, 200, 225, 250, 275, 300, 375, 500, 750, 1000};
   if(k==0) allr = {10};
   else allr = {k};
   cuts = {1.35};
 
+  if (fixed_beam_width != 0) {
+    QP.k = allr[0];
+    QP.cut = cuts[0];
+    QP.beamSize = fixed_beam_width;
+    for (int i = 0; i < 5; i++) 
+      checkRecall<Point, PointRange, QPointRange, indexType>(G, Base_Points, Query_Points, Q_Base_Points, Q_Query_Points, GT, random, start_point, QP.k, QP, verbose);
+  } else {
     for (long r : allr) {
       results.clear();
       QP.k = r;
@@ -205,7 +213,7 @@ void search_and_parse(Graph_ G_,
           }
         }
       }
-      
+
       // check "limited accuracy"
       // {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 28, 30, 35}; //
       parlay::sequence<long> limits = calculate_limits(results[0].avg_visited);
@@ -221,19 +229,20 @@ void search_and_parse(Graph_ G_,
                                                                                    Base_Points, Query_Points,
                                                                                    Q_Base_Points, Q_Query_Points,
                                                                                    GT, random, start_point, r, QP, verbose));
-          }
+        }
       }
       // check "best accuracy"
       QP = QueryParams((long) 100, (long) 1000, (double) 10.0, (long) G.size(), (long) G.max_degree());
       results.push_back(checkRecall<Point, PointRange, QPointRange, indexType>(G, Base_Points, Query_Points, Q_Base_Points, Q_Query_Points, GT, random, start_point, r, QP, verbose));
 
-    parlay::sequence<float> buckets =  {.1, .2, .3,  .4,  .5,  .6, .7, .75,  .8, .85,                                                                                            
-                                        .9, .93, .95, .97, .98, .99, .995, .999, .9995, 
-                                        .9999, .99995, .99999};
-    auto [res, ret_buckets] = parse_result(results, buckets);
-    std::cout << std::endl;
-    if (res_file != NULL)
-      write_to_csv(std::string(res_file), ret_buckets, res, G_);
+      parlay::sequence<float> buckets =  {.1, .2, .3,  .4,  .5,  .6, .7, .75,  .8, .85,
+        .9, .93, .95, .97, .98, .99, .995, .999, .9995,
+        .9999, .99995, .99999};
+      auto [res, ret_buckets] = parse_result(results, buckets);
+      std::cout << std::endl;
+      if (res_file != NULL)
+        write_to_csv(std::string(res_file), ret_buckets, res, G_);
+    }
   }
 }
 
@@ -246,7 +255,5 @@ void search_and_parse(Graph_ G_,
                       bool random=true, indexType start_point=0,
                       bool verbose=false) {
   search_and_parse<Point>(G_, G, Base_Points, Query_Points, Base_Points, Query_Points, GT,
-                   res_file, k, random, start_point, verbose);
+                          res_file, k, random, start_point, verbose);
 }
-
-
