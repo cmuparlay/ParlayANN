@@ -211,7 +211,7 @@ range_search(Point p, Graph<indexType> &G, PointRange &Points,
 
   // used as a hash filter (can give false negative -- i.e. can say
   // not in table when it is)
-  int bits = 10;
+  int bits = 20;
   std::vector<indexType> hash_filter(1 << bits, -1);
   auto has_been_seen = [&](indexType a) -> bool {
     int loc = parlay::hash64_2(a) & ((1 << bits) - 1);
@@ -460,7 +460,6 @@ parlay::sequence<parlay::sequence<indexType>> RangeSearch(PointRange &Query_Poin
 	                                       Graph<indexType> &G, PointRange &Base_Points, stats<indexType> &QueryStats, 
                                         parlay::sequence<indexType> starting_points,
 	                                      RangeParams &RP) {
-
   parlay::sequence<parlay::sequence<indexType>> all_neighbors(Query_Points.size());
   parlay::sequence<int> second_round(Query_Points.size(), 0);
   parlay::parallel_for(0, Query_Points.size(), [&](size_t i) {
@@ -475,7 +474,7 @@ parlay::sequence<parlay::sequence<indexType>> RangeSearch(PointRange &Query_Poin
       all_neighbors[i] = neighbors;
     } else{
       // all_neighbors[i] = neighbors;
-      std::cout << "Advanced to round two" << std::endl;
+      // std::cout << "Advanced to round two" << std::endl;
       auto [in_range, dist_cmps] = range_search(Query_Points[i], G, Base_Points, neighbors, RP);
       parlay::sequence<indexType> ans;
       for (auto r : in_range) ans.push_back(r.first);
@@ -483,7 +482,7 @@ parlay::sequence<parlay::sequence<indexType>> RangeSearch(PointRange &Query_Poin
       second_round[i] = 1;
       QueryStats.increment_visited(i, in_range.size());
       QueryStats.increment_dist(i, dist_cmps);
-      std::cout << "For starting beam " << RP.initial_beam << " found " << ans.size() << " candidates" << std::endl;
+      // std::cout << "For starting beam " << RP.initial_beam << " found " << ans.size() << " candidates" << std::endl;
     }
     
     QueryStats.increment_visited(i, visitedElts.size());
