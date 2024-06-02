@@ -57,6 +57,10 @@ struct PostingListIndex {
     save_posting_list(std::string(filename));
   }
 
+  PostingListIndex(char* index_path){
+    load_posting_list(std::string(index_path));
+  }
+
   template <typename Clusterer>
   PostingListIndex(PointRange<T, Point>& Points, Clusterer clusterer, indexType id,
                    char* index_path)
@@ -74,7 +78,7 @@ struct PostingListIndex {
 
     if (index_path != nullptr &&
         std::filesystem::exists(pl_filename(std::string(index_path)))) {
-      load_posting_list(std::string(index_path));
+        load_posting_list(std::string(index_path));
     } else {
 
       std::cout << "Calculating clusters" << std::endl;

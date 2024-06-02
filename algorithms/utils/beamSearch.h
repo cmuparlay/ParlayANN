@@ -224,8 +224,10 @@ range_search(Point p, Graph<indexType> &G, PointRange &Points,
   // Each entry is a (id,distance) pair.
   // Initialized with starting points 
   std::queue<std::pair<indexType, distanceType>> frontier;
-  for (auto q : starting_points)
+  for (auto q : starting_points){
+    has_been_seen(q);
     frontier.push(std::pair<indexType, distanceType>(q, Points[q].distance(p)));
+  }
   
 
   // maintains set of visited vertices (id-distance pairs)
@@ -472,13 +474,16 @@ parlay::sequence<parlay::sequence<indexType>> RangeSearch(PointRange &Query_Poin
     if(neighbors.size() < RP.initial_beam){
       all_neighbors[i] = neighbors;
     } else{
-      // auto [in_range, dist_cmps] = range_search(Query_Points[i], G, Base_Points, neighbors, RP);
-      // parlay::sequence<indexType> ans;
-      // for (auto r : in_range) ans.push_back(r.first);
-      // all_neighbors[i] = ans;
-      // second_round[i] = 1;
-      // QueryStats.increment_visited(i, in_range.size());
-      // QueryStats.increment_dist(i, dist_cmps);
+      // all_neighbors[i] = neighbors;
+      std::cout << "Advanced to round two" << std::endl;
+      auto [in_range, dist_cmps] = range_search(Query_Points[i], G, Base_Points, neighbors, RP);
+      parlay::sequence<indexType> ans;
+      for (auto r : in_range) ans.push_back(r.first);
+      all_neighbors[i] = ans;
+      second_round[i] = 1;
+      QueryStats.increment_visited(i, in_range.size());
+      QueryStats.increment_dist(i, dist_cmps);
+      std::cout << "For starting beam " << RP.initial_beam << " found " << ans.size() << " candidates" << std::endl;
     }
     
     QueryStats.increment_visited(i, visitedElts.size());
