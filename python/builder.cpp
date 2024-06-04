@@ -32,48 +32,77 @@
 #include "../algorithms/utils/mips_point.h"
 #include "../algorithms/utils/stats.h"
 
+using result_type = std::pair<float,float>;
 
 template <typename T, typename Point>
-void build_vamana_index(std::string metric, std::string &vector_bin_path,
-                         std::string &index_output_path, uint32_t graph_degree, uint32_t beam_width,
-                        float alpha, bool two_pass)
+result_type
+build_vamana_index(std::string metric, std::string &vector_bin_path,
+                   std::string &index_output_path, uint32_t graph_degree, uint32_t beam_width,
+                   float alpha, bool two_pass)
 {
     
-    //instantiate build params object
+  //instantiate build params object
   BuildParams BP(graph_degree, beam_width, alpha, two_pass ? 2 : 1);
 
-    //use file parsers to create Point object
+  //use file parsers to create Point object
 
-    PointRange<T, Point> Points = PointRange<T, Point>(vector_bin_path.data());
-    //use max degree info to create Graph object
-    Graph<unsigned int> G = Graph<unsigned int>(graph_degree, Points.size());
+  PointRange<T, Point> Points = PointRange<T, Point>(vector_bin_path.data());
+  if (Point::is_metric()) { // normalize) {
+    for (int i=0; i < Points.size(); i++) 
+      Points[i].normalize();
+  }
+
+  //use max degree info to create Graph object
+  Graph<unsigned int> G = Graph<unsigned int>(graph_degree, Points.size());
+  stats<unsigned int> BuildStats(G.size());
+  std::pair<float,float> result;
+    
+  if (Point::is_metric()) {
+    using QuantT = uint8_t;
+    using QuantPoint = Euclidian_Point<QuantT>;
+    using QuantRange = PointRange<QuantT, QuantPoint>;
+    QuantRange Quant_Points(Points);  // quantized to one byte
 
     //call the build function
-    using index = knn_index<PointRange<T, Point>, unsigned int>;
+    using index = knn_index<QuantRange, unsigned int>;
     index I(BP);
-    stats<unsigned int> BuildStats(G.size());
-    I.build_index(G, Points, BuildStats);
+    I.build_index(G, Quant_Points, BuildStats);
+    float slope = Quant_Points.params.slope;
+    float offset = Quant_Points.params.offset;
+    result = std::pair(slope, offset);
 
-    //save the graph object
-    G.save(index_output_path.data());
+  } else {
+    using QuantT = int8_t;
+    using QuantPoint = Quantized_Mips_Point<QuantT>;
+    using QuantRange = PointRange<QuantT, QuantPoint>;
+    QuantRange Quant_Points(Points);  // quantized to one byte
 
-    
-    
+    //call the build function
+    using index = knn_index<QuantRange, unsigned int>;
+    index I(BP);
+    I.build_index(G, Quant_Points, BuildStats);
+    float mv = Quant_Points.params.max_val;
+    result = std::pair(-mv, mv);
+  }      
+
+  //save the graph object
+  G.save(index_output_path.data());
+  return result;
 }
 
-template void build_vamana_index<float, Euclidian_Point<float>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
+template result_type build_vamana_index<float, Euclidian_Point<float>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
                                         float, bool);                            
-template void build_vamana_index<float, Mips_Point<float>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
+template result_type build_vamana_index<float, Mips_Point<float>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
                                         float, bool);
 
-template void build_vamana_index<int8_t, Euclidian_Point<int8_t>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
+template result_type build_vamana_index<int8_t, Euclidian_Point<int8_t>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
                                          float, bool);
-template void build_vamana_index<int8_t, Mips_Point<int8_t>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
+template result_type build_vamana_index<int8_t, Mips_Point<int8_t>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
                                          float, bool);
 
-template void build_vamana_index<uint8_t, Euclidian_Point<uint8_t>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
+template result_type build_vamana_index<uint8_t, Euclidian_Point<uint8_t>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
                                           float, bool);
-template void build_vamana_index<uint8_t, Mips_Point<uint8_t>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
+template result_type build_vamana_index<uint8_t, Mips_Point<uint8_t>>(std::string , std::string &, std::string &, uint32_t, uint32_t,
                                           float, bool);
 
 
