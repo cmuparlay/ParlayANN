@@ -339,8 +339,9 @@ parlay::sequence<parlay::sequence<indexType>> searchAll(PointRange &Query_Points
   return all_neighbors;
 }
 
+// Returns a sequence of nearest neighbors each with their distance
 template<typename Point, typename QPoint, typename PointRange, typename QPointRange, typename indexType>
-parlay::sequence<indexType>
+parlay::sequence<std::pair<indexType, typename Point::distanceType>>
 beam_search_rerank(const Point &p,
                    const QPoint &pq,
                    Graph<indexType> &G,
@@ -352,7 +353,6 @@ beam_search_rerank(const Point &p,
   // beam search with quantized points
   auto [pairElts, dist_cmps] = beam_search(pq, G, Q_Base_Points, starting_points, QP);
   auto [beamElts, visitedElts] = pairElts;
-
   int exp_factor = 5;
   
   // recalculate distances with non-quantized points and sort
@@ -360,14 +360,14 @@ beam_search_rerank(const Point &p,
   for (auto [j, ignore] : parlay::tabulate(std::min<int>(QP.k*exp_factor,beamElts.size()), [&] (long i) {return beamElts[i];}))
     pts.push_back(std::pair(j, p.distance(Base_Points[j])));
   std::sort(pts.begin(), pts.end(), [] (auto a, auto b) {return a.second < b.second;});
-
+  
+  //QueryStats.increment_visited(p.id(), visitedElts.size());
+  //QueryStats.increment_dist(p.id(), dist_cmps + beamElts.size());
   // strip off the distances and keep first k
-  parlay::sequence<indexType> neighbors;
-  for (indexType j = 0; j < QP.k; j++)
-    neighbors.push_back(pts[j].first);
-  QueryStats.increment_visited(p.id(), visitedElts.size());
-  QueryStats.increment_dist(p.id(), dist_cmps + beamElts.size());
-  return neighbors;
+  parlay::sequence<std::pair<indexType, typename Point::distanceType>> results;
+  for (int i= 0; i < QP.k; i++)
+    results.push_back(pts[i]);
+  return results;
 }
 
 
@@ -399,9 +399,10 @@ parlay::sequence<parlay::sequence<indexType>> qsearchAll(PointRange &Query_Point
   }
   parlay::sequence<parlay::sequence<indexType>> all_neighbors(Query_Points.size());
   parlay::parallel_for(0, Query_Points.size(), [&](size_t i) {
-    all_neighbors[i] = beam_search_rerank(Query_Points[i], Q_Query_Points[i], G,
+    auto ngh_dist = beam_search_rerank(Query_Points[i], Q_Query_Points[i], G,
                                           Base_Points, Q_Base_Points,
                                           QueryStats, starting_points, QP);
+    all_neighbors[i] = parlay::map(ngh_dist, [] (auto& p) {return p.first;});
   });
 
   return all_neighbors;

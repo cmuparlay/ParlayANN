@@ -46,8 +46,10 @@ build_vamana_index(std::string metric, std::string &vector_bin_path,
 
   //use file parsers to create Point object
 
-  PointRange<T, Point> Points = PointRange<T, Point>(vector_bin_path.data());
-  if (Point::is_metric()) { // normalize) {
+  using Range = PointRange<T, Point>;
+  Range Points = Range(vector_bin_path.data());
+  if (!Point::is_metric()) { // normalize) {
+    std::cout << "normalizing" << std::endl;
     for (int i=0; i < Points.size(); i++) 
       Points[i].normalize();
   }
@@ -56,34 +58,41 @@ build_vamana_index(std::string metric, std::string &vector_bin_path,
   Graph<unsigned int> G = Graph<unsigned int>(graph_degree, Points.size());
   stats<unsigned int> BuildStats(G.size());
   std::pair<float,float> result;
-    
-  if (Point::is_metric()) {
-    using QuantT = uint8_t;
-    using QuantPoint = Euclidian_Point<QuantT>;
-    using QuantRange = PointRange<QuantT, QuantPoint>;
-    QuantRange Quant_Points(Points);  // quantized to one byte
 
-    //call the build function
-    using index = knn_index<QuantRange, unsigned int>;
-    index I(BP);
-    I.build_index(G, Quant_Points, BuildStats);
-    float slope = Quant_Points.params.slope;
-    float offset = Quant_Points.params.offset;
-    result = std::pair(slope, offset);
+  if (sizeof(typename Range::T) > 1) {
+    if (Point::is_metric()) {
+      using QuantT = uint8_t;
+      using QuantPoint = Euclidian_Point<QuantT>;
+      using QuantRange = PointRange<QuantT, QuantPoint>;
+      QuantRange Quant_Points(Points);  // quantized to one byte
 
+      //call the build function
+      using index = knn_index<QuantRange, unsigned int>;
+      index I(BP);
+      I.build_index(G, Quant_Points, BuildStats);
+      float slope = Quant_Points.params.slope;
+      float offset = Quant_Points.params.offset;
+      result = std::pair(slope, offset);
+
+    } else {
+      using QuantT = int8_t;
+      using QuantPoint = Quantized_Mips_Point<QuantT>;
+      using QuantRange = PointRange<QuantT, QuantPoint>;
+      QuantRange Quant_Points(Points);  // quantized to one byte
+
+      //call the build function
+      using index = knn_index<QuantRange, unsigned int>;
+      index I(BP);
+      I.build_index(G, Quant_Points, BuildStats);
+      float mv = Quant_Points.params.max_val;
+      result = std::pair(-mv, mv);
+    }
   } else {
-    using QuantT = int8_t;
-    using QuantPoint = Quantized_Mips_Point<QuantT>;
-    using QuantRange = PointRange<QuantT, QuantPoint>;
-    QuantRange Quant_Points(Points);  // quantized to one byte
-
-    //call the build function
-    using index = knn_index<QuantRange, unsigned int>;
+    using index = knn_index<PointRange<T, Point>, unsigned int>;
     index I(BP);
-    I.build_index(G, Quant_Points, BuildStats);
-    float mv = Quant_Points.params.max_val;
-    result = std::pair(-mv, mv);
-  }      
+    I.build_index(G, Points, BuildStats);
+    result = std::pair(0, 0);
+  } 
 
   //save the graph object
   G.save(index_output_path.data());
