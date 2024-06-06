@@ -101,11 +101,18 @@ struct GraphIndex{
     stats<indexType> Qstats(1);
     if (quant && use_quantization) {
       typename QuantPoint::T buffer[128];
-      QuantPoint::translate_point(buffer, q, Quant_Points.params);
-      QuantPoint quant_q(buffer, 0, Quant_Points.params);
-      return beam_search_rerank(q, quant_q, G,
-                                Points, Quant_Points,
-                                Qstats, starts, QP);
+      if ( Quant_Points.params.slope == 1) {
+        for (int i=0; i < Quant_Points.params.dims; i++)
+          buffer[i] = q[i];
+        QuantPoint quant_q(buffer, 0, Quant_Points.params);
+        return beam_search(quant_q, G, Quant_Points, starts, QP).first.first;
+      } else {
+        QuantPoint::translate_point(buffer, q, Quant_Points.params);
+        QuantPoint quant_q(buffer, 0, Quant_Points.params);
+        return beam_search_rerank(q, quant_q, G,
+                                  Points, Quant_Points,
+                                  Qstats, starts, QP);
+      }
     } else {
       return beam_search(q, G, Points, starts, QP).first.first;
     }

@@ -170,20 +170,25 @@ struct Euclidian_Point {
   static void translate_point(T* values, const Point& p, const parameters& params) {
     float slope = params.slope;
     int32_t offset = params.offset;
-    float min_val = std::floor(offset / slope);
-    float max_val = std::ceil((range + offset) / slope);
-    for (int j = 0; j < params.dims; j++) {
-      auto x = p[j];
-      if (x < min_val || x > max_val) {
-        std::cout << x << " is out of range: [" << min_val << "," << max_val << "]" << std::endl;
-        abort();
+    if (slope == 1.0) 
+      for (int j = 0; j < params.dims; j++) values[j] = p[j];
+    else {
+      std::cout << "ouch" << std::endl;
+      float min_val = std::floor(offset / slope);
+      float max_val = std::ceil((range + offset) / slope);
+      for (int j = 0; j < params.dims; j++) {
+        auto x = p[j];
+        if (x < min_val || x > max_val) {
+          std::cout << x << " is out of range: [" << min_val << "," << max_val << "]" << std::endl;
+          abort();
+        }
+        int64_t r = (int64_t) (std::round(x * slope)) - offset;
+        if (r < 0 || r > range) {
+          std::cout << "out of range: " << r << ", " << range << ", " << x << ", " << std::round(x * slope) - offset << ", " << slope << ", " << offset << std::endl;
+          abort();
+        }
+        values[j] = (T) r;
       }
-      int64_t r = (int64_t) (std::round(x * slope)) - offset;
-      if (r < 0 || r > range) {
-        std::cout << "out of range: " << r << ", " << range << ", " << x << ", " << std::round(x * slope) - offset << ", " << slope << ", " << offset << std::endl;
-        abort();
-      }
-      values[j] = (T) r;
     }
   }
 
@@ -202,9 +207,11 @@ struct Euclidian_Point {
     float min_val = *parlay::min_element(mins);
     float max_val = *parlay::max_element(maxs);
     bool all_ints = *parlay::min_element(ni);
-    if (all_ints)
+    if (all_ints) {
       if (sizeof(T) == 1 && max_val < 256) max_val = 255;
       else if (sizeof(T) == 2 && max_val < 65536) max_val = 65536;
+      min_val = 0;
+    }
     std::cout << "scalar quantization: min value = " << min_val
               << ", max value = " << max_val << std::endl;
     return parameters(min_val, max_val, dims);
