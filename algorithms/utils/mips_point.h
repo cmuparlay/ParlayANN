@@ -63,8 +63,9 @@
     return -result;
   }
 
-template<typename T>
+template<typename T_>
 struct Mips_Point {
+  using T = T_;
   using distanceType = float; 
   //template<typename C, typename range> friend struct Quantized_Mips_Point;
 
@@ -133,13 +134,15 @@ private:
   parameters params;
 };
 
-template<typename T, int range=(1 << sizeof(T)*8) - 1>
+template<typename T_, int range=(1 << sizeof(T_)*8) - 1>
 struct Quantized_Mips_Point{
+  using T = T_;
   using distanceType = float; 
   
   struct parameters {
     float max_val;
     int dims;
+    parameters() : max_val(1), dims(0) {}
     parameters(int dims) : max_val(1), dims(dims) {}
     parameters(float max_val, int dims)
       : max_val(max_val), dims(dims) {}

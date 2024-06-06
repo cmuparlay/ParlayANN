@@ -70,7 +70,7 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
         .def("single_search", &GraphIndex<T, Point>::single_search, "q"_a, "knn"_a,
              "beam_width"_a, "quant"_a, "visit_limit"_a)
         .def("batch_search_from_string", &GraphIndex<T, Point>::batch_search_from_string, "queries"_a, "num_queries"_a, "knn"_a,
-             "beam_width"_a, "quant"_a)
+             "beam_width"_a, "quant"_a, "visit_limit"_a)
         .def("check_recall", &GraphIndex<T, Point>::check_recall, "gFile"_a, "neighbors"_a, "k"_a);
 
    

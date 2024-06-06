@@ -46,10 +46,19 @@ template<typename T, typename Point>
 struct GraphIndex{
   Graph<unsigned int> G;
   PointRange<T, Point> Points;
-  using QuantT = uint8_t;
-  using QuantPoint = Euclidian_Point<QuantT>;
-  using QuantRange = PointRange<QuantT, QuantPoint>;
-  QuantRange Quant_Points;
+
+  // euclidean quantized points
+  using EQuantT = uint8_t;
+  using EQuantPoint = Euclidian_Point<EQuantT>;
+  using EQuantRange = PointRange<EQuantT, EQuantPoint>;
+  EQuantRange EQuant_Points;
+
+  // mips or angular quantized points
+  using MQuantT = int8_t;
+  using MQuantPoint = Quantized_Mips_Point<MQuantT>;
+  using MQuantRange = PointRange<MQuantT, MQuantPoint>;
+  MQuantRange MQuant_Points;
+  
   bool use_quantization;
 
   std::optional<ANN::HNSW<Desc_HNSW<T, Point>>> HNSW_index;
@@ -62,7 +71,11 @@ struct GraphIndex{
     
     if (sizeof(T) > 1) {
       use_quantization = true;
-      Quant_Points = QuantRange(Points);
+      if (Point::is_metric()) {
+        EQuant_Points = EQuantRange(Points);
+      } else {
+        MQuant_Points = MQuantRange(Points);
+      }
     }
 
     if(is_hnsw) {
@@ -78,7 +91,7 @@ struct GraphIndex{
     }
   }
 
-  auto search_dispatch(const Point &q, QueryParams &QP, bool quant)
+  auto search_dispatch(Point &q, QueryParams &QP, bool quant)
   {
     // if(HNSW_index) {
     //   using indexType = unsigned int; // be consistent with the type of G
@@ -100,17 +113,28 @@ struct GraphIndex{
     parlay::sequence<indexType> starts(1, 0);
     stats<indexType> Qstats(1);
     if (quant && use_quantization) {
-      typename QuantPoint::T buffer[128];
-      if ( Quant_Points.params.slope == 1) {
-        for (int i=0; i < Quant_Points.params.dims; i++)
-          buffer[i] = q[i];
-        QuantPoint quant_q(buffer, 0, Quant_Points.params);
-        return beam_search(quant_q, G, Quant_Points, starts, QP).first.first;
+      int dim = Points.params.dims;
+      if (Point::is_metric()) {
+        typename EQuantPoint::T buffer[dim];
+        if (EQuant_Points.params.slope == 1) {
+          for (int i=0; i < dim; i++)
+            buffer[i] = q[i];
+          EQuantPoint quant_q(buffer, 0, EQuant_Points.params);
+          return beam_search(quant_q, G, EQuant_Points, starts, QP).first.first;
+        } else {
+          q.normalize();
+          EQuantPoint::translate_point(buffer, q, EQuant_Points.params);
+          EQuantPoint quant_q(buffer, 0, EQuant_Points.params);
+          return beam_search_rerank(q, quant_q, G,
+                                    Points, EQuant_Points,
+                                    Qstats, starts, QP);
+        }
       } else {
-        QuantPoint::translate_point(buffer, q, Quant_Points.params);
-        QuantPoint quant_q(buffer, 0, Quant_Points.params);
+        typename MQuantPoint::T buffer[dim];
+        MQuantPoint::translate_point(buffer, q, MQuant_Points.params);
+        MQuantPoint quant_q(buffer, 0, MQuant_Points.params);
         return beam_search_rerank(q, quant_q, G,
-                                  Points, Quant_Points,
+                                  Points, MQuant_Points,
                                   Qstats, starts, QP);
       }
     } else {
@@ -121,8 +145,7 @@ struct GraphIndex{
   NeighborsAndDistances batch_search(py::array_t<T, py::array::c_style | py::array::forcecast> &queries,
                                      uint64_t num_queries, uint64_t knn,
                                      uint64_t beam_width, bool quant = false, int64_t visit_limit = -1){
-    if(visit_limit == -1) visit_limit = HNSW_index? 0: G.size();
-    QueryParams QP(knn, beam_width, 1.35, visit_limit, HNSW_index?0:G.max_degree());
+    QueryParams QP(knn, beam_width, 1.35, visit_limit, std::min<int>(G.max_degree(), 3*visit_limit));
 
     py::array_t<unsigned int> ids({num_queries, knn});
     py::array_t<float> dists({num_queries, knn});
@@ -142,9 +165,9 @@ struct GraphIndex{
   }
 
   NeighborsAndDistances single_search(py::array_t<T> &q, uint64_t knn,
-                                      uint64_t beam_width, bool quant, int64_t visit_limit) {
-    if(visit_limit == -1) visit_limit = HNSW_index? 0: G.size();
-    QueryParams QP(knn, beam_width, 1.35, visit_limit, HNSW_index?0:G.max_degree());
+                                      uint64_t beam_width, bool quant,
+                                      int64_t visit_limit) {
+    QueryParams QP(knn, beam_width, 1.35, visit_limit, std::min<int>(G.max_degree(), 3*visit_limit));
     int dims = Points.dimension();
 
     py::array_t<unsigned int> ids({knn});
@@ -163,13 +186,15 @@ struct GraphIndex{
   }
 
   NeighborsAndDistances batch_search_from_string(std::string &queries, uint64_t num_queries, uint64_t knn,
-                                                 uint64_t beam_width, bool quant = false){
-    QueryParams QP(knn, beam_width, 1.35, HNSW_index?0:G.size(), HNSW_index?0:G.max_degree());
+                                                 uint64_t beam_width, bool quant = false,
+                                                 int64_t visit_limit = -1) {
+    QueryParams QP(knn, beam_width, 1.35, visit_limit, std::min<int>(G.max_degree(), 3*visit_limit));
     PointRange<T, Point> QueryPoints = PointRange<T, Point>(queries.data());
     py::array_t<unsigned int> ids({num_queries, knn});
     py::array_t<float> dists({num_queries, knn});
     parlay::parallel_for(0, num_queries, [&] (size_t i){
-      auto frontier = search_dispatch(QueryPoints[i], QP, quant);
+      auto p = QueryPoints[i];
+      auto frontier = search_dispatch(p, QP, quant);
       for(int j=0; j<knn; j++){
         ids.mutable_data(i)[j] = frontier[j].first;
         dists.mutable_data(i)[j] = frontier[j].second;
