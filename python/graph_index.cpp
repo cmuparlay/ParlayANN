@@ -118,7 +118,8 @@ struct GraphIndex{
     }
   }
 
-  NeighborsAndDistances batch_search(py::array_t<T, py::array::c_style | py::array::forcecast> &queries, uint64_t num_queries, uint64_t knn,
+  NeighborsAndDistances batch_search(py::array_t<T, py::array::c_style | py::array::forcecast> &queries,
+                                     uint64_t num_queries, uint64_t knn,
                                      uint64_t beam_width, bool quant = false, int64_t visit_limit = -1){
     if(visit_limit == -1) visit_limit = HNSW_index? 0: G.size();
     QueryParams QP(knn, beam_width, 1.35, visit_limit, HNSW_index?0:G.max_degree());
@@ -137,6 +138,27 @@ struct GraphIndex{
         dists.mutable_data(i)[j] = frontier[j].second;
       }
     });
+    return std::make_pair(std::move(ids), std::move(dists));
+  }
+
+  NeighborsAndDistances single_search(py::array_t<T> &q, uint64_t knn,
+                                      uint64_t beam_width, bool quant, int64_t visit_limit) {
+    if(visit_limit == -1) visit_limit = HNSW_index? 0: G.size();
+    QueryParams QP(knn, beam_width, 1.35, visit_limit, HNSW_index?0:G.max_degree());
+    int dims = Points.dimension();
+
+    py::array_t<unsigned int> ids({knn});
+    py::array_t<float> dists({knn});
+    //auto p = q.unchecked<3>();
+    T v[dims];
+    for (int j=0; j < dims; j++)
+      v[j] = q.data()[j];
+    Point p = Point(v, 0, Points.params);
+    auto frontier = search_dispatch(p, QP, quant);
+    for(int j=0; j<knn; j++) {
+      ids.mutable_data()[j] = frontier[j].first;
+      dists.mutable_data()[j] = frontier[j].second;
+    }
     return std::make_pair(std::move(ids), std::move(dists));
   }
 
