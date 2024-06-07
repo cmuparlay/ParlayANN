@@ -4,10 +4,11 @@ import time
 
 NAME = "nytimes-256-angular"
 DATA_DIR = "data/" + NAME + "/"
+metric = "mips"
 
-# wp.build_vamana_index("mips", "float", DATA_DIR + NAME + "_base.fbin", DATA_DIR + "outputs/" + NAME, 150, 300, .85, True)
+# wp.build_vamana_index(metric, "float", DATA_DIR + NAME + "_base.fbin", DATA_DIR + "outputs/" + NAME, 150, 300, .85, True)
 
-Index = wp.load_index("mips", "float", DATA_DIR + NAME + "_base.fbin", DATA_DIR + "outputs/" + NAME)
+Index = wp.load_index(metric, "float", DATA_DIR + NAME + "_base.fbin", DATA_DIR + "outputs/" + NAME)
 
 for Q in [17, 60] :
     for x in range(5) :

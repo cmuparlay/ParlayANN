@@ -173,7 +173,6 @@ struct Euclidian_Point {
     if (slope == 1.0) 
       for (int j = 0; j < params.dims; j++) values[j] = p[j];
     else {
-      std::cout << "ouch" << std::endl;
       float min_val = std::floor(offset / slope);
       float max_val = std::ceil((range + offset) / slope);
       for (int j = 0; j < params.dims; j++) {

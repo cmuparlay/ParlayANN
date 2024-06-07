@@ -349,20 +349,23 @@ beam_search_rerank(const Point &p,
                    QPointRange &Q_Base_Points,
                    stats<indexType> &QueryStats,
                    parlay::sequence<indexType> starting_points,
-                   QueryParams &QP) {
+                   QueryParams &QP,
+                   bool stats = true) {
   // beam search with quantized points
   auto [pairElts, dist_cmps] = beam_search(pq, G, Q_Base_Points, starting_points, QP);
   auto [beamElts, visitedElts] = pairElts;
-  int exp_factor = 5;
+  int exp_factor = 3;
   
   // recalculate distances with non-quantized points and sort
   std::vector<std::pair<indexType, typename Point::distanceType>> pts;
   for (auto [j, ignore] : parlay::tabulate(std::min<int>(QP.k*exp_factor,beamElts.size()), [&] (long i) {return beamElts[i];}))
     pts.push_back(std::pair(j, p.distance(Base_Points[j])));
   std::sort(pts.begin(), pts.end(), [] (auto a, auto b) {return a.second < b.second;});
-  
-  //QueryStats.increment_visited(p.id(), visitedElts.size());
-  //QueryStats.increment_dist(p.id(), dist_cmps + beamElts.size());
+
+  if (stats) {
+    QueryStats.increment_visited(p.id(), visitedElts.size());
+    QueryStats.increment_dist(p.id(), dist_cmps + beamElts.size());
+  }
   // strip off the distances and keep first k
   parlay::sequence<std::pair<indexType, typename Point::distanceType>> results;
   for (int i= 0; i < QP.k; i++)

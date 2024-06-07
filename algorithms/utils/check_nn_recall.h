@@ -208,7 +208,7 @@ void search_and_parse(Graph_ G_,
         QP.cut = cut;
         for (float Q : beams){
           QP.beamSize = Q;
-          if (Q > r){
+          if (Q >= r){
             results.push_back(checkRecall<Point, PointRange, QPointRange, indexType>(G, Base_Points, Query_Points, Q_Base_Points, Q_Query_Points, GT, random, start_point, r, QP, verbose));
           }
         }

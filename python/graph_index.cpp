@@ -126,20 +126,20 @@ struct GraphIndex{
           EQuantPoint quant_q(buffer, 0, EQuant_Points.params);
           return beam_search(quant_q, G, EQuant_Points, starts, QP).first.first;
         } else {
-          q.normalize();
           EQuantPoint::translate_point(buffer, q, EQuant_Points.params);
           EQuantPoint quant_q(buffer, 0, EQuant_Points.params);
           return beam_search_rerank(q, quant_q, G,
                                     Points, EQuant_Points,
-                                    Qstats, starts, QP);
+                                    Qstats, starts, QP, false);
         }
       } else {
         typename MQuantPoint::T buffer[dim];
+        q.normalize();
         MQuantPoint::translate_point(buffer, q, MQuant_Points.params);
         MQuantPoint quant_q(buffer, 0, MQuant_Points.params);
         return beam_search_rerank(q, quant_q, G,
                                   Points, MQuant_Points,
-                                  Qstats, starts, QP);
+                                  Qstats, starts, QP, false);
       }
     } else {
       return beam_search(q, G, Points, starts, QP).first.first;

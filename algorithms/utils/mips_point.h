@@ -211,7 +211,7 @@ struct Quantized_Mips_Point{
       float mv = params.max_val;
       float pj = p[j];
       if (pj < -mv || pj > mv) {
-        std::cout << pj << " is out of range, should be in [" << -mv << ":" << mv << "]" << std::endl;
+        std::cout << pj << " is out of range, should be in [" << -mv << ":" << mv << "] " << std::endl;
         abort();
       }
       int32_t x = std::round(pj * (range/2) / mv);
