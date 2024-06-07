@@ -63,17 +63,17 @@ struct GraphIndex{
 
   std::optional<ANN::HNSW<Desc_HNSW<T, Point>>> HNSW_index;
 
-  GraphIndex(std::string &data_path, std::string &index_path, size_t num_points, size_t dimensions, bool is_hnsw=false)
+  GraphIndex(std::string &data_path, std::string &index_path, bool is_hnsw=false)
     : use_quantization(false) {
     Points = PointRange<T, Point>(data_path.data());
-    assert(num_points == Points.size());
-    assert(dimensions == Points.dimension());
     
     if (sizeof(T) > 1) {
       use_quantization = true;
       if (Point::is_metric()) {
         EQuant_Points = EQuantRange(Points);
       } else {
+        for (int i=0; i < Points.size(); i++) 
+          Points[i].normalize();
         MQuant_Points = MQuantRange(Points);
       }
     }
@@ -88,6 +88,10 @@ struct GraphIndex{
     }
     else {
       G = Graph<unsigned int>(index_path.data());
+      if (G.size() != Points.size()) {
+        std::cout << "graph size and point size do not match" << std::endl;
+        abort();
+      }
     }
   }
 
@@ -143,10 +147,14 @@ struct GraphIndex{
   }
 
   NeighborsAndDistances batch_search(py::array_t<T, py::array::c_style | py::array::forcecast> &queries,
-                                     uint64_t num_queries, uint64_t knn,
-                                     uint64_t beam_width, bool quant = false, int64_t visit_limit = -1){
+                                     //uint64_t num_queries_,
+                                     uint64_t knn,
+                                     uint64_t beam_width,
+                                     bool quant = false,
+                                     int64_t visit_limit = -1) {
     QueryParams QP(knn, beam_width, 1.35, visit_limit, std::min<int>(G.max_degree(), 3*visit_limit));
 
+    uint64_t num_queries = queries.shape(0);
     py::array_t<unsigned int> ids({num_queries, knn});
     py::array_t<float> dists({num_queries, knn});
 
@@ -164,32 +172,36 @@ struct GraphIndex{
     return std::make_pair(std::move(ids), std::move(dists));
   }
 
-  NeighborsAndDistances single_search(py::array_t<T> &q, uint64_t knn,
-                                      uint64_t beam_width, bool quant,
-                                      int64_t visit_limit) {
+  py::array_t<unsigned int>
+  single_search(py::array_t<T>& q, uint64_t knn,
+                uint64_t beam_width, bool quant,
+                int64_t visit_limit) {
     QueryParams QP(knn, beam_width, 1.35, visit_limit, std::min<int>(G.max_degree(), 3*visit_limit));
     int dims = Points.dimension();
 
     py::array_t<unsigned int> ids({knn});
-    py::array_t<float> dists({knn});
-    //auto p = q.unchecked<3>();
+    //py::array_t<float> dists({knn});
+    auto pp = q.mutable_unchecked();
     T v[dims];
     for (int j=0; j < dims; j++)
-      v[j] = q.data()[j];
+      v[j] = pp(j); //q.data()[j];
     Point p = Point(v, 0, Points.params);
     auto frontier = search_dispatch(p, QP, quant);
     for(int j=0; j<knn; j++) {
       ids.mutable_data()[j] = frontier[j].first;
-      dists.mutable_data()[j] = frontier[j].second;
+      //dists.mutable_data()[j] = frontier[j].second;
     }
-    return std::make_pair(std::move(ids), std::move(dists));
+    return std::move(ids);
   }
 
-  NeighborsAndDistances batch_search_from_string(std::string &queries, uint64_t num_queries, uint64_t knn,
+  NeighborsAndDistances batch_search_from_string(std::string &queries,
+                                                 //uint64_t num_queries_,
+                                                 uint64_t knn,
                                                  uint64_t beam_width, bool quant = false,
                                                  int64_t visit_limit = -1) {
     QueryParams QP(knn, beam_width, 1.35, visit_limit, std::min<int>(G.max_degree(), 3*visit_limit));
     PointRange<T, Point> QueryPoints = PointRange<T, Point>(queries.data());
+    uint64_t num_queries = QueryPoints.size();
     py::array_t<unsigned int> ids({num_queries, knn});
     py::array_t<float> dists({num_queries, knn});
     parlay::parallel_for(0, num_queries, [&] (size_t i){
@@ -203,8 +215,12 @@ struct GraphIndex{
     return std::make_pair(std::move(ids), std::move(dists));
   }
 
-  void check_recall(std::string &gFile, py::array_t<unsigned int, py::array::c_style | py::array::forcecast> &neighbors, int k){
-    groundTruth<unsigned int> GT = groundTruth<unsigned int>(gFile.data());
+  void check_recall(std::string &queries_file,
+                    std::string &graph_file,
+                    py::array_t<unsigned int, py::array::c_style | py::array::forcecast> &neighbors,
+                    int k){
+    groundTruth<unsigned int> GT = groundTruth<unsigned int>(graph_file.data());
+    PointRange<T, Point> QueryPoints = PointRange<T, Point>(queries_file.data());
 
     size_t n = GT.size();
     
@@ -213,14 +229,13 @@ struct GraphIndex{
       parlay::sequence<int> results_with_ties;
       for (unsigned int l = 0; l < k; l++)
         results_with_ties.push_back(GT.coordinates(i,l));
-      // float last_dist = GT.distances(i, k-1);
-      // for (unsigned int l = k; l < GT.dimension(); l++) {
-      //   if (i == 4) std::cout << l << std::endl;
-      //   if (GT.distances(i,l) == last_dist) {
-      //     std::cout << "unlikely" << std::endl;
-      //     results_with_ties.push_back(GT.coordinates(i,l));
-      //   }
-      // }
+      float last_dist = QueryPoints[i].distance(Points[GT.coordinates(i, k-1)]);
+      for (unsigned int l = k; l < GT.dimension(); l++) {
+        auto p = Points[GT.coordinates(i, l)];
+        if (QueryPoints[i].distance(p) == last_dist) {
+          results_with_ties.push_back(GT.coordinates(i,l));
+        }
+      }
       std::set<int> reported_nbhs;
       for (unsigned int l = 0; l < k; l++) reported_nbhs.insert(neighbors.mutable_data(i)[l]);
       for (unsigned int l = 0; l < results_with_ties.size(); l++) {
@@ -233,8 +248,8 @@ struct GraphIndex{
     std::cout << "Recall: " << recall << std::endl;
   }
 
-  // void check_recall(std::string &gFile, py::array_t<unsigned int, py::array::c_style | py::array::forcecast> &neighbors, int k){
-  //   groundTruth<unsigned int> GT = groundTruth<unsigned int>(gFile.data());
+  // void check_recall(std::string &graph_file, py::array_t<unsigned int, py::array::c_style | py::array::forcecast> &neighbors, int k){
+  //   groundTruth<unsigned int> GT = groundTruth<unsigned int>(graph_file.data());
 
   //   size_t n = GT.size();
 
