@@ -18,6 +18,6 @@ for Q in [14, 23] :
         neighbors, distances = Index.batch_search_from_string(DATA_DIR + NAME + "_query.fbin", 10, Q, True, 1000)
         end = time.time()
         print(neighbors.size)
-        print("QPS: ", neighbors.shape[0]/(end - start))
+        print("QPS: ", f'{neighbors.shape[0]/(end - start):.6f})
         
     Index.check_recall(DATA_DIR + NAME + "_query.fbin", DATA_DIR + NAME + "_groundtruth", neighbors, 10)

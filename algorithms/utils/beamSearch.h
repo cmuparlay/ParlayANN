@@ -351,28 +351,51 @@ beam_search_rerank(const Point &p,
                    parlay::sequence<indexType> starting_points,
                    QueryParams &QP,
                    bool stats = true) {
+  using dtype = typename Point::distanceType;
+  using id_dist = std::pair<indexType, dtype>;
+  
   // beam search with quantized points
   auto [pairElts, dist_cmps] = beam_search(pq, G, Q_Base_Points, starting_points, QP);
   auto [beamElts, visitedElts] = pairElts;
+  int k = QP.k;
   int exp_factor = 3;
-  
-  // recalculate distances with non-quantized points and sort
-  std::vector<std::pair<indexType, typename Point::distanceType>> pts;
-  for (auto [j, ignore] : parlay::tabulate(std::min<int>(QP.k*exp_factor,beamElts.size()), [&] (long i) {return beamElts[i];}))
-    pts.push_back(std::pair(j, p.distance(Base_Points[j])));
-  std::sort(pts.begin(), pts.end(), [] (auto a, auto b) {return a.second < b.second;});
+  int num_check = std::min<int>(k * exp_factor, beamElts.size());
+  auto less = [] (id_dist a, id_dist b) {
+    return (a.second < b.second) || (a.second == b.second && a.first < b.first);};
 
   if (stats) {
     QueryStats.increment_visited(p.id(), visitedElts.size());
-    QueryStats.increment_dist(p.id(), dist_cmps + beamElts.size());
+    QueryStats.increment_dist(p.id(), dist_cmps + num_check);
   }
-  // strip off the distances and keep first k
-  parlay::sequence<std::pair<indexType, typename Point::distanceType>> results;
-  for (int i= 0; i < QP.k; i++)
-    results.push_back(pts[i]);
-  return results;
-}
 
+  // recalculate distances with non-quantized points
+  auto check_points = parlay::tabulate(num_check, [&] (indexType i) {
+    auto [j, ignore] = beamElts[i];
+    return std::pair(j, p.distance(Base_Points[j]));}, num_check);
+
+  // parlay::sequence<id_dist> check_points, candidate_points;
+  // for (auto (j, ignore) : beamElts.subseq(0, num_check));
+  //   check_points.push_back(std::pair(j, p.distance(Base_Points[j])));
+
+  // first check those that are within the k-th point
+  dtype threshold = check_points[k-1].second;
+  parlay::sequence<id_dist> candidate_points;
+  for (auto pt : check_points)
+    if (!(threshold < pt.second))
+      candidate_points.push_back(pt);
+  if (candidate_points.size() == k) {
+    // all points were correct
+    return candidate_points;   
+  } else if (candidate_points.size() > k) {
+    // enough candidates, sort candidates to get best
+    std::sort(candidate_points.begin(), candidate_points.end(), less);
+    return candidate_points.subseq(0, k);
+  } else {
+    // not enough candidates, sort check points to get best
+    std::sort(check_points.begin(), check_points.end(), less);
+    return candidate_points.subseq(0, k);
+  }
+}
 
 template<typename Point, typename PointRange, typename QPointRange, typename indexType>
 parlay::sequence<parlay::sequence<indexType>> qsearchAll(PointRange& Query_Points,

@@ -124,6 +124,7 @@ struct GraphIndex{
           for (int i=0; i < dim; i++)
             buffer[i] = q[i];
           EQuantPoint quant_q(buffer, 0, EQuant_Points.params);
+          return beam_search(q, G, Points, starts, QP).first.first;
           return beam_search(quant_q, G, EQuant_Points, starts, QP).first.first;
         } else {
           EQuantPoint::translate_point(buffer, q, EQuant_Points.params);
@@ -212,40 +213,47 @@ struct GraphIndex{
         dists.mutable_data(i)[j] = frontier[j].second;
       }
     });
+
     return std::make_pair(std::move(ids), std::move(dists));
   }
 
   void check_recall(std::string &queries_file,
                     std::string &graph_file,
                     py::array_t<unsigned int, py::array::c_style | py::array::forcecast> &neighbors,
-                    int k){
+                    int k) {
+    bool resolve_eq_distances = true;
     groundTruth<unsigned int> GT = groundTruth<unsigned int>(graph_file.data());
     PointRange<T, Point> QueryPoints = PointRange<T, Point>(queries_file.data());
 
     size_t n = GT.size();
+    float last_dist;
     
     int numCorrect = 0;
     for (unsigned int i = 0; i < n; i++) {
-      parlay::sequence<int> results_with_ties;
+      parlay::sequence<int> results;
+      int cnt = 0;
       for (unsigned int l = 0; l < k; l++)
-        results_with_ties.push_back(GT.coordinates(i,l));
-      float last_dist = QueryPoints[i].distance(Points[GT.coordinates(i, k-1)]);
-      for (unsigned int l = k; l < GT.dimension(); l++) {
-        auto p = Points[GT.coordinates(i, l)];
-        if (QueryPoints[i].distance(p) == last_dist) {
-          results_with_ties.push_back(GT.coordinates(i,l));
+        results.push_back(GT.coordinates(i,l));
+      if (resolve_eq_distances) {
+        last_dist = QueryPoints[i].distance(Points[GT.coordinates(i, k-1)]);
+        for (unsigned int l = k; l < GT.dimension(); l++) {
+          auto p = Points[GT.coordinates(i, l)];
+          if (QueryPoints[i].distance(p) == last_dist) {
+            cnt++;
+            results.push_back(GT.coordinates(i,l));
+          }
         }
       }
       std::set<int> reported_nbhs;
       for (unsigned int l = 0; l < k; l++) reported_nbhs.insert(neighbors.mutable_data(i)[l]);
-      for (unsigned int l = 0; l < results_with_ties.size(); l++) {
-        if (reported_nbhs.find(results_with_ties[l]) != reported_nbhs.end()) {
+      for (unsigned int l = 0; l < results.size(); l++) {
+        if (reported_nbhs.find(results[l]) != reported_nbhs.end()) {
           numCorrect += 1;
         }
       }
     }
-    float recall = static_cast<float>(numCorrect) / static_cast<float>(k * n);
-    std::cout << "Recall: " << recall << std::endl;
+    float recall = static_cast<double>(numCorrect) / static_cast<double>(k * n);
+    std::cout << "Recall: " << std::setprecision(6) << recall <<std::endl;
   }
 
   // void check_recall(std::string &graph_file, py::array_t<unsigned int, py::array::c_style | py::array::forcecast> &neighbors, int k){
