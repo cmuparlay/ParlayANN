@@ -124,7 +124,6 @@ struct GraphIndex{
           for (int i=0; i < dim; i++)
             buffer[i] = q[i];
           EQuantPoint quant_q(buffer, 0, EQuant_Points.params);
-          return beam_search(q, G, Points, starts, QP).first.first;
           return beam_search(quant_q, G, EQuant_Points, starts, QP).first.first;
         } else {
           EQuantPoint::translate_point(buffer, q, EQuant_Points.params);
