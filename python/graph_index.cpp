@@ -225,6 +225,8 @@ struct GraphIndex{
     PointRange<T, Point> QueryPoints = PointRange<T, Point>(queries_file.data());
 
     size_t n = GT.size();
+    long m = Points.size();
+
     float last_dist;
     
     int numCorrect = 0;
@@ -244,7 +246,14 @@ struct GraphIndex{
         }
       }
       std::set<int> reported_nbhs;
-      for (unsigned int l = 0; l < k; l++) reported_nbhs.insert(neighbors.mutable_data(i)[l]);
+      for (unsigned int l = 0; l < k; l++) {
+        long ngh = neighbors.mutable_data(i)[l];
+        if (ngh < 0 || ngh >= m) {
+          std::cout << "neighbor reported by query out of range: " << ngh << std::endl;
+          std::abort();
+        }
+        reported_nbhs.insert(ngh);
+      }
       for (unsigned int l = 0; l < results.size(); l++) {
         if (reported_nbhs.find(results[l]) != reported_nbhs.end()) {
           numCorrect += 1;

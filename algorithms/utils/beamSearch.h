@@ -393,7 +393,7 @@ beam_search_rerank(const Point &p,
   } else {
     // not enough candidates, sort check points to get best
     std::sort(check_points.begin(), check_points.end(), less);
-    return candidate_points.subseq(0, k);
+    return check_points.subseq(0, k);
   }
 }
 
