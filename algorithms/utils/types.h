@@ -99,28 +99,28 @@ struct groundTruth{
 
 };
 
-template<typename T>
+template<typename indexType>
 struct RangeGroundTruth{
-  T* coords;
-  parlay::sequence<T> offsets;
-  parlay::slice<T*, T*> sizes;
+  indexType* coords;
+  parlay::sequence<indexType> offsets;
+  parlay::slice<indexType*, indexType*> sizes;
   size_t n;
   size_t num_matches;
 
-  RangeGroundTruth() : sizes(parlay::make_slice<T*, T*>(nullptr, nullptr)){}
+  RangeGroundTruth() : sizes(parlay::make_slice<indexType*, indexType*>(nullptr, nullptr)){}
 
-  RangeGroundTruth(char* gtFile) : sizes(parlay::make_slice<T*, T*>(nullptr, nullptr)){
+  RangeGroundTruth(char* gtFile) : sizes(parlay::make_slice<indexType*, indexType*>(nullptr, nullptr)){
     if(gtFile == NULL){
         n = 0;
         num_matches = 0;
       } else{
         auto [fileptr, length] = mmapStringFromFile(gtFile);
 
-        n = *((T*) fileptr);
-        num_matches = *((T*) (fileptr+sizeof(T)));
+        n = *((indexType*) fileptr);
+        num_matches = *((indexType*) (fileptr+sizeof(indexType)));
 
-        T* sizes_begin = (T*)(fileptr + 2*sizeof(T)) ;
-        T* sizes_end = sizes_begin+n;
+        indexType* sizes_begin = (indexType*)(fileptr + 2*sizeof(indexType)) ;
+        indexType* sizes_end = sizes_begin+n;
         sizes = parlay::make_slice(sizes_begin, sizes_end);
 
         auto [offsets0, total] = parlay::scan(sizes);
@@ -133,10 +133,21 @@ struct RangeGroundTruth{
       }
   }
 
-  parlay::slice<T*, T*> operator[] (long i){
-    T* begin = coords + offsets[i];
-    T* end = coords + offsets[i+1];
+  parlay::slice<indexType*, indexType*> operator[] (long i){
+    indexType* begin = coords + offsets[i];
+    indexType* end = coords + offsets[i+1];
     return parlay::make_slice(begin, end);
+  }
+
+  //return indices of all queries that have num results between min and max inclusive
+  parlay::sequence<indexType> results_between(size_t min, size_t max){
+    parlay::sequence<indexType> res;
+    for(int i=0; i<n; i++){
+      if(sizes[i] >= min && sizes[i] <= max){
+        res.push_back(i);
+      }
+    }
+    return res;
   }
 
   size_t size(){return n;}
@@ -206,13 +217,17 @@ struct QueryParams{
 struct RangeParams{
   double rad;
   long initial_beam;
+  double slack_factor;
+  bool second_round;
 
-  RangeParams(double rad, long ib) : rad(rad), initial_beam(ib) {}
+  RangeParams(double rad, long ib) : rad(rad), initial_beam(ib) {slack_factor = 1.0; second_round = false;}
+  RangeParams(double rad, long ib, double sf, bool sr) : rad(rad), initial_beam(ib), slack_factor(sf), second_round(sr) {}
 
   RangeParams() {}
 
   void print(){
-    std::cout << "Beam: " << initial_beam;
+    if(second_round) std::cout << "Beam: " << initial_beam << ", slack factor: " << slack_factor;
+    else std::cout << "Beam: " << initial_beam;
   }
 
 };

@@ -200,7 +200,8 @@ beam_search_impl(Point p, GT &G, PointRange &Points,
 template<typename Point, typename PointRange, typename indexType>
 std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>, size_t>
 range_search(Point p, Graph<indexType> &G, PointRange &Points,
-	      parlay::sequence<indexType> starting_points, RangeParams &RP) {
+	      parlay::sequence<std::pair<indexType, typename Point::distanceType>> starting_points, RangeParams &RP,
+        parlay::sequence<std::pair<indexType, typename Point::distanceType>> already_visited) {
   // compare two (node_id,distance) pairs, first by distance and then id if
   // equal
   using distanceType = typename Point::distanceType; 
@@ -209,24 +210,21 @@ range_search(Point p, Graph<indexType> &G, PointRange &Points,
   };
   
 
-  // used as a hash filter (can give false negative -- i.e. can say
-  // not in table when it is)
-  int bits = 20;
-  std::vector<indexType> hash_filter(1 << bits, -1);
-  auto has_been_seen = [&](indexType a) -> bool {
-    int loc = parlay::hash64_2(a) & ((1 << bits) - 1);
-    if (hash_filter[loc] == a) return true;
-    hash_filter[loc] = a;
-    return false;
-  };
+  //need to use an unordered map for a dynamically sized hash table
+  std::unordered_set<indexType> has_been_seen;
+
+  //Insert everything from visited list into has_been_seen
+  for(auto v : already_visited){
+    if(!has_been_seen.count(v.first) > 0) has_been_seen.insert(v.first);
+  }
 
   // Frontier maintains the points within radius found so far 
   // Each entry is a (id,distance) pair.
   // Initialized with starting points 
   std::queue<std::pair<indexType, distanceType>> frontier;
   for (auto q : starting_points){
-    has_been_seen(q);
-    frontier.push(std::pair<indexType, distanceType>(q, Points[q].distance(p)));
+    if (!has_been_seen.count(q.first) > 0) has_been_seen.insert(q.first);
+    frontier.push(q);
   }
   
 
@@ -263,9 +261,10 @@ range_search(Point p, Graph<indexType> &G, PointRange &Points,
     for (indexType i=0; i<G[current.first].size(); i++) {
       auto a = G[current.first][i];
       //TODO this is a bug when searching for a point not in the graph???
-      if (a == p.id() || has_been_seen(a)) continue;  // skip if already seen
+      if (a == p.id() || has_been_seen.count(a) > 0) continue;  // skip if already seen
       keep.push_back(a);
       Points[a].prefetch();
+      has_been_seen.insert(a);
     }
 
     // std::cout << keep.size() << std::endl;
@@ -275,7 +274,7 @@ range_search(Point p, Graph<indexType> &G, PointRange &Points,
       total += dist;
       dist_cmps++;
       // filter out if not within radius
-      if (dist > RP.rad) continue;
+      if (dist > RP.slack_factor*RP.rad) continue;
       frontier.push(std::pair{a, dist});
     }
   }
@@ -464,20 +463,24 @@ parlay::sequence<parlay::sequence<indexType>> RangeSearch(PointRange &Query_Poin
   parlay::sequence<int> second_round(Query_Points.size(), 0);
   parlay::parallel_for(0, Query_Points.size(), [&](size_t i) {
     parlay::sequence<indexType> neighbors;
+    parlay::sequence<std::pair<indexType, typename Point::distanceType>> neighbors_within_larger_ball;
     QueryParams QP(RP.initial_beam, RP.initial_beam, 0.0, G.size(), G.max_degree());
     auto [pairElts, dist_cmps] = beam_search(Query_Points[i], G, Base_Points, starting_points, QP);
     auto [beamElts, visitedElts] = pairElts;
     for (indexType j = 0; j < beamElts.size(); j++) {
       if(beamElts[j].second <= RP.rad) neighbors.push_back(beamElts[j].first);
+      if(beamElts[j].second <= RP.slack_factor*RP.rad) neighbors_within_larger_ball.push_back(beamElts[j]);
     }
-    if(neighbors.size() < RP.initial_beam){
+    if(neighbors_within_larger_ball.size() < RP.initial_beam || RP.second_round == false){
       all_neighbors[i] = neighbors;
     } else{
       // all_neighbors[i] = neighbors;
       // std::cout << "Advanced to round two" << std::endl;
-      auto [in_range, dist_cmps] = range_search(Query_Points[i], G, Base_Points, neighbors, RP);
+      auto [in_range, dist_cmps] = range_search(Query_Points[i], G, Base_Points, neighbors_within_larger_ball, RP, visitedElts);
       parlay::sequence<indexType> ans;
-      for (auto r : in_range) ans.push_back(r.first);
+      for (auto r : in_range) {
+        if(r.second <= RP.rad) ans.push_back(r.first);
+      }
       all_neighbors[i] = ans;
       second_round[i] = 1;
       QueryStats.increment_visited(i, in_range.size());
@@ -489,10 +492,64 @@ parlay::sequence<parlay::sequence<indexType>> RangeSearch(PointRange &Query_Poin
     QueryStats.increment_dist(i, dist_cmps);
   });
 
-  std::cout << parlay::reduce(second_round) << " elements advanced to round two" << std::endl;
+  if(RP.second_round) std::cout << parlay::reduce(second_round) << " elements advanced to round two" << std::endl;
 
   return all_neighbors;
 }
+
+template<typename Point, typename PointRange, typename indexType>
+parlay::sequence<parlay::sequence<indexType>> RangeSearchOverSubset(PointRange &Query_Points,
+	                                       Graph<indexType> &G, PointRange &Base_Points, stats<indexType> &QueryStats, 
+                                        indexType starting_point,
+	                                      RangeParams &RP, parlay::sequence<indexType> active_indices) {
+    parlay::sequence<indexType> start_points = {starting_point};
+    return RangeSearchOverSubset<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_points, RP, active_indices);
+}
+
+template<typename Point, typename PointRange, typename indexType>
+parlay::sequence<parlay::sequence<indexType>> RangeSearchOverSubset(PointRange &Query_Points,
+	                                       Graph<indexType> &G, PointRange &Base_Points, stats<indexType> &QueryStats, 
+                                        parlay::sequence<indexType> starting_points,
+	                                      RangeParams &RP, parlay::sequence<indexType> active_indices) {
+  parlay::sequence<parlay::sequence<indexType>> all_neighbors(active_indices.size());
+  parlay::sequence<int> second_round(active_indices.size(), 0);
+  parlay::parallel_for(0, active_indices.size(), [&](size_t i) {
+    parlay::sequence<indexType> neighbors;
+    parlay::sequence<std::pair<indexType, typename Point::distanceType>> neighbors_within_larger_ball;
+    QueryParams QP(RP.initial_beam, RP.initial_beam, 0.0, G.size(), G.max_degree());
+    auto [pairElts, dist_cmps] = beam_search(Query_Points[active_indices[i]], G, Base_Points, starting_points, QP);
+    auto [beamElts, visitedElts] = pairElts;
+    for (indexType j = 0; j < beamElts.size(); j++) {
+      if(beamElts[j].second <= RP.rad) neighbors.push_back(beamElts[j].first);
+      if(beamElts[j].second <= RP.slack_factor*RP.rad) neighbors_within_larger_ball.push_back(beamElts[j]);
+    }
+    if(neighbors_within_larger_ball.size() < RP.initial_beam || RP.second_round == false){
+      all_neighbors[i] = neighbors;
+    } else{
+      // all_neighbors[i] = neighbors;
+      // std::cout << "Advanced to round two" << std::endl;
+      auto [in_range, dist_cmps] = range_search(Query_Points[active_indices[i]], G, Base_Points, neighbors_within_larger_ball, RP, visitedElts);
+      parlay::sequence<indexType> ans;
+      for (auto r : in_range) {
+        if(r.second <= RP.rad) ans.push_back(r.first);
+      }
+      all_neighbors[i] = ans;
+      second_round[i] = 1;
+      QueryStats.increment_visited(i, in_range.size());
+      QueryStats.increment_dist(i, dist_cmps);
+      // std::cout << "For starting beam " << RP.initial_beam << " found " << ans.size() << " candidates" << std::endl;
+    }
+    
+    QueryStats.increment_visited(i, visitedElts.size());
+    QueryStats.increment_dist(i, dist_cmps);
+  });
+
+  // if(RP.second_round) std::cout << parlay::reduce(second_round) << " elements advanced to round two" << std::endl;
+
+  return all_neighbors;
+}
+
+
 
 
 
