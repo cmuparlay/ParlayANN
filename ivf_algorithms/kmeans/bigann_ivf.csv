@@ -9,3 +9,8 @@
 10000,0.99999,1,667.022,141106,1000100,10,1000
 
 
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,0.496167
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+
+

@@ -114,6 +114,8 @@ struct PostingListIndex {
 
   }
 
+  
+
   parlay::sequence<indexType> sorted_near(Point query, int target_points) const {
     parlay::sequence<std::pair<indexType, float>> nearest_centroids(clusters.size());
     
@@ -182,6 +184,17 @@ struct PostingListIndex {
           }
         }
     }
+
+    // std::cout <<"printing out frontier" <<std::endl;
+
+    // for(int i=0; i< frontier.size(); i++){
+    //   std::cout << " dist: " << frontier[i].second;
+    // }
+
+    // std::cout << std::endl;
+
+    //std::cout <<" cmps:" << dist_cmps<< std::endl;
+
     return std::make_pair(frontier, dist_cmps);
   }
 

@@ -62,15 +62,20 @@ struct PointRange{
 
   //TODO: constrcuter shared pointer, size, dimension
 
-  PointRange(std::shared_ptr<T[]> data, size_t size, long dimension): values(std::shared_ptr<T[]>(nullptr, std::free)){
+  PointRange(T* data, size_t size, long dimension): values(std::shared_ptr<T[]>(nullptr, std::free)){
+    
+    //std::cout << "pr_start cd count " << data.use_count() << std::endl;
+
+
     n = size;
     dims = dimension;
     aligned_dims =  dim_round_up(dims, sizeof(T));
     if(aligned_dims != dims) std::cout << "Aligning dimension to " << aligned_dims << std::endl;
+    values = std::shared_ptr<T[]>((T*) aligned_alloc(64, n*aligned_dims*sizeof(T)), std::free);
     size_t BLOCK_SIZE = 1000000;
     size_t index = 0;
     while(index < n){
-        size_t floor = index;
+        size_t floor = index; 
         size_t ceiling = index+BLOCK_SIZE <= n ? index+BLOCK_SIZE : n;
         // T* data_start = new T[(ceiling-floor)*dims];
         // //reader.read((char*)(data_start), sizeof(T)*(ceiling-floor)*dims);
@@ -78,12 +83,20 @@ struct PointRange{
         // parlay::slice<T*, T*> data = parlay::make_slice(data_start, data_end);
         int data_bytes = dims*sizeof(T);
         parlay::parallel_for(floor, ceiling, [&] (size_t i){
-          std::memmove(values.get() + i*aligned_dims, data.begin() + (i-floor)*dims, data_bytes);
+          std::memmove(values.get() + i*aligned_dims, data + (i-floor)*dims, data_bytes);
         });
-        //delete[] data_start;
         index = ceiling;
     }
+    //std::cout << "pr_end data count: " << data.use_count() <<std::endl;
+    //data.reset();
+    //std::cout << "pr_end data count: " << data.use_count() <<std::endl;
   }
+
+  // ~PointRange(){
+  //   //std::cout << "pr desturctor called:" << std::endl;
+  //   //std::cout << "pr_end values count: " << values.use_count() <<std::endl;
+  //   values.reset();
+  // }
 
 
   PointRange(char* filename) : values(std::shared_ptr<T[]>(nullptr, std::free)){

@@ -1,5 +1,4 @@
 #include "../ivf/ivf.h"
-#include "../ivf/ivf_graph.h"
 #include "../ivf/clustering.h"
 #include "../ivf/posting_list.h"
 #include "../ivf/check_ivf_recall.h"
@@ -33,8 +32,8 @@ void IVF(long k, BuildParams &BP,
     std::cout << "Index built in " << idx_time << " s" << std::endl;
     std::string params = "Num_clusters = " + std::to_string(BP.num_clusters);
     IVF_ I("Kmeans", params, Points.size(), idx_time);
-    PostingList.ivf_knn(Query_Points[0],K,32);
-    //search_and_parse<Point, PointRange, indexType, GraphPostingListIndex<T, Point, indexType>>(PostingList, Points, Query_Points, GT, res_file, k, I);
+    //PostingList.ivf_knn(Query_Points[0],K,32);
+    search_and_parse<Point, PointRange, indexType, PostingListIndex<T, Point, indexType>>(PostingList, Points, Query_Points, GT, res_file, k, I);
 
     if(index_savepath != nullptr) {
         std::cout << "Saving index..." << std::endl;

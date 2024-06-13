@@ -34,11 +34,13 @@ void IVFGraph(long k, BuildParams &BP,
     std::string params = "Num_clusters = " + std::to_string(BP.num_clusters);
     IVF_ I("Kmeans", params, Points.size(), idx_time);
     
-    //search_and_parse<Point, PointRange, indexType, GraphPostingListIndex<T, Point, indexType>>(PostingList, Points, Query_Points, GT, res_file, k, I);
+    //PostingList.ivf_knn(Query_Points[0],k,32);
+    search_and_parse<Point, PointRange, indexType, GraphPostingListIndex<T, Point, indexType>>(PostingList, Points, Query_Points, GT, res_file, k, I);
 
     if(index_savepath != nullptr) {
         std::cout << "Saving index..." << std::endl;
         PostingList.save(index_savepath); 
+        std::cout << "Done saving" << std::endl;
     }
     
 }
