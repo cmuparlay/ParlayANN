@@ -14,6 +14,7 @@
 #include "utils/graph.h"
 #include "utils/point_range.h"
 #include "utils/types.h"
+#include "utils/stats.h"
 #include "../../algorithms/vamana/index.h"
 #include "clustering.h"
 #include "posting_list.h"
@@ -35,11 +36,13 @@
    with a provided clusterer
 */
 template <typename T, typename Point, typename indexType>
-struct PostingListIndex {
+struct GraphPostingListIndex {
   PointRange<T, Point>& Points;
   parlay::sequence<parlay::sequence<indexType>> clusters;
-  parlay::sequence<Point> centroids;
-  std::unique_ptr<T[]>
+  //TODO: change this into PointRange-> Readonly 
+  PointRange<T, Point> centroids;
+  //TODO: change this into shared pointer, when moving data use this pointer
+  T*
      centroid_data;   // those point objects store const pointers to their data,
                       // so we need to keep it around
   size_t dim;
@@ -47,9 +50,10 @@ struct PostingListIndex {
   size_t n;                                   // n points in the index
   indexType id;                              // id of this index
   std::pair<size_t, size_t> cluster_params;   // build params for the clustering
+  Graph<indexType> G;
 
 
-  PostingListIndex(PostingListIndex<T, Point, indexType>&& other) {
+  GraphPostingListIndex(PostingListIndex<T, Point, indexType>&& other) {
     std::cout << "Move constructor called" << std::endl;
   };
 
@@ -57,18 +61,14 @@ struct PostingListIndex {
     save_posting_list(std::string(filename));
   }
 
-  PostingListIndex(char* index_path){
-    load_posting_list(std::string(index_path));
-  }
-
   template <typename Clusterer>
-  PostingListIndex(PointRange<T, Point>& Points, Clusterer clusterer, indexType id,
+  GraphPostingListIndex(PointRange<T, Point>& Points, Clusterer clusterer, indexType id,
                    char* index_path)
       : id(id),
         Points(Points)
      {
     auto indices = parlay::tabulate(Points.size(), [&] (size_t i){return static_cast<indexType>(i);});
-
+ 
  
     dim = Points.dimension();
     aligned_dim = Points.aligned_dimension();
@@ -76,21 +76,22 @@ struct PostingListIndex {
     n = Points.size();
     cluster_params = clusterer.get_build_params();
 
+    //TODO change the struct based on changes in centroids
     if (index_path != nullptr &&
         std::filesystem::exists(pl_filename(std::string(index_path)))) {
-        load_posting_list(std::string(index_path));
+      load_posting_list(std::string(index_path));
     } else {
 
       std::cout << "Calculating clusters" << std::endl;
       clusters = clusterer.cluster(Points, indices);
 
+      // TODO:change it into shared pointer Done
       centroid_data =
-         std::make_unique<T[]>(clusters.size() * aligned_dim);
+        (T*)(aligned_alloc(64,clusters.size() * aligned_dim* sizeof(T)));
 
       if (clusters.size() == 0) {
         throw std::runtime_error("PostingListIndex: no clusters generated");
       }
-
       std::cout << "Calculating centroids" << std::endl;
       for (size_t i = 0; i < clusters.size(); i++) {
         size_t offset = i * aligned_dim;
@@ -108,17 +109,41 @@ struct PostingListIndex {
              std::round(tmp_centroid[d] / clusters[i].size()));
         }
 
-        centroids.push_back(Point(centroid_data.get() + offset,
-                                        dim, aligned_dim, i));
+        // centroids.push_back(Point(centroid_data.get() + offset,
+        //                                 dim, aligned_dim, i));
       }
 
+      //std::cout << "const 1 : " << centroid_data.use_count() << std::endl;
+
+      centroids = PointRange<T,Point>(centroid_data,clusters.size(),aligned_dim);
+
+      //std::cout << "const 2 : " << centroid_data.use_count() << std::endl;
+
+      G = Graph<indexType>((long)32,centroids.size());
+      //std::cout << "Before build: " << avg_deg << ", " << max_deg << std::endl;
+
+      //std::cout << "const 3 : " << centroid_data.use_count() << std::endl;
+
+      BuildParams BP((long)32,(long)64,(double)1.2,false);
+      using findex = knn_index<Point, PointRange<T,Point>, indexType>;
+      findex I(BP);
+      stats<unsigned int> BuildStats(G.size());
+
+      //std::cout << "const 4 : " << centroid_data.use_count() << std::endl;
+
+      I.build_index(G,centroids,BuildStats);
+
+      //std::cout << "const 5 : " << centroid_data.use_count() << std::endl;
+
+      auto [avg_deg, max_deg] = graph_stats_(G);
+      std::cout << "After build: " << avg_deg << ", " << max_deg << std::endl;
+
       std::cout << "Found " << centroids.size() << " centroids" << std::endl;
+
     }
 
-
+     //std::cout << "cd constructor: " << centroid_data.use_count() << std::endl;
   }
-
-  
 
   parlay::sequence<indexType> sorted_near(Point query, int target_points) const {
     parlay::sequence<std::pair<indexType, float>> nearest_centroids(clusters.size());
@@ -154,42 +179,57 @@ struct PostingListIndex {
       size_t pl_frontier_size = n_probes < centroids.size() ? n_probes : centroids.size();
       parlay::sequence<std::pair<indexType, float>> pl_frontier(pl_frontier_size, std::make_pair(0, std::numeric_limits<float>::max()));
 
-      size_t dist_cmps = centroids.size();
-
-      for (indexType i = 0; i < centroids.size(); i++) {
-        float dist = query.distance(centroids[i]);
-        if (dist < pl_frontier[pl_frontier_size - 1].second) {
-          pl_frontier.pop_back();
-          pl_frontier.push_back(std::make_pair(i, dist));
-          std::sort(pl_frontier.begin(), pl_frontier.end(),
-                    [&](std::pair<indexType, float> a,
-                        std::pair<indexType, float> b) {
-                      return a.second < b.second;
-                    });
-        }
-      }
+      size_t dist_cmps = 0;
+      // //Finding centrids-> Use a new struct 
+      // for (indexType i = 0; i < centroids.size(); i++) {
+      //   float dist = query.distance(centroids[i]);
+      //   if (dist < pl_frontier[pl_frontier_size - 1].second) {
+      //     pl_frontier.pop_back();
+      //     pl_frontier.push_back(std::make_pair(i, dist));
+      //     std::sort(pl_frontier.begin(), pl_frontier.end(),
+      //               [&](std::pair<indexType, float> a,
+      //                   std::pair<indexType, float> b) {
+      //                 return a.second < b.second;
+      //               });
+      //   }
+      // }
+      
+      QueryParams QP(0,pl_frontier_size,1.35,centroids.size(),32);
 
       // now we do search on the points in the posting lists
+      auto results = beam_search(query, G, centroids, (unsigned int)0, QP); 
+      dist_cmps += results.second;
+
       parlay::sequence<std::pair<indexType, float>> frontier(
          k, std::make_pair(0, std::numeric_limits<float>::max()));
 
-      for (indexType i = 0; i < pl_frontier.size(); i++) {
-        dist_cmps += clusters[pl_frontier[i].first].size();
-        for (indexType j = 0; j < clusters[pl_frontier[i].first].size(); j++) {
-          float dist = query.distance(Points[clusters[pl_frontier[i].first][j]]);
+      //TODO: rewrite this
+      // go throught the frontier that get back from beam_search
+      // results.first = frontier
+      // Be careful of name collision
+      // i = 0; i< frontier.size();i++ {}
+      
+      for (indexType i = 0; i < (results.first.first).size(); i++) {
+        dist_cmps += clusters[(results.first.first)[i].first].size();
+        for (indexType j = 0; j < clusters[(results.first.first)[i].first].size(); j++) {
+          float dist = query.distance(Points[clusters[(results.first.first)[i].first][j]]);
           if (dist < frontier[k - 1].second) {
             frontier.pop_back();
-            frontier.push_back(std::make_pair(clusters[pl_frontier[i].first][j], dist));
+            frontier.push_back(std::make_pair(clusters[(results.first.first)[i].first][j], dist));
             std::sort(frontier.begin(), frontier.end(),
                       [&](std::pair<indexType, float> a,
                           std::pair<indexType, float> b) {
                         return a.second < b.second;
                       });
           }
-        }
-    }
+        }  
+      }
+
 
     // std::cout <<"printing out frontier" <<std::endl;
+
+    //frontier = results.first.first;
+    
 
     // for(int i=0; i< frontier.size(); i++){
     //   std::cout << " dist: " << frontier[i].second;
@@ -197,51 +237,12 @@ struct PostingListIndex {
 
     // std::cout << std::endl;
 
-    //std::cout <<" cmps:" << dist_cmps<< std::endl;
+    // std::cout <<" cmps:" << dist_cmps<< std::endl;
+
+    //return std::make_pair(results.first.first,results.second);
 
     return std::make_pair(frontier, dist_cmps);
   }
-
-  /* computes range results with the ivf index */
-  std::pair<parlay::sequence<std::pair<indexType, float>>, size_t> ivf_range(
-     Point query, double rad, int n_probes) {
-      // we do linear traversal over the centroids to get the nearest ones
-      // TODO should we exclude centroids that are too far away from the radius?
-      size_t pl_frontier_size = n_probes < centroids.size() ? n_probes : centroids.size();
-      parlay::sequence<std::pair<indexType, float>> pl_frontier(pl_frontier_size, std::make_pair(0, std::numeric_limits<float>::max()));
-
-      size_t dist_cmps = centroids.size();
-
-      for (indexType i = 0; i < centroids.size(); i++) {
-        float dist = query.distance(centroids[i]);
-        if (dist < pl_frontier[pl_frontier_size - 1].second) {
-          pl_frontier.pop_back();
-          pl_frontier.push_back(std::make_pair(i, dist));
-          std::sort(pl_frontier.begin(), pl_frontier.end(),
-                    [&](std::pair<indexType, float> a,
-                        std::pair<indexType, float> b) {
-                      return a.second < b.second;
-                    });
-        }
-      }
-
-      // now we do search on the points in the posting lists
-      parlay::sequence<std::pair<indexType, float>> frontier;
-
-      for (indexType i = 0; i < pl_frontier.size(); i++) {
-        dist_cmps += clusters[pl_frontier[i].first].size();
-        for (indexType j = 0; j < clusters[pl_frontier[i].first].size(); j++) {
-          float dist = query.distance(Points[clusters[pl_frontier[i].first][j]]);
-          if (dist < rad) {
-            frontier.push_back(std::make_pair(clusters[pl_frontier[i].first][j], dist));
-          }
-        }
-      }
-
-      return std::make_pair(frontier, dist_cmps);
-  } 
-
-
 
   std::string pl_filename(std::string filename_prefix) {
     return filename_prefix + std::to_string(id) + "_postingList_" +
@@ -251,6 +252,8 @@ struct PostingListIndex {
 
   /* Saves the posting list to a file named based on the cluster params */
   void save_posting_list(const std::string& filename_prefix) {
+    //std::cout << "save 1: " << centroid_data.use_count() << std::endl;
+
     std::string filename = pl_filename(filename_prefix);
     std::ofstream output(filename, std::ios::binary);
 
@@ -265,7 +268,7 @@ struct PostingListIndex {
 
     // Write centroids
     size_t centroid_bytes = sizeof(T) * num_centroids * aligned_dim;
-    output.write(reinterpret_cast<const char*>(centroid_data.get()),
+    output.write(reinterpret_cast<const char*>(centroid_data),
                  centroid_bytes);
 
     // For CSR-like format
@@ -289,57 +292,59 @@ struct PostingListIndex {
                  sizeof(indexType) * indices.size());
 
     output.close();
+    //std::cout << "save 2: " << centroid_data.use_count() << std::endl;
+
   }
 
   /* Loads the posting list from a file named based on the cluster params */
   void load_posting_list(std::string filename_prefix) {
-    std::string filename = pl_filename(filename_prefix);
-    std::ifstream input(filename, std::ios::binary);
+  //   std::string filename = pl_filename(filename_prefix);
+  //   std::ifstream input(filename, std::ios::binary);
 
-    if (!input.is_open()) {
-      throw std::runtime_error("PostingListIndex: could not open file " +
-                               filename);
-    }
+  //   if (!input.is_open()) {
+  //     throw std::runtime_error("PostingListIndex: could not open file " +
+  //                              filename);
+  //   }
 
-    // Read number of centroids/posting lists
-    size_t num_centroids;
-    input.read(reinterpret_cast<char*>(&num_centroids), sizeof(size_t));
+  //   // Read number of centroids/posting lists
+  //   size_t num_centroids;
+  //   input.read(reinterpret_cast<char*>(&num_centroids), sizeof(size_t));
 
-    // Read centroids
-    size_t centroid_bytes = sizeof(T) * num_centroids * aligned_dim;
-    centroid_data =
-       std::make_unique<T[]>(num_centroids * aligned_dim);
-    input.read(reinterpret_cast<char*>(centroid_data.get()),
-               centroid_bytes);
+  //   // Read centroids
+  //   size_t centroid_bytes = sizeof(T) * num_centroids * aligned_dim;
+  //   centroid_data =
+  //      std::make_unique<T[]>(num_centroids * aligned_dim);
+  //   input.read(reinterpret_cast<char*>(centroid_data.get()),
+  //              centroid_bytes);
 
-    for (size_t i = 0; i < num_centroids; i++) {
-      centroids.push_back(
-         Point(centroid_data.get() + i * aligned_dim, dim,
-               aligned_dim, i));
-    }
-    // Read indptr array
-    parlay::sequence<indexType> indptr(num_centroids + 1);
-    input.read(reinterpret_cast<char*>(indptr.data()),
-               sizeof(indexType) * indptr.size());
+  //   for (size_t i = 0; i < num_centroids; i++) {
+  //     centroids.push_back(
+  //        Point(centroid_data.get() + i * aligned_dim, dim,
+  //              aligned_dim, i));
+  //   }
+  //   // Read indptr array
+  //   parlay::sequence<indexType> indptr(num_centroids + 1);
+  //   input.read(reinterpret_cast<char*>(indptr.data()),
+  //              sizeof(indexType) * indptr.size());
 
-    // Read indices array
-    parlay::sequence<indexType> indices(indptr.back());
-    input.read(reinterpret_cast<char*>(indices.data()),
-               sizeof(indexType) * indices.size());
+  //   // Read indices array
+  //   parlay::sequence<indexType> indices(indptr.back());
+  //   input.read(reinterpret_cast<char*>(indices.data()),
+  //              sizeof(indexType) * indices.size());
 
-    input.close();
+  //   input.close();
 
-    // Convert indptr and indices to CSR-like format
-    clusters = parlay::sequence<parlay::sequence<indexType>>(
-       num_centroids);   // should in theory be ininitialized but that causes a
-                         // segfault
-    for (size_t i = 0; i < num_centroids; i++) {
-      clusters[i].reserve(indptr[i + 1] - indptr[i]);
-      // this is heinous hopefully this is not needed
-      for (size_t j = indptr[i]; j < indptr[i + 1]; j++) {
-        clusters[i].push_back(indices[j]);
-      }
-    }
+  //   // Convert indptr and indices to CSR-like format
+  //   clusters = parlay::sequence<parlay::sequence<indexType>>(
+  //      num_centroids);   // should in theory be ininitialized but that causes a
+  //                        // segfault
+  //   for (size_t i = 0; i < num_centroids; i++) {
+  //     clusters[i].reserve(indptr[i + 1] - indptr[i]);
+  //     // this is heinous hopefully this is not needed
+  //     for (size_t j = indptr[i]; j < indptr[i + 1]; j++) {
+  //       clusters[i].push_back(indices[j]);
+  //     }
+  //   }
   }
 
 
