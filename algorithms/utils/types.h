@@ -119,9 +119,10 @@ struct RangeGroundTruth{
         n = *((indexType*) fileptr);
         num_matches = *((indexType*) (fileptr+sizeof(indexType)));
 
-        T* sizes_begin = (T*)(fileptr + 2*sizeof(T)) ;
-        T* sizes_end = sizes_begin+n;
+        indexType* sizes_begin = (indexType*)(fileptr + 2*sizeof(indexType)) ;
+        indexType* sizes_end = sizes_begin+n;
         sizes = parlay::make_slice(sizes_begin, sizes_end);
+
         auto [offsets0, total] = parlay::scan(sizes);
         offsets0.push_back(total);
         offsets = offsets0;
@@ -206,8 +207,12 @@ struct QueryParams{
   double cut;
   long limit;
   long degree_limit;
+  long early_stop;
+  double early_stop_radius;
 
-  QueryParams(long k, long Q, double cut, long limit, long dg) : k(k), beamSize(Q), cut(cut), limit(limit), degree_limit(dg) {}
+  QueryParams(long k, long Q, double cut, long limit, long dg) : k(k), beamSize(Q), cut(cut), limit(limit), degree_limit(dg) {early_stop = 0; early_stop_radius = 0;}
+
+  QueryParams(long k, long Q, double cut, long limit, long dg, long es, double esr) : k(k), beamSize(Q), cut(cut), limit(limit), degree_limit(dg), early_stop(es), early_stop_radius(esr) {}
 
   QueryParams() {}
 
@@ -218,9 +223,12 @@ struct RangeParams{
   long initial_beam;
   double slack_factor;
   bool second_round;
+  long early_stop;
+  long early_stop_radius;
 
-  RangeParams(double rad, long ib) : rad(rad), initial_beam(ib) {slack_factor = 1.0; second_round = false;}
-  RangeParams(double rad, long ib, double sf, bool sr) : rad(rad), initial_beam(ib), slack_factor(sf), second_round(sr) {}
+  RangeParams(double rad, long ib) : rad(rad), initial_beam(ib) {slack_factor = 1.0; second_round = false; early_stop = 0; early_stop_radius = 0;}
+  RangeParams(double rad, long ib, double sf, bool sr) : rad(rad), initial_beam(ib), slack_factor(sf), second_round(sr) {early_stop = 0; early_stop_radius = 0;}
+  RangeParams(double rad, long ib, double sf, bool sr, long es, double esr) : rad(rad), initial_beam(ib), slack_factor(sf), second_round(sr), early_stop(es), early_stop_radius(esr) {}
 
   RangeParams() {}
 
