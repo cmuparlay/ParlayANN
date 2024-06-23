@@ -207,8 +207,12 @@ struct QueryParams{
   double cut;
   long limit;
   long degree_limit;
+  long early_stop;
+  double early_stop_radius;
 
-  QueryParams(long k, long Q, double cut, long limit, long dg) : k(k), beamSize(Q), cut(cut), limit(limit), degree_limit(dg) {}
+  QueryParams(long k, long Q, double cut, long limit, long dg) : k(k), beamSize(Q), cut(cut), limit(limit), degree_limit(dg) {early_stop = 0; early_stop_radius = 0;}
+
+  QueryParams(long k, long Q, double cut, long limit, long dg, long es, double esr) : k(k), beamSize(Q), cut(cut), limit(limit), degree_limit(dg), early_stop(es), early_stop_radius(esr) {}
 
   QueryParams() {}
 

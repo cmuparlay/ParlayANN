@@ -3,12 +3,26 @@
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 #include "parlay/io.h"
-// #include "utils/types.h"
 #include "utils/euclidian_point.h"
 #include "utils/mips_point.h"
 #include "utils/point_range.h"
 
-
+void range_res_stats(parlay::sequence<int> sizes){
+  parlay::sort_inplace(sizes);
+  std::cout << "Largest num matches: " << sizes[sizes.size()-1] << std::endl;
+  size_t zero = 0;
+  size_t small = 0;
+  size_t big = 0;
+  for(auto i : sizes){
+    if(i == 0) zero ++;
+    else if(i >0 && i<=20) small++;
+    else big++;
+  }
+  std::cout << "Number of points with zero results: " << zero << std::endl;
+  std::cout << "Number of points with one to twenty results: " << small << std::endl;
+  std::cout << "Number of points with more than twenty results: " << big << std::endl;
+  
+}
 
 template<typename PointRange>
 parlay::sequence<parlay::sequence<int>> compute_range_groundtruth(PointRange &B, 
@@ -69,6 +83,7 @@ void write_rangeres(parlay::sequence<parlay::sequence<int>> &result, const std::
     parlay::sequence<int> sizes = parlay::tabulate(n, [&] (size_t i){
         return static_cast<int>(result[i].size());
     });
+    range_res_stats(sizes);
     size_t num_matches = parlay::reduce(sizes);
 
     std::cout << "Number of nonzero matches: " << num_matches << std::endl;

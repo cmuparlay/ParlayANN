@@ -33,6 +33,38 @@
 #include "types.h"
 #include "stats.h"
 
+template<typename distanceType, typename indexType>
+void convergence_stats(parlay::sequence<parlay::sequence<std::pair<indexType, distanceType>>> visited_order){
+  //get the max length of any visit order
+  //we expect this to be just a little over L_search
+  size_t max_len = 0;
+  for(auto seq : visited_order){
+    if(seq.size() > max_len) max_len = seq.size();
+  }
+
+  std::cout << "Max length: " << max_len << std::endl;
+
+  parlay::sequence<size_t> avg_dists(max_len);
+
+  //iterate over each coord of avg_dists
+  parlay::parallel_for(0, max_len, [&] (size_t i){
+    double total = 0;
+    size_t nonzero = 0;
+    for(size_t j=0; j<visited_order.size(); j++){
+      if(visited_order[j].size() > i){
+        total += static_cast<double>(visited_order[j][i].second);
+        nonzero++;
+      }
+    }
+    double avg = total/static_cast<double>(nonzero);
+
+    avg_dists[i] = static_cast<size_t>(avg);
+  });
+
+  std::cout << parlay::to_chars(avg_dists) << std::endl;
+}
+
+
 template<typename Point, typename PointRange, typename indexType>
 void checkRangeRecall(
         Graph<indexType> &G,
@@ -41,16 +73,17 @@ void checkRangeRecall(
         RangeGroundTruth<indexType> GT,
         RangeParams RP,
         long start_point, 
-        parlay::sequence<indexType> &active_indices) {
+        parlay::sequence<indexType> &active_indices, 
+        bool converge_stats = false) {
 
 
-  parlay::sequence<parlay::sequence<indexType>> all_rr;
+  // parlay::sequence<parlay::sequence<indexType>> all_rr;
 
   parlay::internal::timer t;
   float query_time;
   stats<indexType> QueryStats(active_indices.size());
  
-  all_rr = RangeSearchOverSubset<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_point, RP, active_indices);
+  auto [all_rr, visit_order]= RangeSearchOverSubset<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_point, RP, active_indices);
   query_time = t.next_time();
   
 
@@ -79,9 +112,9 @@ void checkRangeRecall(
   RP.print();
   std::cout << ", Pointwise Recall = " << pointwise_recall << ", Cumulative Recall = " << cumulative_recall << ", QPS = " << QPS << std::endl;
   
+  if(converge_stats) convergence_stats(visit_order);
   
 }
-
 
 
 
@@ -93,14 +126,14 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
 
   std::vector<long> beams;
 
-  beams = {1,2,5,8, 10, 20, 30, 40, 50, 100, 200, 500, 1000, 2000, 3000}; 
+  beams = {10, 100}; 
   std::vector<double> slack = {1.0};
 
   //three categories: 0, 1-20, 20+
 
   parlay::sequence<indexType> zero_res = GT.results_between(0,0);
-  parlay::sequence<indexType> nn_res = GT.results_between(1, 20);
-  parlay::sequence<indexType> rng_res = GT.results_between(21, std::numeric_limits<indexType>::max());
+  parlay::sequence<indexType> nn_res = GT.results_between(1, 2);
+  parlay::sequence<indexType> rng_res = GT.results_between(3, std::numeric_limits<indexType>::max());
   parlay::sequence<indexType> all = parlay::tabulate(Query_Points.size(), [&] (indexType i){return i;});
 
   std::cout << "For all points: " << std::endl;
@@ -108,7 +141,7 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
   std::cout << "Sweeping once with regular beam search" << std::endl;
   for(long b: beams){
     RangeParams RP(rad, b);
-    checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, all);
+    checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, all, true);
 
   }
   std::cout << std::endl;
@@ -128,19 +161,19 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
   std::cout << "Sweeping once with regular beam search" << std::endl;
   for(long b: beams){
     RangeParams RP(rad, b);
-    checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, zero_res);
+    checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, zero_res, true);
 
   }
  
 
   std::cout << std::endl;
 
-  std::cout << "For all " << nn_res.size() <<  " points with 1 to 20 results" << std::endl;
+  std::cout << "For all " << nn_res.size() <<  " points with 1 to 2 results" << std::endl;
 
   std::cout << "Sweeping once with regular beam search" << std::endl;
   for(long b: beams){
     RangeParams RP(rad, b);
-    checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, nn_res);
+    checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, nn_res, true);
 
   }
 
@@ -156,12 +189,12 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
 
   std::cout << std::endl;
 
-  std::cout << "For all " << rng_res.size() <<  " points with greater than 20 results" << std::endl;
+  std::cout << "For all " << rng_res.size() <<  " points with greater than 3 results" << std::endl;
 
   std::cout << "Sweeping once with regular beam search" << std::endl;
   for(long b: beams){
     RangeParams RP(rad, b);
-    checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, rng_res);
+    checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, rng_res, true);
 
   }
   std::cout << std::endl;

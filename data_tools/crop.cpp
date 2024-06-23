@@ -3,6 +3,7 @@
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 #include "parlay/io.h"
+#include "../algorithms/bench/common/parse_command_line.h"
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -41,18 +42,19 @@ std::pair<char*, size_t> mmapStringFromFile(const char* filename) {
     exit(-1);
   }
   size_t n = sb.st_size;
+  
   return std::make_pair(p, n);
 }
 
 template<typename T>
-void crop_file(char* iFile, int n, char* oFile){
+void crop_file(char* iFile, int min, int max, char* oFile){
   auto [fileptr, length] = mmapStringFromFile(iFile);
-
+  int n = max - min;
   int dim = *((int*) (fileptr+4));
   std::cout << "Writing " << n << " points with dimension " << dim << std::endl;
   parlay::sequence<int> preamble = {n, dim};
 
-  T* data = (T*)(fileptr+8);
+  T* data = (T*)(fileptr+8 + sizeof(T)*min);
   std::ofstream writer;
   writer.open(oFile, std::ios::binary | std::ios::out);
 
@@ -62,19 +64,26 @@ void crop_file(char* iFile, int n, char* oFile){
 }
 
 int main(int argc, char* argv[]) {
-  if (argc != 5) {
-    std::cout << "usage: crop <base> <num_points_to_crop> <tp> <oF>" << std::endl;
-    return 1;
-  }
+  commandLine P(argc,argv,
+  "[-file_path <b>] "
+      "[-data_type <d>] [-min <min>] [-max <max>] [-write_path <outfile>]");
+
+  char* iFile = P.getOptionValue("-file_path");
+  char* oFile = P.getOptionValue("-write_path");
+  int min = P.getOptionIntValue("-min", 0);
+  char* vectype = P.getOptionValue("-data_type");
+  int max = P.getOptionIntValue("-max", 0);
   
 
-  int n = atoi(argv[2]);
+  std::string tp = std::string(vectype);
+  if(min >= max){
+    std::cout << "ERROR: min " << min << " less than or equal to max " << max << std::endl;
+    abort();
+  }
 
-  std::string tp = std::string(argv[3]);
-
-  if(tp == "float") crop_file<float>(argv[1], n, argv[4]);
-  else if(tp == "uint8") crop_file<uint8_t>(argv[1], n, argv[4]);
-  else if(tp == "int8") crop_file<int8_t>(argv[1], n, argv[4]);
+  if(tp == "float") crop_file<float>(iFile, min, max, oFile);
+  else if(tp == "uint8") crop_file<uint8_t>(iFile, min, max, oFile);
+  else if(tp == "int8") crop_file<int8_t>(iFile, min, max, oFile);
   else{
     std::cout << "Invalid type, specify float, uint8, or int8" << std::endl;
   }

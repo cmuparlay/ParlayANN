@@ -277,7 +277,7 @@ struct knn_index {
         size_t index = shuffled_inserts[i];
         QueryParams QP((long) 0, BP.L, (double) 0.0, (long) Points.size(), (long) G.max_degree());
         parlay::sequence<pid> visited = 
-          (beam_search<Point, PointRange, indexType>(Points[index], G, Points, start_point, QP)).first.second;
+          (beam_search<Point, PointRange, indexType>(Points[index], G, Points, start_point, QP)).first.first.second;
         BuildStats.increment_visited(index, visited.size());
         new_out_[i-floor] = robustPrune(index, visited, G, Points, alpha); });
       t_beam.stop();
