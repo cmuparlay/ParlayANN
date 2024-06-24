@@ -66,11 +66,13 @@
 template<typename T_>
 struct Mips_Point {
   using T = T_;
-  using distanceType = float; 
+  using distanceType = float;
+  using byte = uint8_t;
   //template<typename C, typename range> friend struct Quantized_Mips_Point;
 
   struct parameters {
     int dims;
+    int num_bytes() const {return dims * sizeof(T);}
     parameters() : dims(0) {}
     parameters(int dims) : dims(dims) {}
   };
@@ -93,8 +95,8 @@ struct Mips_Point {
 
   Mips_Point() : values(nullptr), id_(-1), params(0) {}
 
-  Mips_Point(T* values, long id, parameters params)
-    : values(values), id_(id), params(params) {}
+  Mips_Point(byte* values, long id, parameters params)
+    : values((T*) values), id_(id), params(params) {}
 
   bool operator==(const Mips_Point<T>& q) const {
     for (int i = 0; i < params.dims; i++) {
@@ -121,7 +123,7 @@ struct Mips_Point {
 
   template <typename Point>
   static void translate_point(T* values, const Point& p, const parameters& params) {
-    for (int j = 0; j < params.dims; j++) values[j] = (T) p[j];
+    for (int j = 0; j < params.dims; j++) ((T*) values)[j] = (T) p[j];
   }
 
   template <typename PR>
@@ -137,11 +139,13 @@ private:
 template<typename T_, int range=(1 << sizeof(T_)*8) - 1>
 struct Quantized_Mips_Point{
   using T = T_;
-  using distanceType = float; 
+  using distanceType = float;
+  using byte = uint8_t;
   
   struct parameters {
     float max_val;
     int dims;
+    int num_bytes() const {return dims * sizeof(T);}
     parameters() : max_val(1), dims(0) {}
     parameters(int dims) : max_val(1), dims(dims) {}
     parameters(float max_val, int dims)
@@ -152,7 +156,7 @@ struct Quantized_Mips_Point{
   static bool is_metric() {return false;}
   
   //T& operator [] (long j) const {if (j >= d) abort(); return *(values+j);}
-  T operator [] (long j) const {return *(values+j);}
+  T operator [] (long i) const {return *(values + i);}
 
   float distance(int8_t* p, int8_t* q) const {
     int32_t result = 0;
@@ -178,7 +182,7 @@ struct Quantized_Mips_Point{
   void prefetch() const {
     int l = (params.dims * sizeof(T) - 1)/64 + 1;
     for (int i=0; i < l; i++)
-      __builtin_prefetch((char*) values + i * 64);
+      __builtin_prefetch(values + i * 64);
   }
 
   bool same_as(const Quantized_Mips_Point& q){
@@ -187,8 +191,8 @@ struct Quantized_Mips_Point{
 
   long id() const {return id_;}
 
-  Quantized_Mips_Point(T* values, long id, parameters p)
-    : values(values), id_(id), params(p)
+  Quantized_Mips_Point(byte* values, long id, parameters p)
+    : values((T*) values), id_(id), params(p)
   {}
 
   bool operator==(const Quantized_Mips_Point &q) const {
@@ -206,7 +210,8 @@ struct Quantized_Mips_Point{
   }
 
   template <typename Point>
-  static void translate_point(T* values, const Point& p, const parameters& params) {
+  static void translate_point(byte* byte_values, const Point& p, const parameters& params) {
+    T* values = (T*) byte_values;
     for (int j = 0; j < params.dims; j++) {
       float mv = params.max_val;
       float pj = p[j];

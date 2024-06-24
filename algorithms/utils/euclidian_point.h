@@ -87,11 +87,13 @@ template<typename T_, long range=(1l << sizeof(T_)*8) - 1>
 struct Euclidian_Point {
   using distanceType = float;
   using T = T_;
+  using byte = uint8_t;
 
   struct parameters {
     float slope;
     int32_t offset;
     int dims;
+    int num_bytes() const {return dims * sizeof(T);}
     parameters() : slope(0), offset(0), dims(0) {}
     parameters(int dims) : slope(1.0), offset(0), dims(dims) {}
     parameters(float min_val, float max_val, int dims)
@@ -128,8 +130,8 @@ struct Euclidian_Point {
 
   Euclidian_Point() : values(nullptr), id_(-1), params(0) {}
 
-  Euclidian_Point(T* values, long id, parameters params)
-    : values(values), id_(id), params(params) {}
+  Euclidian_Point(byte* values, long id, parameters params)
+    : values((T*) values), id_(id), params(params) {}
 
   // template <typename Point>
   // Euclidian_Point(const Point& p, const parameters& params) : id_(-1), params(params) {
@@ -172,7 +174,8 @@ struct Euclidian_Point {
   }
 
   template <typename Point>
-  static void translate_point(T* values, const Point& p, const parameters& params) {
+  static void translate_point(byte* byte_values, const Point& p, const parameters& params) {
+    T* values = (T*) byte_values;
     float slope = params.slope;
     int32_t offset = params.offset;
     if (slope == 1.0 && offset == 00) 
