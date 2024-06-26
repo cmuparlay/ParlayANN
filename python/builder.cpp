@@ -66,7 +66,7 @@ void build_vamana_index(std::string metric, std::string &vector_bin_path,
       I.build_index(G, Quant_Points, BuildStats);
     } else {
       using QuantT = int8_t;
-      using QuantPoint = Quantized_Mips_Point<QuantT>;
+      using QuantPoint = Quantized_Mips_Point<8, true>;
       using QuantRange = PointRange<QuantT, QuantPoint>;
       QuantRange Quant_Points(Points);  // quantized to one byte
 

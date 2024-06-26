@@ -204,14 +204,15 @@ struct Euclidian_Point {
   static parameters generate_parameters(const PR& pr) {
     long n = pr.size();
     int dims = pr.dimension();
-    parlay::sequence<typename PR::T> mins(n, 0.0);
-    parlay::sequence<typename PR::T> maxs(n, 0.0);
+    using MT = typename PR::T;
+    parlay::sequence<MT> mins(n, 0.0);
+    parlay::sequence<MT> maxs(n, 0.0);
     parlay::sequence<bool> ni(n, true);
     parlay::parallel_for(0, n, [&] (long i) {
       for (int j = 0; j < dims; j++) {
         ni[i] = ni[i] && (pr[i][j] >= 0) && (pr[i][j] - (long) pr[i][j]) == 0;
-        mins[i]= std::min(mins[i], pr[i][j]);
-        maxs[i]= std::max(maxs[i], pr[i][j]);}});
+        mins[i]= std::min<MT>(mins[i], pr[i][j]);
+        maxs[i]= std::max<MT>(maxs[i], pr[i][j]);}});
     float min_val = *parlay::min_element(mins);
     float max_val = *parlay::max_element(maxs);
     bool all_ints = *parlay::min_element(ni);

@@ -136,156 +136,155 @@ private:
   parameters params;
 };
 
-template<typename T_, bool trim = false, int range = (1 << sizeof(T_)*8) - 1>
-struct Quantized_Mips_Point{
-  using T = T_;
-  using distanceType = float;
-  using byte = uint8_t;
+// template<typename T_, bool trim = false, int range = (1 << sizeof(T_)*8) - 1>
+// struct Quantized_Mips_Point{
+//   using T = T_;
+//   using distanceType = float;
+//   using byte = uint8_t;
   
-  struct parameters {
-    float max_val;
-    int dims;
-    int num_bytes() const {return dims * sizeof(T);}
-    parameters() : max_val(1), dims(0) {}
-    parameters(int dims) : max_val(1), dims(dims) {}
-    parameters(float max_val, int dims)
-      : max_val(max_val), dims(dims) {}
-  };
+//   struct parameters {
+//     float max_val;
+//     int dims;
+//     int num_bytes() const {return dims * sizeof(T);}
+//     parameters() : max_val(1), dims(0) {}
+//     parameters(int dims) : max_val(1), dims(dims) {}
+//     parameters(float max_val, int dims)
+//       : max_val(max_val), dims(dims) {}
+//   };
 
-  static distanceType d_min() {return -std::numeric_limits<float>::max();}
-  static bool is_metric() {return false;}
+//   static distanceType d_min() {return -std::numeric_limits<float>::max();}
+//   static bool is_metric() {return false;}
   
-  //T& operator [] (long j) const {if (j >= d) abort(); return *(values+j);}
-  T operator [] (long i) const {return *(values + i);}
+//   //T& operator [] (long j) const {if (j >= d) abort(); return *(values+j);}
+//   T operator [] (long i) const {return *(values + i);}
 
-  float distance(int8_t* p, int8_t* q) const {
-    int32_t result = 0;
-    for (int i = 0; i < params.dims; i++){
-      result += (int16_t) p[i] * (int16_t) q[i];
-    }
-    //return (float) (r * r - result);
-    return (float) -result;
-  }
+//   float distance(int8_t* p, int8_t* q) const {
+//     int32_t result = 0;
+//     for (int i = 0; i < params.dims; i++){
+//       result += (int16_t) p[i] * (int16_t) q[i];
+//     }
+//     //return (float) (r * r - result);
+//     return (float) -result;
+//   }
 
-  float distance(int16_t* p, int16_t* q) const {
-    int64_t result = 0;
-    for (int i = 0; i < params.dims; i++){
-      result += (int32_t) p[i] * (int32_t) q[i];
-    }
-    return 0.0;
-    return (float) -result;
-  }
+//   float distance(int16_t* p, int16_t* q) const {
+//     int64_t result = 0;
+//     for (int i = 0; i < params.dims; i++){
+//       result += (int32_t) p[i] * (int32_t) q[i];
+//     }
+//     return (float) -result;
+//   }
 
-  float distance(const Quantized_Mips_Point &x) const {
-    return distance(this->values, x.values);
-  }
+//   float distance(const Quantized_Mips_Point &x) const {
+//     return distance(this->values, x.values);
+//   }
 
-  void prefetch() const {
-    int l = (params.dims * sizeof(T) - 1)/64 + 1;
-    for (int i=0; i < l; i++)
-      __builtin_prefetch(values + i * 64);
-  }
+//   void prefetch() const {
+//     int l = (params.dims * sizeof(T) - 1)/64 + 1;
+//     for (int i=0; i < l; i++)
+//       __builtin_prefetch(values + i * 64);
+//   }
 
-  bool same_as(const Quantized_Mips_Point& q){
-    return values == q.values;
-  }
+//   bool same_as(const Quantized_Mips_Point& q){
+//     return values == q.values;
+//   }
 
-  long id() const {return id_;}
+//   long id() const {return id_;}
 
-  Quantized_Mips_Point(byte* values, long id, parameters p)
-    : values((T*) values), id_(id), params(p)
-  {}
+//   Quantized_Mips_Point(byte* values, long id, parameters p)
+//     : values((T*) values), id_(id), params(p)
+//   {}
 
-  bool operator==(const Quantized_Mips_Point &q) const {
-    for (int i = 0; i < params.dims; i++) {
-      if (values[i] != q.values[i]) {
-        return false;
-      }
-    }
-    return true;
-  }
+//   bool operator==(const Quantized_Mips_Point &q) const {
+//     for (int i = 0; i < params.dims; i++) {
+//       if (values[i] != q.values[i]) {
+//         return false;
+//       }
+//     }
+//     return true;
+//   }
 
-  void normalize() {
-    std::cout << "can't normalize quantized point" << std::endl;
-    abort();
-  }
+//   void normalize() {
+//     std::cout << "can't normalize quantized point" << std::endl;
+//     abort();
+//   }
 
-  template <typename Point>
-  static void translate_point(byte* byte_values, const Point& p, const parameters& params) {
-    T* values = (T*) byte_values;
-    for (int j = 0; j < params.dims; j++) {
-      float mv = params.max_val;
-      float pj = p[j];
-      if (pj < -mv) values[j] = - range/2 - 1;
-      else if (pj > mv) values[j] = range/2;
-      else {
-        //if (pj < -mv || pj > mv) {
-        //std::cout << pj << " is out of range, should be in [" << -mv << ":" << mv << "] " << std::endl;
-        //abort();
-        //}
-        int32_t x = std::round(pj * (range/2) / mv);
-        values[j] = (T) x;
-      }
-    }
-  }
+//   template <typename Point>
+//   static void translate_point(byte* byte_values, const Point& p, const parameters& params) {
+//     T* values = (T*) byte_values;
+//     for (int j = 0; j < params.dims; j++) {
+//       float mv = params.max_val;
+//       float pj = p[j];
+//       if (pj < -mv) values[j] = - range/2 - 1;
+//       else if (pj > mv) values[j] = range/2;
+//       else {
+//         //if (pj < -mv || pj > mv) {
+//         //std::cout << pj << " is out of range, should be in [" << -mv << ":" << mv << "] " << std::endl;
+//         //abort();
+//         //}
+//         int32_t x = std::round(pj * (range/2) / mv);
+//         values[j] = (T) x;
+//       }
+//     }
+//   }
 
-  template <typename PR>
-  static parameters generate_parameters(const PR& pr) {
-    long n = pr.size();
-    int dims = pr.dimension();
-    long len = n * dims;
-    parlay::sequence<typename PR::T> vals(len);
-    parlay::parallel_for(0, n, [&] (long i) {
-      for (int j = 0; j < dims; j++) 
-        vals[i * dims + j] = pr[i][j];
-    });
-    parlay::sort_inplace(vals);
-    float min_val, max_val;
-    if (trim) {
-      float cutoff = .0001;
-      min_val = vals[(long) (cutoff * len)];
-      max_val = vals[(long) ((1.0-cutoff) * (len-1))];
-    } else {
-      min_val = vals[0];
-      max_val = vals[len-1];
-    }
-    float bound = std::max(max_val, -min_val);
+//   template <typename PR>
+//   static parameters generate_parameters(const PR& pr) {
+//     long n = pr.size();
+//     int dims = pr.dimension();
+//     long len = n * dims;
+//     parlay::sequence<typename PR::T> vals(len);
+//     parlay::parallel_for(0, n, [&] (long i) {
+//       for (int j = 0; j < dims; j++) 
+//         vals[i * dims + j] = pr[i][j];
+//     });
+//     parlay::sort_inplace(vals);
+//     float min_val, max_val;
+//     if (trim) {
+//       float cutoff = .0001;
+//       min_val = vals[(long) (cutoff * len)];
+//       max_val = vals[(long) ((1.0-cutoff) * (len-1))];
+//     } else {
+//       min_val = vals[0];
+//       max_val = vals[len-1];
+//     }
+//     float bound = std::max(max_val, -min_val);
 
-    // parlay::sequence<typename PR::T> mins(n);
-    // parlay::sequence<typename PR::T> maxs(n);
-    // parlay::parallel_for(0, n, [&] (long i) {
-    //   mins[i] = 0.0;
-    //   maxs[i] = 0.0;
-    //   for (int j = 0; j < dims; j++) {
-    //     mins[i]= std::min(mins[i], pr[i][j]);
-    //     maxs[i]= std::max(maxs[i], pr[i][j]);}});
-    // float min_val = *parlay::min_element(mins);
-    // float max_val = *parlay::max_element(maxs);
-    // float bound = std::max(max_val, -min_val);
+//     // parlay::sequence<typename PR::T> mins(n);
+//     // parlay::sequence<typename PR::T> maxs(n);
+//     // parlay::parallel_for(0, n, [&] (long i) {
+//     //   mins[i] = 0.0;
+//     //   maxs[i] = 0.0;
+//     //   for (int j = 0; j < dims; j++) {
+//     //     mins[i]= std::min(mins[i], pr[i][j]);
+//     //     maxs[i]= std::max(maxs[i], pr[i][j]);}});
+//     // float min_val = *parlay::min_element(mins);
+//     // float max_val = *parlay::max_element(maxs);
+//     // float bound = std::max(max_val, -min_val);
     
     
-    // if (sizeof(T) == 1) {
-    //   auto x = parlay::flatten(parlay::tabulate(n, [&] (long i) {
-    //     return parlay::tabulate(dims, [&] (long j) {
-    //       return 128 + (int8_t) (std::round(pr[i][j] * (range/2) / bound));});}));
-    //   auto y = parlay::histogram_by_index(x, 256);
-    //   for (int i = 0; i < 256; i++)
-    //     std::cout << i - 128 << ":" << y[i] << ", ";
-    //   std::cout << std::endl;
-    // }
-    std::cout << "scalar quantization: min value = " << min_val
-              << ", max value = " << max_val << std::endl;
-    return parameters(bound, dims); // 1.7 for glove-100, 1.4 for nytimes, 1.5 for glove-25 but bad
-  }
+//     // if (sizeof(T) == 1) {
+//     //   auto x = parlay::flatten(parlay::tabulate(n, [&] (long i) {
+//     //     return parlay::tabulate(dims, [&] (long j) {
+//     //       return 128 + (int8_t) (std::round(pr[i][j] * (range/2) / bound));});}));
+//     //   auto y = parlay::histogram_by_index(x, 256);
+//     //   for (int i = 0; i < 256; i++)
+//     //     std::cout << i - 128 << ":" << y[i] << ", ";
+//     //   std::cout << std::endl;
+//     // }
+//     std::cout << "scalar quantization: min value = " << min_val
+//               << ", max value = " << max_val << std::endl;
+//     return parameters(bound, dims); // 1.7 for glove-100, 1.4 for nytimes, 1.5 for glove-25 but bad
+//   }
 
-private:
-  T* values;
-  long id_;
-  parameters params;
-};
+// private:
+//   T* values;
+//   long id_;
+//   parameters params;
+// };
 
 template<int bits, bool trim = false, int range = (1 << bits) - 1>
-struct Quantized_Mips_Point_{
+struct Quantized_Mips_Point{
   using distanceType = float;
   using byte = uint8_t;
   
@@ -303,7 +302,10 @@ struct Quantized_Mips_Point_{
   
   int operator [] (long i) const {
     if constexpr (bits <= 4) {
-        abort();
+      if (i & 1)
+        return ((int8_t) (values[i/2] & 240)) >> 4;
+      else
+        return ((int8_t) (values[i/2] << 4)) >> 4;
     } else {
       if constexpr (bits <= 8) {
         return *(((int8_t*) values) + i);
@@ -311,6 +313,17 @@ struct Quantized_Mips_Point_{
         return *(((int16_t*) values) + i);
       }
     }
+  }
+
+
+  float distance_16(byte* p_, byte* q_) const {
+    int16_t* p = (int16_t*) p_;
+    int16_t* q = (int16_t*) q_;
+    int64_t result = 0;
+    for (int i = 0; i < params.dims; i++){
+      result += (int32_t) p[i] * (int32_t) q[i];
+    }
+    return (float) -result;
   }
 
   float distance_8(byte* p_, byte* q_) const {
@@ -323,42 +336,51 @@ struct Quantized_Mips_Point_{
     return (float) -result;
   }
 
-  float distance_16(byte* p_, byte* q_) const {
-    int16_t* p = (int16_t*) p_;
-    int16_t* q = (int16_t*) q_;
-    int64_t result = 0;
-    for (int i = 0; i < params.dims; i++){
-      result += (int32_t) p[i] * (int32_t) q[i];
+  float distance_4(byte* p_, byte* q_) const {
+    int8_t* p = (int8_t*) p_;
+    int8_t* q = (int8_t*) q_;
+    int32_t result = 0;
+    int8_t mask = 240;
+    for (int i = 0; i < params.dims/2; i++) {
+      result += (int16_t) ((int8_t) (p[i] << 4)) * (int16_t) ((int8_t) (q[i] << 4));
     }
-    return 0.0;
+    for (int i = 0; i < params.dims/2; i++){
+      result += (int16_t) (p[i] & mask) * (int16_t) (q[i] & mask);
+    }
     return (float) -result;
   }
 
-  float distance(const Quantized_Mips_Point_ &x) const {
-    if constexpr (bits <= 8) {
+  float distance(const Quantized_Mips_Point &x) const {
+    if constexpr (bits <= 4) {
+      return distance_4(this->values, x.values);
+    } else {
+      if constexpr (bits <= 8) {
         return distance_8(this->values, x.values);
       } else {
-      return distance_16(this->values, x.values);
+        return distance_16(this->values, x.values);
+      }
     }
   }
 
+  
   void prefetch() const {
     int l = (params.num_bytes() - 1)/64 + 1;
+    __builtin_prefetch(values);
     for (int i=0; i < l; i++)
       __builtin_prefetch(values + i * 64);
   }
 
-  bool same_as(const Quantized_Mips_Point_& q){
+  bool same_as(const Quantized_Mips_Point& q){
     return values == q.values;
   }
 
   long id() const {return id_;}
 
-  Quantized_Mips_Point_(byte* values, long id, parameters p)
+  Quantized_Mips_Point(byte* values, long id, parameters p)
     : values(values), id_(id), params(p)
   {}
 
-  bool operator==(const Quantized_Mips_Point_ &q) const {
+  bool operator==(const Quantized_Mips_Point &q) const {
     for (int i = 0; i < params.dims; i++) {
       if (values[i] != q.values[i]) {
         return false;
@@ -373,10 +395,19 @@ struct Quantized_Mips_Point_{
   }
 
   static void assign(byte* values, int i, int v) {
-    if constexpr (bits <= 8) {
-      ((int8_t*) values)[i] = (int8_t) v;
+    if constexpr (bits <= 4) {
+      byte* p = values + i/2;
+      if (i & 1) {
+        *p = (*p & 15) | (v << 4);
+      } else {
+        *p = (*p & 240) | v;
+      }
     } else {
-      ((int16_t*) values)[i] = (int16_t) v;
+      if constexpr (bits <= 8) {
+        ((int8_t*) values)[i] = (int8_t) v;
+      } else {
+        ((int16_t*) values)[i] = (int16_t) v;
+      }
     }
   }
   

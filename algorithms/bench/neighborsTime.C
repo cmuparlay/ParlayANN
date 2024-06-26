@@ -189,7 +189,7 @@ int main(int argc, char* argv[]) {
       if (quantize == 8) {
         std::cout << "quantizing data to 1 byte" << std::endl;
         using QT = int8_t;
-        using Point = Quantized_Mips_Point<QT>;
+        using Point = Quantized_Mips_Point<8>;
         using PR = PointRange<QT, Point>;
         PR Points_(Points);
         PR Query_Points_(Query_Points, Points_.params);
@@ -197,7 +197,7 @@ int main(int argc, char* argv[]) {
       } else if (quantize == 16) {
         std::cout << "quantizing data to 2 bytes" << std::endl;
         using QT = int16_t;
-        using Point = Quantized_Mips_Point<QT>;
+        using Point = Quantized_Mips_Point<16>;
         using PR = PointRange<QT, Point>;
         PR Points_(Points);
         PR Query_Points_(Query_Points, Points_.params);

@@ -55,7 +55,7 @@ struct GraphIndex{
 
   // mips or angular quantized points
   using MQuantT = int8_t;
-  using MQuantPoint = Quantized_Mips_Point<MQuantT>;
+  using MQuantPoint = Quantized_Mips_Point<8>;
   using MQuantRange = PointRange<MQuantT, MQuantPoint>;
   MQuantRange MQuant_Points;
   
@@ -133,7 +133,8 @@ struct GraphIndex{
                                     Qstats, starts, QP, false);
         }
       } else {
-        typename MQuantPoint::T buffer[dim];
+        //typename MQuantPoint::T buffer[dim];
+        uint8_t buffer[dim];
         q.normalize();
         MQuantPoint::translate_point(buffer, q, MQuant_Points.params);
         MQuantPoint quant_q(buffer, 0, MQuant_Points.params);
@@ -162,7 +163,7 @@ struct GraphIndex{
       std::vector<T> v(Points.dimension());
       for (int j=0; j < v.size(); j++)
         v[j] = queries.data(i)[j];
-      Point q = Point(v.data(), 0, Points.params);
+      Point q = Point((uint8_t*) v.data(), 0, Points.params);
       auto frontier = search_dispatch(q, QP, quant);
       for(int j=0; j<knn; j++){
         ids.mutable_data(i)[j] = frontier[j].first;
@@ -185,7 +186,7 @@ struct GraphIndex{
     T v[dims];
     for (int j=0; j < dims; j++)
       v[j] = pp(j); //q.data()[j];
-    Point p = Point(v, 0, Points.params);
+    Point p = Point((uint8_t*) v, 0, Points.params);
     auto frontier = search_dispatch(p, QP, quant);
     for(int j=0; j<knn; j++) {
       ids.mutable_data()[j] = frontier[j].first;
