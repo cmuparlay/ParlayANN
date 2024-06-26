@@ -9,7 +9,7 @@
 # ********************
 
 TIME = ../bench/$(BENCH)Time.C
-INCLUDE = 
+INCLUDE = -I ../../parlaylib/include/
 
 all : $(BENCH) 
 
