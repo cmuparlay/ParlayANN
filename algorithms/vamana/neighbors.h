@@ -28,6 +28,7 @@
 #include "../utils/parse_results.h"
 #include "../utils/mips_point.h"
 #include "../utils/euclidian_point.h"
+#include "../utils/jl_point.h"
 #include "../utils/stats.h"
 #include "../utils/types.h"
 #include "../utils/graph.h"
@@ -118,12 +119,25 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
       QPR Q_Query_Points(Query_Points, Q_Points.params);
       ANN_<Point, PointRange_, QPR, indexType>(G, k, BP, Query_Points, Q_Query_Points, GT, res_file, graph_built, Points, Q_Points);
     } else {
-      using QT = int8_t;
-      using QPoint = Quantized_Mips_Point<QT>;
-      using QPR = PointRange<QT, QPoint>;
-      QPR Q_Points(Points);
-      QPR Q_Query_Points(Query_Points, Q_Points.params);
-      ANN_<Point, PointRange_, QPR, indexType>(G, k, BP, Query_Points, Q_Query_Points, GT, res_file, graph_built, Points, Q_Points);
+      bool use_jl = false;
+      if (use_jl) {
+        using JLT = int8_t;
+        using JLPoint = JL_Point<128>;
+        using QPR = PointRange<JLT, JLPoint>;
+        QPR Q_Points(Points);
+        QPR Q_Query_Points(Query_Points, Q_Points.params);
+
+        ANN_<Point, PointRange_, QPR, indexType>(G, k, BP, Query_Points, Q_Query_Points, GT, res_file, graph_built, Points, Q_Points);
+      } else {
+        using QT = int8_t;
+        //using QPoint = Quantized_Mips_Point<QT,true,255>;
+        using QPoint = Quantized_Mips_Point<QT,true,15>;
+        using QPR = PointRange<QT, QPoint>;
+        QPR Q_Points(Points);
+        QPR Q_Query_Points(Query_Points, Q_Points.params);
+
+        ANN_<Point, PointRange_, QPR, indexType>(G, k, BP, Query_Points, Q_Query_Points, GT, res_file, graph_built, Points, Q_Points);
+      }
     }
   } else {
     ANN_<Point, PointRange_, PointRange_, indexType>(G, k, BP, Query_Points, Query_Points, GT, res_file, graph_built, Points, Points);

@@ -114,6 +114,7 @@ int main(int argc, char* argv[]) {
   bool quantize_build = P.getOption("-quantize_build");
   bool verbose = P.getOption("-verbose");
   bool normalize = P.getOption("-normalize");
+  double trim = P.getOptionDoubleValue("-trim", 0.0);
   bool self = P.getOption("-self");
   bool range = P.getOption("-range");
   int single_batch = P.getOptionIntValue("-single_batch", 0);
