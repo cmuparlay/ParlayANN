@@ -36,54 +36,47 @@ cc_library(
     ],
 )
 
-cc_library(
-<<<<<<< HEAD
-    name = "beamSearch",
-    hdrs = ["beamSearch.h"],
-    deps = [
-        "@parlaylib//parlay:io",
-        "@parlaylib//parlay:parallel",
-        "@parlaylib//parlay:primitives",
-        "@parlaylib//parlay:random",
-        ":indexTools",
-        ":types",
-=======
-    name = "check_nn_recall",
-    hdrs = ["check_nn_recall.h"],
-    deps = [
-        "@parlaylib//parlay:parallel",
-        "@parlaylib//parlay:primitives",
-        ":beamSearch",
-        ":csvfile",
-        ":parse_results",
-        ":stats",
-        ":types",
-    ],
-)
+# cc_library(
+#     name = "beamSearch",
+#     hdrs = ["beamSearch.h"],
+#     deps = [
+#         "@parlaylib//parlay:io",
+#         "@parlaylib//parlay:parallel",
+#         "@parlaylib//parlay:primitives",
+#         "@parlaylib//parlay:random",
+#         ":indexTools",
+#         ":types",
+#     ],
+# )
+
+# cc_library(
+#     name = "check_nn_recall",
+#     hdrs = ["check_nn_recall.h"],
+#     deps = [
+#         "@parlaylib//parlay:parallel",
+#         "@parlaylib//parlay:primitives",
+#         ":beamSearch",
+#         ":csvfile",
+#         ":parse_results",
+#         ":stats",
+#         ":types",
+#     ],
+# )
 
 cc_library(
     name = "euclidean_point",
-    hdrs = ["euclidean_point.h"],
+    hdrs = ["euclidian_point.h"],
     deps = [
         "@parlaylib//parlay:parallel",
         "@parlaylib//parlay:primitives",
         "@parlaylib//parlay/internal:file_map",
         "//algorithms/bench:parse_command_line",
         ":parse_results",
->>>>>>> 889955dcc0c40dba385245c4a4a08fba3d06a5e7
         ":NSGDist",
     ],
 )
 
 cc_library(
-<<<<<<< HEAD
-    name = "stats",
-    hdrs = ["stats.h"],
-    deps = [
-        "@parlaylib//parlay:parallel",
-        "@parlaylib//parlay:primitives",
-        ":indexTools",
-=======
     name = "graph",
     hdrs = ["graph.h"],
     deps = [
@@ -105,14 +98,11 @@ cc_library(
         "@parlaylib//parlay/internal:file_map",
         "//algorithms/bench:parse_command_line",
         ":NSGDist",
->>>>>>> 889955dcc0c40dba385245c4a4a08fba3d06a5e7
         ":types",
     ],
 )
 
 cc_library(
-<<<<<<< HEAD
-=======
     name = "mmap",
     hdrs = ["mmap.h"],
     deps = [
@@ -133,21 +123,15 @@ cc_library(
 )
 
 cc_library(
->>>>>>> 889955dcc0c40dba385245c4a4a08fba3d06a5e7
     name = "parse_results",
     hdrs = ["parse_results.h"],
     deps = [
         "@parlaylib//parlay:parallel",
         "@parlaylib//parlay:primitives",
-<<<<<<< HEAD
-        ":indexTools",
-=======
->>>>>>> 889955dcc0c40dba385245c4a4a08fba3d06a5e7
     ],
 )
 
 cc_library(
-<<<<<<< HEAD
     name = "check_nn_recall",
     hdrs = ["check_nn_recall.h"],
     deps = [
@@ -155,9 +139,12 @@ cc_library(
         "@parlaylib//parlay:primitives",
         ":beamSearch",
         ":csvfile",
-        ":indexTools",
         ":parse_results",
-=======
+        ":types",
+    ],
+)
+
+cc_library(
     name = "point_range",
     hdrs = ["point_range.h"],
     deps = [
@@ -165,17 +152,11 @@ cc_library(
         "@parlaylib//parlay:primitives",
         "@parlaylib//parlay/internal:file_map",
         "//algorithms/bench:parse_command_line",
->>>>>>> 889955dcc0c40dba385245c4a4a08fba3d06a5e7
         ":types",
     ],
 )
 
 cc_library(
-<<<<<<< HEAD
-    name = "csvfile",
-    hdrs = ["csvfile.h"],
-)
-=======
     name = "stats",
     hdrs = ["stats.h"],
     deps = [
@@ -194,14 +175,6 @@ cc_library(
     ],
 )
 
-cc_library(
-    name = "types",
-    hdrs = ["types.h"],
-    deps = [
-        "@parlaylib//parlay:parallel",
-        "@parlaylib//parlay:primitives",
-    ],
-)
 
 cc_library(
     name = "union",
@@ -213,4 +186,3 @@ cc_library(
 )
 
 
->>>>>>> 889955dcc0c40dba385245c4a4a08fba3d06a5e7

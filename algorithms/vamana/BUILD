@@ -18,6 +18,17 @@ cc_test(
     deps = [
         "@googletest//:gtest_main",
         ":index",
+        "//algorithms/utils:point_range",
+        "//algorithms/utils:types",
+        "//algorithms/utils:mmap",
+        "//algorithms/utils:graph",
+        "//algorithms/utils:beamSearch",
+        "//algorithms/utils:stats",
+        "//algorithms/bench:parse_command_line",
+        "@parlaylib//parlay:parallel",
+        "@parlaylib//parlay:primitives",
+        "@parlaylib//parlay:random",
+        "@parlaylib//parlay:delayed",
     ],
 )
 
@@ -36,6 +47,9 @@ cc_library(
         "//algorithms/utils:parse_results",
         "//algorithms/utils:stats",
         "//algorithms/utils:types",
+        "//algorithms/utils:point_range",
+        "//algorithms/utils:euclidean_point",
+        "//algorithms/utils:mips_point",
     ],
 )
 
