@@ -121,7 +121,7 @@ beam_search_impl(Point p, GT &G, PointRange &Points,
 
   // The main loop.  Terminate beam search when the entire frontier
   // has been visited or have reached max_visit.
-  while (remain > 0 && num_visited < QP.limit && num_visited < QP.beamSize) {
+  while (remain > 0 && num_visited < QP.limit) {
     // the next node to visit is the unvisited frontier node that is closest to
     // p
     std::pair<indexType, distanceType> current = unvisited_frontier[0];
@@ -174,14 +174,12 @@ beam_search_impl(Point p, GT &G, PointRange &Points,
     // if a k is given (i.e. k != 0) then trim off entries that have a
     // distance greater than cut * current-kth-smallest-distance.
     // Only used during query and not during build.
-    if (QP.k > 0 && new_frontier_size > QP.k && Points[0].is_metric()) {
-      abort();
+    if (QP.k > 0 && new_frontier_size > QP.k && Points[0].is_metric())
       new_frontier_size =
           (std::upper_bound(new_frontier.begin(),
                             new_frontier.begin() + new_frontier_size,
                             std::pair{0, QP.cut * new_frontier[QP.k].second}, less) -
            new_frontier.begin());
-    }
 
     // copy new_frontier back to the frontier
     frontier.clear();
@@ -355,58 +353,32 @@ beam_search_rerank(const Point &p,
                    bool stats = true) {
   using dtype = typename Point::distanceType;
   using id_dist = std::pair<indexType, dtype>;
-  
+
   // beam search with quantized points
   auto [pairElts, dist_cmps] = beam_search(pq, G, Q_Base_Points, starting_points, QP);
   auto [beamElts, visitedElts] = pairElts;
-  int k = QP.k;
-  int exp_factor = 6;
-  //int num_check = std::min<int>(k * exp_factor, beamElts.size());
-  int num_check = beamElts.size();
-  auto less = [] (id_dist a, id_dist b) {
-    return (a.second < b.second) || (a.second == b.second && a.first < b.first);};
+  
+  // recalculate distances with non-quantized points and sort
+  int exp_factor = 5; // only check exp_factor * k of them
+  int num_check = std::min<int>(QP.k * exp_factor, beamElts.size());
+  std::vector<id_dist> pts;
+  for (int i=0; i < num_check; i++) {
+    int j = beamElts[i].first;
+    pts.push_back(id_dist(j, p.distance(Base_Points[j])));
+  }
+  std::sort(pts.begin(), pts.end(), [] (auto a, auto b) {return a.second < b.second;});
+
+  // strip off the distances and keep first k
+  parlay::sequence<std::pair<indexType, typename Point::distanceType>> results;
+  for (int i= 0; i < QP.k; i++)
+    results.push_back(pts[i]);
 
   if (stats) {
     QueryStats.increment_visited(p.id(), visitedElts.size());
-    QueryStats.increment_dist(p.id(), dist_cmps + num_check);
+    QueryStats.increment_dist(p.id(), dist_cmps + beamElts.size());
   }
-
-  // recalculate distances with non-quantized points
-  auto check_points = parlay::tabulate(num_check, [&] (indexType i) {
-    auto [j, ignore] = beamElts[i];
-    return std::pair(j, p.distance(Base_Points[j]));}, num_check);
-
-  // parlay::sequence<id_dist> check_points, candidate_points;
-  // for (auto (j, ignore) : beamElts.subseq(0, num_check));
-  //   check_points.push_back(std::pair(j, p.distance(Base_Points[j])));
-
-  // first check those that are within the k-th point
-  dtype threshold = check_points[k-1].second;
-  parlay::sequence<id_dist> candidate_points;
-  for (auto pt : check_points)
-    if (!(threshold < pt.second))
-      candidate_points.push_back(pt);
-  if (candidate_points.size() == k) {
-    // all points were correct
-    return candidate_points;   
-  } else if (candidate_points.size() > k) {
-    // enough candidates, sort candidates to get best
-    std::sort(candidate_points.begin(), candidate_points.end(), less);
-    return candidate_points.subseq(0, k);
-  } else {
-    // not enough candidates, sort check points to get best
-    std::sort(check_points.begin(), check_points.end(), less);
-    // if (p.id() == 3302) {
-    //   float d0 = Q_Base_Points[check_points[0].first].distance(pq);
-    //   for (int i=9; i < 10; i++) { //check_points.size(); i++) {
-    //     float d = Q_Base_Points[check_points[i].first].distance(pq);
-    //     std::cout << check_points[i].second/check_points[0].second << ", " 
-    //               << d/d0
-    //               << std::endl;
-    //   }
-    // }
-    return check_points.subseq(0, k);
-  }
+  
+  return results;
 }
 
 template<typename Point, typename PointRange, typename QPointRange, typename indexType>
