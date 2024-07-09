@@ -36,9 +36,6 @@ void build_vamana_index(std::string metric, std::string &vector_bin_path,
                         std::string &index_output_path, uint32_t graph_degree, uint32_t beam_width,
                         float alpha, bool two_pass)
 {
-  //instantiate build params object
-  BuildParams BP(graph_degree, beam_width, alpha, two_pass ? 2 : 1);
-
   //use file parsers to create Point object
 
   using Range = PointRange<T, Point>;
@@ -47,8 +44,13 @@ void build_vamana_index(std::string metric, std::string &vector_bin_path,
     std::cout << "normalizing" << std::endl;
     for (int i=0; i < Points.size(); i++) 
       Points[i].normalize();
+    if (Points.dimension() <= 200)
+      alpha = 1.0;
   }
 
+  //instantiate build params object
+  BuildParams BP(graph_degree, beam_width, alpha, two_pass ? 2 : 1);
+  
   //use max degree info to create Graph object
   Graph<unsigned int> G = Graph<unsigned int>(graph_degree, Points.size());
   stats<unsigned int> BuildStats(G.size());
