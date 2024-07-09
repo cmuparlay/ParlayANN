@@ -359,7 +359,7 @@ beam_search_rerank(const Point &p,
   auto [beamElts, visitedElts] = pairElts;
   
   // recalculate distances with non-quantized points and sort
-  int exp_factor = 5; // only check exp_factor * k of them
+  int exp_factor = 3; // only check exp_factor * k of them
   int num_check = std::min<int>(QP.k * exp_factor, beamElts.size());
   std::vector<id_dist> pts;
   for (int i=0; i < num_check; i++) {

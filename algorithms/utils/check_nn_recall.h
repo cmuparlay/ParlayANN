@@ -74,7 +74,15 @@ nn_result checkRecall(
     int numCorrect = 0;
     for (indexType i = 0; i < n; i++) {
       std::set<indexType> reported_nbhs;
+      if (all_ngh[i].size() != k) {
+        std::cout << "bad number of neighbors reported: " << all_ngh[i].size() << std::endl;
+        abort();
+      }
       for (indexType l = 0; l < k; l++) reported_nbhs.insert((all_ngh[i])[l]);
+      if (reported_nbhs.size() != k) {
+        std::cout << "duplicate entries in reported neighbors" << std::endl;
+        abort();
+      }
       for (indexType l = 0; l < k; l++) {
         if (reported_nbhs.find((GT.coordinates(i,l))) !=
             reported_nbhs.end()) {

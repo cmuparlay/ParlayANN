@@ -446,9 +446,14 @@ struct Quantized_Mips_Point{
       float cutoff = .0001;
       min_val = vals[(long) (cutoff * len)];
       max_val = vals[(long) ((1.0-cutoff) * (len-1))];
+      std::cout << "scalar quantization: min value = " << vals[0]
+                << ", max value = " << vals[len-1]
+                << ", trimmed to: min = " << min_val << ", max = " << max_val << std::endl;
     } else {
       min_val = vals[0];
       max_val = vals[len-1];
+      std::cout << "scalar quantization: min value = " << min_val
+                << ", max value = " << max_val << std::endl;
     }
     float bound = std::max(max_val, -min_val);
 
@@ -474,8 +479,6 @@ struct Quantized_Mips_Point{
     //     std::cout << i - 128 << ":" << y[i] << ", ";
     //   std::cout << std::endl;
     // }
-    std::cout << "scalar quantization: min value = " << min_val
-              << ", max value = " << max_val << std::endl;
     return parameters(bound, dims); // 1.7 for glove-100, 1.4 for nytimes, 1.5 for glove-25 but bad
   }
 
