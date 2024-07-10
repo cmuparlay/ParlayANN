@@ -127,9 +127,8 @@ beam_search_impl(Point p, GT &G, PointRange &Points,
     std::pair<indexType, distanceType> current = unvisited_frontier[0];
     G[current.first].prefetch();
     // add to visited set
-    visited.insert(
-        std::upper_bound(visited.begin(), visited.end(), current, less),
-        current);
+    auto position = std::upper_bound(visited.begin(), visited.end(), current, less);
+    visited.insert(position, current);
     num_visited++;
 
     // keep neighbors that have not been visited (using approximate
@@ -159,13 +158,16 @@ beam_search_impl(Point p, GT &G, PointRange &Points,
       candidates.push_back(std::pair{a, dist});
     }
 
-    // sort the candidates by distance from p
+    // sort the candidates by distance from p,
+    // and remove any duplicates (to be robust for neighbor lists with duplicates)
     std::sort(candidates.begin(), candidates.end(), less);
+    auto candidates_end = std::unique(candidates.begin(), candidates.end(),
+                                      [] (auto a, auto b) {return a.first == b.first;});
 
     // union the frontier and candidates into new_frontier, both are sorted
     auto new_frontier_size =
         std::set_union(frontier.begin(), frontier.end(), candidates.begin(),
-                       candidates.end(), new_frontier.begin(), less) -
+                       candidates_end, new_frontier.begin(), less) -
         new_frontier.begin();
 
     // trim to at most beam size
@@ -357,6 +359,14 @@ beam_search_rerank(const Point &p,
   // beam search with quantized points
   auto [pairElts, dist_cmps] = beam_search(pq, G, Q_Base_Points, starting_points, QP);
   auto [beamElts, visitedElts] = pairElts;
+
+  // for (int i=1; i < beamElts.size(); i++)
+  //   if (beamElts[i-1].first == beamElts[i].first) {
+  //     std::cout << "duplicate in search: " << beamElts[i-1].first << " at i = " << i << std::endl;
+  //     for (int j = 0; j < beamElts.size(); j++)
+  //       std::cout << beamElts[j].first << std::endl;
+  //     abort();
+  //   }
   
   // recalculate distances with non-quantized points and sort
   int exp_factor = 3; // only check exp_factor * k of them
@@ -366,10 +376,13 @@ beam_search_rerank(const Point &p,
     int j = beamElts[i].first;
     pts.push_back(id_dist(j, p.distance(Base_Points[j])));
   }
-  std::sort(pts.begin(), pts.end(), [] (auto a, auto b) {return a.second < b.second;});
+  auto less = [&] (id_dist a, id_dist b) {
+    return a.second < b.second || (a.second == b.second && a.first < b.first);
+  };
+  std::sort(pts.begin(), pts.end(), less);
 
-  // strip off the distances and keep first k
-  parlay::sequence<std::pair<indexType, typename Point::distanceType>> results;
+  // keep first k
+  parlay::sequence<id_dist> results;
   for (int i= 0; i < QP.k; i++)
     results.push_back(pts[i]);
 
@@ -410,8 +423,8 @@ parlay::sequence<parlay::sequence<indexType>> qsearchAll(PointRange &Query_Point
   parlay::sequence<parlay::sequence<indexType>> all_neighbors(Query_Points.size());
   parlay::parallel_for(0, Query_Points.size(), [&](size_t i) {
     auto ngh_dist = beam_search_rerank(Query_Points[i], Q_Query_Points[i], G,
-                                          Base_Points, Q_Base_Points,
-                                          QueryStats, starting_points, QP);
+                                       Base_Points, Q_Base_Points,
+                                       QueryStats, starting_points, QP);
     all_neighbors[i] = parlay::map(ngh_dist, [] (auto& p) {return p.first;});
   });
 

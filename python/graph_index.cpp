@@ -181,17 +181,14 @@ struct GraphIndex{
     int dims = Points.dimension();
 
     py::array_t<unsigned int> ids({knn});
-    //py::array_t<float> dists({knn});
     auto pp = q.mutable_unchecked();
     T v[dims];
     for (int j=0; j < dims; j++)
       v[j] = pp(j); //q.data()[j];
     Point p = Point((uint8_t*) v, 0, Points.params);
     auto frontier = search_dispatch(p, QP, quant);
-    for(int j=0; j<knn; j++) {
+    for(int j=0; j<knn; j++) 
       ids.mutable_data()[j] = frontier[j].first;
-      //dists.mutable_data()[j] = frontier[j].second;
-    }
     return std::move(ids);
   }
 
