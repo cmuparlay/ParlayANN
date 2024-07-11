@@ -41,7 +41,7 @@
 template<typename indexType, typename Point, typename PointRange, class GT>
 std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>, parlay::sequence<std::pair<indexType, typename Point::distanceType>>>, size_t>
 beam_search_impl(Point p, GT &G, PointRange &Points,
-        parlay::sequence<indexType> starting_points, QueryParams &QP);
+                 parlay::sequence<indexType> starting_points, QueryParams &QP);
 
 template<typename Point, typename PointRange, typename indexType>
 std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>, parlay::sequence<std::pair<indexType, typename Point::distanceType>>>, indexType>
@@ -55,7 +55,7 @@ beam_search(Point p, Graph<indexType> &G, PointRange &Points,
 template<typename Point, typename PointRange, typename indexType>
 std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>, parlay::sequence<std::pair<indexType, typename Point::distanceType>>>, size_t>
 beam_search(Point p, Graph<indexType> &G, PointRange &Points,
-        parlay::sequence<indexType> starting_points, QueryParams &QP) {
+            parlay::sequence<indexType> starting_points, QueryParams &QP) {
   return beam_search_impl<indexType>(p, G, Points, starting_points, QP);
 }
 
@@ -166,9 +166,9 @@ beam_search_impl(Point p, GT &G, PointRange &Points,
 
     // union the frontier and candidates into new_frontier, both are sorted
     auto new_frontier_size =
-        std::set_union(frontier.begin(), frontier.end(), candidates.begin(),
-                       candidates_end, new_frontier.begin(), less) -
-        new_frontier.begin();
+      std::set_union(frontier.begin(), frontier.end(), candidates.begin(),
+                     candidates_end, new_frontier.begin(), less) -
+      new_frontier.begin();
 
     // trim to at most beam size
     new_frontier_size = std::min<size_t>(QP.beamSize, new_frontier_size);
@@ -178,10 +178,10 @@ beam_search_impl(Point p, GT &G, PointRange &Points,
     // Only used during query and not during build.
     if (QP.k > 0 && new_frontier_size > QP.k && Points[0].is_metric())
       new_frontier_size =
-          (std::upper_bound(new_frontier.begin(),
-                            new_frontier.begin() + new_frontier_size,
-                            std::pair{0, QP.cut * new_frontier[QP.k].second}, less) -
-           new_frontier.begin());
+        (std::upper_bound(new_frontier.begin(),
+                          new_frontier.begin() + new_frontier_size,
+                          std::pair{0, QP.cut * new_frontier[QP.k].second}, less) -
+         new_frontier.begin());
 
     // copy new_frontier back to the frontier
     frontier.clear();
@@ -193,9 +193,9 @@ beam_search_impl(Point p, GT &G, PointRange &Points,
       std::set_difference(frontier.begin(), frontier.end(),
                           visited.begin(), visited.end(),
                           unvisited_frontier.begin(), less) -
-        unvisited_frontier.begin();
+      unvisited_frontier.begin();
   }
-  
+
   return std::make_pair(std::make_pair(parlay::to_sequence(frontier),
                                        parlay::to_sequence(visited)),
                         dist_cmps);
@@ -268,9 +268,10 @@ range_search(Point p, GT &G, PointRange &Points,
 
 // searches every element in q starting from a randomly selected point
 template<typename Point, typename PointRange, typename indexType>
-parlay::sequence<parlay::sequence<indexType>> beamSearchRandom(PointRange& Query_Points,
-                                         Graph<indexType> &G, PointRange &Base_Points, stats<indexType> &QueryStats,
-                                         QueryParams &QP) {
+parlay::sequence<parlay::sequence<indexType>>
+beamSearchRandom(PointRange& Query_Points,
+                 Graph<indexType> &G, PointRange &Base_Points, stats<indexType> &QueryStats,
+                 QueryParams &QP) {
   if (QP.k > QP.beamSize) {
     std::cout << "Error: beam search parameter Q = " << QP.beamSize
               << " same size or smaller than k = " << QP.k << std::endl;
@@ -294,7 +295,7 @@ parlay::sequence<parlay::sequence<indexType>> beamSearchRandom(PointRange& Query
     parlay::sequence<std::pair<indexType, typename Point::distanceType>> beamElts;
     parlay::sequence<std::pair<indexType, typename Point::distanceType>> visitedElts;
     auto [pairElts, dist_cmps] =
-        beam_search(Query_Points[i], G, Base_Points, start, QP);
+      beam_search(Query_Points[i], G, Base_Points, start, QP);
     beamElts = pairElts.first;
     visitedElts = pairElts.second;
     for (indexType j = 0; j < QP.k; j++) {
@@ -308,18 +309,20 @@ parlay::sequence<parlay::sequence<indexType>> beamSearchRandom(PointRange& Query
 }
 
 template<typename Point, typename PointRange, typename indexType>
-parlay::sequence<parlay::sequence<indexType>> searchAll(PointRange& Query_Points,
-	                                       Graph<indexType> &G, PointRange &Base_Points, stats<indexType> &QueryStats,
-	                                      indexType starting_point, QueryParams &QP) {
-    parlay::sequence<indexType> start_points = {starting_point};
-    return searchAll<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_points, QP);
+parlay::sequence<parlay::sequence<indexType>>
+searchAll(PointRange& Query_Points,
+          Graph<indexType> &G, PointRange &Base_Points, stats<indexType> &QueryStats,
+          indexType starting_point, QueryParams &QP) {
+  parlay::sequence<indexType> start_points = {starting_point};
+  return searchAll<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_points, QP);
 }
 
 template<typename Point, typename PointRange, typename indexType>
-parlay::sequence<parlay::sequence<indexType>> searchAll(PointRange &Query_Points,
-	                                       Graph<indexType> &G, PointRange &Base_Points, stats<indexType> &QueryStats,
-                                        parlay::sequence<indexType> starting_points,
-	                                      QueryParams &QP) {
+parlay::sequence<parlay::sequence<indexType>>
+searchAll(PointRange &Query_Points,
+          Graph<indexType> &G, PointRange &Base_Points, stats<indexType> &QueryStats,
+          parlay::sequence<indexType> starting_points,
+          QueryParams &QP) {
   if (QP.k > QP.beamSize) {
     std::cout << "Error: beam search parameter Q = " << QP.beamSize
               << " same size or smaller than k = " << QP.k << std::endl;
@@ -355,9 +358,12 @@ beam_search_rerank(const Point &p,
                    bool stats = true) {
   using dtype = typename Point::distanceType;
   using id_dist = std::pair<indexType, dtype>;
+  auto QPP = QP;
+  //QPP.beamSize = QP.beamSize * 8;
+  //QPP.limit = QP.beamSize;
 
   // beam search with quantized points
-  auto [pairElts, dist_cmps] = beam_search(pq, G, Q_Base_Points, starting_points, QP);
+  auto [pairElts, dist_cmps] = beam_search(pq, G, Q_Base_Points, starting_points, QPP);
   auto [beamElts, visitedElts] = pairElts;
 
   // for (int i=1; i < beamElts.size(); i++)
@@ -367,9 +373,9 @@ beam_search_rerank(const Point &p,
   //       std::cout << beamElts[j].first << std::endl;
   //     abort();
   //   }
-  
+
   // recalculate distances with non-quantized points and sort
-  int exp_factor = 3; // only check exp_factor * k of them
+  int exp_factor = 3; //100; // only check exp_factor * k of them
   int num_check = std::min<int>(QP.k * exp_factor, beamElts.size());
   std::vector<id_dist> pts;
   for (int i=0; i < num_check; i++) {
@@ -388,33 +394,35 @@ beam_search_rerank(const Point &p,
 
   if (stats) {
     QueryStats.increment_visited(p.id(), visitedElts.size());
-    QueryStats.increment_dist(p.id(), dist_cmps + beamElts.size());
+    QueryStats.increment_dist(p.id(), dist_cmps + num_check);
   }
-  
+
   return results;
 }
 
 template<typename Point, typename PointRange, typename QPointRange, typename indexType>
-parlay::sequence<parlay::sequence<indexType>> qsearchAll(PointRange& Query_Points,
-                                                         QPointRange& Q_Query_Points,
-                                                         Graph<indexType> &G,
-                                                         PointRange &Base_Points,
-                                                         QPointRange &Q_Base_Points,
-                                                         stats<indexType> &QueryStats,
-                                                         indexType starting_point, QueryParams &QP) {
-    parlay::sequence<indexType> start_points = {starting_point};
-    return qsearchAll<Point, PointRange, QPointRange, indexType>(Query_Points, Q_Query_Points, G, Base_Points, Q_Base_Points, QueryStats, start_points, QP);
+parlay::sequence<parlay::sequence<indexType>>
+qsearchAll(PointRange& Query_Points,
+           QPointRange& Q_Query_Points,
+           Graph<indexType> &G,
+           PointRange &Base_Points,
+           QPointRange &Q_Base_Points,
+           stats<indexType> &QueryStats,
+           indexType starting_point, QueryParams &QP) {
+  parlay::sequence<indexType> start_points = {starting_point};
+  return qsearchAll<Point, PointRange, QPointRange, indexType>(Query_Points, Q_Query_Points, G, Base_Points, Q_Base_Points, QueryStats, start_points, QP);
 }
 
 template<typename Point, typename PointRange, typename QPointRange, typename indexType>
-parlay::sequence<parlay::sequence<indexType>> qsearchAll(PointRange &Query_Points,
-                                                         QPointRange &Q_Query_Points,
-                                                         Graph<indexType> &G,
-                                                         PointRange &Base_Points,
-                                                         QPointRange &Q_Base_Points,
-                                                         stats<indexType> &QueryStats,
-                                                         parlay::sequence<indexType> starting_points,
-                                                         QueryParams &QP) {
+parlay::sequence<parlay::sequence<indexType>>
+qsearchAll(PointRange &Query_Points,
+           QPointRange &Q_Query_Points,
+           Graph<indexType> &G,
+           PointRange &Base_Points,
+           QPointRange &Q_Base_Points,
+           stats<indexType> &QueryStats,
+           parlay::sequence<indexType> starting_points,
+           QueryParams &QP) {
   if (QP.k > QP.beamSize) {
     std::cout << "Error: beam search parameter Q = " << QP.beamSize
               << " same size or smaller than k = " << QP.k << std::endl;
@@ -432,18 +440,20 @@ parlay::sequence<parlay::sequence<indexType>> qsearchAll(PointRange &Query_Point
 }
 
 template<typename Point, typename PointRange, typename indexType>
-parlay::sequence<parlay::sequence<indexType>> RangeSearch(PointRange& Query_Points,
-	                                       Graph<indexType> &G, PointRange &Base_Points, stats<indexType> &QueryStats,
-	                                      indexType starting_point, RangeParams &QP) {
-    parlay::sequence<indexType> start_points = {starting_point};
-    return RangeSearch<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_points, QP);
+parlay::sequence<parlay::sequence<indexType>>
+RangeSearch(PointRange& Query_Points,
+            Graph<indexType> &G, PointRange &Base_Points, stats<indexType> &QueryStats,
+            indexType starting_point, RangeParams &QP) {
+  parlay::sequence<indexType> start_points = {starting_point};
+  return RangeSearch<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_points, QP);
 }
 
 template<typename Point, typename PointRange, typename indexType>
-parlay::sequence<parlay::sequence<indexType>> RangeSearch(PointRange &Query_Points,
-	                                       Graph<indexType> &G, PointRange &Base_Points, stats<indexType> &QueryStats,
-                                        parlay::sequence<indexType> starting_points,
-	                                      RangeParams &RP) {
+parlay::sequence<parlay::sequence<indexType>>
+RangeSearch(PointRange &Query_Points,
+            Graph<indexType> &G, PointRange &Base_Points, stats<indexType> &QueryStats,
+            parlay::sequence<indexType> starting_points,
+            RangeParams &RP) {
 
   parlay::sequence<parlay::sequence<indexType>> all_neighbors(Query_Points.size());
   // parlay::sequence<int> second_round(Query_Points.size(), 0);

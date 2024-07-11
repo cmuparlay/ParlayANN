@@ -122,7 +122,7 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
       bool use_jl = false;
       if (use_jl) {
         using JLT = int8_t;
-        using JLPoint = JL_Point<128>;
+        using JLPoint = JL_Point<256>;
         using QPR = PointRange<JLT, JLPoint>;
         QPR Q_Points(Points);
         QPR Q_Query_Points(Query_Points, Q_Points.params);

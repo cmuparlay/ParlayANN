@@ -117,8 +117,9 @@ struct Mips_Point {
       norm += values[j] * values[j];
     norm = std::sqrt(norm);
     if (norm == 0) norm = 1.0;
+    float inv_norm = 1.0 / norm;
     for (int j = 0; j < params.dims; j++)
-      values[j] = values[j] / norm;
+      values[j] = values[j] * inv_norm;
   }
 
   template <typename Point>
@@ -415,15 +416,13 @@ struct Quantized_Mips_Point{
   static void translate_point(byte* byte_values, const Point& p, const parameters& params) {
     for (int j = 0; j < params.dims; j++) {
       float mv = params.max_val;
+      float scale = (range/2) / mv;
       float pj = p[j];
+      // cap if underflow or overflow
       if (pj < -mv) assign(byte_values, j, - range/2 - 1);
       else if (pj > mv) assign(byte_values, j, range/2);
       else {
-        //if (pj < -mv || pj > mv) {
-        //std::cout << pj << " is out of range, should be in [" << -mv << ":" << mv << "] " << std::endl;
-        //abort();
-        //}
-        int32_t v = std::round(pj * (range/2) / mv);
+        int32_t v = std::round(pj * scale); 
         assign(byte_values, j, v);
       }
     }
