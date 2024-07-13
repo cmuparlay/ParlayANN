@@ -101,7 +101,7 @@ struct edgeRange{
     edges[0] = 0;
   }
 
-  void prefetch(){
+  void prefetch() const {
     int l = ((edges[0] + 1) * sizeof(indexType))/64;
     for (int i = 0; i < l; i++)
       __builtin_prefetch((char*) edges.begin() + i *  64);
@@ -111,9 +111,9 @@ struct edgeRange{
   void sort(F&& less){
     std::sort(edges.begin() + 1, edges.begin() + 1 + edges[0], less);}
 
-  indexType* begin(){return edges.begin() + 1;}
+  indexType* begin() const {return edges.begin() + 1;}
 
-  indexType* end(){return edges.end() + 1 + edges[0];}
+  indexType* end() const {return edges.end() + 1 + edges[0];}
 
 private:
   parlay::slice<indexType*, indexType*> edges;
@@ -224,7 +224,7 @@ struct Graph{
     writer.close();
   }
 
-  edgeRange<indexType> operator [] (indexType i) {
+  edgeRange<indexType> operator [] (indexType i) const {
     if (i > n) {
       std::cout << "ERROR: graph index out of range: " << i << std::endl;
       abort();

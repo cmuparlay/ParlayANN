@@ -77,7 +77,7 @@ struct groundTruth{
 
   //saves in binary format
   //assumes gt is not so big that it needs block saving
-  void save(char* save_path){
+  void save(char* save_path) {
     std::cout << "Writing groundtruth for " << n << " points and num results " << dim
               << std::endl;
     parlay::sequence<T> preamble = {static_cast<T>(n), static_cast<T>(dim)};
@@ -89,13 +89,13 @@ struct groundTruth{
     writer.close();
   }
 
-  T coordinates(long i, long j){return *(coords.begin() + i * dim + j);}
+  T coordinates(long i, long j) const {return *(coords.begin() + i * dim + j);}
 
-  float distances(long i, long j){return *(dists.begin() + i * dim + j);}
+  float distances(long i, long j) const {return *(dists.begin() + i * dim + j);}
 
-  size_t size(){return n;}
+  size_t size() const {return n;}
 
-  long dimension(){return dim;}
+  long dimension() const {return dim;}
 
 };
 

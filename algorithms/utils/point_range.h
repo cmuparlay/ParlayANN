@@ -54,7 +54,7 @@ struct PointRange{
   PointRange(const PR& pr, const parameters& p) : params(p)  {
     n = pr.size();
     int num_bytes = p.num_bytes();
-    aligned_bytes =  64 * ((num_bytes - 1)/64 + 1);
+    aligned_bytes = (num_bytes == 32) ? 32 : 64 * ((num_bytes - 1)/64 + 1);
     long total_bytes = n * aligned_bytes;
     byte* ptr = (byte*) aligned_alloc(1l << 21, total_bytes);
     madvise(ptr, total_bytes, MADV_HUGEPAGE);

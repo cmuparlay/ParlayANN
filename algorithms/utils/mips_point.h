@@ -24,6 +24,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <bitset>
 
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
@@ -366,7 +367,6 @@ struct Quantized_Mips_Point{
   
   void prefetch() const {
     int l = (params.num_bytes() - 1)/64 + 1;
-    __builtin_prefetch(values);
     for (int i=0; i < l; i++)
       __builtin_prefetch(values + i * 64);
   }
@@ -419,7 +419,7 @@ struct Quantized_Mips_Point{
       float scale = (range/2) / mv;
       float pj = p[j];
       // cap if underflow or overflow
-      if (pj < -mv) assign(byte_values, j, - range/2 - 1);
+      if (pj < -mv) assign(byte_values, j, - range/2); // - 1);
       else if (pj > mv) assign(byte_values, j, range/2);
       else {
         int32_t v = std::round(pj * scale); 
@@ -487,3 +487,119 @@ private:
   parameters params;
 };
 
+struct Bits_Mips_Point {
+  using distanceType = float;
+  using byte = uint8_t;
+  using word = std::bitset<64>;
+  using T = int8_t;
+  
+  struct parameters {
+    float cut;
+    int dims;
+    int num_bytes() const {return ((dims - 1) / 64 + 1) * 8 * 2;}
+    parameters() : cut(.25), dims(0) {}
+    parameters(int dims) : cut(.25), dims(dims) {}
+    parameters(float cut, int dims)
+      : cut(cut), dims(dims) { }
+  };
+
+  static bool is_metric() {return false;}
+  
+  int operator [] (long i) const {
+    abort();
+  }
+
+  float distance_8(byte* p_, byte* q_) const {
+    word* p = (word*) p_;
+    word* q = (word*) q_;
+    int num_blocks = params.num_bytes() / 16;
+    int16_t total = 0;
+    for (int i = 0; i < num_blocks; i++) {
+      word not_equal = p[2 * i] ^ q[2 * i];
+      word not_zero = p[2 * i + 1] & q[2 * i + 1];
+      int16_t num_neg = (not_equal & not_zero).count();
+      int16_t num_not_zero = not_zero.count();
+      total += (2 * num_neg) - num_not_zero;
+    }
+    return total;
+  }
+
+  float distance(const Bits_Mips_Point &x) const {
+    return distance_8(this->values, x.values);
+  }
+  
+  void prefetch() const {
+    int l = (params.num_bytes() - 1)/64 + 1;
+    for (int i=0; i < l; i++)
+      __builtin_prefetch(values + i * 64);
+  }
+
+  bool same_as(const Bits_Mips_Point& q){
+    return values == q.values;
+  }
+
+  long id() const {return id_;}
+
+  Bits_Mips_Point(byte* values, long id, parameters p)
+    : values(values), id_(id), params(p)
+  {}
+
+  bool operator==(const Bits_Mips_Point &q) const {
+    for (int i = 0; i < params.num_bytes(); i++) {
+      if (values[i] != q.values[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  void normalize() {
+    std::cout << "can't normalize quantized point" << std::endl;
+    abort();
+  }
+  
+  template <typename Point>
+  static void translate_point(byte* byte_values, const Point& p, const parameters& params) {
+    // two words per block, one for -1, +1, the other to mark if non-zero
+    int num_blocks = params.num_bytes() / 16;
+    word* words = (word*) byte_values;
+    float cv = params.cut;
+    for (int i = 0; i < num_blocks; i++) {
+      for (int j = 0; j < 64; j++) {
+        if (j + i * 64 >= params.dims) {
+          words[2 * i + 1][j] = false;
+          return;
+        }
+        words[2 * i + 1][j] = true;
+        float pj = p[j + i * 64];
+        if (pj < -cv) words[2 * i][j] = false;
+        else if (pj > cv) words[2 * i][j] = true;
+        else words[2 * i + 1][j] = false;
+      }
+    }
+  }
+  
+  template <typename PR>
+  static parameters generate_parameters(const PR& pr) {
+    long n = pr.size();
+    int dims = pr.dimension();
+    long len = n * dims;
+    parlay::sequence<typename PR::T> vals(len);
+    parlay::parallel_for(0, n, [&] (long i) {
+      for (int j = 0; j < dims; j++) 
+        vals[i * dims + j] = pr[i][j];
+    });
+    parlay::sort_inplace(vals);
+    float cutoff = .3;
+    float min_cut = vals[(long) (cutoff * len)];
+    float max_cut = vals[(long) ((1.0-cutoff) * (len-1))];
+    float cut = std::max(max_cut, -min_cut);
+    std::cout << "3-value quantized with cut = " << cut << std::endl;
+    return parameters(cut, dims); 
+  }
+
+private:
+  byte* values;
+  long id_;
+  parameters params;
+};
