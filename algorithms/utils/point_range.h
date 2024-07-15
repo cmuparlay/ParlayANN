@@ -93,6 +93,20 @@ struct PointRange{
       }
   }
 
+  template <typename T, class Point, typename Seq>
+  PointRange(Seq& data, unsigned _d)
+      : values(std::shared_ptr<T[]>(nullptr, std::free)),
+        n(data.size()),
+        d(_d) {
+    aligned_dims = dim_round_up(dims, sizeof(T));
+    values = std::shared_ptr<T[]>(
+        (T*)aligned_alloc(64, n * aligned_dims * sizeof(T)), std::free);
+    int data_bytes = dims * sizeof(T);
+    parallel_for(0, n, [&](size_t i) {
+      std::memcpy(values.get() + i * aligned_dims, data[i].begin(), data_bytes);
+    });
+  }
+
   size_t size() const { return n; }
 
   unsigned int get_dims() const { return dims; }
