@@ -205,11 +205,11 @@ beam_search_impl(const Point p, const GT &G, const PointRange &Points,
 // main beam search
 template<typename indexType, typename Point, typename PointRange, typename QPoint, typename QPointRange, class GT>
 std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>, parlay::sequence<std::pair<indexType, typename Point::distanceType>>>, size_t>
-beam_search_prune(GT &G,
-                  Point p,  PointRange &Points,
-                  QPoint qp,  QPointRange &Q_Points,
-                  parlay::sequence<indexType> starting_points,
-                  QueryParams &QP,
+beam_search_prune(const GT &G,
+                  const Point p,  const PointRange &Points,
+                  const QPoint qp, const QPointRange &Q_Points,
+                  const parlay::sequence<indexType> starting_points,
+                  const QueryParams &QP,
                   typename Point::distanceType dd = 0.0
                   ) {
   if (starting_points.size() == 0) {
@@ -256,6 +256,7 @@ beam_search_prune(GT &G,
 
   // counters
   size_t dist_cmps = starting_points.size();
+  size_t full_dist_cmps = starting_points.size();
   int remain = 1;
   int num_visited = 0;
   double total;
@@ -291,6 +292,7 @@ beam_search_prune(GT &G,
       float sum = 0.0;
       for (auto x : dx) sum += x;
       dd = sum/dx.size();
+      dd = sum/dx.size();
       if (dx.size() == 12) ok = false;
     }
 
@@ -310,8 +312,9 @@ beam_search_prune(GT &G,
     }
 
     for (auto a : pruned) {
-      if (frontier_full && Q_Points[a].distance(qp) >= dd) continue;
       dist_cmps++;
+      if (frontier_full && Q_Points[a].distance(qp) >= dd) continue;
+      full_dist_cmps++;
       keep.push_back(a);
       Points[a].prefetch();
     }
@@ -368,7 +371,7 @@ beam_search_prune(GT &G,
 
   return std::make_pair(std::make_pair(parlay::to_sequence(frontier),
                                        parlay::to_sequence(visited)),
-                        dist_cmps);
+                        full_dist_cmps);
 }
 
 // a range search that first finds a close point using a beam search,
@@ -539,7 +542,13 @@ beam_search_rerank(const Point &p,
   int exp_factor = 2; // only check exp_factor * k of them
 
   // beam search with quantized points
-  auto [pairElts, dist_cmps] = beam_search_prune(G, pq, Q_Base_Points, pqq, QQ_Base_Points, starting_points, QPP);
+  std::pair<parlay::sequence<id_dist>, parlay::sequence<id_dist>> pairElts;
+  size_t dist_cmps;
+
+  if (Q_Base_Points.params.num_bytes() == QQ_Base_Points.params.num_bytes())
+    std::tie(pairElts, dist_cmps) = beam_search(pq, G, Q_Base_Points, starting_points, QP);
+  else
+    std::tie(pairElts, dist_cmps) = beam_search_prune(G, pq, Q_Base_Points, pqq, QQ_Base_Points, starting_points, QPP);
 
   auto [beamElts, visitedElts] = pairElts;
 
@@ -562,7 +571,7 @@ beam_search_rerank(const Point &p,
 
   if (stats) {
     QueryStats.increment_visited(p.id(), visitedElts.size());
-    QueryStats.increment_dist(p.id(), dist_cmps + num_check);
+    QueryStats.increment_dist(p.id(), dist_cmps);
   }
 
   return results;

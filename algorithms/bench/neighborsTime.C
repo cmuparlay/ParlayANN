@@ -111,7 +111,7 @@ int main(int argc, char* argv[]) {
   if(delta<0) P.badArgument();
   char* dfc = P.getOptionValue("-dist_func");
   int quantize = P.getOptionIntValue("-quantize", 0);
-  bool quantize_build = P.getOption("-quantize_build");
+  int quantize_build = P.getOptionIntValue("-quantize_build", 0);
   bool verbose = P.getOption("-verbose");
   bool normalize = P.getOption("-normalize");
   double trim = P.getOptionDoubleValue("-trim", 0.0);

@@ -126,7 +126,7 @@ struct JL_Point_Bits{
   
   int8_t operator [] (long j) const {
     Data* pbits = (Data*) values;
-    return pbits[j] ? 1 : -1;}
+    return (*pbits)[j] ? 1 : -1;}
 
   float distance(const JL_Point_Bits &q) const {
     Data* pbits = (Data*) values;
@@ -191,3 +191,185 @@ private:
   //const parameters* params;
 };
 
+template <int jl_dims>
+struct JL_Point_Bits_{
+  //constexpr static int jl_dims = 256;
+  using distanceType = float;
+  using Data = std::bitset<jl_dims>;
+  using byte = uint8_t;
+  
+  struct parameters {
+    int source_dims;
+    int num_bytes() const {return sizeof(Data);}
+    parameters() : source_dims(0) {}
+    //parameters(int dims) : source_dims(dims) {}
+    parameters(int source_dims)
+      : source_dims(source_dims) {
+      std::cout << "creating params: " << sizeof(Data) << std::endl;
+    }
+  };
+  
+  static bool is_metric() {return false;}
+  
+  int8_t operator [] (long j) const {
+    Data* pbits = (Data*) values;
+    return (*pbits)[j] ? 1 : -1;}
+
+  float distance(const JL_Point_Bits_ &q) const {
+    Data* pbits = (Data*) values;
+    Data* qbits = (Data*) q.values;
+    return (*pbits ^ *qbits).count();
+  }
+
+  void prefetch() const {
+    int l = (sizeof(Data) - 1)/64 + 1;
+    for (int i=0; i < l; i++)
+      __builtin_prefetch((char*) values + i* 64);
+  }
+    
+  bool same_as(const JL_Point_Bits_& q){
+    return &q == this;
+  }
+
+  long id() const {return id_;}
+
+  JL_Point_Bits_(byte* values, long id, const parameters& p)
+    : values(values), id_(id) {}
+
+  bool operator==(const JL_Point_Bits_ &q) const {
+    Data* pbits = (Data*) values;
+    Data* qbits = (Data*) q.values;
+    return *pbits == *qbits; }
+
+  void normalize() {
+    std::cout << "can't normalize quantized point" << std::endl;
+    abort();
+  }
+
+  template <typename In_Point>
+  static void translate_point(byte* values, const In_Point& p, const parameters& params) {
+    Data* bits = new (values) Data;
+    int d = params.source_dims;
+    int offset = 0;
+    unsigned int stride = 17;
+    int cnt = 1;
+    for (int i = 0; i < jl_dims; i++) {
+      double vv = 0.0;
+      if (offset % d == 0) 
+        cnt++;
+      for (int j = 0; j < cnt; j++) {
+        int sign = (parlay::hash64_2(j*i) & 1) ? -1 : 1;
+        vv += p[(offset + (j * stride)) % d] * sign;
+      }
+      stride = stride * stride;
+      (*bits)[i] = (vv > 0);
+      offset++;
+      //(*bits)[i] = (p[i] > 0);
+    }
+  }
+
+  template <typename PR>
+  static parameters generate_parameters(const PR& pr) {
+    return parameters(pr.dimension());
+  }
+
+private:
+  byte* values;
+  long id_;
+  //const parameters* params;
+};
+
+template <int jl_dims>
+struct JL_Point_Bits__{
+  using distanceType = float;
+  using Data = std::bitset<jl_dims>;
+  using byte = uint8_t;
+  constexpr static int nz = 4; // number of non_zeros per row
+  
+  struct parameters {
+    std::vector<int8_t> JL_signs;
+    std::vector<int> JL_indices;
+    int source_dims;
+    int num_bytes() const {return sizeof(Data);}
+    parameters() : source_dims(0) {}
+    parameters(int dims) : source_dims(dims) {}
+    parameters(std::vector<int8_t> const& JL_signs,
+               std::vector<int> const& JL_indices,
+               int source_dims)
+      : JL_signs(JL_signs), JL_indices(JL_indices), source_dims(source_dims) {
+      std::cout << "creating params: " << sizeof(Data) << std::endl;
+    }
+  };
+  
+  static bool is_metric() {return false;}
+  
+  int8_t operator [] (long j) const {
+    Data* pbits = (Data*) values;
+    return (*pbits)[j] ? 1 : -1;}
+
+  float distance(const JL_Point_Bits__ &q) const {
+    Data* pbits = (Data*) values;
+    Data* qbits = (Data*) q.values;
+    return (*pbits ^ *qbits).count();
+  }
+
+  void prefetch() const {
+    int l = (sizeof(Data) - 1)/64 + 1;
+    for (int i=0; i < l; i++)
+      __builtin_prefetch((char*) values + i* 64);
+  }
+    
+  bool same_as(const JL_Point_Bits__& q){
+    return &q == this;
+  }
+
+  long id() const {return id_;}
+
+  JL_Point_Bits__(byte* values, long id, const parameters& p)
+    : values(values), id_(id) {}
+
+  bool operator==(const JL_Point_Bits__ &q) const {
+    Data* pbits = (Data*) values;
+    Data* qbits = (Data*) q.values;
+    return *pbits == *qbits; }
+
+  void normalize() {
+    std::cout << "can't normalize quantized point" << std::endl;
+    abort();
+  }
+
+  template <typename In_Point>
+  static void translate_point(byte* values, const In_Point& p, const parameters& params) {
+    Data* bits = new (values) Data;
+    const std::vector<int8_t>& jls = params.JL_signs;
+    const std::vector<int>& jli = params.JL_indices;
+    double nn = 0.0;
+    for (int i = 0; i < jl_dims; i++) {
+      double vv = 0.0;
+      for (int j = 0; j < nz; j++) 
+        vv += (float) p[jli[i * nz + j]] * jls[i * nz + j];
+      (*bits)[i] = (vv > 0);
+    }
+  }
+
+  template <typename PR>
+  static parameters generate_parameters(const PR& pr) {
+    long n = pr.size();
+    int source_dims = pr.dimension();
+    std::vector<int8_t> JL_signs(jl_dims * nz);
+    std::vector<int> JL_indices(jl_dims * nz);
+    std::mt19937 rng;
+    std::uniform_int_distribution<std::mt19937::result_type> dist_s(0,1);
+    std::uniform_int_distribution<std::mt19937::result_type> dist_i(0,source_dims);
+    for (int i = 0; i < jl_dims * nz; i++) {
+      JL_signs[i] = (dist_s(rng) == 0) ? -1 : 1;
+      JL_indices[i] = dist_i(rng);
+    }
+    return parameters(JL_signs, JL_indices, source_dims);
+  }
+
+private:
+  byte* values;
+  long id_;
+  //const parameters* params;
+};

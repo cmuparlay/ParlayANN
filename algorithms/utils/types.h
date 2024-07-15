@@ -160,7 +160,7 @@ struct BuildParams{
 
   bool verbose;
 
-  bool quantize; // use quantization for build
+  int quantize = 0; // use quantization for build and query (0 = none, 1 = one-level, 2 = two-level)
   double radius; // for radius search
   double radius_2; // for radius search
   double trim = 0.0; // for quantization
@@ -171,7 +171,7 @@ struct BuildParams{
   std::string alg_type;
 
   BuildParams(long R, long L, double a, int num_passes, long nc, long cs, long mst, double de,
-              bool verbose = false, bool quantize = false, double radius = 0.0, double radius_2 = 0.0,
+              bool verbose = false, int quantize = 0, double radius = 0.0, double radius_2 = 0.0,
               bool self = false, bool range = false, int single_batch = 0, long Q = 0, double trim = 0.0)
     : R(R), L(L), alpha(a), num_passes(num_passes), num_clusters(nc), cluster_size(cs), MST_deg(mst), delta(de),
       verbose(verbose), quantize(quantize), radius(radius), radius_2(radius_2), self(self), range(range), single_batch(single_batch), Q(Q), trim(trim) {

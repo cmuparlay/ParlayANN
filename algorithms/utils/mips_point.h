@@ -25,6 +25,7 @@
 #include <algorithm>
 #include <iostream>
 #include <bitset>
+#include <bit>
 
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
@@ -491,7 +492,18 @@ struct Bits_Mips_Point {
   using distanceType = float;
   using byte = uint8_t;
   using word = std::bitset<64>;
+  //using word = uint64_t; 
   using T = int8_t;
+
+  static int pop_count(word x) {
+    return x.count();
+    //return __builtin_popcountl(x);
+  }
+
+  static void set_bit(word& x, int i, bool v) {
+    x[i] = v;
+    //x = (~(1ul << i) & x) | ((uint64_t) v << i);
+  }
   
   struct parameters {
     float cut;
@@ -517,8 +529,8 @@ struct Bits_Mips_Point {
     for (int i = 0; i < num_blocks; i++) {
       word not_equal = p[2 * i] ^ q[2 * i];
       word not_zero = p[2 * i + 1] & q[2 * i + 1];
-      int16_t num_neg = (not_equal & not_zero).count();
-      int16_t num_not_zero = not_zero.count();
+      int16_t num_neg = pop_count(not_equal & not_zero);
+      int16_t num_not_zero = pop_count(not_zero);
       total += (2 * num_neg) - num_not_zero;
     }
     return total;
@@ -567,14 +579,14 @@ struct Bits_Mips_Point {
     for (int i = 0; i < num_blocks; i++) {
       for (int j = 0; j < 64; j++) {
         if (j + i * 64 >= params.dims) {
-          words[2 * i + 1][j] = false;
+          set_bit(words[2 * i + 1], j, false);
           return;
         }
-        words[2 * i + 1][j] = true;
+        set_bit(words[2 * i + 1], j, true);
         float pj = p[j + i * 64];
-        if (pj < -cv) words[2 * i][j] = false;
-        else if (pj > cv) words[2 * i][j] = true;
-        else words[2 * i + 1][j] = false;
+        if (pj < -cv) set_bit(words[2 * i], j, false);
+        else if (pj > cv) set_bit(words[2 * i], j, true);
+        else set_bit(words[2 * i + 1], j, false);
       }
     }
   }
