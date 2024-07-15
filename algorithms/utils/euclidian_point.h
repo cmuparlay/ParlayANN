@@ -101,10 +101,6 @@ struct Euclidian_Point {
     return values == q.values;
   }
 
-  unsigned int get_dims() {
-    return d;
-  }
-
 
 private:
   const T* values;

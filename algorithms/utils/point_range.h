@@ -93,7 +93,7 @@ struct PointRange{
       }
   }
 
-  template <typename T, class Point, typename Seq>
+  template <typename Seq>
   PointRange(Seq& data, unsigned _d)
       : values(std::shared_ptr<T[]>(nullptr, std::free)),
         n(data.size()),
