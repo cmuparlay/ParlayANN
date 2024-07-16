@@ -112,6 +112,8 @@ struct PointRange{
   size_t size() const { return n; }
 
   unsigned int get_dims() const { return dims; }
+
+  unsigned int get_aligned_dims() const { return aligned_dims; }
   
   Point operator [] (long i) const {
     return Point(values.get()+i*aligned_dims, dims, aligned_dims, i);
