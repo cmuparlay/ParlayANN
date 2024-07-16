@@ -27,6 +27,7 @@
 #include "../algorithms/utils/graph.h"
 #include "../algorithms/utils/euclidian_point.h"
 #include "../algorithms/utils/mips_point.h"
+#include "../algorithms/utils/jl_point.h"
 #include "../algorithms/utils/stats.h"
 #include "../algorithms/utils/beamSearch.h"
 #include "../algorithms/HNSW/HNSW.hpp"
@@ -58,6 +59,10 @@ struct GraphIndex{
   using MQuantPoint = Quantized_Mips_Point<8>;
   using MQuantRange = PointRange<MQuantT, MQuantPoint>;
   MQuantRange MQuant_Points;
+  using MQQuantPoint = Mips_2Bit_Point;
+  //using MQQuantPoint = Mips_JL_Sparse_Point<512>;
+  using MQQuantRange = PointRange<MQuantT, MQQuantPoint>;
+  MQQuantRange MQQuant_Points;
   
   bool use_quantization;
 
@@ -75,6 +80,8 @@ struct GraphIndex{
         for (int i=0; i < Points.size(); i++) 
           Points[i].normalize();
         MQuant_Points = MQuantRange(Points);
+        if (Points.dimension() > 200)
+          MQQuant_Points = MQQuantRange(Points);
       }
     }
 
@@ -128,8 +135,8 @@ struct GraphIndex{
         } else {
           EQuantPoint::translate_point(buffer, q, EQuant_Points.params);
           EQuantPoint quant_q(buffer, 0, EQuant_Points.params);
-          return beam_search_rerank(q, quant_q, G,
-                                    Points, EQuant_Points,
+          return beam_search_rerank(q, quant_q, quant_q, G,
+                                    Points, EQuant_Points, EQuant_Points,
                                     Qstats, starts, QP, false);
         }
       } else {
@@ -138,9 +145,18 @@ struct GraphIndex{
         q.normalize();
         MQuantPoint::translate_point(buffer, q, MQuant_Points.params);
         MQuantPoint quant_q(buffer, 0, MQuant_Points.params);
-        return beam_search_rerank(q, quant_q, G,
-                                  Points, MQuant_Points,
-                                  Qstats, starts, QP, false);
+        if (Points.dimension() > 200) {
+          uint8_t buffer_2[dim];
+          MQQuantPoint::translate_point(buffer_2, q, MQQuant_Points.params);
+          MQQuantPoint quant_qq(buffer_2, 0, MQQuant_Points.params);
+          return beam_search_rerank(q, quant_q, quant_qq, G,
+                                    Points, MQuant_Points, MQQuant_Points,
+                                    Qstats, starts, QP, false);
+        } else {
+          return beam_search_rerank(q, quant_q, quant_q, G,
+                                    Points, MQuant_Points, MQuant_Points,
+                                    Qstats, starts, QP, false);
+        }
       }
     } else {
       return beam_search(q, G, Points, starts, QP).first.first;

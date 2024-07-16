@@ -24,6 +24,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <bitset>
 
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
