@@ -120,12 +120,15 @@ beam_search_impl(const Point p, const GT &G, const PointRange &Points,
   std::vector<indexType> keep;
   keep.reserve(G.max_degree());
 
+  // offset into the unvisited_frontier vector (unvisited_frontier[offset] is the next to visit)
+  int offset = 0;
+
   // The main loop.  Terminate beam search when the entire frontier
   // has been visited or have reached max_visit.
-  while (remain > 0 && num_visited < QP.limit) {
+  while (remain > offset && num_visited < QP.limit) {
     // the next node to visit is the unvisited frontier node that is closest to
     // p
-    std::pair<indexType, distanceType> current = unvisited_frontier[0];
+    std::pair<indexType, distanceType> current = unvisited_frontier[offset];
     G[current.first].prefetch();
     // add to visited set
     auto position = std::upper_bound(visited.begin(), visited.end(), current, less);
@@ -159,6 +162,12 @@ beam_search_impl(const Point p, const GT &G, const PointRange &Points,
       candidates.push_back(std::pair{a, dist});
     }
 
+    if (candidates.size() == 0) {
+      offset++;
+      continue;
+    }
+    offset = 0;
+    
     // sort the candidates by distance from p,
     // and remove any duplicates (to be robust for neighbor lists with duplicates)
     std::sort(candidates.begin(), candidates.end(), less);
@@ -274,12 +283,15 @@ beam_search_prune(const GT &G,
   bool ok = true;
   if (dd != 0.0) ok = false;
 
+  // offset into the unvisited_frontier vector (unvisited_frontier[offset] is the next to visit)
+  int offset = 0;
+
   // The main loop.  Terminate beam search when the entire frontier
   // has been visited or have reached max_visit.
-  while (remain > 0 && num_visited < QP.limit) {
+  while (remain > offset && num_visited < QP.limit) {
     // the next node to visit is the unvisited frontier node that is closest to
     // p
-    std::pair<indexType, distanceType> current = unvisited_frontier[0];
+    std::pair<indexType, distanceType> current = unvisited_frontier[offset];
     G[current.first].prefetch();
     // add to visited set
     auto position = std::upper_bound(visited.begin(), visited.end(), current, less);
@@ -330,6 +342,12 @@ beam_search_prune(const GT &G,
       if (dist >= cutoff) continue;
       candidates.push_back(std::pair{a, dist});
     }
+
+    if (candidates.size() == 0) {
+      offset++;
+      continue;
+    }
+    offset = 0;
 
     // sort the candidates by distance from p,
     // and remove any duplicates (to be robust for neighbor lists with duplicates)
