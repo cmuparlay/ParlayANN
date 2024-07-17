@@ -109,6 +109,12 @@ struct PointRange{
     });
   }
 
+  PointRange(size_t n, unsigned dims) : n(n), dims(dims) {
+    aligned_dims = dim_round_up(dims, sizeof(T));
+    values = std::shared_ptr<T[]>(
+        (T*)aligned_alloc(64, n * aligned_dims * sizeof(T)), std::free);
+  }
+
   size_t size() const { return n; }
 
   unsigned int get_dims() const { return dims; }
@@ -117,6 +123,10 @@ struct PointRange{
   
   Point operator [] (long i) const {
     return Point(values.get()+i*aligned_dims, dims, aligned_dims, i);
+  }
+
+  Point operator[](long i) {
+    return Point(values.get() + i * aligned_dims, dims, aligned_dims, i);
   }
 
 private:
