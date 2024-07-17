@@ -333,11 +333,12 @@ struct Euclidean_Bit_Point {
   
   struct parameters {
     int dims;
+    long median;
     int num_bytes() const {return ((dims - 1) / 64 + 1) * 8;}
     parameters() : dims(0) {}
-    parameters(int dims)
-      : dims(dims) {
-      std::cout << "single-bit quantization" << std::endl;
+    parameters(int dims, long median)
+      : dims(dims), median(median) {
+      std::cout << "single-bit quantization with median: " << median << std::endl;
     }
   };
   
@@ -389,10 +390,9 @@ struct Euclidean_Bit_Point {
 
   template <typename In_Point>
   static void translate_point(byte* values, const In_Point& p, const parameters& params) {
-    int range = (1 << 16) - 1;
     Data* pbits = (Data*) values;
     for (int i = 0; i < params.dims; i++)
-      pbits[i/64][i%64] = p[i] > 2600;
+      pbits[i/64][i%64] = p[i] > params.median;
   }
 
   template <typename PR>
@@ -400,15 +400,14 @@ struct Euclidean_Bit_Point {
     long n = pr.size();
     int dims = pr.dimension();
     long len = n * dims;
-    // parlay::sequence<typename PR::T> vals(len);
-    // parlay::parallel_for(0, n, [&] (long i) {
-    //   for (int j = 0; j < dims; j++) 
-    //     vals[i * dims + j] = pr[i][j];
-    // });
-    // parlay::sort_inplace(vals);
-    // std::cout << "average point: " << vals[n*dims/2] << std::endl;
-
-    return parameters(dims);
+    parlay::sequence<typename PR::T> vals(len);
+    parlay::parallel_for(0, n, [&] (long i) {
+      for (int j = 0; j < dims; j++) 
+        vals[i * dims + j] = pr[i][j];
+    });
+    parlay::sort_inplace(vals);
+    long median = vals[n*dims/2];
+    return parameters(dims, median);
   }
 
 private:

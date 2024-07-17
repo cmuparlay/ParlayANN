@@ -278,8 +278,9 @@ beam_search_prune(const GT &G,
   keep.reserve(G.max_degree());
   std::vector<indexType> pruned;
   pruned.reserve(G.max_degree());
-  std::vector<float> dx;
-  dx.reserve(20);
+
+  float threshold_sum = 0.0;
+  int threshold_count = 0;
   bool ok = true;
   if (dd != 0.0) ok = false;
 
@@ -299,13 +300,13 @@ beam_search_prune(const GT &G,
     num_visited++;
     bool frontier_full = frontier.size() == QP.beamSize;
 
+    // keep track of average distance to furthest point in the frotier
+    // this is used as the filtering threshold
     if (frontier_full && ok) {
-      dx.push_back(Q_Points[frontier.back().first].distance(qp));
-      float sum = 0.0;
-      for (auto x : dx) sum += x;
-      dd = sum/dx.size();
-      dd = sum/dx.size();
-      if (dx.size() == 12) ok = false;
+      threshold_sum += Q_Points[frontier.back().first].distance(qp);
+      threshold_count++;
+      dd = threshold_sum/threshold_count;
+      //if (threshold_count == 12) ok = false;
     }
 
     // keep neighbors that have not been visited (using approximate

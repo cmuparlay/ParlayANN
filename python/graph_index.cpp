@@ -54,11 +54,16 @@ struct GraphIndex{
   using EQuantRange = PointRange<EQuantT, EQuantPoint>;
   EQuantRange EQuant_Points;
 
+  using EQQuantPoint = Euclidean_JL_Sparse_Point<512>;
+  using EQQuantRange = PointRange<EQuantT, EQQuantPoint>;
+  EQQuantRange EQQuant_Points;
+
   // mips or angular quantized points
   using MQuantT = int8_t;
   using MQuantPoint = Quantized_Mips_Point<8>;
   using MQuantRange = PointRange<MQuantT, MQuantPoint>;
   MQuantRange MQuant_Points;
+
   using MQQuantPoint = Mips_2Bit_Point;
   //using MQQuantPoint = Mips_JL_Sparse_Point<512>;
   using MQQuantRange = PointRange<MQuantT, MQQuantPoint>;
@@ -80,6 +85,7 @@ struct GraphIndex{
         for (int i=0; i < Points.size(); i++) 
           Points[i].normalize();
         MQuant_Points = MQuantRange(Points);
+        // only double quantize for high dimensionality
         if (Points.dimension() > 200)
           MQQuant_Points = MQQuantRange(Points);
       }
@@ -135,9 +141,17 @@ struct GraphIndex{
         } else {
           EQuantPoint::translate_point(buffer, q, EQuant_Points.params);
           EQuantPoint quant_q(buffer, 0, EQuant_Points.params);
-          return beam_search_rerank(q, quant_q, quant_q, G,
-                                    Points, EQuant_Points, EQuant_Points,
-                                    Qstats, starts, QP, false);
+          if (Points.dimension() > 800) {
+            uint8_t buffer_2[dim];
+            EQQuantPoint::translate_point(buffer_2, q, EQQuant_Points.params);
+            EQQuantPoint quant_qq(buffer_2, 0, EQQuant_Points.params);
+            return beam_search_rerank(q, quant_q, quant_qq, G,
+                                      Points, EQuant_Points, EQQuant_Points,
+                                      Qstats, starts, QP, false);
+          } else // don't use second level quantization
+            return beam_search_rerank(q, quant_q, quant_q, G,
+                                      Points, EQuant_Points, EQuant_Points,
+                                      Qstats, starts, QP, false);
         }
       } else {
         //typename MQuantPoint::T buffer[dim];

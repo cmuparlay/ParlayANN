@@ -124,8 +124,13 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
       if (BP.quantize == 1) {
         ANN_<Point, PointRange_, QPR, QPR, indexType>(G, k, BP, Query_Points, Q_Query_Points, Q_Query_Points, GT, res_file, graph_built, Points, Q_Points, Q_Points);
       } else if (BP.quantize == 2) {
-       using QQPoint = Euclidean_JL_Sparse_Point<512>;
-       //using QQPoint = Euclidean_Bit_Point;
+       using QQPoint = Euclidean_Bit_Point;
+       using QQPR = PointRange<QT, QQPoint>;
+       QQPR QQ_Points(Points); 
+       QQPR QQ_Query_Points(Query_Points, QQ_Points.params);
+       ANN_<Point, PointRange_, QPR, QQPR, indexType>(G, k, BP, Query_Points, Q_Query_Points, QQ_Query_Points, GT, res_file, graph_built, Points, Q_Points, QQ_Points);
+      } else if (BP.quantize == 3) {
+       using QQPoint = Euclidean_JL_Sparse_Point<1024>;
        using QQPR = PointRange<QT, QQPoint>;
        QQPR QQ_Points(Points); 
        QQPR QQ_Query_Points(Query_Points, QQ_Points.params);
