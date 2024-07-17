@@ -81,6 +81,8 @@ struct GraphIndex{
       use_quantization = true;
       if (Point::is_metric()) {
         EQuant_Points = EQuantRange(Points);
+        if (Points.dimension() > 800)
+          EQQuant_Points = EQQuantRange(Points);
       } else {
         for (int i=0; i < Points.size(); i++) 
           Points[i].normalize();
