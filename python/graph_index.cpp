@@ -54,7 +54,7 @@ struct GraphIndex{
   using EQuantRange = PointRange<EQuantT, EQuantPoint>;
   EQuantRange EQuant_Points;
 
-  using EQQuantPoint = Euclidean_JL_Sparse_Point<512>;
+  using EQQuantPoint = Euclidean_JL_Sparse_Point<1024>;
   using EQQuantRange = PointRange<EQuantT, EQQuantPoint>;
   EQQuantRange EQQuant_Points;
 
