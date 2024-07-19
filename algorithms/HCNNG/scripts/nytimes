@@ -1,0 +1,3 @@
+# bash
+
+numactl -i all ./neighbors -cluster_size 1000 -mst_deg 3 -num_clusters 30 -data_type float -file_type bin -dist_func mips -base_path data/nytimes-256-angular/nytimes-256-angular_base.fbin -query_path data/nytimes-256-angular/nytimes-256-angular_query.fbin -gt_path data/nytimes-256-angular/nytimes-256-angular_groundtruth -quantize 16 -normalize -verbose -graph_outfile data/nytimes-256-angular/graph_hcnng_1000_3_30

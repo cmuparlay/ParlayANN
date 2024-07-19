@@ -39,52 +39,54 @@ void build_vamana_index(std::string metric, std::string &vector_bin_path,
   //use file parsers to create Point object
 
   using Range = PointRange<T, Point>;
-  Range Points = Range(vector_bin_path.data());
+  Range* Points = new Range(vector_bin_path.data());
   if (!Point::is_metric()) { // normalize) {
     std::cout << "normalizing" << std::endl;
-    for (int i=0; i < Points.size(); i++) 
-      Points[i].normalize();
-    if (Points.dimension() <= 200)
+    for (int i=0; i < Points->size(); i++) 
+      (*Points)[i].normalize();
+    if (Points->dimension() <= 200)
       alpha = 0.98;
   }
 
-  //instantiate build params object
+  //instantiate build params and stats objects
   BuildParams BP(graph_degree, beam_width, alpha, two_pass ? 2 : 1);
-  
-  //use max degree info to create Graph object
-  Graph<unsigned int> G = Graph<unsigned int>(graph_degree, Points.size());
-  stats<unsigned int> BuildStats(G.size());
+  stats<unsigned int> BuildStats(Points->size());
 
   if (sizeof(typename Range::T) > 1) {
     if (Point::is_metric()) {
       using QuantT = uint8_t;
       using QuantPoint = Euclidian_Point<QuantT>;
       using QuantRange = PointRange<QuantT, QuantPoint>;
-      QuantRange Quant_Points(Points);  // quantized to one byte
+      QuantRange Quant_Points(*Points);  // quantized to one byte
+      delete Points; // remove original points
+      Graph<unsigned int> G = Graph<unsigned int>(graph_degree, Points->size());
 
       //call the build function
       using index = knn_index<QuantRange, unsigned int>;
       index I(BP);
       I.build_index(G, Quant_Points, BuildStats);
+      G.save(index_output_path.data());
     } else {
       using QuantT = int8_t;
       using QuantPoint = Quantized_Mips_Point<8, true>;
       using QuantRange = PointRange<QuantT, QuantPoint>;
-      QuantRange Quant_Points(Points);  // quantized to one byte
+      QuantRange Quant_Points(*Points);  // quantized to one byte
+      delete Points;  // remove original points
+      Graph<unsigned int> G = Graph<unsigned int>(graph_degree, Points->size());
 
       //call the build function
       using index = knn_index<QuantRange, unsigned int>;
       index I(BP);
       I.build_index(G, Quant_Points, BuildStats);
+      G.save(index_output_path.data());
     }
   } else {
+    Graph<unsigned int> G = Graph<unsigned int>(graph_degree, Points->size());
     using index = knn_index<PointRange<T, Point>, unsigned int>;
     index I(BP);
-    I.build_index(G, Points, BuildStats);
+    I.build_index(G, *Points, BuildStats);
+    G.save(index_output_path.data());
   } 
-
-  //save the graph object
-  G.save(index_output_path.data());
 }
 
 template void build_vamana_index<float, Euclidian_Point<float>>(std::string , std::string &, std::string &, uint32_t, uint32_t,

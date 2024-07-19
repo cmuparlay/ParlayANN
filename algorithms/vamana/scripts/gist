@@ -1,14 +1,13 @@
 # bash
-NAME=glove-100-angular
-BUILD_ARGS="-R 130 -L 260 -alpha .98 -num_passes 2 -quantize 8 -verbose"
-QUERY_ARGS="-quantize -quantize_build 1 16 -verbose"
-TYPE_ARGS="-data_type float -dist_func mips -normalize -file_type bin"
+BUILD_ARGS="-R 100 -L 200 -alpha 1.1 -num_passes 2 -quantize 8 -verbose"
+QUERY_ARGS="-quantize 16 -quantize_build 3 -verbose"
+TYPE_ARGS="-data_type float -dist_func Euclidian -file_type bin"
 
-PATH=data/$NAME
+PATH=data/gist
 DATA_FILE=$PATH/base.fbin
 QUERY_FILE=$PATH/query.fbin
 GROUNDTRUTH_FILE=$PATH/groundtruth
-GRAPH_FILE=$PATH/graphs/graph_130_98
+GRAPH_FILE=$PATH/graphs/graph_100_1.1
 
 # build
 # ./neighbors $BUILD_ARGS $TYPE_ARGS -base_path $DATA_FILE -graph_outfile $GRAPH_FILE

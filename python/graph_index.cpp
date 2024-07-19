@@ -212,7 +212,7 @@ struct GraphIndex{
     QueryParams QP(knn, beam_width, 1.35, visit_limit, std::min<int>(G.max_degree(), 3*visit_limit));
     int dims = Points.dimension();
 
-    py::array_t<unsigned int> ids({knn});
+    py::array_t<unsigned int> ids({(long) knn});
     auto pp = q.mutable_unchecked();
     T v[dims];
     for (int j=0; j < dims; j++)

@@ -76,7 +76,10 @@ struct PointRange{
         return;
       }
       std::ifstream reader(filename);
-      assert(reader.is_open());
+      if (!reader.is_open()) {
+        std::cout << "Data file " << filename << " not found" << std::endl;
+        std::abort();
+      }
 
       //read num points and max degree
       unsigned int num_points;

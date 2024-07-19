@@ -50,7 +50,8 @@ struct groundTruth{
       int num_vectors = *((T*) fileptr);
       int d = *((T*) (fileptr + 4));
 
-      std::cout << "Detected " << num_vectors << " points with num results " << d << std::endl;
+      
+      std::cout << "Groundtruth: detected " << num_vectors << " points with num results " << d << std::endl;
 
       T* start_coords = (T*)(fileptr+8);
       T* end_coords = start_coords + d*num_vectors;

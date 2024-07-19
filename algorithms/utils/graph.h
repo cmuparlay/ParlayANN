@@ -121,8 +121,10 @@ private:
   indexType id_;
 };
 
-template<typename indexType>
+template<typename indexType_>
 struct Graph{
+  using indexType = indexType_;
+  
   long max_degree() const {return maxDeg;}
   size_t size() const {return n;}
 

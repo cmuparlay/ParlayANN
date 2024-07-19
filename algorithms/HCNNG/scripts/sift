@@ -1,0 +1,3 @@
+# bash
+
+numactl -i all ./neighbors -cluster_size 1000 -mst_deg 3 -num_clusters 30 -data_type float -dist_func Euclidian -base_path data/sift-128-euclidean/sift-128-euclidean_base.fbin -query_path data/sift-128-euclidean/sift-128-euclidean_query.fbin -gt_path data/sift-128-euclidean/sift-128-euclidean_groundtruth -num_passes 2 -quantize 8 -verbose
