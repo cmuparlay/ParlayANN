@@ -174,9 +174,9 @@ filtered_beam_search(const GT &G,
     }
     // If candidates insufficently full then skip rest of step until sufficiently full.
     // This iproves performance for higher accuracies (e.g. beam sizes of 100+)
-    if (candidates.size() == 0 ||
+    if (candidates.size() == 0 || 
         (QP.limit >= 2 * QP.beamSize &&
-         candidates.size() < QP.beamSize/2 &&
+         candidates.size() < QP.beamSize/8 &&
          offset + 1 < remain)) {
       offset++;
       continue;
@@ -421,36 +421,40 @@ beam_search_rerank(const Point &p,
 
   int exp_factor = 2; // only check exp_factor * k of them
 
+  bool use_rerank = (Base_Points.params.num_bytes() != Q_Base_Points.params.num_bytes());
   bool use_filtering = (Q_Base_Points.params.num_bytes() != QQ_Base_Points.params.num_bytes());
   auto [pairElts, dist_cmps] = filtered_beam_search(G,
                                                     qp, Q_Base_Points,
                                                     qqp, QQ_Base_Points,
                                                     starting_points, QPP, use_filtering);
   auto [beamElts, visitedElts] = pairElts;
-
-  // recalculate distances with non-quantized points and sort
-  int num_check = std::min<int>(QP.k * exp_factor, beamElts.size());
-  std::vector<id_dist> pts;
-  for (int i=0; i < num_check; i++) {
-    int j = beamElts[i].first;
-    pts.push_back(id_dist(j, p.distance(Base_Points[j])));
-  }
-  auto less = [&] (id_dist a, id_dist b) {
-    return a.second < b.second || (a.second == b.second && a.first < b.first);
-  };
-  std::sort(pts.begin(), pts.end(), less);
-
-  // keep first k
-  parlay::sequence<id_dist> results;
-  for (int i= 0; i < QP.k; i++)
-    results.push_back(pts[i]);
-
   if (stats) {
     QueryStats.increment_visited(p.id(), visitedElts.size());
     QueryStats.increment_dist(p.id(), dist_cmps);
   }
 
-  return results;
+  if (use_rerank) {
+    // recalculate distances with non-quantized points and sort
+    int num_check = std::min<int>(QP.k * exp_factor, beamElts.size());
+    std::vector<id_dist> pts;
+    for (int i=0; i < num_check; i++) {
+      int j = beamElts[i].first;
+      pts.push_back(id_dist(j, p.distance(Base_Points[j])));
+    }
+    auto less = [&] (id_dist a, id_dist b) {
+      return a.second < b.second || (a.second == b.second && a.first < b.first);
+    };
+    std::sort(pts.begin(), pts.end(), less);
+
+    // keep first k
+    parlay::sequence<id_dist> results;
+    for (int i= 0; i < QP.k; i++)
+      results.push_back(pts[i]);
+
+    return results;
+  } else {
+    return beamElts;
+  }
 }
 
 // template<typename PointRange, typename QPointRange, typename indexType>

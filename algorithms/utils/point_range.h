@@ -89,7 +89,7 @@ struct PointRange{
       reader.read((char*)(&d), sizeof(unsigned int));
       int dims = d;
       params = parameters(d);
-      std::cout << "Detected " << num_points << " points with dimension " << d << std::endl;
+      std::cout << "Data: detected " << num_points << " points with dimension " << d << std::endl;
       int num_bytes = params.num_bytes();
       aligned_bytes =  64 * ((num_bytes - 1)/64 + 1);
       if (aligned_bytes != num_bytes)

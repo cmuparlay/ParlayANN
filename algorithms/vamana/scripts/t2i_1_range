@@ -1,6 +1,0 @@
-# bash
-# 1505330 (ground truth) : 99% = 1490276
-
-numactl -i all ./neighbors -R 70 -L 35 -data_type float -file_type bin -dist_func mips -base_path data/text2image1B/base.1B.fbin.crop_nb_1000000 -radius -.83 -radius_2 -.81 -quantize_build -self -range
-
-

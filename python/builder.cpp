@@ -44,8 +44,11 @@ void build_vamana_index(std::string metric, std::string &vector_bin_path,
     std::cout << "normalizing" << std::endl;
     for (int i=0; i < Points->size(); i++) 
       (*Points)[i].normalize();
-    if (Points->dimension() <= 200)
-      alpha = 0.98;
+    if (Points->dimension() <= 200) {
+      if (Points->dimension() < 100)
+        alpha = 1.0;
+      else alpha = .98;
+    }
   }
 
   //instantiate build params and stats objects

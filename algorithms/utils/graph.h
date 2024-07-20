@@ -145,7 +145,10 @@ struct Graph{
 
   Graph(char* gFile){
     std::ifstream reader(gFile);
-    assert(reader.is_open());
+    if (!reader.is_open()) {
+      std::cout << "graph file " << gFile << " not found" << std::endl;
+      abort();
+    }
 
     //read num points and max degree
     indexType num_points;
@@ -154,7 +157,7 @@ struct Graph{
     n = num_points;
     reader.read((char*)(&max_deg), sizeof(indexType));
     maxDeg = max_deg;
-    std::cout << "Detected " << num_points
+    std::cout << "Graph: detected " << num_points
               << " points with max degree " << max_deg << std::endl;
 
     //read degrees and perform scan to find offsets
