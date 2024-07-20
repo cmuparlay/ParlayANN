@@ -13,4 +13,4 @@ GRAPH_FILE=$PATH/graphs/"graph_64_1.15"
 # ./neighbors $BUILD_ARGS $TYPE_ARGS -base_path $DATA_FILE -graph_outfile $GRAPH_FILE
 
 # query 
-./neighbors $QUERY_ARGS $TYPE_ARGS -base_path $DATA_FILE -query_path $QUERY_FILE -gt_path $GROUNDTRUTH_FILE -graph_path $GRAPH_FILE
+echo ./neighbors $QUERY_ARGS $TYPE_ARGS -base_path $DATA_FILE -query_path $QUERY_FILE -gt_path $GROUNDTRUTH_FILE -graph_path $GRAPH_FILE
