@@ -1,7 +1,7 @@
 # bash
 NAME=glove-100-angular
 BUILD_ARGS="-R 100 -L 200 -alpha 1 -num_passes 2 -quantize 8 -verbose"
-QUERY_ARGS="-quantize -quantize_build 1 16 -verbose"
+QUERY_ARGS="-quantize 16 -quantize_build 1 -verbose"
 TYPE_ARGS="-data_type float -dist_func mips -normalize -file_type bin"
 
 PATH=data/$NAME

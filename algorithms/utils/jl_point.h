@@ -113,11 +113,12 @@ struct Mips_JL_Bit_Point {
   struct parameters {
     std::vector<int8_t> JL_vects;
     int source_dims;
+    int dims;
     int num_bytes() const {return sizeof(Data);}
     parameters() : source_dims(0) {}
     parameters(int dims) : source_dims(dims) {}
     parameters(std::vector<int8_t> const& JL_vects, int source_dims)
-      : JL_vects(JL_vects), source_dims(source_dims) {
+      : JL_vects(JL_vects), source_dims(source_dims), dims(jl_dims) {
       std::cout << "JL dense quantization, dims = " << jl_dims << std::endl;
     }
   };
@@ -201,13 +202,14 @@ struct Mips_JL_Sparse_Point {
     std::vector<int8_t> JL_signs;
     std::vector<int> JL_indices;
     int source_dims;
+    int dims;
     int num_bytes() const {return sizeof(Data);}
     parameters() : source_dims(0) {}
     parameters(int dims) : source_dims(dims) {}
     parameters(std::vector<int8_t> const& JL_signs,
                std::vector<int> const& JL_indices,
                int source_dims)
-      : JL_signs(JL_signs), JL_indices(JL_indices), source_dims(source_dims) {
+      : JL_signs(JL_signs), JL_indices(JL_indices), source_dims(source_dims), dims(jl_dims) {
       std::cout << "JL sparse quantization, dims = " << jl_dims << std::endl;
     }
   };

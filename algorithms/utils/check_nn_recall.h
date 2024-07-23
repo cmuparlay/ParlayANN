@@ -133,7 +133,7 @@ nn_result checkRecall(const Graph<indexType> &G,
               << ", visited=" << QueryStats.visited_stats()[0]
               << ", comparisons=" << QueryStats.dist_stats()[0]
               << ", QPS=" << QPS
-              << ", CPS=" << QPS*QueryStats.dist_stats()[0] << std::endl;
+              << ", ctime=" << 1/(QPS*QueryStats.dist_stats()[0]) * 1e9 << std::endl;
 
   auto stats_ = {QueryStats.dist_stats(), QueryStats.visited_stats()};
   parlay::sequence<indexType> stats = parlay::flatten(stats_);

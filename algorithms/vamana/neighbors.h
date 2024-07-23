@@ -141,6 +141,7 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
       }
     } else {
       using QT = int8_t;
+      //using QPoint = Euclidian_Point<uint8_t>;
       using QPoint = Quantized_Mips_Point<8,true,255>;
       using QPR = PointRange<QT, QPoint>;
       QPR Q_Points(Points);
