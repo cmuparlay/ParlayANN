@@ -189,8 +189,10 @@ void search_and_parse(Graph_ G_,
                       Graph<indexType> &G,
                       PointRange &Base_Points,
                       PointRange &Query_Points,
-                      groundTruth<indexType> GT, char* res_file, long k) {
-  search_and_parse(G_, G, Base_Points, Query_Points, Base_Points, Query_Points, Base_Points, Query_Points, GT, res_file, k);
+                      groundTruth<indexType> GT, char* res_file, long k,
+                      bool verbose = false,
+                      long fixed_beam_width = 0) {
+  search_and_parse(G_, G, Base_Points, Query_Points, Base_Points, Query_Points, Base_Points, Query_Points, GT, res_file, k, false, 0u, verbose, fixed_beam_width);
 }
 
 template<typename PointRange, typename QPointRange, typename QQPointRange, typename indexType>
@@ -203,9 +205,10 @@ void search_and_parse(Graph_ G_,
                       QQPointRange &QQ_Base_Points,
                       QQPointRange &QQ_Query_Points,
                       groundTruth<indexType> GT, char* res_file, long k,
-                      bool random=true, indexType start_point=0,
-                      bool verbose=false,
-                      long fixed_beam_width=0) {
+                      bool random = true,
+                      indexType start_point = 0,
+                      bool verbose = false,
+                      long fixed_beam_width = 0) {
   parlay::sequence<nn_result> results;
   std::vector<long> beams;
   std::vector<long> allr;

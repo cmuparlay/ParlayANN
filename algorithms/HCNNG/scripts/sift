@@ -1,3 +1,16 @@
 # bash
+BUILD_ARGS="-cluster_size 1000 -mst_deg 3 -num_clusters 30 -quantize_bits 8 -verbose"
+QUERY_ARGS="-quantize_bits 8 -verbose"
+TYPE_ARGS="-data_type float -dist_func Euclidian -file_type bin"
 
-numactl -i all ./neighbors -cluster_size 1000 -mst_deg 3 -num_clusters 30 -data_type float -dist_func Euclidian -base_path data/sift-128-euclidean/sift-128-euclidean_base.fbin -query_path data/sift-128-euclidean/sift-128-euclidean_query.fbin -gt_path data/sift-128-euclidean/sift-128-euclidean_groundtruth -num_passes 2 -quantize 8 -verbose
+PATH=data/sift-128-euclidean
+DATA_FILE=$PATH/base.fbin
+QUERY_FILE=$PATH/query.fbin
+GROUNDTRUTH_FILE=$PATH/groundtruth
+GRAPH_FILE=$PATH/graphs/graph_hcnng_1000_3_30
+
+# build
+echo ./neighbors $BUILD_ARGS $TYPE_ARGS -base_path $DATA_FILE -graph_outfile $GRAPH_FILE
+
+# query 
+echo ./neighbors $QUERY_ARGS $TYPE_ARGS -base_path $DATA_FILE -query_path $QUERY_FILE -gt_path $GROUNDTRUTH_FILE -graph_path $GRAPH_FILE

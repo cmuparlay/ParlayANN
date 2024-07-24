@@ -38,7 +38,7 @@ void build_vamana_index(std::string metric, std::string &vector_bin_path,
 {
   //use file parsers to create Point object
 
-  using Range = PointRange<T, Point>;
+  using Range = PointRange<Point>;
   Range* Points = new Range(vector_bin_path.data());
   if (!Point::is_metric()) { // normalize) {
     std::cout << "normalizing" << std::endl;
@@ -55,11 +55,11 @@ void build_vamana_index(std::string metric, std::string &vector_bin_path,
   BuildParams BP(graph_degree, beam_width, alpha, two_pass ? 2 : 1);
   stats<unsigned int> BuildStats(Points->size());
 
-  if (sizeof(typename Range::T) > 1) {
+  if (sizeof(typename Range::Point::T) > 1) {
     if (Point::is_metric()) {
       using QuantT = uint8_t;
       using QuantPoint = Euclidian_Point<QuantT>;
-      using QuantRange = PointRange<QuantT, QuantPoint>;
+      using QuantRange = PointRange<QuantPoint>;
       QuantRange Quant_Points(*Points);  // quantized to one byte
       delete Points; // remove original points
       Graph<unsigned int> G = Graph<unsigned int>(graph_degree, Points->size());
@@ -72,7 +72,7 @@ void build_vamana_index(std::string metric, std::string &vector_bin_path,
     } else {
       using QuantT = int8_t;
       using QuantPoint = Quantized_Mips_Point<8, true>;
-      using QuantRange = PointRange<QuantT, QuantPoint>;
+      using QuantRange = PointRange<QuantPoint>;
       QuantRange Quant_Points(*Points);  // quantized to one byte
       delete Points;  // remove original points
       Graph<unsigned int> G = Graph<unsigned int>(graph_degree, Points->size());
@@ -85,7 +85,7 @@ void build_vamana_index(std::string metric, std::string &vector_bin_path,
     }
   } else {
     Graph<unsigned int> G = Graph<unsigned int>(graph_degree, Points->size());
-    using index = knn_index<PointRange<T, Point>, unsigned int>;
+    using index = knn_index<PointRange<Point>, unsigned int>;
     index I(BP);
     I.build_index(G, *Points, BuildStats);
     G.save(index_output_path.data());
@@ -121,12 +121,12 @@ void build_hcnng_index(std::string metric, std::string &vector_bin_path,
 
     //use file parsers to create Point object
 
-    PointRange<T, Point> Points = PointRange<T, Point>(vector_bin_path.data());
+    PointRange<Point> Points(vector_bin_path.data());
     //use max degree info to create Graph object
     Graph<unsigned int> G = Graph<unsigned int>(graph_degree, Points.size());
 
     //call the build function
-    using index = hcnng_index<Point, PointRange<T, Point>, unsigned int>;
+    using index = hcnng_index<Point, PointRange<Point>, unsigned int>;
     index I;
     stats<unsigned int> BuildStats(G.size());
     I.build_index(G, Points, BP.num_clusters, BP.cluster_size, BP.MST_deg);
@@ -165,12 +165,12 @@ void build_pynndescent_index(std::string metric, std::string &vector_bin_path,
 
     //use file parsers to create Point object
 
-    PointRange<T, Point> Points = PointRange<T, Point>(vector_bin_path.data());
+    PointRange<Point> Points(vector_bin_path.data());
     //use max degree info to create Graph object
     Graph<unsigned int> G = Graph<unsigned int>(graph_degree, Points.size());
 
     //call the build function
-    using index = pyNN_index<Point, PointRange<T, Point>, unsigned int>;
+    using index = pyNN_index<Point, PointRange<Point>, unsigned int>;
     index I(BP.R, BP.delta);
     stats<unsigned int> BuildStats(G.size());
     I.build_index(G, Points, BP.cluster_size, BP.num_clusters, BP.alpha);
@@ -206,7 +206,7 @@ void build_hnsw_index(std::string metric, std::string &vector_bin_path,
     //BuildParams BP(graph_degree, efc, alpha);
 
     //use file parsers to create Point object
-    PointRange<T, Point> Points = PointRange<T, Point>(vector_bin_path.data());
+    PointRange<Point> Points(vector_bin_path.data());
     /*
     //use max degree info to create Graph object
     Graph<unsigned int> G = Graph<unsigned int>(graph_degree, Points.size());

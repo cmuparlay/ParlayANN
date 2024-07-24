@@ -46,27 +46,31 @@ using NeighborsAndDistances = std::pair<py::array_t<unsigned int>, py::array_t<f
 template<typename T, typename Point>
 struct GraphIndex{
   Graph<unsigned int> G;
-  PointRange<T, Point> Points;
+  PointRange<Point> Points;
 
+  // using EPoint = Euclidian_Point<uint16_t>;
+  // using ERange = PointRange<EPoint>;
+  // ERange E_Points;
+  
   // euclidean quantized points
-  using EQuantT = uint8_t;
-  using EQuantPoint = Euclidian_Point<EQuantT>;
-  using EQuantRange = PointRange<EQuantT, EQuantPoint>;
+  using EQuantPoint = Euclidian_Point<uint8_t>;
+  using EQuantRange = PointRange<EQuantPoint>;
   EQuantRange EQuant_Points;
 
+  // euclidean low-quality quantized points
   using EQQuantPoint = Euclidean_JL_Sparse_Point<1024>;
-  using EQQuantRange = PointRange<EQuantT, EQQuantPoint>;
+  using EQQuantRange = PointRange<EQQuantPoint>;
   EQQuantRange EQQuant_Points;
 
   // mips or angular quantized points
   using MQuantT = int8_t;
-  using MQuantPoint = Quantized_Mips_Point<8>;
-  using MQuantRange = PointRange<MQuantT, MQuantPoint>;
+  using MQuantPoint = Quantized_Mips_Point<8,true>;
+  using MQuantRange = PointRange<MQuantPoint>;
   MQuantRange MQuant_Points;
 
   using MQQuantPoint = Mips_2Bit_Point;
   //using MQQuantPoint = Mips_JL_Sparse_Point<512>;
-  using MQQuantRange = PointRange<MQuantT, MQQuantPoint>;
+  using MQQuantRange = PointRange<MQQuantPoint>;
   MQQuantRange MQQuant_Points;
   
   bool use_quantization;
@@ -75,11 +79,12 @@ struct GraphIndex{
 
   GraphIndex(std::string &data_path, std::string &index_path, bool is_hnsw=false)
     : use_quantization(false) {
-    Points = PointRange<T, Point>(data_path.data());
+    Points = PointRange<Point>(data_path.data());
     
     if (sizeof(T) > 1) {
       use_quantization = true;
       if (Point::is_metric()) {
+        //E_Points = ERange(Points);
         EQuant_Points = EQuantRange(Points);
         if (Points.dimension() > 800)
           EQQuant_Points = EQQuantRange(Points);
@@ -141,6 +146,9 @@ struct GraphIndex{
           EQuantPoint quant_q(buffer, 0, EQuant_Points.params);
           return beam_search(quant_q, G, EQuant_Points, starts, QP).first.first;
         } else {
+          // uint8_t buffer_1[dim*2];
+          // EPoint::translate_point(buffer_1, q, E_Points.params);
+          // EPoint e_q(buffer_1, 0, E_Points.params);
           EQuantPoint::translate_point(buffer, q, EQuant_Points.params);
           EQuantPoint quant_q(buffer, 0, EQuant_Points.params);
           if (Points.dimension() > 800) {
@@ -230,7 +238,7 @@ struct GraphIndex{
                                                  uint64_t beam_width, bool quant = false,
                                                  int64_t visit_limit = -1) {
     QueryParams QP(knn, beam_width, 1.35, visit_limit, std::min<int>(G.max_degree(), 3*visit_limit));
-    PointRange<T, Point> QueryPoints = PointRange<T, Point>(queries.data());
+    PointRange<Point> QueryPoints(queries.data());
     uint64_t num_queries = QueryPoints.size();
     py::array_t<unsigned int> ids({num_queries, knn});
     py::array_t<float> dists({num_queries, knn});
@@ -252,7 +260,7 @@ struct GraphIndex{
                     int k) {
     bool resolve_eq_distances = true;
     groundTruth<unsigned int> GT = groundTruth<unsigned int>(graph_file.data());
-    PointRange<T, Point> QueryPoints = PointRange<T, Point>(queries_file.data());
+    PointRange<Point> QueryPoints(queries_file.data());
 
     size_t n = GT.size();
     long m = Points.size();

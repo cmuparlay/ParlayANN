@@ -38,9 +38,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-template<typename T_, class Point_>
+template<class Point_>
 struct PointRange{
-  using T = T_;
+  //using T = T_;
   using Point = Point_;
   using parameters = typename Point::parameters;
   using byte = uint8_t;
@@ -103,15 +103,14 @@ struct PointRange{
       while(index < n) {
           size_t floor = index;
           size_t ceiling = index+BLOCK_SIZE <= n ? index+BLOCK_SIZE : n;
-          T* data_start = new T[(ceiling-floor)*dims];
-          reader.read((char*)(data_start), sizeof(T)*(ceiling-floor)*dims);
-          T* data_end = data_start + (ceiling-floor)*dims;
-          parlay::slice<T*, T*> data = parlay::make_slice(data_start, data_end);
-          long data_bytes = dims * sizeof(T);
+          long m = ceiling - floor;
+          byte* data_start = new byte[m * num_bytes];
+          byte* data_end = data_start + m * num_bytes;
+          reader.read((char*)(data_start), m * num_bytes);
           parlay::parallel_for(floor, ceiling, [&] (size_t i) {
             std::memmove(values.get() + i * aligned_bytes,
-                         data.begin() + (i - floor) * dims,
-                         data_bytes);
+                         data_start + (i - floor) * num_bytes,
+                         num_bytes);
           });
           delete[] data_start;
           index = ceiling;

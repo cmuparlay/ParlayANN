@@ -207,7 +207,7 @@ struct Euclidian_Point {
   static parameters generate_parameters(const PR& pr) {
     long n = pr.size();
     int dims = pr.dimension();
-    using MT = typename PR::T;
+    using MT = typename PR::Point::T;
     parlay::sequence<MT> mins(n, 0.0);
     parlay::sequence<MT> maxs(n, 0.0);
     parlay::sequence<bool> ni(n, true);
@@ -400,7 +400,7 @@ struct Euclidean_Bit_Point {
     long n = pr.size();
     int dims = pr.dimension();
     long len = n * dims;
-    parlay::sequence<typename PR::T> vals(len);
+    parlay::sequence<typename PR::Point::T> vals(len);
     parlay::parallel_for(0, n, [&] (long i) {
       for (int j = 0; j < dims; j++) 
         vals[i * dims + j] = pr[i][j];

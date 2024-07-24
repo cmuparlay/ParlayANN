@@ -288,6 +288,7 @@ private:
 
 template<int bits, bool trim = false, int range = (1 << bits) - 1>
 struct Quantized_Mips_Point{
+  using T = int16_t;
   using distanceType = float;
   using byte = uint8_t;
   
@@ -435,7 +436,7 @@ struct Quantized_Mips_Point{
     long n = pr.size();
     int dims = pr.dimension();
     long len = n * dims;
-    parlay::sequence<typename PR::T> vals(len);
+    parlay::sequence<typename PR::Point::T> vals(len);
     parlay::parallel_for(0, n, [&] (long i) {
       for (int j = 0; j < dims; j++) 
         vals[i * dims + j] = pr[i][j];
@@ -446,13 +447,15 @@ struct Quantized_Mips_Point{
       float cutoff = .0001;
       min_val = vals[(long) (cutoff * len)];
       max_val = vals[(long) ((1.0-cutoff) * (len-1))];
-      std::cout << "scalar quantization: min value = " << vals[0]
+      std::cout << "mips scalar quantization to " << bits
+                << " bits: min value = " << vals[0]
                 << ", max value = " << vals[len-1]
                 << ", trimmed to: min = " << min_val << ", max = " << max_val << std::endl;
     } else {
       min_val = vals[0];
       max_val = vals[len-1];
-      std::cout << "scalar quantization: min value = " << min_val
+      std::cout << "mips scalar quantization to " << bits
+                << " bits: min value = " << min_val
                 << ", max value = " << max_val << std::endl;
     }
     float bound = std::max(max_val, -min_val);
@@ -599,7 +602,7 @@ struct Mips_2Bit_Point {
     long n = pr.size();
     int dims = pr.dimension();
     long len = n * dims;
-    parlay::sequence<typename PR::T> vals(len);
+    parlay::sequence<typename PR::Point::T> vals(len);
     parlay::parallel_for(0, n, [&] (long i) {
       for (int j = 0; j < dims; j++) 
         vals[i * dims + j] = pr[i][j];
