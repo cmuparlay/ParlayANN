@@ -145,7 +145,9 @@ struct Graph{
         indexType* degrees_end = degrees_start + n;
         parlay::slice<indexType*, indexType*> degrees0 = parlay::make_slice(degrees_start, degrees_end);
         auto degrees = parlay::tabulate(degrees0.size(), [&] (size_t i){return static_cast<size_t>(degrees0[i]);});
-        auto [offsets, total] = parlay::scan(degrees);
+        parlay::sequence<size_t> offsets;
+        size_t total = 0;
+        std::tie(offsets, total) = parlay::scan(degrees);
         std::cout << "Total: " << total << std::endl;
         offsets.push_back(total);
 

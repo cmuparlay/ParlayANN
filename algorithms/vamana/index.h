@@ -78,7 +78,7 @@ struct knn_index {
     // remove any duplicates
     auto new_end =std::unique(candidates.begin(), candidates.end(),
 			      [&] (auto x, auto y) {return x.first == y.first;});
-    candidates = std::vector(candidates.begin(), new_end);
+    candidates = std::vector<pid>(candidates.begin(), new_end);
     
     std::vector<indexType> new_nbhs;
     new_nbhs.reserve(BP.R);
