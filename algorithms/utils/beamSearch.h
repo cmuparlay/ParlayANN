@@ -126,12 +126,13 @@ beam_search_impl(Point p, GT &G, PointRange &Points,
     // the next node to visit is the unvisited frontier node that is closest to
     // p
     std::pair<indexType, distanceType> current = unvisited_frontier[0];
+    if(QP.early_stop > 0 && num_visited >= QP.early_stop && current.second >= QP.early_stop_radius){break;}
     G[current.first].prefetch();
     // add to visited set
     visited.insert(
         std::upper_bound(visited.begin(), visited.end(), current, less),
         current);
-    visited_inorder.push_back(current);
+    
     num_visited++;
 
     // keep neighbors that have not been visited (using approximate
@@ -194,6 +195,8 @@ beam_search_impl(Point p, GT &G, PointRange &Points,
         std::set_difference(frontier.begin(), frontier.end(), visited.begin(),
                             visited.end(), unvisited_frontier.begin(), less) -
         unvisited_frontier.begin();
+
+    visited_inorder.push_back(frontier[0]);
   }
 
   return std::make_pair(std::make_pair(std::make_pair(parlay::to_sequence(frontier),
@@ -470,7 +473,7 @@ parlay::sequence<parlay::sequence<indexType>> RangeSearch(PointRange &Query_Poin
   parlay::parallel_for(0, Query_Points.size(), [&](size_t i) {
     parlay::sequence<indexType> neighbors;
     parlay::sequence<std::pair<indexType, typename Point::distanceType>> neighbors_within_larger_ball;
-    QueryParams QP(RP.initial_beam, RP.initial_beam, 0.0, G.size(), G.max_degree());
+    QueryParams QP(RP.initial_beam, RP.initial_beam, 0.0, G.size(), G.max_degree(), RP.early_stop, RP.early_stop_radius);
     auto [pairElts, dist_cmps] = beam_search(Query_Points[i], G, Base_Points, starting_points, QP);
     auto [beamElts, visitedElts] = pairElts;
     for (indexType j = 0; j < beamElts.size(); j++) {
@@ -522,7 +525,7 @@ RangeSearchOverSubset(PointRange &Query_Points,
   parlay::parallel_for(0, active_indices.size(), [&](size_t i) {
     parlay::sequence<indexType> neighbors;
     parlay::sequence<std::pair<indexType, typename Point::distanceType>> neighbors_within_larger_ball;
-    QueryParams QP(RP.initial_beam, RP.initial_beam, 0.0, G.size(), G.max_degree());
+    QueryParams QP(RP.initial_beam, RP.initial_beam, 0.0, G.size(), G.max_degree(), RP.early_stop, RP.early_stop_radius);
     auto [tmp, visit_order_pt] = beam_search(Query_Points[active_indices[i]], G, Base_Points, starting_points, QP);
     auto [pairElts, dist_cmps] = tmp;
     auto [beamElts, visitedElts] = pairElts;

@@ -61,7 +61,19 @@ void convergence_stats(parlay::sequence<parlay::sequence<std::pair<indexType, di
     avg_dists[i] = static_cast<size_t>(avg);
   });
 
-  std::cout << parlay::to_chars(avg_dists) << std::endl;
+  size_t index1 = 0;
+  size_t index2 = visited_order.size()/2;
+  size_t index3 = visited_order.size()/3;
+
+  auto seq1 = parlay::tabulate(visited_order[index1].size(), [&] (size_t i){return (size_t) visited_order[index1][i].second;});
+  auto seq2 = parlay::tabulate(visited_order[index2].size(), [&] (size_t i){return (size_t) visited_order[index2][i].second;});
+  auto seq3 = parlay::tabulate(visited_order[index3].size(), [&] (size_t i){return (size_t) visited_order[index3][i].second;});
+
+  std::cout << "Point 1: " << parlay::to_chars(seq1) << std::endl;
+  std::cout << "Point 2: " << parlay::to_chars(seq2) << std::endl;
+  std::cout << "Point 3: " << parlay::to_chars(seq3) << std::endl;
+
+  // std::cout << parlay::to_chars(avg_dists) << std::endl;
 }
 
 
@@ -126,7 +138,7 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
 
   std::vector<long> beams;
 
-  beams = {10, 100}; 
+  beams = {10, 100, 1000}; 
   std::vector<double> slack = {1.0};
 
   //three categories: 0, 1-20, 20+
@@ -138,21 +150,37 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
 
   std::cout << "For all points: " << std::endl;
 
+  
+  long bigann_early_stopping_rad = 38000;
+  long ssnpp_early_stopping_rad = 200000;
+
+  long early_stopping_rad = ssnpp_early_stopping_rad;
+
   std::cout << "Sweeping once with regular beam search" << std::endl;
   for(long b: beams){
     RangeParams RP(rad, b);
     checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, all, true);
 
   }
-  std::cout << std::endl;
-  std::cout << std::endl;
-  std::cout << "Trying again with two-round search" << std::endl;
-  for(long b: beams){
-    for(double sf: slack){
-      RangeParams RP(rad, b, sf, true);
-      checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, all);
-    }
-  }
+  // std::cout << std::endl;
+  // std::cout << std::endl;
+  // std::cout << "Trying again with two-round search" << std::endl;
+  // for(long b: beams){
+  //   for(double sf: slack){
+  //     RangeParams RP(rad, b, sf, true);
+  //     checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, all);
+  //   }
+  // }
+
+  // std::cout << std::endl;
+  // std::cout << std::endl;
+  // std::cout << "Trying again with two-round search and early stopping" << std::endl;
+  // for(long b: beams){
+  //   for(double sf: slack){
+  //     RangeParams RP(rad, b, sf, true, 10, early_stopping_rad);
+  //     checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, all);
+  //   }
+  // }
 
   std::cout << std::endl;
 
@@ -165,6 +193,15 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
 
   }
  
+  // std::cout << std::endl;
+  // std::cout << std::endl;
+  // std::cout << "Trying again with early stopping" << std::endl;
+  // for(long b: beams){
+  //   for(double sf: slack){
+  //     RangeParams RP(rad, b, sf, true, 10, early_stopping_rad);
+  //     checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, zero_res);
+  //   }
+  // }
 
   std::cout << std::endl;
 
@@ -177,15 +214,25 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
 
   }
 
-  std::cout << std::endl;
-  std::cout << std::endl;
-  std::cout << "Trying again with two-round search" << std::endl;
-  for(long b: beams){
-    for(double sf: slack){
-      RangeParams RP(rad, b, sf, true);
-      checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, nn_res);
-    }
-  }
+  // std::cout << std::endl;
+  // std::cout << std::endl;
+  // std::cout << "Trying again with two-round search" << std::endl;
+  // for(long b: beams){
+  //   for(double sf: slack){
+  //     RangeParams RP(rad, b, sf, true);
+  //     checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, nn_res);
+  //   }
+  // }
+
+  // std::cout << std::endl;
+  // std::cout << std::endl;
+  // std::cout << "Trying again with two-round search and early stopping" << std::endl;
+  // for(long b: beams){
+  //   for(double sf: slack){
+  //     RangeParams RP(rad, b, sf, true, 10, early_stopping_rad);
+  //     checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, nn_res);
+  //   }
+  // }
 
   std::cout << std::endl;
 
@@ -197,15 +244,24 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
     checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, rng_res, true);
 
   }
-  std::cout << std::endl;
-  std::cout << std::endl;
-  std::cout << "Trying again with two-round search" << std::endl;
-  for(long b: beams){
-    for(double sf: slack){
-      RangeParams RP(rad, b, sf, true);
-      checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, rng_res);
-    }
-  }
+  // std::cout << std::endl;
+  // std::cout << std::endl;
+  // std::cout << "Trying again with two-round search" << std::endl;
+  // for(long b: beams){
+  //   for(double sf: slack){
+  //     RangeParams RP(rad, b, sf, true);
+  //     checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, rng_res);
+  //   }
+  // }
+  // std::cout << std::endl;
+  // std::cout << std::endl;
+  // std::cout << "Trying again with two-round search and early stopping" << std::endl;
+  // for(long b: beams){
+  //   for(double sf: slack){
+  //     RangeParams RP(rad, b, sf, true, 10, early_stopping_rad);
+  //     checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, rng_res);
+  //   }
+  // }
 
   std::cout << std::endl;
 
