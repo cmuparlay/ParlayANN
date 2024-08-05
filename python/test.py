@@ -52,12 +52,13 @@ print(dir(pann))
 
 FERN_DATA_DIR = "/ssd1/anndata/bigann/"
 AWARE_DATA_DIR = "/ssd1/data/bigann/"
+GCR_DATA_DIR = "/scratch/rakri/"
 
 ALT_FERN_DATA_DIR = "/ssd2/ben/nhqdatasets/"
 
-DATA_DIR = FERN_DATA_DIR
+DATA_DIR = GCR_DATA_DIR
 
-AUDIO = True
+AUDIO = False
 
 # print("!!! FILTERED IVF !!!")
 # fivf = wp.init_filtered_ivf_index("Euclidian", "uint8")
@@ -136,8 +137,8 @@ index.set_bitvector_cutoff(BITVECTOR_CUTOFF)
 if AUDIO:
     index.fit_from_filename(ALT_FERN_DATA_DIR + "audio/audio_base.fvec", ALT_FERN_DATA_DIR + "audio/label_audio_base.spmat", CUTOFF, CLUSTER_SIZE, CACHE_DIR, WEIGHT_CLASSES, True)
 else:
-    index.fit_from_filename(DATA_DIR + "data/yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR +
-                            'data/yfcc100M/base.metadata.10M.spmat', CUTOFF, CLUSTER_SIZE, CACHE_DIR, WEIGHT_CLASSES, True)
+    index.fit_from_filename(DATA_DIR + "yfcc100M/base.10M.u8bin.crop_nb_10000000", DATA_DIR +
+                            'yfcc100M/base.metadata.10M.spmat', CUTOFF, CLUSTER_SIZE, CACHE_DIR, WEIGHT_CLASSES, True)
     
 
 
