@@ -93,7 +93,7 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
 
   std::vector<long> beams;
 
-  beams = {1,2,5,8, 10, 20, 30, 40, 50, 100, 200, 500, 1000, 2000, 3000}; 
+  beams = {1,2,3,4,5,8, 10, 20, 30, 40, 50, 100, 200, 500, 1000, 2000, 3000}; 
   std::vector<double> slack = {1.0};
 
   //three categories: 0, 1-20, 20+
@@ -127,7 +127,7 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
 
   std::cout << "Sweeping once with regular beam search" << std::endl;
   for(long b: beams){
-    RangeParams RP(rad, b);
+    RangeParams RP(rad, b); 
     checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, zero_res);
 
   }
@@ -175,10 +175,6 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
   }
 
   std::cout << std::endl;
-
-
-
-
 
 
 

@@ -119,9 +119,10 @@ struct RangeGroundTruth{
         n = *((indexType*) fileptr);
         num_matches = *((indexType*) (fileptr+sizeof(indexType)));
 
-        T* sizes_begin = (T*)(fileptr + 2*sizeof(T)) ;
-        T* sizes_end = sizes_begin+n;
+        indexType* sizes_begin = (indexType*)(fileptr + 2*sizeof(indexType)) ;
+        indexType* sizes_end = sizes_begin+n;
         sizes = parlay::make_slice(sizes_begin, sizes_end);
+
         auto [offsets0, total] = parlay::scan(sizes);
         offsets0.push_back(total);
         offsets = offsets0;

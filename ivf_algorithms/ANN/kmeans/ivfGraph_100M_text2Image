@@ -1,0 +1,34 @@
+Detected 100000 points with num results 100
+Detected 10000000 points with dimension 200
+Aligning dimension to 208
+Detected 10000 points with dimension 200
+Aligning dimension to 208
+Building with 10000 clusters
+Calculating clusters
+KMeans run on: 2000000 many points to obtain: 10000 many clusters.
+Beginning iteration 0...
+KMeansClustering Time: 217.799
+ClusterStats: num_points: 10000000 num_clusters: 10000 Min: 0 Max: 10000000 Avg: 1000
+Calculating centroids
+Building graph...
+Pass 10% complete
+Pass 20% complete
+Pass 30% complete
+Pass 40% complete
+Pass 50% complete
+Pass 60% complete
+Pass 70% complete
+Pass 80% complete
+Pass 90% complete
+Pass 100% complete
+beam search time: total: 0.0295
+bidirect time: total: 0.0277
+prune time: total: 0.1811
+After build: 32, 32
+Found 10000 centroids
+Index built in 221.5 s
+For recall = 1, QPS = 50.61, n_probes = 500, average cmps = 121640
+
+Saving index...
+Done saving
+Parlay time: 2082.0471

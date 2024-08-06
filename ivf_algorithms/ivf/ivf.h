@@ -240,6 +240,46 @@ struct PostingListIndex {
 
       return std::make_pair(frontier, dist_cmps);
   } 
+  /* computes range results with the ivf index, and returns two comparsion number.
+  First distance argument as  */
+  std::pair<parlay::sequence<std::pair<indexType, float>>, std::pair<size_t,size_t>> ivf_range_dist_cmp(
+     Point query, double rad, int n_probes) {
+      // we do linear traversal over the centroids to get the nearest ones
+      // TODO should we exclude centroids that are too far away from the radius?
+      size_t pl_frontier_size = n_probes < centroids.size() ? n_probes : centroids.size();
+      parlay::sequence<std::pair<indexType, float>> pl_frontier(pl_frontier_size, std::make_pair(0, std::numeric_limits<float>::max()));
+
+      size_t dist_cmps_1 = centroids.size();
+      size_t dist_cmps_2 = 0;
+
+      for (indexType i = 0; i < centroids.size(); i++) {
+        float dist = query.distance(centroids[i]);
+        if (dist < pl_frontier[pl_frontier_size - 1].second) {
+          pl_frontier.pop_back();
+          pl_frontier.push_back(std::make_pair(i, dist));
+          std::sort(pl_frontier.begin(), pl_frontier.end(),
+                    [&](std::pair<indexType, float> a,
+                        std::pair<indexType, float> b) {
+                      return a.second < b.second;
+                    });
+        }
+      }
+
+      // now we do search on the points in the posting lists
+      parlay::sequence<std::pair<indexType, float>> frontier;
+
+      for (indexType i = 0; i < pl_frontier.size(); i++) {
+        dist_cmps_2 += clusters[pl_frontier[i].first].size();
+        for (indexType j = 0; j < clusters[pl_frontier[i].first].size(); j++) {
+          float dist = query.distance(Points[clusters[pl_frontier[i].first][j]]);
+          if (dist < rad) {
+            frontier.push_back(std::make_pair(clusters[pl_frontier[i].first][j], dist));
+          }
+        }
+      }
+
+      return std::make_pair(frontier, std::make_pair(dist_cmps_1,dist_cmps_2));
+  } 
 
 
 

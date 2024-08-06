@@ -1,0 +1,234 @@
+Detected 10000 points with num matches 152958
+Detected 10000000 points with dimension 128
+Detected 10000 points with dimension 128
+Building with 10000 clusters
+Calculating clusters
+KMeans run on: 2000000 many points to obtain: 10000 many clusters.
+Beginning iteration 0...
+Beginning iteration 1...
+Beginning iteration 2...
+Beginning iteration 3...
+Beginning iteration 4...
+Beginning iteration 5...
+Beginning iteration 6...
+Beginning iteration 7...
+Beginning iteration 8...
+Beginning iteration 9...
+Beginning iteration 10...
+Beginning iteration 11...
+Beginning iteration 12...
+Beginning iteration 13...
+Beginning iteration 14...
+Beginning iteration 15...
+Beginning iteration 16...
+Beginning iteration 17...
+Beginning iteration 18...
+Beginning iteration 19...
+KMeansClustering Time: 101.483
+ClusterStats: num_points: 10000000 num_clusters: 10000 Min: 0 Max: 3895 Avg: 1000
+Calculating centroids
+Building graph...
+Pass 10% complete
+Pass 20% complete
+Pass 30% complete
+Pass 40% complete
+Pass 50% complete
+Pass 60% complete
+Pass 70% complete
+Pass 80% complete
+Pass 90% complete
+Pass 100% complete
+beam search time: total: 0.0339
+bidirect time: total: 0.0362
+prune time: total: 0.0120
+After build: 23.89, 32
+Found 10000 centroids
+Index built in 104.4 s
+For all points: 
+Sweeping once with regular beam search
+centroid dist cmp: 1121768, search_dist_cmp: 10197142
+For pointwise recall = 0.5137 and cumulative recall = 0.3404, QPS = 4.401e+05, n_probes = 1, average cmps = 1163
+centroid dist cmp: 1360141, search_dist_cmp: 20874168
+For pointwise recall = 0.752 and cumulative recall = 0.5565, QPS = 2.358e+05, n_probes = 2, average cmps = 2252
+centroid dist cmp: 1533986, search_dist_cmp: 31463254
+For pointwise recall = 0.8571 and cumulative recall = 0.7026, QPS = 1.592e+05, n_probes = 3, average cmps = 3329
+centroid dist cmp: 1690741, search_dist_cmp: 42116487
+For pointwise recall = 0.9114 and cumulative recall = 0.8046, QPS = 1.196e+05, n_probes = 4, average cmps = 4401
+centroid dist cmp: 1833820, search_dist_cmp: 52702130
+For pointwise recall = 0.9483 and cumulative recall = 0.8642, QPS = 9.823e+04, n_probes = 5, average cmps = 5469
+centroid dist cmp: 2227609, search_dist_cmp: 84056877
+For pointwise recall = 0.982 and cumulative recall = 0.9516, QPS = 5.978e+04, n_probes = 8, average cmps = 8658
+centroid dist cmp: 2489207, search_dist_cmp: 105050469
+For pointwise recall = 0.9916 and cumulative recall = 0.976, QPS = 4.902e+04, n_probes = 10, average cmps = 10771
+centroid dist cmp: 3723717, search_dist_cmp: 208499088
+For pointwise recall = 0.998 and cumulative recall = 0.9978, QPS = 2.48e+04, n_probes = 20, average cmps = 21252
+centroid dist cmp: 4915445, search_dist_cmp: 311160128
+For pointwise recall = 0.9986 and cumulative recall = 0.9994, QPS = 1.669e+04, n_probes = 30, average cmps = 31621
+centroid dist cmp: 6082654, search_dist_cmp: 412919235
+For pointwise recall = 0.9986 and cumulative recall = 0.9995, QPS = 1.266e+04, n_probes = 40, average cmps = 41917
+centroid dist cmp: 7241050, search_dist_cmp: 514247760
+For pointwise recall = 0.9986 and cumulative recall = 0.9996, QPS = 1.02e+04, n_probes = 50, average cmps = 52148
+centroid dist cmp: 10695240, search_dist_cmp: 1013846033
+For pointwise recall = 0.9986 and cumulative recall = 0.9996, QPS = 5173, n_probes = 100, average cmps = 102515
+centroid dist cmp: 16025620, search_dist_cmp: 1999257740
+For pointwise recall = 0.9986 and cumulative recall = 0.9996, QPS = 2583, n_probes = 200, average cmps = 201547
+centroid dist cmp: 27707461, search_dist_cmp: 4909992515
+For pointwise recall = 0.9986 and cumulative recall = 0.9996, QPS = 1053, n_probes = 500, average cmps = 494018
+centroid dist cmp: 40669387, search_dist_cmp: 9717752248
+For pointwise recall = 0.9986 and cumulative recall = 0.9996, QPS = 528.5, n_probes = 1000, average cmps = 976041
+centroid dist cmp: 59249898, search_dist_cmp: 19279500255
+For pointwise recall = 0.9986 and cumulative recall = 0.9996, QPS = 261.2, n_probes = 2000, average cmps = 1934841
+centroid dist cmp: 72372463, search_dist_cmp: 28852454218
+For pointwise recall = 0.9986 and cumulative recall = 0.9996, QPS = 171.9, n_probes = 3000, average cmps = 2892776
+
+
+Trying again with two-round search
+centroid dist cmp: 1124003, search_dist_cmp: 10212449
+For pointwise recall = 0.5137 and cumulative recall = 0.3404, QPS = 4.527e+05, n_probes = 1, average cmps = 1163
+centroid dist cmp: 1364605, search_dist_cmp: 20908480
+For pointwise recall = 0.752 and cumulative recall = 0.5565, QPS = 2.353e+05, n_probes = 2, average cmps = 2252
+centroid dist cmp: 1538176, search_dist_cmp: 31552129
+For pointwise recall = 0.8571 and cumulative recall = 0.7026, QPS = 1.571e+05, n_probes = 3, average cmps = 3329
+centroid dist cmp: 1688756, search_dist_cmp: 42076545
+For pointwise recall = 0.9114 and cumulative recall = 0.8046, QPS = 1.2e+05, n_probes = 4, average cmps = 4401
+centroid dist cmp: 1834799, search_dist_cmp: 52754284
+For pointwise recall = 0.9483 and cumulative recall = 0.8642, QPS = 9.571e+04, n_probes = 5, average cmps = 5469
+centroid dist cmp: 2229148, search_dist_cmp: 84122701
+For pointwise recall = 0.982 and cumulative recall = 0.9516, QPS = 6.054e+04, n_probes = 8, average cmps = 8658
+centroid dist cmp: 2487066, search_dist_cmp: 104967695
+For pointwise recall = 0.9916 and cumulative recall = 0.976, QPS = 4.832e+04, n_probes = 10, average cmps = 10771
+centroid dist cmp: 3724340, search_dist_cmp: 208575422
+For pointwise recall = 0.998 and cumulative recall = 0.9978, QPS = 2.444e+04, n_probes = 20, average cmps = 21252
+centroid dist cmp: 4915301, search_dist_cmp: 311194564
+For pointwise recall = 0.9986 and cumulative recall = 0.9994, QPS = 1.648e+04, n_probes = 30, average cmps = 31621
+centroid dist cmp: 6083302, search_dist_cmp: 412974232
+For pointwise recall = 0.9986 and cumulative recall = 0.9995, QPS = 1.222e+04, n_probes = 40, average cmps = 41917
+centroid dist cmp: 7239228, search_dist_cmp: 514075803
+For pointwise recall = 0.9986 and cumulative recall = 0.9996, QPS = 1e+04, n_probes = 50, average cmps = 52148
+centroid dist cmp: 10697741, search_dist_cmp: 1014034756
+For pointwise recall = 0.9986 and cumulative recall = 0.9996, QPS = 5077, n_probes = 100, average cmps = 102515
+centroid dist cmp: 16020353, search_dist_cmp: 1998423460
+For pointwise recall = 0.9986 and cumulative recall = 0.9996, QPS = 2536, n_probes = 200, average cmps = 201547
+centroid dist cmp: 27706012, search_dist_cmp: 4910034548
+For pointwise recall = 0.9986 and cumulative recall = 0.9996, QPS = 1035, n_probes = 500, average cmps = 494018
+centroid dist cmp: 40669306, search_dist_cmp: 9717787731
+For pointwise recall = 0.9986 and cumulative recall = 0.9996, QPS = 514.3, n_probes = 1000, average cmps = 976041
+centroid dist cmp: 59268150, search_dist_cmp: 19285191431
+For pointwise recall = 0.9986 and cumulative recall = 0.9996, QPS = 251.2, n_probes = 2000, average cmps = 1934841
+centroid dist cmp: 72380192, search_dist_cmp: 28855386720
+For pointwise recall = 0.9986 and cumulative recall = 0.9996, QPS = 165.5, n_probes = 3000, average cmps = 2892776
+
+For all 9590 points with zero results: 
+Sweeping once with regular beam search
+For pointwise recall = -nan and cumulative recall = -nan, QPS = 4.786e+05, n_probes = 1, average cmps = 1087
+For pointwise recall = -nan and cumulative recall = -nan, QPS = 2.407e+05, n_probes = 2, average cmps = 2105
+For pointwise recall = -nan and cumulative recall = -nan, QPS = 1.636e+05, n_probes = 3, average cmps = 3114
+For pointwise recall = -nan and cumulative recall = -nan, QPS = 1.228e+05, n_probes = 4, average cmps = 4120
+For pointwise recall = -nan and cumulative recall = -nan, QPS = 9.903e+04, n_probes = 5, average cmps = 5122
+For pointwise recall = -nan and cumulative recall = -nan, QPS = 6.217e+04, n_probes = 8, average cmps = 8121
+For pointwise recall = -nan and cumulative recall = -nan, QPS = 4.996e+04, n_probes = 10, average cmps = 10111
+For pointwise recall = -nan and cumulative recall = -nan, QPS = 2.517e+04, n_probes = 20, average cmps = 20019
+For pointwise recall = -nan and cumulative recall = -nan, QPS = 1.687e+04, n_probes = 30, average cmps = 29857
+For pointwise recall = -nan and cumulative recall = -nan, QPS = 1.272e+04, n_probes = 40, average cmps = 39643
+For pointwise recall = -nan and cumulative recall = -nan, QPS = 1.018e+04, n_probes = 50, average cmps = 49383
+For pointwise recall = -nan and cumulative recall = -nan, QPS = 5141, n_probes = 100, average cmps = 97435
+For pointwise recall = -nan and cumulative recall = -nan, QPS = 2563, n_probes = 200, average cmps = 192191
+For pointwise recall = -nan and cumulative recall = -nan, QPS = 1046, n_probes = 500, average cmps = 472585
+For pointwise recall = -nan and cumulative recall = -nan, QPS = 528.5, n_probes = 1000, average cmps = 935236
+For pointwise recall = -nan and cumulative recall = -nan, QPS = 263.4, n_probes = 2000, average cmps = 1855764
+For pointwise recall = -nan and cumulative recall = -nan, QPS = 173, n_probes = 3000, average cmps = 2775045
+
+For all 209 points with 1 to 20 results
+Sweeping once with regular beam search
+For pointwise recall = 0.5387 and cumulative recall = 0.5373, QPS = 6.489e+06, n_probes = 1, average cmps = 33
+For pointwise recall = 0.7886 and cumulative recall = 0.7613, QPS = 4.998e+06, n_probes = 2, average cmps = 65
+For pointwise recall = 0.8808 and cumulative recall = 0.8599, QPS = 3.733e+06, n_probes = 3, average cmps = 97
+For pointwise recall = 0.924 and cumulative recall = 0.9069, QPS = 2.579e+06, n_probes = 4, average cmps = 127
+For pointwise recall = 0.9598 and cumulative recall = 0.941, QPS = 2.016e+06, n_probes = 5, average cmps = 156
+For pointwise recall = 0.984 and cumulative recall = 0.976, QPS = 1.455e+06, n_probes = 8, average cmps = 245
+For pointwise recall = 0.9929 and cumulative recall = 0.9843, QPS = 1.218e+06, n_probes = 10, average cmps = 302
+For pointwise recall = 0.9972 and cumulative recall = 0.9954, QPS = 5.265e+05, n_probes = 20, average cmps = 576
+For pointwise recall = 0.9978 and cumulative recall = 0.9972, QPS = 3.687e+05, n_probes = 30, average cmps = 834
+For pointwise recall = 0.9978 and cumulative recall = 0.9972, QPS = 2.91e+05, n_probes = 40, average cmps = 1087
+For pointwise recall = 0.9978 and cumulative recall = 0.9972, QPS = 2.329e+05, n_probes = 50, average cmps = 1331
+For pointwise recall = 0.9978 and cumulative recall = 0.9972, QPS = 1.326e+05, n_probes = 100, average cmps = 2487
+For pointwise recall = 0.9978 and cumulative recall = 0.9972, QPS = 6.904e+04, n_probes = 200, average cmps = 4651
+For pointwise recall = 0.9978 and cumulative recall = 0.9972, QPS = 2.97e+04, n_probes = 500, average cmps = 10796
+For pointwise recall = 0.9978 and cumulative recall = 0.9972, QPS = 1.515e+04, n_probes = 1000, average cmps = 20723
+For pointwise recall = 0.9978 and cumulative recall = 0.9972, QPS = 7481, n_probes = 2000, average cmps = 40342
+For pointwise recall = 0.9978 and cumulative recall = 0.9972, QPS = 4679, n_probes = 3000, average cmps = 60101
+
+
+Trying again with two-round search
+For pointwise recall = 0.5387 and cumulative recall = 0.5373, QPS = 5.408e+06, n_probes = 1, average cmps = 33
+For pointwise recall = 0.7886 and cumulative recall = 0.7613, QPS = 4.502e+06, n_probes = 2, average cmps = 65
+For pointwise recall = 0.8808 and cumulative recall = 0.8599, QPS = 3.356e+06, n_probes = 3, average cmps = 97
+For pointwise recall = 0.924 and cumulative recall = 0.9069, QPS = 2.845e+06, n_probes = 4, average cmps = 127
+For pointwise recall = 0.9598 and cumulative recall = 0.941, QPS = 2.338e+06, n_probes = 5, average cmps = 156
+For pointwise recall = 0.984 and cumulative recall = 0.976, QPS = 1.319e+06, n_probes = 8, average cmps = 245
+For pointwise recall = 0.9929 and cumulative recall = 0.9843, QPS = 1.102e+06, n_probes = 10, average cmps = 302
+For pointwise recall = 0.9972 and cumulative recall = 0.9954, QPS = 5.365e+05, n_probes = 20, average cmps = 576
+For pointwise recall = 0.9978 and cumulative recall = 0.9972, QPS = 3.717e+05, n_probes = 30, average cmps = 834
+For pointwise recall = 0.9978 and cumulative recall = 0.9972, QPS = 2.936e+05, n_probes = 40, average cmps = 1087
+For pointwise recall = 0.9978 and cumulative recall = 0.9972, QPS = 2.382e+05, n_probes = 50, average cmps = 1331
+For pointwise recall = 0.9978 and cumulative recall = 0.9972, QPS = 1.282e+05, n_probes = 100, average cmps = 2487
+For pointwise recall = 0.9978 and cumulative recall = 0.9972, QPS = 6.846e+04, n_probes = 200, average cmps = 4651
+For pointwise recall = 0.9978 and cumulative recall = 0.9972, QPS = 3.002e+04, n_probes = 500, average cmps = 10796
+For pointwise recall = 0.9978 and cumulative recall = 0.9972, QPS = 1.531e+04, n_probes = 1000, average cmps = 20723
+For pointwise recall = 0.9978 and cumulative recall = 0.9972, QPS = 7394, n_probes = 2000, average cmps = 40342
+For pointwise recall = 0.9978 and cumulative recall = 0.9972, QPS = 4667, n_probes = 3000, average cmps = 60101
+
+For all 201 points with greater than 20 results
+Sweeping once with regular beam search
+For pointwise recall = 0.4876 and cumulative recall = 0.339, QPS = 6.41e+06, n_probes = 1, average cmps = 41
+For pointwise recall = 0.7139 and cumulative recall = 0.555, QPS = 3.529e+06, n_probes = 2, average cmps = 80
+For pointwise recall = 0.8324 and cumulative recall = 0.7014, QPS = 3.277e+06, n_probes = 3, average cmps = 117
+For pointwise recall = 0.8983 and cumulative recall = 0.8038, QPS = 2.826e+06, n_probes = 4, average cmps = 154
+For pointwise recall = 0.9364 and cumulative recall = 0.8637, QPS = 2.142e+06, n_probes = 5, average cmps = 190
+For pointwise recall = 0.98 and cumulative recall = 0.9514, QPS = 1.324e+06, n_probes = 8, average cmps = 291
+For pointwise recall = 0.9902 and cumulative recall = 0.976, QPS = 1.094e+06, n_probes = 10, average cmps = 356
+For pointwise recall = 0.9989 and cumulative recall = 0.9978, QPS = 6.236e+05, n_probes = 20, average cmps = 657
+For pointwise recall = 0.9995 and cumulative recall = 0.9994, QPS = 4.066e+05, n_probes = 30, average cmps = 929
+For pointwise recall = 0.9995 and cumulative recall = 0.9996, QPS = 3.299e+05, n_probes = 40, average cmps = 1186
+For pointwise recall = 0.9995 and cumulative recall = 0.9996, QPS = 2.63e+05, n_probes = 50, average cmps = 1433
+For pointwise recall = 0.9995 and cumulative recall = 0.9996, QPS = 1.413e+05, n_probes = 100, average cmps = 2591
+For pointwise recall = 0.9995 and cumulative recall = 0.9996, QPS = 7.325e+04, n_probes = 200, average cmps = 4704
+For pointwise recall = 0.9995 and cumulative recall = 0.9996, QPS = 3.035e+04, n_probes = 500, average cmps = 10636
+For pointwise recall = 0.9995 and cumulative recall = 0.9996, QPS = 1.571e+04, n_probes = 1000, average cmps = 20080
+For pointwise recall = 0.9995 and cumulative recall = 0.9996, QPS = 7653, n_probes = 2000, average cmps = 38734
+For pointwise recall = 0.9995 and cumulative recall = 0.9996, QPS = 4853, n_probes = 3000, average cmps = 57630
+
+
+Trying again with two-round search
+For pointwise recall = 0.4876 and cumulative recall = 0.339, QPS = 5.838e+06, n_probes = 1, average cmps = 41
+For pointwise recall = 0.7139 and cumulative recall = 0.555, QPS = 3.642e+06, n_probes = 2, average cmps = 80
+For pointwise recall = 0.8324 and cumulative recall = 0.7014, QPS = 4.072e+06, n_probes = 3, average cmps = 117
+For pointwise recall = 0.8983 and cumulative recall = 0.8038, QPS = 2.937e+06, n_probes = 4, average cmps = 154
+For pointwise recall = 0.9364 and cumulative recall = 0.8637, QPS = 2.182e+06, n_probes = 5, average cmps = 190
+For pointwise recall = 0.98 and cumulative recall = 0.9514, QPS = 1.395e+06, n_probes = 8, average cmps = 291
+For pointwise recall = 0.9902 and cumulative recall = 0.976, QPS = 1.139e+06, n_probes = 10, average cmps = 356
+For pointwise recall = 0.9989 and cumulative recall = 0.9978, QPS = 6.063e+05, n_probes = 20, average cmps = 657
+For pointwise recall = 0.9995 and cumulative recall = 0.9994, QPS = 4.161e+05, n_probes = 30, average cmps = 929
+For pointwise recall = 0.9995 and cumulative recall = 0.9996, QPS = 3.185e+05, n_probes = 40, average cmps = 1186
+For pointwise recall = 0.9995 and cumulative recall = 0.9996, QPS = 2.499e+05, n_probes = 50, average cmps = 1433
+For pointwise recall = 0.9995 and cumulative recall = 0.9996, QPS = 1.399e+05, n_probes = 100, average cmps = 2591
+For pointwise recall = 0.9995 and cumulative recall = 0.9996, QPS = 7.132e+04, n_probes = 200, average cmps = 4704
+For pointwise recall = 0.9995 and cumulative recall = 0.9996, QPS = 3.039e+04, n_probes = 500, average cmps = 10636
+For pointwise recall = 0.9995 and cumulative recall = 0.9996, QPS = 1.595e+04, n_probes = 1000, average cmps = 20080
+For pointwise recall = 0.9995 and cumulative recall = 0.9996, QPS = 7744, n_probes = 2000, average cmps = 38734
+For pointwise recall = 0.9995 and cumulative recall = 0.9996, QPS = 4875, n_probes = 3000, average cmps = 57630
+
+For pointwise recall = 0.5137 and cumulative recall = 0.3404, QPS = 4.431e+05, n_probes = 1, average cmps = 1163
+For pointwise recall = 0.752 and cumulative recall = 0.5565, QPS = 2.259e+05, n_probes = 2, average cmps = 2252
+For pointwise recall = 0.8571 and cumulative recall = 0.7026, QPS = 1.509e+05, n_probes = 3, average cmps = 3329
+For pointwise recall = 0.9114 and cumulative recall = 0.8046, QPS = 1.156e+05, n_probes = 4, average cmps = 4401
+For pointwise recall = 0.9483 and cumulative recall = 0.8642, QPS = 9.284e+04, n_probes = 5, average cmps = 5469
+For pointwise recall = 0.9916 and cumulative recall = 0.976, QPS = 4.682e+04, n_probes = 10, average cmps = 10771
+For pointwise recall = 0.998 and cumulative recall = 0.9978, QPS = 2.365e+04, n_probes = 20, average cmps = 21252
+For pointwise recall = 0.9986 and cumulative recall = 0.9996, QPS = 9585, n_probes = 50, average cmps = 52148
+For pointwise recall = 0.9986 and cumulative recall = 0.9996, QPS = 4883, n_probes = 100, average cmps = 102515
+For pointwise recall = 0.9986 and cumulative recall = 0.9996, QPS = 2434, n_probes = 200, average cmps = 201547
+For pointwise recall = 0.9986 and cumulative recall = 0.9996, QPS = 995.8, n_probes = 500, average cmps = 494018
+For pointwise recall = 0.9986 and cumulative recall = 0.9996, QPS = 504.4, n_probes = 1000, average cmps = 976041
+Saving index...
+Parlay time: 568.0963

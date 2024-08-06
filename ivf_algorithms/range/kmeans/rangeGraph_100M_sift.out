@@ -1,0 +1,6 @@
+Detected 10000 points with num matches 1530449
+Detected 100000000 points with dimension 128
+Detected 10000 points with dimension 128
+Building with 10000 clusters
+Calculating clusters
+KMeans run on: 20000000 many points to obtain: 10000 many clusters.

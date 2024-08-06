@@ -1,0 +1,324 @@
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,0.523908
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,0.500295
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,0.524847
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,0.695783
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,0.504317
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,0.524646
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,0.532838
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,0.532501
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,0.748064
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,0.749934
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+10000,0.5,0.5083,64324.4,10253,16424,10,1
+10000,0.9,0.90774,12990.4,50758,62425,10,5
+10000,0.97,0.97064,6565.66,100760,117746,10,10
+10000,0.98,0.98855,3181.65,199753,225947,10,20
+10000,0.99,0.99138,1256.96,63340,532442,10,50
+10000,0.99999,1,659.657,141140,1000143,10,1000
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,0.753313
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+10000,0.5,0.51397,55969.4,10392,18914,10,1
+10000,0.9,0.90428,11673.4,50947,65062,10,5
+10000,0.95,0.96842,5874.69,100793,120076,10,10
+10000,0.98,0.98614,3141.88,198998,226370,10,20
+10000,0.99999,1,667.494,141141,1000144,10,1000
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,0.718825
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+10000,0.5,0.51364,61405.1,10367,17115,10,1
+10000,0.9,0.90805,12771,50654,66763,10,5
+10000,0.97,0.97028,6412.43,100367,117602,10,10
+10000,0.98,0.98896,3264.27,198881,220123,10,20
+10000,0.99,0.99166,1241.73,63250,521187,10,50
+10000,0.99999,1,674.106,141131,1000135,10,200
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,0.726924
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+10000,0.5,0.51654,57250.2,10256,16638,10,1
+10000,0.9,0.90733,12222.2,50517,62180,10,5
+10000,0.97,0.97009,6159.25,100119,115042,10,10
+10000,0.98,0.98726,3170.9,198384,216162,10,20
+10000,0.99,0.99005,1291.99,61344,518389,10,50
+10000,0.99999,1,686.02,141133,1000136,10,500
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,0.752758
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+10000,0.5,0.52191,63400.3,10328,16621,10,1
+10000,0.9,0.91157,13065.3,50681,62931,10,5
+10000,0.97,0.9716,6680.08,100509,115072,10,10
+10000,0.98,0.98795,3372.47,198936,219036,10,20
+10000,0.99,0.9909,1364.06,61661,519807,10,50
+10000,0.99999,1,673.376,141137,1000141,10,200
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,0.75787
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+10000,0.5,0.51284,63044.1,10433,17665,10,1
+10000,0.9,0.90782,13186.6,50873,65590,10,5
+10000,0.97,0.9712,6600.53,100766,114893,10,10
+10000,0.98,0.9887,3233.23,199527,216823,10,20
+10000,0.99,0.99132,1358.11,61987,515834,10,50
+10000,0.99999,1,682.356,141139,1000142,10,200
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,0.74754
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+10000,0.5,0.51298,64349.6,10269,17606,10,1
+10000,0.9,0.90615,13410,50838,62631,10,5
+10000,0.95,0.96909,6755.35,101074,116621,10,10
+10000,0.98,0.98679,3410.93,200276,222952,10,20
+10000,0.99999,1,675.75,141140,1000144,10,1000
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,0.768486
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+10000,0.5,0.51473,56399,10365,19160,10,1
+10000,0.9,0.90813,11375.1,50877,67005,10,5
+10000,0.97,0.9705,5732.26,100764,117727,10,10
+10000,0.98,0.98859,2917.31,199257,221863,10,20
+10000,0.99,0.99153,1278.68,62301,519819,10,50
+10000,0.99999,1,628.686,141132,1000135,10,1000
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,5.57704
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+10000,0.5,0.51601,21664.3,10365,15595,10,1
+10000,0.9,0.90995,4656.16,50681,60999,10,5
+10000,0.97,0.97175,2780.28,100558,114295,10,10
+10000,0.98,0.98915,1377.58,199342,219414,10,20
+10000,0.99,0.99178,571.486,62592,514617,10,50
+10000,0.99999,1,346.299,141137,1000141,10,200
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,0.733414
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+10000,0.5,0.5119,60273.3,10325,17549,10,1
+10000,0.9,0.911,12370.9,50901,64230,10,5
+10000,0.97,0.97456,6211.57,100913,116934,10,10
+10000,0.99,0.99099,3070.94,199736,220141,10,20
+10000,0.99999,1,630.51,141133,1000135,10,100
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,0.757872
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+10000,0.5,0.5136,61073.6,10418,17520,10,1
+10000,0.9,0.91005,12528.2,51096,63543,10,5
+10000,0.97,0.9731,6324.71,101365,118738,10,10
+10000,0.99,0.9904,3247.49,200639,227467,10,20
+10000,0.99999,1,672.859,141145,1000148,10,500
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,0.721542
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+10000,0.5,0.5237,60481.8,10532,19403,10,1
+10000,0.9,0.90546,12167.5,51146,67296,10,5
+10000,0.95,0.96819,6002.71,101217,118968,10,10
+10000,0.98,0.98508,3148.41,200153,222529,10,20
+10000,0.99999,1,655.867,141138,1000144,10,1000
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,0.748299
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+10000,0.5,0.51738,54562.8,10421,18320,10,1
+10000,0.9,0.90799,11455.8,50777,67942,10,5
+10000,0.97,0.97124,5819,100467,120174,10,10
+10000,0.98,0.98929,3008.02,198785,221980,10,20
+10000,0.99,0.99218,1249.49,62734,523642,10,50
+10000,0.99999,1,670.261,141133,1000136,10,500
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,0.731218
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+10000,0.5,0.51927,60174.6,10378,16006,10,1
+10000,0.9,0.91231,12270.9,50943,61741,10,5
+10000,0.97,0.97387,6235.63,100952,117282,10,10
+10000,0.99,0.99184,2988.46,199700,224023,10,20
+10000,0.99999,1,627.967,141132,1000137,10,1000
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,0.750275
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+10000,0.5,0.50861,55855.6,10283,18817,10,1
+10000,0.9,0.90974,11657.8,50729,66248,10,5
+10000,0.97,0.97108,5823.16,100410,118199,10,10
+10000,0.98,0.98873,3067.28,198590,220848,10,20
+10000,0.99,0.99142,1291.43,62022,521535,10,50
+10000,0.99999,1,639.841,141134,1000137,10,200
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,0.723908
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+10000,0.5,0.51984,59980.1,10613,18045,10,1
+10000,0.9,0.90893,12541.4,51264,69521,10,5
+10000,0.97,0.971,6332.3,101232,123108,10,10
+10000,0.98,0.98887,3295.68,199850,227778,10,20
+10000,0.99,0.99155,1343.04,61510,535447,10,50
+10000,0.99999,1,669.948,141133,1000136,10,100
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,0.764852
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+10000,0.5,0.51987,63668.3,10463,17575,10,1
+10000,0.9,0.9109,12975.5,51343,64879,10,5
+10000,0.97,0.97186,6563.14,101674,122495,10,10
+10000,0.98,0.98962,3304.87,200764,233171,10,20
+10000,0.99,0.992,1403.09,63468,540357,10,50
+10000,0.99999,1,680.025,141127,1000133,10,100
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,0.755178
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+10000,0.5,0.50785,58590.5,10360,20103,10,1
+10000,0.9,0.90717,12200.7,50907,69426,10,5
+10000,0.97,0.972,6189.62,100687,120992,10,10
+10000,0.99,0.99061,3155.38,198821,223748,10,20
+10000,0.99999,1,633.549,141136,1000138,10,100
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,0.72993
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+10000,0.5,0.51504,61832.6,10628,16799,10,1
+10000,0.9,0.9019,12580,52116,69829,10,5
+10000,0.95,0.96626,6432.63,103036,128768,10,10
+10000,0.98,0.98376,3258.73,202563,245362,10,20
+10000,0.99999,1,678.953,141128,1000131,10,1000
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,1.08923
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+10000,0.5,0.51492,44030.8,10396,17909,10,1
+10000,0.9,0.90864,9384.79,50941,65799,10,5
+10000,0.97,0.97165,4781.05,100805,120149,10,10
+10000,0.98,0.98925,2479.11,199213,226296,10,20
+10000,0.99,0.99207,987.433,63293,536596,10,50
+10000,0.99999,1,501.565,141138,1000141,10,1000
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,3.32384
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+10000,0.5,0.50952,18056.6,10371,17241,10,1
+10000,0.9,0.91112,4342.67,50965,63114,10,5
+10000,0.97,0.97179,2871.92,101062,114626,10,10
+10000,0.98,0.98887,1960.13,200547,219883,10,20
+10000,0.99,0.99152,910.851,65681,526431,10,50
+10000,0.99999,1,397.599,141140,1000144,10,1000
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,0.809452
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+10000,0.5,0.51098,61150.9,10338,18679,10,1
+10000,0.9,0.90935,12313.8,51012,64940,10,5
+10000,0.97,0.97135,6203.23,101042,119575,10,10
+10000,0.98,0.98923,3064.32,199888,231903,10,20
+10000,0.99,0.99201,1280.65,61899,543761,10,50
+10000,0.99999,1,658.569,141131,1000134,10,1000
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,0.753705
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+10000,0.5,0.52282,51172.1,10455,19927,10,1
+10000,0.9,0.9166,10530.3,50759,67704,10,5
+10000,0.97,0.97856,5315.13,100470,119858,10,10
+10000,0.995,0.99731,3041.44,198502,222427,10,20
+10000,0.99995,0.99998,1350.64,60646,521194,10,50
+10000,0.99999,1,677.013,141131,1000134,10,1000
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,0.738126
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+10000,0.5,0.5233,59239.9,10369,19297,10,1
+10000,0.9,0.91621,12258.2,50850,67315,10,5
+10000,0.97,0.97911,6182.88,100794,118353,10,10
+10000,0.995,0.99706,3116.93,199322,221037,10,20
+10000,0.9999,0.99995,1267.09,61344,517232,10,50
+10000,0.99995,0.99995,1267.09,61344,517232,10,50
+10000,0.99999,1,666.279,141135,1000137,10,1000
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100",1000000,0.747291
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+10000,0.5,0.52116,57783.8,10337,18646,10,1
+10000,0.9,0.91328,12020.5,50639,67417,10,5
+10000,0.97,0.97785,6063.03,100477,117925,10,10
+10000,0.995,0.99698,3118.85,199049,216116,10,20
+10000,0.99995,0.99996,1291.71,62904,512430,10,50
+10000,0.99999,1,665.641,141135,1000139,10,200
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 100000",1183514,150.007
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+
+
+"Algorithm type","Parameters","Index size","Build Time"
+"Kmeans","Num_clusters = 10000",10000000,221.499
+"Num queries","Target recall","Actual recall","QPS","Average Cmps","Tail Cmps","k","n_probes"
+10000,0.99999,1,50.6113,121640,10000065,10,500
+
+

@@ -26,6 +26,7 @@ void IVFGraph(long k, BuildParams &BP,
     std::cout << "Building with " << BP.num_clusters << " clusters" << std::endl;
     parlay::internal::timer t("IVFGraph");
     double idx_time;
+    //Cluster of size BP.num_clusters, which we keep as 1000 points per bucket
     KMeansClusterer<T, Point, indexType> K(BP.num_clusters);
     //PostingListIndex<T, Point, indexType> PostingList(Points, K, 0, index_path);
     GraphPostingListIndex<T, Point, indexType> PostingList(Points, K, 0, index_path);

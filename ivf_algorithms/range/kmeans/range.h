@@ -2,6 +2,7 @@
 #include "../../ivf/clustering.h"
 #include "../../ivf/posting_list.h"
 #include "../../ivf/check_ivf_range_recall.h"
+#include "../../ivf/ivfGraph.h"
 
 #include "utils/euclidian_point.h"
 #include "utils/mips_point.h"

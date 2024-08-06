@@ -66,7 +66,6 @@ struct PointRange{
     
     //std::cout << "pr_start cd count " << data.use_count() << std::endl;
 
-
     n = size;
     dims = dimension;
     aligned_dims =  dim_round_up(dims, sizeof(T));

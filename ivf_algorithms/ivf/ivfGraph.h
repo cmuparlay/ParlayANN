@@ -76,7 +76,6 @@ struct GraphPostingListIndex {
     n = Points.size();
     cluster_params = clusterer.get_build_params();
 
-    //TODO change the struct based on changes in centroids
     if (index_path != nullptr &&
         std::filesystem::exists(pl_filename(std::string(index_path)))) {
       load_posting_list(std::string(index_path));
@@ -85,7 +84,6 @@ struct GraphPostingListIndex {
       std::cout << "Calculating clusters" << std::endl;
       clusters = clusterer.cluster(Points, indices);
 
-      // TODO:change it into shared pointer Done
       centroid_data =
         (T*)(aligned_alloc(64,clusters.size() * aligned_dim* sizeof(T)));
 
@@ -177,22 +175,10 @@ struct GraphPostingListIndex {
      Point query, int k, int n_probes) {
       // we do linear traversal over the centroids to get the nearest ones
       size_t pl_frontier_size = n_probes < centroids.size() ? n_probes : centroids.size();
-      parlay::sequence<std::pair<indexType, float>> pl_frontier(pl_frontier_size, std::make_pair(0, std::numeric_limits<float>::max()));
+      //parlay::sequence<std::pair<indexType, float>> pl_frontier(pl_frontier_size, std::make_pair(0, std::numeric_limits<float>::max()));
 
       size_t dist_cmps = 0;
-      // //Finding centrids-> Use a new struct 
-      // for (indexType i = 0; i < centroids.size(); i++) {
-      //   float dist = query.distance(centroids[i]);
-      //   if (dist < pl_frontier[pl_frontier_size - 1].second) {
-      //     pl_frontier.pop_back();
-      //     pl_frontier.push_back(std::make_pair(i, dist));
-      //     std::sort(pl_frontier.begin(), pl_frontier.end(),
-      //               [&](std::pair<indexType, float> a,
-      //                   std::pair<indexType, float> b) {
-      //                 return a.second < b.second;
-      //               });
-      //   }
-      // }
+      
       
       QueryParams QP(0,pl_frontier_size,1.35,centroids.size(),32);
 
@@ -203,12 +189,6 @@ struct GraphPostingListIndex {
       parlay::sequence<std::pair<indexType, float>> frontier(
          k, std::make_pair(0, std::numeric_limits<float>::max()));
 
-      //TODO: rewrite this
-      // go throught the frontier that get back from beam_search
-      // results.first = frontier
-      // Be careful of name collision
-      // i = 0; i< frontier.size();i++ {}
-      
       for (indexType i = 0; i < (results.first.first).size(); i++) {
         dist_cmps += clusters[(results.first.first)[i].first].size();
         for (indexType j = 0; j < clusters[(results.first.first)[i].first].size(); j++) {
@@ -225,24 +205,74 @@ struct GraphPostingListIndex {
         }  
       }
 
-
-    // std::cout <<"printing out frontier" <<std::endl;
-
-    //frontier = results.first.first;
-    
-
-    // for(int i=0; i< frontier.size(); i++){
-    //   std::cout << " dist: " << frontier[i].second;
-    // }
-
-    // std::cout << std::endl;
-
-    // std::cout <<" cmps:" << dist_cmps<< std::endl;
-
-    //return std::make_pair(results.first.first,results.second);
-
     return std::make_pair(frontier, dist_cmps);
   }
+
+
+  /* computes range results with the ivf index */
+  std::pair<parlay::sequence<std::pair<indexType, float>>, size_t> ivf_range(
+     Point query, double rad, int n_probes) {
+      // we do linear traversal over the centroids to get the nearest ones
+      // TODO should we exclude centroids that are too far away from the radius?
+      size_t pl_frontier_size = n_probes < centroids.size() ? n_probes : centroids.size();
+      size_t dist_cmps = 0;
+      
+      
+      QueryParams QP(0,pl_frontier_size,1.35,centroids.size(),32);
+
+      // now we do search on the points in the posting lists
+      auto results = beam_search(query, G, centroids, (unsigned int)0, QP); 
+      dist_cmps += results.second;
+
+
+      parlay::sequence<std::pair<indexType, float>> frontier;
+      // now we do search on the points in the posting lists
+      for (indexType i = 0; i < results.first.first.size(); i++) {
+        dist_cmps += clusters[results.first.first[i].first].size();
+        for (indexType j = 0; j < clusters[results.first.first[i].first].size(); j++) {
+          float dist = query.distance(Points[clusters[results.first.first[i].first][j]]);
+          if (dist < rad) {
+            frontier.push_back(std::make_pair(clusters[results.first.first[i].first][j], dist));
+          }
+        }
+      }
+
+      return std::make_pair(frontier, dist_cmps);
+  }
+  /* computes range results with the ivf index, and returns two comparsion number.
+  First distance argument as  */
+  std::pair<parlay::sequence<std::pair<indexType, float>>, std::pair<size_t,size_t>> ivf_range_dist_cmp(
+     Point query, double rad, int n_probes) {
+      // we do linear traversal over the centroids to get the nearest ones
+      // TODO should we exclude centroids that are too far away from the radius?
+      size_t pl_frontier_size = n_probes < centroids.size() ? n_probes : centroids.size();
+      size_t dist_cmps_1 = 0;
+      size_t dist_cmps_2 = 0;
+
+      
+      
+      QueryParams QP(0,pl_frontier_size,1.35,centroids.size(),32);
+
+      // now we do search on the points in the posting lists
+      auto results = beam_search(query, G, centroids, (unsigned int)0, QP); 
+      dist_cmps_1 += results.second;
+
+
+      parlay::sequence<std::pair<indexType, float>> frontier;
+      // now we do search on the points in the posting lists
+      for (indexType i = 0; i < results.first.first.size(); i++) {
+        dist_cmps_2 += clusters[results.first.first[i].first].size();
+        for (indexType j = 0; j < clusters[results.first.first[i].first].size(); j++) {
+          float dist = query.distance(Points[clusters[results.first.first[i].first][j]]);
+          if (dist < rad) {
+            frontier.push_back(std::make_pair(clusters[results.first.first[i].first][j], dist));
+          }
+        }
+      }
+
+      return std::make_pair(frontier, std::make_pair(dist_cmps_1,dist_cmps_2));
+  } 
+
 
   std::string pl_filename(std::string filename_prefix) {
     return filename_prefix + std::to_string(id) + "_postingList_" +

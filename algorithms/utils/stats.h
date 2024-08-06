@@ -67,7 +67,7 @@ struct stats{
   void increment_visited(indexType i, indexType j){visited[i]+=j;}
 
   parlay::sequence<indexType> visited_stats(){return statistics(this->visited);}
-  parlay::sequence<indexType> dist_stats(){return statistics(this->distances);}
+  parlay::sequence<size_t> dist_stats(){return statistics(this->distances);}
 
   void clear(){
     size_t n = visited.size();
@@ -75,12 +75,12 @@ struct stats{
     distances = parlay::sequence<indexType>(n, 0);
   }
 
-  parlay::sequence<indexType> statistics(parlay::sequence<indexType> s){
-    parlay::sequence<indexType> stats = parlay::tabulate(s.size(), [&](size_t i) { return s[i];});
+  parlay::sequence<size_t> statistics(parlay::sequence<indexType> s){
+    parlay::sequence<size_t> stats = parlay::tabulate(s.size(), [&](size_t i) { return static_cast<size_t>(s[i]);});
     parlay::sort_inplace(stats);
-    indexType avg = (int)parlay::reduce(stats) / ((double)s.size());
-    indexType tail_index = .99 * ((float)s.size());
-    indexType tail = stats[tail_index];
+    size_t avg = (size_t)parlay::reduce(stats) / ((double)s.size());
+    size_t tail_index = .99 * ((float)s.size());
+    size_t tail = stats[tail_index];
     auto result = {avg, tail};
     return result;
   }
