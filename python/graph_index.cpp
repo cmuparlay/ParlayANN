@@ -164,4 +164,29 @@ struct GraphIndex{
         std::cout << "Recall: " << recall << std::endl;
     }
 
+    /* Returns a neighbors and distances pair which actually represents the R
+    out neighbors of each point and the length of their respective edges. 
+    
+    when a point has fewer than R edges, the distances will be float inf and 
+    the indices will be unsigned int max. */
+    NeighborsAndDistances edges_and_lengths() {
+        size_t n = Points.size();
+        size_t R = G.max_degree();
+        py::array_t<unsigned int> ids({n, R});
+        py::array_t<float> dists({n, R});
+        parlay::parallel_for(0, n, [&] (size_t i){
+            auto neighbors = G[i];
+            
+            for(int j=0; j<neighbors.size(); j++){
+                ids.mutable_data(i)[j] = neighbors[j];
+                dists.mutable_data(i)[j] = Points[i].distance(Points[neighbors[j]]);
+            }
+            for(int j=neighbors.size(); j<R; j++){
+                ids.mutable_data(i)[j] = std::numeric_limits<unsigned int>::max();
+                dists.mutable_data(i)[j] = std::numeric_limits<float>::infinity();
+            }
+        });
+        return std::make_pair(std::move(ids), std::move(dists));
+    }
+
 };
