@@ -114,22 +114,24 @@ struct HCNNGClusterer {
 
 template <typename T, class Point, typename indexType>
 struct KMeansClusterer {
-  size_t n_clusters = 1000;
+  size_t n_toplevel_clusters = 1000;
+  size_t n_subclusters = 1000;
 
   size_t max_iters; 
-  size_t subsample = 5; // Subsample rate.
+  size_t toplevel_subsample = 500; // Subsample rate.
+  size_t subsample = 5;
 
   KMeansClusterer() {}
 
-  KMeansClusterer(size_t n_clusters) : n_clusters(n_clusters) {
+  KMeansClusterer(size_t nt, size_t nc) : n_toplevel_clusters(nt), n_subclusters(nc) {
     this->max_iters = max_iter;
   }
 
-  parlay::sequence<parlay::sequence<size_t>> get_clusters(parlay::sequence<size_t>& cluster_assignments) {
+  parlay::sequence<parlay::sequence<size_t>> get_clusters(parlay::sequence<size_t>& cluster_assignments, size_t num_clusters) {
     auto pairs = parlay::tabulate(cluster_assignments.size(), [&] (size_t i) {
       return std::make_pair(cluster_assignments[i], i);
     });
-    return parlay::group_by_index(pairs, n_clusters);
+    return parlay::group_by_index(pairs, num_clusters);
   }
 
 	void cluster_stats(parlay::sequence<parlay::sequence<indexType>>& clusters) {
@@ -144,38 +146,43 @@ struct KMeansClusterer {
 		std::cout << "ClusterStats: num_points: " << num_points << " num_clusters: " << num_clusters << " Min: " << min_size << " Max: " << max_size << " Avg: " << avg_size << std::endl;
 	}
 
-  parlay::sequence<parlay::sequence<indexType>> cluster(
-     PointRange<T, Point> points, parlay::sequence<indexType> input_indices) {
+ 
+
+  parlay::sequence<parlay::sequence<indexType>> cluster_impl(PointRange<T, Point> &points, parlay::sequence<indexType> &input_indices, size_t num_clusters, size_t subsample_rate, size_t rng=0){
     parlay::internal::timer  t;
     t.start();
-
-    auto permuted_indices = parlay::random_shuffle(input_indices);
-    auto indices = parlay::tabulate(input_indices.size() / subsample, [&] (size_t i) {
+    
+    // generate subsample
+    // need to use a seed here so that the two-level clusters don't all generate the same subsample
+    auto permuted_indices = parlay::random_shuffle(input_indices, rng);
+    auto indices = parlay::tabulate(input_indices.size() / subsample_rate, [&] (size_t i) {
       return permuted_indices[i];
     });
 
+    // initialize centroids
     size_t num_points = indices.size();
     size_t dim = points.dimension();
     size_t aligned_dim = points.aligned_dimension();
-    std::cout << "KMeans run on: " << num_points << " many points to obtain: " << n_clusters << " many clusters." << std::endl;
-    auto centroid_data = parlay::sequence<T>(n_clusters * aligned_dim);
-    auto centroids = parlay::tabulate(n_clusters, [&](size_t i) {
+    std::cout << "KMeans run on: " << num_points << " many points to obtain: " << num_clusters << " many clusters." << std::endl;
+    auto centroid_data = parlay::sequence<T>(num_clusters * aligned_dim);
+    auto centroids = parlay::tabulate(num_clusters, [&](size_t i) {
       return Point(centroid_data.begin() + i * aligned_dim, dim, aligned_dim, i);
     });
 
-    
-
     // initially run HCNNGClusterer to get initial set of clusters
+    // clusters is type sequence<sequence<indexType>>
     auto clusters = HCNNGClusterer<Point, PointRange<T, Point>, indexType>(
-                       num_points / n_clusters)
+                       num_points / num_clusters)
                        .cluster(points, input_indices);
 
+    //sort by size -- why?
     parlay::sort_inplace(clusters, [&](parlay::sequence<indexType> a,
                                parlay::sequence<indexType> b) {
       return a.size() < b.size();
     });
 
-    parlay::parallel_for(0, n_clusters, [&](size_t i) {
+        //compute centroid of each cluster
+    parlay::parallel_for(0, num_clusters, [&](size_t i) {
       size_t offset = i * aligned_dim;
       parlay::sequence<double> centroid(dim);
       for (size_t j = 0; j < clusters[i].size(); j++) {
@@ -189,13 +196,14 @@ struct KMeansClusterer {
       }
     });
 
+    //assign each point in subsample to nearest centroid
     parlay::sequence<size_t> cluster_assignments =
        parlay::sequence<size_t>::uninitialized(num_points);
 
     parlay::parallel_for(0, num_points, [&](size_t i) {
       double min_dist = std::numeric_limits<double>::max();
       size_t min_index = 0;
-      for (size_t j = 0; j < n_clusters; j++) {
+      for (size_t j = 0; j < num_clusters; j++) {
         double dist = points[indices[i]].distance(centroids[j]);
         if (dist < min_dist) {
           min_dist = dist;
@@ -213,139 +221,7 @@ struct KMeansClusterer {
       num_iters++;
       not_converged = false;
 
-      auto new_clusters = get_clusters(cluster_assignments);
-
-      // compute new centroids
-      parlay::parallel_for(0, new_clusters.size(), [&](size_t i) {
-        size_t offset = i * aligned_dim;
-        parlay::sequence<double> centroid(dim);
-        auto clust_size = new_clusters[i].size();
-        for (size_t j = 0; j < clust_size; j++) { 
-          for (size_t d = 0; d < dim; d++) {
-            centroid[d] +=
-               static_cast<double>(pt[d]) / clust_size;
-          }
-        }
-        for (size_t d = 0; d < dim; d++) {
-          centroid_data[offset + d] = static_cast<T>(std::round(centroid[d]));
-        }
-      });
-
-      // compute new assignments
-      parlay::parallel_for(0, num_points, [&](size_t i) {
-        double min_dist =
-           points[indices[i]].distance(centroids[cluster_assignments[i]]);
-        size_t min_index = cluster_assignments[i];
-        for (size_t j = 0; j < n_clusters; j++) {
-          double dist = points[indices[i]].distance(centroids[j]);
-          if (dist < min_dist) {
-            min_dist = dist;
-            min_index = j;
-            not_converged = true;
-          }
-        }
-        cluster_assignments[i] = min_index;
-      });
-    } while (not_converged && num_iters < max_iters);
-
-    num_points = input_indices.size();
-    parlay::sequence<size_t> all_cluster_assignments =
-       parlay::sequence<size_t>::uninitialized(num_points);
-
-    parlay::parallel_for(0, num_points, [&](size_t i) {
-      double min_dist = std::numeric_limits<double>::max();
-      size_t min_index = 0;
-      for (size_t j = 0; j < n_clusters; j++) {
-        double dist = points[input_indices[i]].distance(centroids[j]);
-        if (dist < min_dist) {
-          min_dist = dist;
-          min_index = j;
-        }
-      }
-      all_cluster_assignments[i] = min_index;
-    });
-
-    auto output = parlay::tabulate(num_points, [&](size_t i) {
-      return std::make_pair(all_cluster_assignments[i], input_indices[i]);
-    });
-
-
-    std::cout << "KMeansClustering Time: " << t.stop() << std::endl;
-    auto ret_clusters = parlay::group_by_index(output, n_clusters);
-		cluster_stats(ret_clusters);
-		return ret_clusters;
-  }
-  // Two round cluster in clusterer
-  parlay::sequence<parlay::sequence<indexType>> two_round_cluster(
-     PointRange<T, Point> points, parlay::sequence<indexType> input_indices) {
-    parlay::internal::timer  t;
-    t.start();
-
-    auto permuted_indices = parlay::random_shuffle(input_indices);
-    auto indices = parlay::tabulate(input_indices.size() / subsample, [&] (size_t i) {
-      return permuted_indices[i];
-    });
-
-    size_t num_points = indices.size();
-    size_t dim = points.dimension();
-    size_t aligned_dim = points.aligned_dimension();
-    std::cout << "KMeans run on: " << num_points << " many points to obtain: " << n_clusters << " many clusters." << std::endl;
-    auto centroid_data = parlay::sequence<T>(n_clusters * aligned_dim);
-    auto centroids = parlay::tabulate(n_clusters, [&](size_t i) {
-      return Point(centroid_data.begin() + i * aligned_dim, dim, aligned_dim, i);
-    });
-
-    
-
-    // initially run HCNNGClusterer to get initial set of clusters
-    auto clusters = HCNNGClusterer<Point, PointRange<T, Point>, indexType>(
-                       num_points / n_clusters)
-                       .cluster(points, input_indices);
-
-    parlay::sort_inplace(clusters, [&](parlay::sequence<indexType> a,
-                               parlay::sequence<indexType> b) {
-      return a.size() < b.size();
-    });
-
-    parlay::parallel_for(0, n_clusters, [&](size_t i) {
-      size_t offset = i * aligned_dim;
-      parlay::sequence<double> centroid(dim);
-      for (size_t j = 0; j < clusters[i].size(); j++) {
-        for (size_t d = 0; d < dim; d++) {
-          centroid[d] += static_cast<double>(points[clusters[i][j]][d]) /
-                         clusters[i].size();
-        }
-      }
-      for (size_t d = 0; d < dim; d++) {
-        centroid_data[offset + d] = static_cast<T>(std::round(centroid[d]));
-      }
-    });
-
-    parlay::sequence<size_t> cluster_assignments =
-       parlay::sequence<size_t>::uninitialized(num_points);
-
-    parlay::parallel_for(0, num_points, [&](size_t i) {
-      double min_dist = std::numeric_limits<double>::max();
-      size_t min_index = 0;
-      for (size_t j = 0; j < n_clusters; j++) {
-        double dist = points[indices[i]].distance(centroids[j]);
-        if (dist < min_dist) {
-          min_dist = dist;
-          min_index = j;
-        }
-      }
-      cluster_assignments[i] = min_index;
-    });
-
-    // now run k-means
-    bool not_converged;
-    size_t num_iters = 0;
-    do {
-      std::cout << "Beginning iteration " << num_iters << "..." << std::endl;
-      num_iters++;
-      not_converged = false;
-
-      auto new_clusters = get_clusters(cluster_assignments);
+      auto new_clusters = get_clusters(cluster_assignments, num_clusters);
 
       // compute new centroids
       parlay::parallel_for(0, new_clusters.size(), [&](size_t i) {
@@ -369,7 +245,7 @@ struct KMeansClusterer {
         double min_dist =
            points[indices[i]].distance(centroids[cluster_assignments[i]]);
         size_t min_index = cluster_assignments[i];
-        for (size_t j = 0; j < n_clusters; j++) {
+        for (size_t j = 0; j < num_clusters; j++) {
           double dist = points[indices[i]].distance(centroids[j]);
           if (dist < min_dist) {
             min_dist = dist;
@@ -388,7 +264,7 @@ struct KMeansClusterer {
     parlay::parallel_for(0, num_points, [&](size_t i) {
       double min_dist = std::numeric_limits<double>::max();
       size_t min_index = 0;
-      for (size_t j = 0; j < n_clusters; j++) {
+      for (size_t j = 0; j < num_clusters; j++) {
         double dist = points[input_indices[i]].distance(centroids[j]);
         if (dist < min_dist) {
           min_dist = dist;
@@ -404,12 +280,44 @@ struct KMeansClusterer {
 
 
     std::cout << "KMeansClustering Time: " << t.stop() << std::endl;
-    auto ret_clusters = parlay::group_by_index(output, n_clusters);
+    auto ret_clusters = parlay::group_by_index(output, num_clusters);
 		cluster_stats(ret_clusters);
 		return ret_clusters;
   }
 
-  std::pair<size_t, size_t> get_build_params() const { return std::make_pair(n_clusters, subsample); }
+   parlay::sequence<parlay::sequence<indexType>> cluster(
+     PointRange<T, Point> points, parlay::sequence<indexType> input_indices) {
+   
+      return cluster_impl(points, input_indices, n_toplevel_clusters, toplevel_subsample);
+   
+  }
+
+
+  // Two round cluster in clusterer
+  parlay::sequence<parlay::sequence<indexType>> two_round_cluster(
+     PointRange<T, Point> &points, parlay::sequence<indexType> &input_indices) {
+    parlay::internal::timer  t;
+    t.start();
+
+    //compute top-level cluster
+    parlay::sequence<parlay::sequence<indexType>> top_level_cluster = cluster_impl(points, input_indices, n_toplevel_clusters, toplevel_subsample);
+
+    parlay::sequence<parlay::sequence<parlay::sequence<indexType>>> two_level_clustering(top_level_cluster.size());
+    //compute low-level clusters
+    for(size_t i=0; i<top_level_cluster.size(); i++){
+      two_level_clustering[i] = cluster_impl(points, top_level_cluster[i], n_subclusters, subsample, i+1);
+    }
+
+    parlay::sequence<parlay::sequence<indexType>> final_clustering = parlay::flatten(two_level_clustering);
+
+    std::cout << "Total Two-Level Clustering Time: " << t.stop() << std::endl;
+    cluster_stats(final_clustering);
+		return final_clustering;
+
+
+  }
+
+  std::pair<size_t, size_t> get_build_params() const { return std::make_pair(n_toplevel_clusters*n_subclusters, subsample); }
 };
 
 #endif   // CLUSTERING_H

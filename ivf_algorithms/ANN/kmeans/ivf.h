@@ -25,7 +25,7 @@ void IVF(long k, BuildParams &BP,
     std::cout << "Building with " << BP.num_clusters << " clusters" << std::endl;
     parlay::internal::timer t("IVF");
     double idx_time;
-    KMeansClusterer<T, Point, indexType> K(BP.num_clusters);
+    KMeansClusterer<T, Point, indexType> K(BP.num_clusters, BP.num_clusters);
     PostingListIndex<T, Point, indexType> PostingList(Points, K, 0, index_path);
     //GraphPostingListIndex<T, Point, indexType> PostingList(Points, K, 0, index_path);
     idx_time = t.next_time();

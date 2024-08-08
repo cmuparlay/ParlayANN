@@ -82,7 +82,7 @@ struct PostingListIndex {
     } else {
 
       std::cout << "Calculating clusters" << std::endl;
-      clusters = clusterer.cluster(Points, indices);
+      clusters = clusterer.two_round_cluster(Points, indices);
 
       centroid_data =
          std::make_unique<T[]>(clusters.size() * aligned_dim);
