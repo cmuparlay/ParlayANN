@@ -126,7 +126,7 @@ beam_search_impl(Point p, GT &G, PointRange &Points,
     // the next node to visit is the unvisited frontier node that is closest to
     // p
     std::pair<indexType, distanceType> current = unvisited_frontier[0];
-    if(QP.early_stop > 0 && num_visited >= QP.early_stop && current.second >= QP.early_stop_radius){break;}
+    if(QP.early_stop > 0 && num_visited >= QP.early_stop && frontier[0].second >= QP.early_stop_radius){break;}     
     G[current.first].prefetch();
     // add to visited set
     visited.insert(
