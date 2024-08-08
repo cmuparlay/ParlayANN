@@ -220,8 +220,7 @@ struct KMeansClusterer {
         size_t offset = i * aligned_dim;
         parlay::sequence<double> centroid(dim);
         auto clust_size = new_clusters[i].size();
-        for (size_t j = 0; j < clust_size; j++) {
-          auto pt = points[indices[new_clusters[i][j]]];
+        for (size_t j = 0; j < clust_size; j++) { 
           for (size_t d = 0; d < dim; d++) {
             centroid[d] +=
                static_cast<double>(pt[d]) / clust_size;
