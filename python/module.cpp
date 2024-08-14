@@ -82,7 +82,9 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
             "beam_width"_a)
        .def("batch_search_from_string", &VamanaIndex<T, Point>::batch_search_from_string, "queries"_a, "num_queries"_a, "knn"_a,
             "beam_width"_a)
-       .def("check_recall", &VamanaIndex<T, Point>::check_recall, "gFile"_a, "neighbors"_a, "k"_a);
+       .def("check_recall", &VamanaIndex<T, Point>::check_recall, "gFile"_a, "neighbors"_a, "k"_a)
+       .def("load_filters", &VamanaIndex<T, Point>::load_filters, "filter_path"_a)
+       .def("k_star_batch_query", &VamanaIndex<T, Point>::k_star_batch_query, "queries"_a, "num_queries"_a, "knn"_a, "beam_width"_a, "k_star"_a);
 //
 //    py::class_<IVFIndex<T, Point, NaivePostingList<T, Point>>>(m, variant.ivf_name.c_str())
 //        .def(py::init())

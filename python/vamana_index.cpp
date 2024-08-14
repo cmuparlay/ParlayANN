@@ -29,6 +29,8 @@
 #include "../algorithms/utils/mips_point.h"
 #include "../algorithms/utils/stats.h"
 #include "../algorithms/utils/beamSearch.h"
+#include "../algorithms/utils/filters.h"
+#include "../algorithms/utils/kStarBeamSearch.h"
 #include "pybind11/numpy.h"
 
 #include "parlay/parallel.h"
@@ -43,6 +45,7 @@ template<typename T, typename Point>
 struct VamanaIndex{
     Graph<unsigned int> G;
     PointRange<T, Point> Points;
+    std::unique_ptr<csr_filters> filters;
     
 
     VamanaIndex(std::string &data_path, std::string &index_path, size_t num_points, size_t dimensions){
@@ -122,6 +125,35 @@ struct VamanaIndex{
         }
         float recall = static_cast<float>(numCorrect) / static_cast<float>(k * n);
         std::cout << "Recall: " << recall << std::endl;
+    }
+
+    void load_filters(std::string &filter_path){
+        filters = std::make_unique<csr_filters>(filter_path);
+        std::cout << "Filters loaded: " << filters.get()->n_points << " points, " << filters.get()->n_filters << " filters." << std::endl;
+    }
+
+    NeighborsAndDistances k_star_batch_query(py::array_t<T, py::array::c_style | py::array::forcecast> &queries, uint64_t num_queries, uint64_t knn,
+                        uint64_t beam_width, uint64_t k_star){
+        QueryParams QP(knn, beam_width, 1.35, G.size(), G.max_degree());
+
+        py::array_t<unsigned int> ids({num_queries, knn});
+        py::array_t<float> dists({num_queries, knn});
+
+        static parlay::sequence<unsigned int> starting_points(1, 0);
+
+
+        parlay::parallel_for(0, num_queries, [&] (size_t i){
+            Point q = Point(queries.data(i), Points.dimension(), Points.aligned_dimension(), i);
+            auto [pairElts, dist_cmps] = k_star_beam_search<Point, PointRange<T, Point>, unsigned int>(q, k_star, G, Points, starting_points, QP, *filters);
+            auto [frontier, visited] = pairElts;
+            parlay::sequence<unsigned int> point_ids;
+            parlay::sequence<float> point_distances;
+            for(int j=0; j<knn; j++){
+                ids.mutable_data(i)[j] = frontier[j].first;
+                dists.mutable_data(i)[j] = frontier[j].second;
+            }
+        });
+        return std::make_pair(std::move(ids), std::move(dists));
     }
 
 };
