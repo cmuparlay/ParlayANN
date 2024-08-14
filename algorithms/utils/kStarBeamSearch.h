@@ -18,10 +18,10 @@
 
 /* A minimal struct for tracking the number of occurences of each filter
  */
-struct counts {
+struct Counts {
   std::unordered_map<int, int> data;
 
-  counts() : data() {}
+  Counts() : data() {}
 
   void increment(int f) {
     if (data.find(f) == data.end()) {
@@ -87,7 +87,7 @@ k_star_beam_search(Point p, size_t k_star, Graph<indexType> &G, PointRange &Poin
   };
 
   // track filter counts to enforce k_star constraint
-  counts filter_counts();
+  Counts filter_counts;
 
   // Frontier maintains the closest points found so far and its size
   // is always at most beamSize.  Each entry is a (id,distance) pair.
@@ -98,7 +98,7 @@ k_star_beam_search(Point p, size_t k_star, Graph<indexType> &G, PointRange &Poin
   frontier.reserve(QP.beamSize);
   for (auto q : starting_points){
     frontier.push_back(std::pair<indexType, distanceType>(q, Points[q].distance(p)));
-    filter_counts.add(filters.first_label(q));
+    filter_counts.increment(filters.first_label(q));
   }
   std::sort(frontier.begin(), frontier.end(), less);
 

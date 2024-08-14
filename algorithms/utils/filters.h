@@ -224,9 +224,9 @@ struct csr_filters{
     }
 
     /* I would like to be able to get the filters associated with a point in a python-accesible way but this is a good enough proof of concept until I figure out how to do that */
-    int64_t first_label(int64_t p) const {
-        return row_indices[row_offsets[0]];
-    }
+    // int64_t first_label(int64_t p) const {
+    //     return row_indices[row_offsets[0]];
+    // }
 
     /* Returns the number of points matching a given filter */
     int64_t filter_count(int64_t f) const {
