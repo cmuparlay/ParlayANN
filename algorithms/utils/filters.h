@@ -491,6 +491,10 @@ struct csr_filters{
             return row_offsets[i + 1] - row_offsets[i] > 0;
         });
     }
+
+    int32_t first_label(int64_t point) const {
+        return row_indices[row_offsets[point]];
+    }
 };
 
 // /* Creating this struct just for the sake of having a complete implementation if we ever need to use csr where we care about the values */

@@ -45,6 +45,19 @@ struct counts {
       }
     }
   }
+
+  /* returns true if there exists an entry for a given filter */
+  bool contains(int f) {
+    return data.find(f) != data.end();
+  }
+
+  int count(int f) {
+    if (data.find(f) == data.end()) {
+      return 0;
+    } else {
+      return data[f];
+    }
+  }
   
 };
 
@@ -79,11 +92,13 @@ k_star_beam_search(Point p, size_t k_star, Graph<indexType> &G, PointRange &Poin
   // Frontier maintains the closest points found so far and its size
   // is always at most beamSize.  Each entry is a (id,distance) pair.
   // Initialized with starting points and kept sorted by distance.
+  // we assume that the k_star condition is satisfied for the starting points
+  // TODO: check this
   std::vector<std::pair<indexType, distanceType>> frontier;
   frontier.reserve(QP.beamSize);
   for (auto q : starting_points){
     frontier.push_back(std::pair<indexType, distanceType>(q, Points[q].distance(p)));
-    filter_counts.
+    filter_counts.add(filters.first_label(q));
   }
   std::sort(frontier.begin(), frontier.end(), less);
 
@@ -132,11 +147,22 @@ k_star_beam_search(Point p, size_t k_star, Graph<indexType> &G, PointRange &Poin
     for (indexType i=0; i<num_elts; i++) {
       auto a = G[current.first][i];
       if (a == p.id() || has_been_seen(a)) continue;  // skip if already seen
-      bool matches = false;
-      for (auto f : query_filters) {
-        if (filters.std_match(a, f)) { 
-          matches = true;
-          break;
+      bool matches = false; // this is "matches" from filtered beam search, we leave the name but repurpose it for "can be added considering k-star requirements"
+      
+      size_t label = filters.first_label(a);
+      if (!filter_counts.count(label) < k_star) { // if there's room for another, it's fine
+        matches = true;
+      } else { // see if it beats the worst conspecific
+        // we iterate backwards through the frontier to find the worst conspecific, which should be the first match we encounter
+        for (int j = frontier.size() - 1; j >= 0; j--) {
+          if (filters.first_label(frontier[j].first) == label) {
+            if (frontier[j].second > Points[a].distance(p)) {
+              matches = true;
+              break;
+            } else {
+              break;
+            }
+          }
         }
       }
       if (!matches) continue;
@@ -161,11 +187,29 @@ k_star_beam_search(Point p, size_t k_star, Graph<indexType> &G, PointRange &Poin
     // sort the candidates by distance from p
     std::sort(candidates.begin(), candidates.end(), less);
 
+    // add the candidates to the counter
+    for (auto c : candidates) {
+      // possibly quite slow and perhaps not necessary, but we should check that there are no duplicates between this and the frontier
+      filter_counts.increment(filters.first_label(c.first));
+    }
+
     // union the frontier and candidates into new_frontier, both are sorted
     auto new_frontier_size =
         std::set_union(frontier.begin(), frontier.end(), candidates.begin(),
                        candidates.end(), new_frontier.begin(), less) -
         new_frontier.begin();
+
+    
+    // iterate backwards through the frontier to find overrepresented elements
+    for (int i = frontier.size() - 1; i >= 0; i--) {
+      if (filter_counts.count(filters.first_label(frontier[i].first)) > k_star) {
+        // remove the element from the frontier
+        filter_counts.decrement(filters.first_label(frontier[i].first));
+        new_frontier_size--; 
+        new_frontier.erase(new_frontier.begin() + i);
+      }
+    }
+
 
     // trim to at most beam size
     new_frontier_size = std::min<size_t>(QP.beamSize, new_frontier_size);
