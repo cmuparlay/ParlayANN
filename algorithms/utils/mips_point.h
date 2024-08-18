@@ -152,7 +152,7 @@ struct Quantized_Mips_Point{
   static bool is_metric() {return false;}
   
   T operator [] (long j) const {return *(values+j);}
-  T& operator [] (long j) const {return *(values+j);}
+  T& operator [] (long j) {return *(values+j);}
 
 
   float distance(const Mips_Point<float> &x) const {return quantized_mips_distance(x.values, this->values, d, max_coord, min_coord);}
