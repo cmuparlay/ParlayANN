@@ -64,7 +64,7 @@ float euclidian_distance(const float *p, const float *q, unsigned d) {
 
 template<typename T>
 struct Euclidian_Point {
-  using distanceType = float;
+  using distanceType = T;
 
   static distanceType d_min() {return 0;}
   static bool is_metric() {return true;}

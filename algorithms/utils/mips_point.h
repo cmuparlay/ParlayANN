@@ -65,12 +65,13 @@
 
 template<typename T>
 struct Mips_Point {
-  using distanceType = float; 
+  using distanceType = T; 
   template<class C> friend struct Quantized_Mips_Point;
   
   static distanceType d_min() {return -std::numeric_limits<float>::max();}
   static bool is_metric() {return false;}
   T operator [](long i) const {return *(values + i);}
+  T& operator [](long i) {return *(values + i);}
 
   float distance(const Mips_Point<T>& x) const {
     return mips_distance(this->values, x.values, d);
@@ -87,7 +88,7 @@ struct Mips_Point {
   Mips_Point()
     : values(nullptr), d(0), aligned_d(0), id_(-1) {}
 
-  Mips_Point(const T* values, unsigned int d, unsigned int ad, long id)
+  Mips_Point(T* values, unsigned int d, unsigned int ad, long id)
     : values(values), d(d), aligned_d(ad), id_(id) {}
 
   bool operator==(const Mips_Point<T>& q) const {
@@ -104,7 +105,7 @@ struct Mips_Point {
   }
 
 private:
-  const T* values;
+  T* values;
   unsigned int d;
   unsigned int aligned_d;
   long id_;
@@ -145,12 +146,13 @@ float quantized_mips_distance(const T* q, const T* p, unsigned d, float max_coor
 
 template<typename T>
 struct Quantized_Mips_Point{
-    using distanceType = float; 
+    using distanceType = T; 
   
   static distanceType d_min() {return -std::numeric_limits<float>::max();}
   static bool is_metric() {return false;}
   
-  T operator [] (long j) const {if(j >= d) abort(); return *(values+j);}
+  T operator [] (long j) const {return *(values+j);}
+  T& operator [] (long j) const {return *(values+j);}
 
 
   float distance(const Mips_Point<float> &x) const {return quantized_mips_distance(x.values, this->values, d, max_coord, min_coord);}
@@ -165,7 +167,7 @@ struct Quantized_Mips_Point{
 
   long id() const {return id_;}
 
-  Quantized_Mips_Point(const T* values, unsigned int d, unsigned int ad, long id, float max_coord, float min_coord)
+  Quantized_Mips_Point(T* values, unsigned int d, unsigned int ad, long id, float max_coord, float min_coord)
     : values(values), d(d), aligned_d(ad), id_(id), max_coord(max_coord), min_coord(min_coord) {;
     }
 
@@ -180,7 +182,7 @@ struct Quantized_Mips_Point{
 
 
 private:
-  const T* values;
+  T* values;
   unsigned int d;
   unsigned int aligned_d;
   long id_;
