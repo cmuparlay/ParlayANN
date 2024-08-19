@@ -1,0 +1,5 @@
+add_subdirectory(HCNNG)
+add_subdirectory(HNSW)
+add_subdirectory(pyNNDescent)
+add_subdirectory(vamana)
+add_subdirectory(vamanaRange)
