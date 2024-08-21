@@ -6,7 +6,7 @@ project(ParlayANN VERSION 1
 include(CheckCXXCompilerFlag)
 include (FetchContent)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -21,6 +21,21 @@ if(NOT parlaylib_POPULATED)
   add_subdirectory(${parlaylib_SOURCE_DIR} EXCLUDE_FROM_ALL)
 endif()
 
+# this is heuristically generated, and may not be correct
+find_package(TBB CONFIG REQUIRED)
+#target_link_libraries(main PRIVATE TBB::tbb TBB::tbbmalloc)
+
+FetchContent_Declare(kaminpar
+  GIT_REPOSITORY  https://github.com/KaHIP/KaMinPar
+  GIT_TAG         main
+)
+FetchContent_GetProperties(kaminpar)
+if(NOT kaminpar_POPULATED)
+  FetchContent_Populate(kaminpar)  
+  add_subdirectory(${kaminpar_SOURCE_DIR} EXCLUDE_FROM_ALL)
+endif()
+
+
 # Set module path
 list(APPEND CMAKE_MODULE_PATH "${ParlayANN_SOURCE_DIR}/cmake")
 
@@ -31,7 +46,7 @@ target_include_directories(ParlayANN INTERFACE
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 
 add_subdirectory(algorithms)
-#add_subdirectory(data_tools)
+add_subdirectory(data_tools)
 #add_subdirectory(range_search)
 
 

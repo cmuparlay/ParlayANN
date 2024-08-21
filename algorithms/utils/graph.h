@@ -73,7 +73,7 @@ struct edgeRange{
   void update_neighbors(const rangeType& r){
     if (r.size() > maxDeg) {
       std::cout << "ERROR in update_neighbors: cannot exceed max degree "
-                << maxDeg << std::endl;
+                << maxDeg << " r.size = " << r.size() << std::endl;
       abort();
     }
     edges[0] = r.size();
