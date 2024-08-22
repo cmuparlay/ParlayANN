@@ -56,8 +56,12 @@ void crop_file(char* iFile, int n, char* oFile){
   std::ofstream writer;
   writer.open(oFile, std::ios::binary | std::ios::out);
 
+  size_t bytes_to_write = n;
+  bytes_to_write *= dim;
+  bytes_to_write *= sizeof(T);
+
   writer.write((char *)(preamble.begin()), 2*sizeof(int));
-  writer.write((char *) data, dim*n*sizeof(T));
+  writer.write((char *) data, bytes_to_write);
   writer.close();
 }
 
