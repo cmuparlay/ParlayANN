@@ -46,10 +46,12 @@ struct VamanaIndex{
     Graph<unsigned int> G;
     PointRange<T, Point> Points;
     std::unique_ptr<csr_filters> filters;
+    std::string graph_path;
     
 
     VamanaIndex(std::string &data_path, std::string &index_path, size_t num_points, size_t dimensions){
         G = Graph<unsigned int>(index_path.data());
+        graph_path = index_path;
         Points = PointRange<T, Point>(data_path.data());
         assert(num_points == Points.size());
         assert(dimensions == Points.dimension());
@@ -154,6 +156,28 @@ struct VamanaIndex{
             }
         });
         return std::make_pair(std::move(ids), std::move(dists));
+    }
+
+    void build_index(uint32_t graph_degree, uint32_t beam_width, float alpha){
+        BuildParams BP(graph_degree, beam_width, alpha);
+        using index = knn_index<Point, PointRange<T, Point>, unsigned int>;
+        index I(BP);
+        stats<unsigned int> BuildStats(G.size());
+        I.build_index(G, Points, BuildStats);
+
+        G.save(graph_path.data());
+    }
+
+    void k_star_build_index(uint32_t graph_degree, uint32_t beam_width, float alpha, uint32_t k_star) {
+        BuildParams BP(graph_degree, beam_width, alpha);
+        using index = knn_index<Point, PointRange<T, Point>, unsigned int>;
+        index I(BP);
+        stats<unsigned int> BuildStats(G.size());
+        I.k_star_build_index(G, Points, BuildStats, filters.get(), k_star);
+
+        std::cout << "Saving graph..." << std::endl;
+
+        G.save((graph_path + "_k_star_" + std::to_string(k_star)).data());
     }
 
 };

@@ -58,6 +58,14 @@ struct Counts {
       return data[f];
     }
   }
+
+  void clear() {
+    data.clear();
+  }
+
+  size_t size() {
+    return data.size();
+  }
   
 };
 
@@ -147,25 +155,25 @@ k_star_beam_search(Point p, size_t k_star, Graph<indexType> &G, PointRange &Poin
     for (indexType i=0; i<num_elts; i++) {
       auto a = G[current.first][i];
       if (a == p.id() || has_been_seen(a)) continue;  // skip if already seen
-      bool matches = false; // this is "matches" from filtered beam search, we leave the name but repurpose it for "can be added considering k-star requirements"
+      // bool matches = false; // this is "matches" from filtered beam search, we leave the name but repurpose it for "can be added considering k-star requirements"
       
-      size_t label = filters.first_label(a);
-      if (!filter_counts.count(label) < k_star) { // if there's room for another, it's fine
-        matches = true;
-      } else { // see if it beats the worst conspecific
-        // we iterate backwards through the frontier to find the worst conspecific, which should be the first match we encounter
-        for (int j = frontier.size() - 1; j >= 0; j--) {
-          if (filters.first_label(frontier[j].first) == label) {
-            if (frontier[j].second > Points[a].distance(p)) {
-              matches = true;
-              break;
-            } else {
-              break;
-            }
-          }
-        }
-      }
-      if (!matches) continue;
+      // size_t label = filters.first_label(a);
+      // if (!filter_counts.count(label) < k_star) { // if there's room for another, it's fine
+      //   matches = true;
+      // } else { // see if it beats the worst conspecific
+      //   // we iterate backwards through the frontier to find the worst conspecific, which should be the first match we encounter
+      //   for (int j = frontier.size() - 1; j >= 0; j--) {
+      //     if (filters.first_label(frontier[j].first) == label) {
+      //       if (frontier[j].second > Points[a].distance(p)) {
+      //         matches = true;
+      //         break;
+      //       } else {
+      //         break;
+      //       }
+      //     }
+      //   }
+      // }
+      // if (!matches) continue;
       keep.push_back(a);
       Points[a].prefetch();
     }
@@ -188,10 +196,10 @@ k_star_beam_search(Point p, size_t k_star, Graph<indexType> &G, PointRange &Poin
     std::sort(candidates.begin(), candidates.end(), less);
 
     // add the candidates to the counter
-    for (auto c : candidates) {
-      // possibly quite slow and perhaps not necessary, but we should check that there are no duplicates between this and the frontier
-      filter_counts.increment(filters.first_label(c.first));
-    }
+    // for (auto c : candidates) {
+    //   // possibly quite slow and perhaps not necessary, but we should check that there are no duplicates between this and the frontier
+    //   filter_counts.increment(filters.first_label(c.first));
+    // }
 
     // union the frontier and candidates into new_frontier, both are sorted
     auto new_frontier_size =
@@ -199,14 +207,24 @@ k_star_beam_search(Point p, size_t k_star, Graph<indexType> &G, PointRange &Poin
                        candidates.end(), new_frontier.begin(), less) -
         new_frontier.begin();
 
+    filter_counts.clear();
+
+    // we count the number of each filter in the new frontier because it's simple
+    for (int i = 0; i < new_frontier_size; i++) {
+      filter_counts.increment(filters.first_label(new_frontier[i].first));
+    }
     
-    // iterate backwards through the frontier to find overrepresented elements
-    for (int i = frontier.size() - 1; i >= 0; i--) {
-      if (filter_counts.count(filters.first_label(frontier[i].first)) > k_star) {
+    // iterate backwards through the new frontier to find overrepresented elements
+    // A more efficient version of this would find all the overrepresented elements 
+    // and then remove and collect them all at once, but this is simpler
+    // we go down to k_star because we know that the first k_star elements are fine
+    for (int i = new_frontier_size - 1; i >= k_star; i--) {
+      if (filter_counts.count(filters.first_label(new_frontier[i].first)) > k_star) {
         // remove the element from the frontier
-        filter_counts.decrement(filters.first_label(frontier[i].first));
+        filter_counts.decrement(filters.first_label(new_frontier[i].first));
         new_frontier_size--; 
-        new_frontier.erase(new_frontier.begin() + i);
+        // doing new_frontier.erase here does not work as expected, so we do it manually
+        std::copy(new_frontier.begin() + i + 1, new_frontier.begin() + new_frontier_size, new_frontier.begin() + i);
       }
     }
 

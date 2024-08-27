@@ -36,6 +36,7 @@
 #include "../utils/types.h"
 #include "../utils/stats.h"
 #include "../utils/beamSearch.h"
+#include "../utils/filters.h"
 
 
 template<typename Point, typename PointRange, typename indexType>
@@ -107,6 +108,160 @@ struct knn_index {
     return new_neighbors_seq;
   }
 
+  // the same as the robustPrune above, but modified to look backwards at previously added
+  // neighbors instead of preemptively pruning
+  parlay::sequence<indexType> backwardsRobustPrune(indexType p, parlay::sequence<pid>& cand,
+                    GraphI &G, PR &Points, bool add = true) {
+    // add out neighbors of p to the candidate set.
+    size_t out_size = G[p].size();
+    std::vector<pid> candidates;
+    for (auto x : cand) candidates.push_back(x);
+
+    if(add){
+      for (size_t i=0; i<out_size; i++) {
+        // candidates.push_back(std::make_pair(v[p]->out_nbh[i], Points[v[p]->out_nbh[i]].distance(Points[p])));
+        candidates.push_back(std::make_pair(G[p][i], Points[G[p][i]].distance(Points[p])));
+      }
+    }
+
+    // Sort the candidate set in reverse order according to distance from p.
+    auto less = [&](pid a, pid b) { return a.second < b.second; };
+    std::sort(candidates.begin(), candidates.end(), less);
+
+    std::vector<indexType> new_nbhs;
+    new_nbhs.reserve(BP.R);
+
+    size_t candidate_idx = 0;
+
+    while (new_nbhs.size() < BP.R && candidate_idx < candidates.size()) {
+      // Don't need to do modifications.
+      int p_prime = candidates[candidate_idx].first;
+      candidate_idx++;
+      // this p_prime == -1 check is vestigal, but I'm leaving it in for now
+      if (p_prime == p || p_prime == -1) {
+        if (p_prime == -1) {
+          throw std::runtime_error("p_prime is -1");
+        }
+        continue;
+      }
+
+
+      // for (size_t i = candidate_idx; i < candidates.size(); i++) {
+      //   int p_prime = candidates[i].first;
+      //   if (p_prime != -1) {
+      //     distanceType dist_starprime = Points[p_star].distance(Points[p_prime]);
+      //     distanceType dist_pprime = candidates[i].second;
+      //     if (BP.alpha * dist_starprime <= dist_pprime) {
+      //       candidates[i].first = -1;
+      //     }
+      //   }
+      // }
+
+      for (size_t i = 0; i < new_nbhs.size(); i++) {
+        // p_prime here is the would-be neighbor we're trying to add
+        // p_star is the existing neighbor we're comparing it to
+        int p_star = new_nbhs[i];
+        if (p_prime != -1) {
+          distanceType dist_starprime = Points[p_star].distance(Points[p_prime]);
+          distanceType dist_pprime = Points[p_prime].distance(Points[p]);
+          if (BP.alpha * dist_starprime <= dist_pprime) {
+            p_prime = -1;
+            break;
+          }
+        }
+      }
+
+      // if no existing neighbor excludes it, we add it to the new neighbors
+      if (p_prime != -1) {
+        new_nbhs.push_back(p_prime);
+      }
+    }
+
+    auto new_neighbors_seq = parlay::to_sequence(new_nbhs);
+    return new_neighbors_seq;
+  }
+
+  // uses the backwardsRobustPrune logic to enforce a maximum number of neighbors with a given first label
+  parlay::sequence<indexType> kStarRobustPrune(indexType p, parlay::sequence<pid>& cand,
+                    GraphI &G, PR &Points, csr_filters *filters, size_t k_star, bool add = true) {
+    // add out neighbors of p to the candidate set.
+    size_t out_size = G[p].size();
+    std::vector<pid> candidates;
+    for (auto x : cand) candidates.push_back(x);
+
+    // tracking occurences of each label
+    std::unordered_map<indexType, size_t> label_counts;
+
+    if(add){
+      for (size_t i=0; i<out_size; i++) {
+        // candidates.push_back(std::make_pair(v[p]->out_nbh[i], Points[v[p]->out_nbh[i]].distance(Points[p])));
+        candidates.push_back(std::make_pair(G[p][i], Points[G[p][i]].distance(Points[p])));
+      }
+    }
+
+    // Sort the candidate set in reverse order according to distance from p.
+    auto less = [&](pid a, pid b) { return a.second < b.second; };
+    std::sort(candidates.begin(), candidates.end(), less);
+
+    std::vector<indexType> new_nbhs;
+    new_nbhs.reserve(BP.R);
+
+    size_t candidate_idx = 0;
+
+    while (new_nbhs.size() < BP.R && candidate_idx < candidates.size()) {
+      // Don't need to do modifications.
+      int p_prime = candidates[candidate_idx].first;
+      candidate_idx++;
+      // this p_prime == -1 check is vestigal, but I'm leaving it in for now
+      if (p_prime == p || p_prime == -1) {
+        if (p_prime == -1) {
+          throw std::runtime_error("p_prime is -1");
+        }
+        continue;
+      }
+
+
+      // for (size_t i = candidate_idx; i < candidates.size(); i++) {
+      //   int p_prime = candidates[i].first;
+      //   if (p_prime != -1) {
+      //     distanceType dist_starprime = Points[p_star].distance(Points[p_prime]);
+      //     distanceType dist_pprime = candidates[i].second;
+      //     if (BP.alpha * dist_starprime <= dist_pprime) {
+      //       candidates[i].first = -1;
+      //     }
+      //   }
+      // }
+
+      for (size_t i = 0; i < new_nbhs.size(); i++) {
+        // p_prime here is the would-be neighbor we're trying to add
+        // p_star is the existing neighbor we're comparing it to
+        int p_star = new_nbhs[i];
+        if (p_prime != -1) {
+          distanceType dist_starprime = Points[p_star].distance(Points[p_prime]);
+          distanceType dist_pprime = Points[p_prime].distance(Points[p]);
+          // this check should really happen outside the loop
+          if (BP.alpha * dist_starprime <= dist_pprime || label_counts[filters->first_label(p_prime)] >= k_star) {
+            p_prime = -1;
+            break;
+          }
+        }
+      }
+
+      // if no existing neighbor excludes it, we add it to the new neighbors
+      if (p_prime != -1) {
+        new_nbhs.push_back(p_prime);
+        if (label_counts.find(filters->first_label(p_prime)) == label_counts.end()) {
+          label_counts[filters->first_label(p_prime)] = 1;
+        } else {
+          label_counts[filters->first_label(p_prime)]++;
+        }
+      }
+    }
+
+    auto new_neighbors_seq = parlay::to_sequence(new_nbhs);
+    return new_neighbors_seq;
+  }
+
   //wrapper to allow calling robustPrune on a sequence of candidates 
   //that do not come with precomputed distances
   parlay::sequence<indexType> robustPrune(indexType p, parlay::sequence<indexType> candidates,
@@ -120,6 +275,32 @@ struct knn_index {
     return robustPrune(p, cc, G, Points, add);
   }
 
+  //wrapper to allow calling backwardsRobustPrune on a sequence of candidates
+  //that do not come with precomputed distances'
+  parlay::sequence<indexType> backwardsRobustPrune(indexType p, parlay::sequence<indexType> candidates,
+                    GraphI &G, PR &Points, bool add = true){
+
+    parlay::sequence<pid> cc;
+    cc.reserve(candidates.size()); // + size_of(p->out_nbh));
+    for (size_t i=0; i<candidates.size(); ++i) {
+      cc.push_back(std::make_pair(candidates[i], Points[candidates[i]].distance(Points[p])));
+    }
+    return backwardsRobustPrune(p, cc, G, Points, add);
+  }
+
+  //wrapper to allow calling kStarRobustPrune on a sequence of candidates
+  //that do not come with precomputed distances
+  parlay::sequence<indexType> kStarRobustPrune(indexType p, parlay::sequence<indexType> candidates,
+                    GraphI &G, PR &Points, csr_filters *filters, size_t k_star, bool add = true){
+
+    parlay::sequence<pid> cc;
+    cc.reserve(candidates.size()); // + size_of(p->out_nbh));
+    for (size_t i=0; i<candidates.size(); ++i) {
+      cc.push_back(std::make_pair(candidates[i], Points[candidates[i]].distance(Points[p])));
+    }
+    return kStarRobustPrune(p, cc, G, Points, filters, k_star, add);
+  }
+
   void build_index(GraphI &G, PR &Points, stats<indexType> &BuildStats, parlay::sequence<indexType> inserts=parlay::sequence<indexType>()) {
     // std::cout << "Building graph..." << std::endl;
     if (inserts.size() == 0) {
@@ -131,6 +312,20 @@ struct knn_index {
     parlay::parallel_for (0, G.size(), [&] (long i) {
       auto less = [&] (indexType j, indexType k) {
 		    return Points[i].distance(Points[j]) < Points[i].distance(Points[k]);};
+      G[i].sort(less);});
+  }
+
+  void k_star_build_index(GraphI &G, PR &Points, stats<indexType> &BuildStats, csr_filters *filters, size_t k_star, parlay::sequence<indexType> inserts=parlay::sequence<indexType>()) {
+    // std::cout << "Building graph..." << std::endl;
+    if (inserts.size() == 0) {
+      inserts = parlay::tabulate(G.size(), [&](indexType i) { return i; });
+    }
+    start_point = inserts[0];
+
+    k_star_batch_insert(inserts, G, Points, BuildStats, filters, k_star, true, 2, .02);
+    parlay::parallel_for (0, G.size(), [&] (long i) {
+      auto less = [&] (indexType j, indexType k) {
+        return Points[i].distance(Points[j]) < Points[i].distance(Points[k]);};
       G[i].sort(less);});
   }
 
@@ -310,6 +505,110 @@ struct knn_index {
     t_bidirect.total();
     t_prune.total();
   }
+
+  void k_star_batch_insert(parlay::sequence<indexType> &inserts,
+                     GraphI &G, PR &Points, stats<indexType> &BuildStats,
+                      csr_filters *filters, size_t k_star,
+                    bool random_order = false, double base = 2,
+                    double max_fraction = .02, bool print=true) {
+                      for(int p : inserts){
+      if(p < 0 || p > (int) Points.size()){
+        std::cout << "ERROR: invalid or already inserted point "
+                  << p << " given to batch_insert" << std::endl;
+        abort();
+      }
+    }
+    size_t n = G.size();
+    size_t m = inserts.size();
+    size_t inc = 0;
+    size_t count = 0;
+    float frac = 0.0;
+    float progress_inc = .1;
+    size_t max_batch_size = std::min(
+        static_cast<size_t>(max_fraction * static_cast<float>(n)), 1000000ul);
+    parlay::sequence<int> rperm;
+    if (random_order)
+      rperm = parlay::random_permutation<int>(static_cast<int>(m));
+    else
+      rperm = parlay::tabulate(m, [&](int i) { return i; });
+    auto shuffled_inserts =
+        parlay::tabulate(m, [&](size_t i) { return inserts[rperm[i]]; });
+    parlay::internal::timer t_beam("beam search time");
+    parlay::internal::timer t_bidirect("bidirect time");
+    parlay::internal::timer t_prune("prune time");
+    t_beam.stop();
+    t_bidirect.stop();
+    t_prune.stop();
+    while (count < m) {
+      size_t floor;
+      size_t ceiling;
+      if (pow(base, inc) <= max_batch_size) {
+        floor = static_cast<size_t>(pow(base, inc)) - 1;
+        ceiling = std::min(static_cast<size_t>(pow(base, inc + 1)), m) - 1;
+        count = std::min(static_cast<size_t>(pow(base, inc + 1)), m) - 1;
+      } else {
+        floor = count;
+        ceiling = std::min(count + static_cast<size_t>(max_batch_size), m);
+        count += static_cast<size_t>(max_batch_size);
+      }
+      if (print) {
+        auto ind = frac * n;
+        if (floor <= ind && ceiling > ind) {
+          frac += progress_inc;
+          // std::cout << "Index build " << 100 * frac << "% complete"
+          //           << std::endl;
+        }
+      }
+      parlay::sequence<parlay::sequence<indexType>> new_out_(ceiling-floor);
+      // search for each node starting from the start_point, then call
+      // robustPrune with the visited list as its candidate set
+      t_beam.start();
+      parlay::parallel_for(floor, ceiling, [&](size_t i) {
+        size_t index = shuffled_inserts[i];
+        QueryParams QP((long) 0, BP.L, (double) 0.0, (long) Points.size(), (long) G.max_degree());
+        parlay::sequence<pid> visited = 
+          (beam_search<Point, PointRange, indexType>(Points[index], G, Points, start_point, QP)).first.second;
+        BuildStats.increment_visited(index, visited.size());
+        new_out_[i-floor] = kStarRobustPrune(index, visited, G, Points, filters, k_star); });
+      t_beam.stop();
+      // make each edge bidirectional by first adding each new edge
+      //(i,j) to a sequence, then semisorting the sequence by key values
+      t_bidirect.start();
+      auto to_flatten = parlay::tabulate(ceiling - floor, [&](size_t i) {
+        indexType index = shuffled_inserts[i + floor];
+        auto edges =
+            parlay::tabulate(new_out_[i].size(), [&](size_t j) {
+              return std::make_pair(new_out_[i][j], index);
+            });
+        return edges;
+      });
+
+      parlay::parallel_for(floor, ceiling, [&](size_t i) {
+        G[shuffled_inserts[i]].update_neighbors(new_out_[i-floor]);
+      });
+      auto grouped_by = parlay::group_by_key(parlay::flatten(to_flatten));
+      t_bidirect.stop();
+      t_prune.start();
+      // finally, add the bidirectional edges; if they do not make
+      // the vertex exceed the degree bound, just add them to out_nbhs;
+      // otherwise, use robustPrune on the vertex with user-specified alpha
+      parlay::parallel_for(0, grouped_by.size(), [&](size_t j) {
+        auto &[index, candidates] = grouped_by[j];
+        size_t newsize = candidates.size() + G[index].size();
+        if (newsize <= BP.R) {
+          G[index].append_neighbors(candidates);
+        } else {
+          auto new_out_2_ = kStarRobustPrune(index, std::move(candidates), G, Points, filters, k_star);  
+          G[index].update_neighbors(new_out_2_);    
+        }
+      });
+      t_prune.stop();
+      inc += 1;
+    }
+    t_beam.total();
+    t_bidirect.total();
+    t_prune.total();
+                    }
 
   void batch_insert(indexType p, Graph<indexType> &G) {
     parlay::sequence<indexType> inserts;
