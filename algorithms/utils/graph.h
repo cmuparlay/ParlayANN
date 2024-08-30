@@ -141,7 +141,7 @@ struct Graph{
     allocate_graph(maxDeg, n);
   }
 
-  Graph(char* gFile){
+  Graph(char* gFile, bool quiet=false){
     std::ifstream reader(gFile);
     assert(reader.is_open());
 
@@ -152,8 +152,10 @@ struct Graph{
     n = num_points;
     reader.read((char*)(&max_deg), sizeof(indexType));
     maxDeg = max_deg;
-    std::cout << "Detected " << num_points
-              << " points with max degree " << max_deg << std::endl;
+    if (!quiet) {
+      std::cout << "Detected " << num_points
+                << " points with max degree " << max_deg << std::endl;
+    }
 
     //read degrees and perform scan to find offsets
     indexType* degrees_start = new indexType[n];
@@ -164,7 +166,9 @@ struct Graph{
     auto degrees = parlay::tabulate(degrees0.size(), [&] (size_t i){
       return static_cast<size_t>(degrees0[i]);});
     auto [offsets, total] = parlay::scan(degrees);
-    std::cout << "Total edges read from file: " << total << std::endl;
+    if (!quiet) {
+      std::cout << "Total edges read from file: " << total << std::endl;
+    }
     offsets.push_back(total);
 
     allocate_graph(max_deg, n);
