@@ -35,8 +35,9 @@
 #include "parlay/primitives.h"
 #include "parlay/random.h"
 
-std::pair<size_t, size_t> select_two_random(
-    parlay::sequence<size_t>& active_indices, parlay::random& rnd) {
+std::pair<size_t, size_t>
+select_two_random(parlay::sequence<size_t> &active_indices,
+                  parlay::random &rnd) {
   size_t first_index = rnd.ith_rand(0) % active_indices.size();
   size_t second_index_unshifted = rnd.ith_rand(1) % (active_indices.size() - 1);
   size_t second_index = (second_index_unshifted < first_index)
@@ -46,7 +47,7 @@ std::pair<size_t, size_t> select_two_random(
   return {active_indices[first_index], active_indices[second_index]};
 }
 
-template<typename Point, typename PointRange, typename indexType>
+template <typename Point, typename PointRange, typename indexType>
 struct cluster {
   using distanceType = typename Point::distanceType;
   using edge = std::pair<indexType, indexType>;
@@ -54,17 +55,16 @@ struct cluster {
   using GraphI = Graph<indexType>;
   using PR = PointRange;
 
-  cluster(){}
+  cluster() {}
 
   int generate_index(int N, int i) {
     return (N * (N - 1) - (N - i) * (N - i - 1)) / 2;
   }
 
   template <typename F>
-  void recurse(GraphI &G, PR &Points,
-               parlay::sequence<size_t>& active_indices, parlay::random& rnd,
-               size_t cluster_size, F f, long MSTDeg, indexType first,
-               indexType second) {
+  void recurse(GraphI &G, PR &Points, parlay::sequence<size_t> &active_indices,
+               parlay::random &rnd, size_t cluster_size, F f, long MSTDeg,
+               indexType first, indexType second) {
     // Split points based on which of the two points are closer.
     auto closer_first =
         parlay::filter(parlay::make_slice(active_indices), [&](size_t ind) {
@@ -85,23 +85,25 @@ struct cluster {
 
     parlay::par_do(
         [&]() {
-          random_clustering(G, Points, closer_first, left_rnd, cluster_size, f, MSTDeg);
+          random_clustering(G, Points, closer_first, left_rnd, cluster_size, f,
+                            MSTDeg);
         },
         [&]() {
-          random_clustering(G, Points, closer_second, right_rnd, cluster_size, f, MSTDeg);
+          random_clustering(G, Points, closer_second, right_rnd, cluster_size,
+                            f, MSTDeg);
         });
   }
 
   template <typename F>
   void random_clustering(GraphI &G, PR &Points,
-                         parlay::sequence<size_t>& active_indices,
-                         parlay::random& rnd, size_t cluster_size, F g,
+                         parlay::sequence<size_t> &active_indices,
+                         parlay::random &rnd, size_t cluster_size, F g,
                          long MSTDeg) {
     if (active_indices.size() <= cluster_size)
       g(G, Points, active_indices, MSTDeg);
     else {
       auto [f, s] = select_two_random(active_indices, rnd);
-      if (Points[f]==Points[s]) {
+      if (Points[f] == Points[s]) {
         parlay::sequence<size_t> closer_first;
         parlay::sequence<size_t> closer_second;
         for (int i = 0; i < active_indices.size(); i++) {
@@ -114,10 +116,12 @@ struct cluster {
         auto right_rnd = rnd.fork(1);
         parlay::par_do(
             [&]() {
-              random_clustering(G, Points, closer_first, left_rnd, cluster_size, g, MSTDeg);
+              random_clustering(G, Points, closer_first, left_rnd, cluster_size,
+                                g, MSTDeg);
             },
             [&]() {
-              random_clustering(G, Points, closer_second, right_rnd, cluster_size, g, MSTDeg);
+              random_clustering(G, Points, closer_second, right_rnd,
+                                cluster_size, g, MSTDeg);
             });
       } else {
         recurse(G, Points, active_indices, rnd, cluster_size, g, MSTDeg, f, s);
@@ -126,8 +130,8 @@ struct cluster {
   }
 
   template <typename F>
-  void random_clustering_wrapper(GraphI &G, PR &Points,
-                                 size_t cluster_size, F f, long MSTDeg) {
+  void random_clustering_wrapper(GraphI &G, PR &Points, size_t cluster_size,
+                                 F f, long MSTDeg) {
     std::random_device rd;
     std::mt19937 rng(rd());
     std::uniform_int_distribution<int> uni(0, Points.size());
@@ -138,9 +142,8 @@ struct cluster {
   }
 
   template <typename F>
-  void multiple_clustertrees(GraphI &G, PR &Points,
-                             long cluster_size, long num_clusters, F f,
-                             long MSTDeg) {
+  void multiple_clustertrees(GraphI &G, PR &Points, long cluster_size,
+                             long num_clusters, F f, long MSTDeg) {
     for (long i = 0; i < num_clusters; i++) {
       random_clustering_wrapper(G, Points, cluster_size, f, MSTDeg);
       std::cout << "Built cluster " << i << " of " << num_clusters << std::endl;
