@@ -38,7 +38,7 @@ AdjGraph build_from_proximity_graph(PointRange& Points, Graph<uint32_t>& G,
   QueryStats.clear();
   QueryParams QP;
   QP.k = k;
-  QP.beamSize = 2 * k;
+  QP.beamSize = std::max(4 * k, size_t{100});
   QP.cut = 1.35;
   QP.limit = G.size();
 
