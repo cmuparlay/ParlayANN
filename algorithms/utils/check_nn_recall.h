@@ -31,9 +31,9 @@
 #include "types.h"
 #include "stats.h"
 
-template<typename Point, typename PointRange, typename QPointRange, typename indexType>
+template<typename Point, typename PointRange, typename QPointRange, typename indexType, typename Gr>
 nn_result checkRecall(
-        Graph<indexType> &G,
+        Gr &G,
         PointRange &Base_Points,
         PointRange &Query_Points,
         QPointRange &Q_Base_Points,
@@ -168,9 +168,9 @@ parlay::sequence<long> calculate_limits(size_t upper_bound) {
   return L; //limits;
 }
 
-template<typename Point, typename PointRange, typename QPointRange, typename indexType>
+template<typename Point, typename PointRange, typename QPointRange, typename indexType, typename Gr>
 void search_and_parse(Graph_ G_,
-                      Graph<indexType> &G,
+                      Gr &G,
                       PointRange &Base_Points,
                       PointRange &Query_Points,
                       QPointRange &Q_Base_Points,
@@ -237,9 +237,9 @@ void search_and_parse(Graph_ G_,
   }
 }
 
-template<typename Point, typename PointRange, typename indexType>
+template<typename Point, typename PointRange, typename indexType, typename Gr>
 void search_and_parse(Graph_ G_,
-                      Graph<indexType> &G,
+                      Gr &G,
                       PointRange &Base_Points,
                       PointRange &Query_Points,
                       groundTruth<indexType> GT, char* res_file, long k,

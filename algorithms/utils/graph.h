@@ -245,3 +245,166 @@ private:
   long maxDeg;
   std::shared_ptr<indexType[]> graph;
 };
+
+template<typename indexType>
+struct UnboundedEdgeRange {
+
+  size_t size() const {return edges->size();}
+
+  indexType id() const {return id_;}
+
+  UnboundedEdgeRange() {}
+
+  UnboundedEdgeRange(std::vector<indexType>* edges, indexType id)
+    : edges(edges), id_(id) {
+  }
+
+  indexType operator [] (indexType j) const {
+    if (j >= edges->size()) {
+      std::cout << "ERROR: index exceeds degree while accessing neighbors" << std::endl;
+      abort();
+    } else return (*edges)[j];
+  }
+
+  void append_neighbor(indexType nbh){
+    edges->push_back(nbh);
+  }
+
+  template<typename rangeType>
+  void update_neighbors(const rangeType& r){
+    edges->clear();
+    for (int i = 0; i < r.size(); i++) {
+      edges->push_back(r[i]);
+    }
+  }
+
+  template<typename rangeType>
+  void append_neighbors(const rangeType& r){
+    for (int i = 0; i < r.size(); i++) {
+      edges->push_back(r[i]);
+    }
+  }
+
+  void clear_neighbors(){
+    edges->clear();
+  }
+
+  void prefetch(){
+    int l = (edges->size() * sizeof(indexType))/64;
+    for (int i = 0; i < l; i++)
+      __builtin_prefetch((char*) edges->data() + i *  64);
+  }
+
+  template<typename F>
+  void sort(F&& less){
+    std::sort(edges->begin(), edges->end(), less);}
+
+  indexType* begin(){return edges->data();}
+
+  indexType* end(){return edges->data() + edges->size();}
+
+private:
+  std::vector<indexType>* edges;
+  indexType id_;
+};
+
+template<typename indexType>
+struct UnboundedGraph {
+  long max_degree() const {return maxDeg;}
+  size_t size() const {return n;}
+
+  UnboundedGraph(){}
+
+  void allocate_graph(size_t n) {
+    std::cout << "allocating..." << std::endl;
+    graph = parlay::sequence<std::vector<indexType>>(n);
+  }
+
+  UnboundedGraph(size_t n) : n(n) {
+    std::cout << "Allocating unbounded graph" << std::endl;
+    allocate_graph(n);
+  }
+
+  UnboundedGraph(const UnboundedGraph& other) {
+    std::cout << "Calling copy!" << std::endl;
+    exit(0);
+  }
+
+  UnboundedGraph(char* gFile, bool quiet=false){
+    std::ifstream reader(gFile);
+    assert(reader.is_open());
+
+    //read num points and max degree
+    indexType num_points;
+    indexType max_deg;
+    reader.read((char*)(&num_points), sizeof(indexType));
+    n = num_points;
+    reader.read((char*)(&max_deg), sizeof(indexType));
+    maxDeg = max_deg;
+    if (!quiet) {
+      std::cout << "Detected " << num_points
+                << " points with max degree " << max_deg << std::endl;
+    }
+
+    //read degrees and perform scan to find offsets
+    indexType* degrees_start = new indexType[n];
+    reader.read((char*) (degrees_start), sizeof(indexType) * n);
+    indexType* degrees_end = degrees_start + n;
+    parlay::slice<indexType*, indexType*> degrees0 =
+      parlay::make_slice(degrees_start, degrees_end);
+    auto degrees = parlay::tabulate(degrees0.size(), [&] (size_t i){
+      return static_cast<size_t>(degrees0[i]);});
+    auto [offsets, total] = parlay::scan(degrees);
+    if (!quiet) {
+      std::cout << "Total edges read from file: " << total << std::endl;
+    }
+    offsets.push_back(total);
+
+    allocate_graph(n);
+
+    //write 1000000 vertices at a time
+    size_t BLOCK_SIZE = 1000000;
+    size_t index = 0;
+    size_t total_size_read = 0;
+    while(index < n){
+      size_t g_floor = index;
+      size_t g_ceiling = g_floor + BLOCK_SIZE <= n ? g_floor + BLOCK_SIZE : n;
+      size_t total_size_to_read = offsets[g_ceiling] - offsets[g_floor];
+      indexType* edges_start = new indexType[total_size_to_read];
+      reader.read((char*) (edges_start), sizeof(indexType) * total_size_to_read);
+      indexType* edges_end = edges_start + total_size_to_read;
+      parlay::slice<indexType*, indexType*> edges =
+        parlay::make_slice(edges_start, edges_end);
+
+      parlay::parallel_for(g_floor, g_ceiling, [&] (size_t i){
+        for(size_t j = 0; j < degrees[i]; j++) {
+          graph[i].push_back(edges[offsets[i] - total_size_read + j]);
+        }
+      });
+      total_size_read += total_size_to_read;
+      index = g_ceiling;
+      delete[] edges_start;
+    }
+    delete[] degrees_start;
+  }
+
+  void save(char* oFile) {
+    std::cout << "Not yet implemented" << std::endl;
+    exit(0);
+  }
+
+  UnboundedEdgeRange<indexType> operator [] (indexType i) {
+    if (i > n) {
+      std::cout << "ERROR: graph index out of range: " << i << std::endl;
+      abort();
+    }
+    return UnboundedEdgeRange<indexType>(&(graph[i]), i);
+  }
+
+  ~UnboundedGraph(){}
+
+private:
+  size_t n;
+  size_t maxDeg;
+  parlay::sequence<std::vector<indexType>> graph;
+};

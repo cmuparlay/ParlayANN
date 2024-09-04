@@ -40,12 +40,17 @@
 //   return std::make_pair(avg_deg, maxDegree);
 // }
 
-std::pair<double, int> graph_stats_(Graph<unsigned int> &G) {
+template <class Graph>
+std::pair<double, int> graph_stats_(Graph &G) {
   auto od = parlay::delayed_seq<size_t>(
       G.size(), [&](size_t i) { return G[i].size(); });
   size_t j = parlay::max_element(od) - od.begin();
   int maxDegree = od[j];
   size_t sum1 = parlay::reduce(od);
+  std::cout << "Graph size: " << G.size() << std::endl;
+  for (size_t i=0; i < 1000; ++i) {
+    std::cout << G[i].size() << std::endl;
+  }
   double avg_deg = sum1 / ((double)G.size());
   return std::make_pair(avg_deg, maxDegree);
 }

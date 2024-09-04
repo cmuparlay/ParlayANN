@@ -88,18 +88,17 @@ struct DisjointSet{
 
 };
 
-template<typename Point, typename PointRange, typename indexType>
+template<typename Point, typename PointRange, typename indexType, typename Gr>
 struct hcnng_index{
 	using distanceType = typename Point::distanceType;
 	using edge = std::pair<indexType, indexType>;
 	using labelled_edge = std::pair<edge, distanceType>;
 	using pid = std::pair<indexType, distanceType>;
-	using GraphI = Graph<indexType>;
 	using PR = PointRange;
 
 	hcnng_index(){}
 
-	static void remove_edge_duplicates(indexType p, GraphI &G){
+  static void remove_edge_duplicates(indexType p, Gr &G){
 		parlay::sequence<indexType> points;
 		for(indexType i=0; i<G[p].size(); i++){
 			points.push_back(G[p][i]);
@@ -108,14 +107,14 @@ struct hcnng_index{
 		G[p].update_neighbors(points);
 	}
 
-	void remove_all_duplicates(GraphI &G){
+	void remove_all_duplicates(Gr &G){
 		parlay::parallel_for(0, G.size(), [&] (size_t i){
 			remove_edge_duplicates(i, G);
 		});
 	}
 	
 	//inserts each edge after checking for duplicates
-	static void process_edges(GraphI &G, parlay::sequence<edge> edges){
+	static void process_edges(Gr &G, parlay::sequence<edge> edges){
 		long maxDeg = G.max_degree();
 		auto grouped = parlay::group_by_key(edges);
 		for(auto pair : grouped){
@@ -132,7 +131,7 @@ struct hcnng_index{
 	}
 
 	//parameters dim and K are just to interface with the cluster tree code
-	static void MSTk(GraphI &G, PR &Points, parlay::sequence<size_t> &active_indices, 
+	static void MSTk(Gr &G, PR &Points, parlay::sequence<size_t> &active_indices, 
 		long MSTDeg){
 		//preprocessing for Kruskal's
 		size_t N = active_indices.size();
@@ -211,7 +210,7 @@ struct hcnng_index{
 
 	//robustPrune routine as found in DiskANN paper, with the exception that the new candidate set
 	//is added to the field new_nbhs instead of directly replacing the out_nbh of p
-	void robustPrune(indexType p, PR &Points, GraphI &G, double alpha) {
+	void robustPrune(indexType p, PR &Points, Gr &G, double alpha) {
     // add out neighbors of p to the candidate set.
 		parlay::sequence<pid> candidates;
 		for (size_t i=0; i<G[p].size(); i++) {
@@ -251,8 +250,8 @@ struct hcnng_index{
 
 
 
-	void build_index(GraphI &G, PR &Points, long cluster_rounds, long cluster_size, long MSTDeg){  
-		cluster<Point, PointRange, indexType> C;
+	void build_index(Gr &G, PR &Points, long cluster_rounds, long cluster_size, long MSTDeg){  
+		cluster<Point, PointRange, indexType, Gr> C;
 		C.multiple_clustertrees(G, Points, cluster_size, cluster_rounds, MSTk, MSTDeg);
 		remove_all_duplicates(G);
 		// parlay::parallel_for(0, v.size(), [&] (size_t i){robustPrune(v[i], v, 1.1, maxDeg);});

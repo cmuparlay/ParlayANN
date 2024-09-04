@@ -50,8 +50,8 @@
 using uint = unsigned int;
 
 
-template<typename Point, typename PointRange, typename indexType>
-void timeNeighbors(Graph<indexType> &G,
+template<typename Point, typename PointRange, typename indexType, typename Gr>
+void timeNeighbors(Gr &G,
 		   PointRange &Query_Points, long k,
 		   BuildParams &BP, char* outFile,
 		   groundTruth<indexType> GT, char* res_file, bool graph_built, PointRange &Points)
@@ -210,9 +210,15 @@ int main(int argc, char* argv[]) {
     if(df == "Euclidian"){
       PointRange<uint8_t, Euclidian_Point<uint8_t>> Points = PointRange<uint8_t, Euclidian_Point<uint8_t>>(iFile);
       PointRange<uint8_t, Euclidian_Point<uint8_t>> Query_Points = PointRange<uint8_t, Euclidian_Point<uint8_t>>(qFile);
+
       Graph<unsigned int> G; 
       if(gFile == NULL) G = Graph<unsigned int>(maxDeg, Points.size());
       else G = Graph<unsigned int>(gFile);
+
+//      UnboundedGraph<unsigned int> G; 
+//      if(gFile == NULL) G = UnboundedGraph<unsigned int>(Points.size());
+//      else G = UnboundedGraph<unsigned int>(gFile);
+
       timeNeighbors<Euclidian_Point<uint8_t>, PointRange<uint8_t, Euclidian_Point<uint8_t>>, uint>(G, Query_Points, k, BP, 
         oFile, GT, rFile, graph_built, Points);
     } else if(df == "mips"){

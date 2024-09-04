@@ -46,12 +46,11 @@ std::pair<size_t, size_t> select_two_random(
   return {active_indices[first_index], active_indices[second_index]};
 }
 
-template<typename Point, typename PointRange, typename indexType>
+template<typename Point, typename PointRange, typename indexType, typename Gr>
 struct cluster {
   using distanceType = typename Point::distanceType;
   using edge = std::pair<indexType, indexType>;
   using labelled_edge = std::pair<edge, distanceType>;
-  using GraphI = Graph<indexType>;
   using PR = PointRange;
 
   cluster(){}
@@ -61,7 +60,7 @@ struct cluster {
   }
 
   template <typename F>
-  void recurse(GraphI &G, PR &Points,
+  void recurse(Gr &G, PR &Points,
                parlay::sequence<size_t>& active_indices, parlay::random& rnd,
                size_t cluster_size, F f, long MSTDeg, indexType first,
                indexType second) {
@@ -93,7 +92,7 @@ struct cluster {
   }
 
   template <typename F>
-  void random_clustering(GraphI &G, PR &Points,
+  void random_clustering(Gr &G, PR &Points,
                          parlay::sequence<size_t>& active_indices,
                          parlay::random& rnd, size_t cluster_size, F g,
                          long MSTDeg) {
@@ -126,7 +125,7 @@ struct cluster {
   }
 
   template <typename F>
-  void random_clustering_wrapper(GraphI &G, PR &Points,
+  void random_clustering_wrapper(Gr &G, PR &Points,
                                  size_t cluster_size, F f, long MSTDeg) {
     std::random_device rd;
     std::mt19937 rng(rd());
@@ -138,7 +137,7 @@ struct cluster {
   }
 
   template <typename F>
-  void multiple_clustertrees(GraphI &G, PR &Points,
+  void multiple_clustertrees(Gr &G, PR &Points,
                              long cluster_size, long num_clusters, F f,
                              long MSTDeg) {
     for (long i = 0; i < num_clusters; i++) {

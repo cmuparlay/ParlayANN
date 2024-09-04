@@ -34,14 +34,14 @@
 #include "../utils/graph.h"
 #include "hcnng_index.h"
 
-template<typename Point, typename PointRange, typename indexType>
-void ANN(Graph<indexType> &G, long k, BuildParams &BP,
+template<typename Point, typename PointRange, typename indexType, typename Gr>
+void ANN(Gr &G, long k, BuildParams &BP,
          PointRange &Query_Points,
          groundTruth<indexType> GT, char *res_file,
          bool graph_built, PointRange &Points) {
 
   parlay::internal::timer t("ANN"); 
-  using findex = hcnng_index<Point, PointRange, indexType>;
+  using findex = hcnng_index<Point, PointRange, indexType, Gr>;
 
   double idx_time;
   if(!graph_built){
