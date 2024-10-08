@@ -41,29 +41,29 @@
 template<typename indexType, typename Point, typename PointRange, class GT>
 std::pair<std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>, parlay::sequence<std::pair<indexType, typename Point::distanceType>>>, size_t>, parlay::sequence<std::pair<indexType, typename Point::distanceType>>>
 beam_search_impl(Point p, GT &G, PointRange &Points,
-        parlay::sequence<indexType> starting_points, QueryParams &QP);
+        parlay::sequence<indexType> starting_points, QueryParams &QP, double rad = 0);
 
 template<typename Point, typename PointRange, typename indexType>
 std::pair<std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>, parlay::sequence<std::pair<indexType, typename Point::distanceType>>>, size_t>, parlay::sequence<std::pair<indexType, typename Point::distanceType>>>
 beam_search(Point p, Graph<indexType> &G, PointRange &Points,
-	    indexType starting_point, QueryParams &QP) {
+	    indexType starting_point, QueryParams &QP, double rad = 0) {
   
   parlay::sequence<indexType> start_points = {starting_point};
-  return beam_search_impl<indexType>(p, G, Points, start_points, QP);
+  return beam_search_impl<indexType>(p, G, Points, start_points, QP, rad);
 }
 
 template<typename Point, typename PointRange, typename indexType>
 std::pair<std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>, parlay::sequence<std::pair<indexType, typename Point::distanceType>>>, size_t>, parlay::sequence<std::pair<indexType, typename Point::distanceType>>>
 beam_search(Point p, Graph<indexType> &G, PointRange &Points,
-        parlay::sequence<indexType> starting_points, QueryParams &QP) {
-  return beam_search_impl<indexType>(p, G, Points, starting_points, QP);
+        parlay::sequence<indexType> starting_points, QueryParams &QP, double rad = 0) {
+  return beam_search_impl<indexType>(p, G, Points, starting_points, QP, rad);
 }
 
 // main beam search
 template<typename indexType, typename Point, typename PointRange, class GT>
 std::pair<std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>, parlay::sequence<std::pair<indexType, typename Point::distanceType>>>, size_t>, parlay::sequence<std::pair<indexType, typename Point::distanceType>>>
 beam_search_impl(Point p, GT &G, PointRange &Points,
-	      parlay::sequence<indexType> starting_points, QueryParams &QP) {
+	      parlay::sequence<indexType> starting_points, QueryParams &QP, double rad) {
 
   // compare two (node_id,distance) pairs, first by distance and then id if
   // equal
@@ -122,11 +122,12 @@ beam_search_impl(Point p, GT &G, PointRange &Points,
 
   // The main loop.  Terminate beam search when the entire frontier
   // has been visited or have reached max_visit.
+
   while (remain > 0 && num_visited < QP.limit) {
     // the next node to visit is the unvisited frontier node that is closest to
     // p
     std::pair<indexType, distanceType> current = unvisited_frontier[0];
-    if(QP.early_stop > 0 && num_visited >= QP.early_stop && frontier[0].second >= QP.early_stop_radius){break;}     
+    if(QP.early_stop > 0 && num_visited >= QP.early_stop && current.second >= QP.early_stop_radius && frontier[0].second > rad){break;}     
     G[current.first].prefetch();
     // add to visited set
     visited.insert(
@@ -196,7 +197,7 @@ beam_search_impl(Point p, GT &G, PointRange &Points,
                             visited.end(), unvisited_frontier.begin(), less) -
         unvisited_frontier.begin();
 
-    visited_inorder.push_back(frontier[0]);
+    visited_inorder.push_back(current);
   }
 
   return std::make_pair(std::make_pair(std::make_pair(parlay::to_sequence(frontier),
@@ -526,7 +527,7 @@ RangeSearchOverSubset(PointRange &Query_Points,
     parlay::sequence<indexType> neighbors;
     parlay::sequence<std::pair<indexType, typename Point::distanceType>> neighbors_within_larger_ball;
     QueryParams QP(RP.initial_beam, RP.initial_beam, 0.0, G.size(), G.max_degree(), RP.early_stop, RP.early_stop_radius);
-    auto [tmp, visit_order_pt] = beam_search(Query_Points[active_indices[i]], G, Base_Points, starting_points, QP);
+    auto [tmp, visit_order_pt] = beam_search(Query_Points[active_indices[i]], G, Base_Points, starting_points, QP, RP.rad);
     auto [pairElts, dist_cmps] = tmp;
     auto [beamElts, visitedElts] = pairElts;
     visit_order[i] = visit_order_pt;

@@ -37,7 +37,7 @@
 
 
 template<typename Point, typename PointRange, typename indexType>
-void RNG(Graph<indexType> &G, double rad, BuildParams &BP,
+void RNG(Graph<indexType> &G, double rad, double esr, BuildParams &BP,
          PointRange &Query_Points,
          RangeGroundTruth<indexType> GT,
          char* res_file, bool graph_built, PointRange &Points) {
@@ -63,7 +63,7 @@ void RNG(Graph<indexType> &G, double rad, BuildParams &BP,
             << std::endl;
   Graph_ G_(name, params, G.size(), avg_deg, max_deg, idx_time);
   G_.print();
-  if(Query_Points.size() != 0) range_search_wrapper<Point, PointRange, indexType>(G, Points, Query_Points, GT, rad, start_point);
+  if(Query_Points.size() != 0) range_search_wrapper<Point, PointRange, indexType>(G, Points, Query_Points, GT, rad, esr, start_point);
 }
 
 

@@ -45,6 +45,7 @@ void convergence_stats(parlay::sequence<parlay::sequence<std::pair<indexType, di
   std::cout << "Max length: " << max_len << std::endl;
 
   parlay::sequence<double> avg_dists(max_len);
+  parlay::sequence<double> fifty_dists;
 
   //iterate over each coord of avg_dists
   parlay::parallel_for(0, max_len, [&] (size_t i){
@@ -56,42 +57,99 @@ void convergence_stats(parlay::sequence<parlay::sequence<std::pair<indexType, di
         nonzero++;
       }
     }
+    if(i == 100){
+      for(size_t j=0; j<visited_order.size(); j++){
+      if(visited_order[j].size() > i){
+        fifty_dists.push_back(static_cast<double>(visited_order[j][i].second));
+      }
+    }
+    }
     double avg = total/static_cast<double>(nonzero);
 
     avg_dists[i] = static_cast<double>(avg);
   });
 
-  size_t index1 = 0;
-  size_t index2 = visited_order.size()/2;
-  size_t index3 = visited_order.size()/3;
-
-  auto seq1 = parlay::tabulate(visited_order[index1].size(), [&] (size_t i){return visited_order[index1][i].second;});
-  auto seq2 = parlay::tabulate(visited_order[index2].size(), [&] (size_t i){return visited_order[index2][i].second;});
-  auto seq3 = parlay::tabulate(visited_order[index3].size(), [&] (size_t i){return visited_order[index3][i].second;});
-
-  std::cout << std::setprecision(2) << std::endl;
-  std::cout << "Point 1: ";
-  for(float f: seq1){
-    std::cout << f << ", ";
-  }
-  std::cout << std::endl;
-  std::cout << "Point 2: ";
-   for(float f: seq2){
-    std::cout << f << ", ";
-  }
-  std::cout << std::endl;
-  std::cout << "Point 3: ";
-   for(float f: seq2){
-    std::cout << f << ", ";
-  }
-
-
+  parlay::sort_inplace(fifty_dists);
   std::cout << std::setprecision(6) << std::endl;
 
-  std::cout << parlay::to_chars(avg_dists) << std::endl;
-  std::cout << std::endl;
+  std::cout << parlay::to_chars(fifty_dists) << std::endl;
+
+
+  // size_t index1 = 0;
+  // size_t index2 = visited_order.size()/2;
+  // size_t index3 = visited_order.size()/3;
+
+  // auto seq1 = parlay::tabulate(visited_order[index1].size(), [&] (size_t i){return visited_order[index1][i].second;});
+  // auto seq2 = parlay::tabulate(visited_order[index2].size(), [&] (size_t i){return visited_order[index2][i].second;});
+  // auto seq3 = parlay::tabulate(visited_order[index3].size(), [&] (size_t i){return visited_order[index3][i].second;});
+
+  // std::cout << std::setprecision(2) << std::endl;
+  // std::cout << "Point 1: ";
+  // for(float f: seq1){
+  //   std::cout << f << ", ";
+  // }
+  // std::cout << std::endl;
+  // std::cout << "Point 2: ";
+  //  for(float f: seq2){
+  //   std::cout << f << ", ";
+  // }
+  // std::cout << std::endl;
+  // std::cout << "Point 3: ";
+  //  for(float f: seq3){
+  //   std::cout << f << ", ";
+  // }
+
+
+  // std::cout << std::setprecision(6) << std::endl;
+
+  // std::cout << parlay::to_chars(avg_dists) << std::endl;
+  // std::cout << std::endl;
 }
 
+template<typename Point, typename PointRange, typename indexType>
+void calculateWeightedRecall(
+    PointRange& Base_Points, 
+    PointRange& Query_Points, 
+    RangeGroundTruth<indexType> &GT, 
+    parlay::sequence<indexType>& active_indices, 
+    parlay::sequence<parlay::sequence<indexType>> range_results, 
+    double rad,
+    float QPS){
+
+  float pointwise_weighted_recall = 0.0;
+  float reported_weight = 0.0;
+  float total_weight = 0.0;
+  float num_nonzero = 0.0;
+  
+  for(size_t i=0; i<active_indices.size(); i++){
+    if(GT[active_indices[i]].size()==0) continue;
+    else{
+      num_nonzero += 1;
+      double point_weight = 0.0;
+      double point_reported_weight = 0.0;
+      for(auto j : GT[active_indices[i]]){
+        double dist = Query_Points[active_indices[i]].distance(Base_Points[j]);
+        double single_weight = (rad - dist)/rad;
+        double weight = single_weight*single_weight;
+        // std::cout << weight << std::endl;
+        point_weight += weight;
+        if(parlay::find(range_results[i], j) != range_results[i].end()){
+          point_reported_weight += weight;
+        }
+      }
+      if(point_weight > 0) pointwise_weighted_recall += point_reported_weight/point_weight;
+      else num_nonzero--;
+      total_weight += point_weight;
+      reported_weight += point_reported_weight;
+    }
+    
+  }
+  double cumulative_weighted_recall = reported_weight/total_weight;
+  double pointwise_recall = pointwise_weighted_recall/num_nonzero;
+
+  std::cout << "Pointwise Weighted Recall = " << pointwise_recall << ", Cumulative Weighted Recall = " << cumulative_weighted_recall << ", QPS = " << QPS << std::endl;
+
+}
 
 template<typename Point, typename PointRange, typename indexType>
 void checkRangeRecall(
@@ -139,8 +197,8 @@ void checkRangeRecall(
   std::cout << "For ";
   RP.print();
   std::cout << ", Pointwise Recall = " << pointwise_recall << ", Cumulative Recall = " << cumulative_recall << ", QPS = " << QPS << std::endl;
-  
-  // if(converge_stats) convergence_stats(visit_order);
+  // calculateWeightedRecall<Point, PointRange, indexType>(Base_Points, Query_Points, GT, active_indices, all_rr, RP.rad, QPS);
+  // convergence_stats(visit_order);
   
 }
 
@@ -149,12 +207,13 @@ void checkRangeRecall(
 template<typename Point, typename PointRange, typename indexType>
 void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
    PointRange &Query_Points, 
-  RangeGroundTruth<indexType> GT, double rad,
+  RangeGroundTruth<indexType> GT, double rad, double esr,
   indexType start_point=0){
 
   std::vector<long> beams;
 
-  beams = {5, 10, 20, 30, 40, 50, 60, 70 , 80, 90 ,100, 125, 150, 175, 200, 350, 500, 1000}; 
+  beams = {5,10,20,30,40,50,60,70,80,90,100,200,350,500,1000}; 
+  // beams = {100};
   std::vector<double> slack = {1.0};
 
   //three categories: 0, 1-20, 20+
@@ -167,14 +226,10 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
   std::cout << "For all points: " << std::endl;
 
   
-  long bigann_early_stopping_rad = 38000;
-  long ssnpp_early_stopping_rad = 200000;
-  double msturing_early_stopping_rad = .9;
-  double gist_early_stopping_rad = 1.3; 
-  double deep_early_stopping_rad = .4;
 
-  long early_stopping_rad = gist_early_stopping_rad;
-  long steps_to_stopping = 15;
+
+
+
 
   // std::cout << "Sweeping once with regular beam search" << std::endl;
   // for(long b: beams){
@@ -197,7 +252,8 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
   std::cout << "Regular range search and early stopping" << std::endl;
   for(long b: beams){
     for(double sf: slack){
-      RangeParams RP(rad, b, sf, true, steps_to_stopping, early_stopping_rad);
+      long steps_to_stopping = std::max<size_t>(b/3, 10);
+      RangeParams RP(rad, b, sf, true, steps_to_stopping, esr);
       checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, all);
     }
   }
@@ -206,7 +262,7 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
 
   // std::cout << "For all " << zero_res.size() << " points with zero results: " << std::endl;
 
-  // std::cout << "Sweeping once with regular beam search" << std::endl;
+  // std::cout << "Sweeping once with regular range search" << std::endl;
   // for(long b: beams){
   //   RangeParams RP(rad, b);
   //   checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, zero_res, true);
@@ -215,15 +271,16 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
  
   // std::cout << std::endl;
   // std::cout << std::endl;
-  // std::cout << "Trying again with early stopping" << std::endl;
-  // for(long b: beams){
-  //   for(double sf: slack){
-  //     RangeParams RP(rad, b, sf, true, steps_to_stopping, early_stopping_rad);
-  //     checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, zero_res);
-  //   }
-  // }
+  // // std::cout << "Trying again with early stopping" << std::endl;
+  // // for(long b: beams){
+  // //   for(double sf: slack){
+  // //     steps_to_stopping = std::max<size_t>(b/3, 10);
+  // //     RangeParams RP(rad, b, sf, true, steps_to_stopping, esr);
+  // //     checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, zero_res);
+  // //   }
+  // // }
 
-  // std::cout << std::endl;
+  // // std::cout << std::endl;
 
   // std::cout << "For all " << nn_res.size() <<  " points with 1 to 2 results" << std::endl;
 
@@ -239,6 +296,7 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
   // std::cout << "Trying again with two-round search" << std::endl;
   // for(long b: beams){
   //   for(double sf: slack){
+      
   //     RangeParams RP(rad, b, sf, true);
   //     checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, nn_res);
   //   }
@@ -246,13 +304,14 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
 
   // std::cout << std::endl;
   // std::cout << std::endl;
-  // std::cout << "Trying again with two-round search and early stopping" << std::endl;
-  // for(long b: beams){
-  //   for(double sf: slack){
-  //     RangeParams RP(rad, b, sf, true, steps_to_stopping, early_stopping_rad);
-  //     checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, nn_res);
-  //   }
-  // }
+  // // std::cout << "Trying again with two-round search and early stopping" << std::endl;
+  // // for(long b: beams){
+  // //   for(double sf: slack){
+  // //     steps_to_stopping = std::max<size_t>(b/3, 10);
+  // //     RangeParams RP(rad, b, sf, true, steps_to_stopping, esr);
+  // //     checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, nn_res);
+  // //   }
+  // // }
 
   // std::cout << std::endl;
 
@@ -264,8 +323,8 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
   //   checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, rng_res, true);
 
   // }
-  // std::cout << std::endl;
-  // std::cout << std::endl;
+  // // std::cout << std::endl;
+  // // std::cout << std::endl;
   // std::cout << "Trying again with two-round search" << std::endl;
   // for(long b: beams){
   //   for(double sf: slack){
@@ -275,13 +334,14 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
   // }
   // std::cout << std::endl;
   // std::cout << std::endl;
-  // std::cout << "Trying again with two-round search and early stopping" << std::endl;
-  // for(long b: beams){
-  //   for(double sf: slack){
-  //     RangeParams RP(rad, b, sf, true, steps_to_stopping, early_stopping_rad);
-  //     checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, rng_res);
-  //   }
-  // }
+  // // std::cout << "Trying again with two-round search and early stopping" << std::endl;
+  // // for(long b: beams){
+  // //   for(double sf: slack){
+  // //     steps_to_stopping = std::max<size_t>(b/3, 10);
+  // //     RangeParams RP(rad, b, sf, true, steps_to_stopping, esr);
+  // //     checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, rng_res);
+  // //   }
+  // // }
 
   // std::cout << std::endl;
 

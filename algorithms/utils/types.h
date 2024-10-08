@@ -233,8 +233,7 @@ struct RangeParams{
   RangeParams() {}
 
   void print(){
-    if(second_round) std::cout << "Beam: " << initial_beam << ", slack factor: " << slack_factor;
-    else std::cout << "Beam: " << initial_beam;
+    std::cout << "Beam: " << initial_beam;
   }
 
 };
