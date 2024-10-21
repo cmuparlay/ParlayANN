@@ -75,7 +75,9 @@ struct knn_index {
     }
 
     // Sort the candidate set according to distance from p
-    auto less = [&](pid a, pid b) { return a.second < b.second; };
+    auto less = [&](std::pair<indexType, distanceType> a, std::pair<indexType, distanceType> b) {
+      return a.second < b.second || (a.second == b.second && a.first < b.first);
+    };
     std::sort(candidates.begin(), candidates.end(), less);
 
     // remove any duplicates
@@ -147,7 +149,7 @@ struct knn_index {
     std::cout << "Building graph..." << std::endl;
     set_start();
     parlay::sequence<indexType> inserts = parlay::tabulate(Points.size(), [&] (size_t i){
-					    return static_cast<indexType>(i);});
+      return static_cast<indexType>(i);});
     if (BP.single_batch != 0) {
       int degree = BP.single_batch;
       std::cout << "Using single batch per round with " << degree << " random start edges" << std::endl;
@@ -175,7 +177,7 @@ struct knn_index {
     if (sort_neighbors) {
       parlay::parallel_for (0, G.size(), [&] (long i) {
         auto less = [&] (indexType j, indexType k) {
-                      return Points[i].distance(Points[j]) < Points[i].distance(Points[k]);};
+          return Points[i].distance(Points[j]) < Points[i].distance(Points[k]);};
         G[i].sort(less);});
     }
   }
@@ -197,8 +199,8 @@ struct knn_index {
     size_t count = 0;
     float frac = 0.0;
     float progress_inc = .1;
-    size_t max_batch_size = std::min(
-        static_cast<size_t>(max_fraction * static_cast<float>(n)), 1000000ul);
+    size_t max_batch_size = std::min(static_cast<size_t>(max_fraction * static_cast<float>(n)),
+                                     1000000ul);
     //fix bug where max batch size could be set to zero
     if(max_batch_size == 0) max_batch_size = n;
     parlay::sequence<int> rperm;
@@ -207,7 +209,7 @@ struct knn_index {
     else
       rperm = parlay::tabulate(m, [&](int i) { return i; });
     auto shuffled_inserts =
-        parlay::tabulate(m, [&](size_t i) { return inserts[rperm[i]]; });
+      parlay::tabulate(m, [&](size_t i) { return inserts[rperm[i]]; });
     parlay::internal::timer t_beam("beam search time");
     parlay::internal::timer t_bidirect("bidirect time");
     parlay::internal::timer t_prune("prune time");
@@ -232,7 +234,7 @@ struct knn_index {
         ceiling = m;
         count = m;
       }
-      
+
       parlay::sequence<parlay::sequence<indexType>> new_out_(ceiling-floor);
       // search for each node starting from the start_point, then call
       // robustPrune with the visited list as its candidate set
@@ -252,6 +254,11 @@ struct knn_index {
         std::tie(new_out_[i-floor], rp_distance_comps) = robustPrune(index, visited, G, Points, alpha);
         BuildStats.increment_dist(index, rp_distance_comps);
       });
+
+      parlay::parallel_for(floor, ceiling, [&](size_t i) {
+        G[shuffled_inserts[i]].update_neighbors(new_out_[i-floor]);
+      });
+
       t_beam.stop();
 
       // make each edge bidirectional by first adding each new edge
@@ -261,12 +268,8 @@ struct knn_index {
       auto flattened = parlay::delayed::flatten(parlay::tabulate(ceiling - floor, [&](size_t i) {
         indexType index = shuffled_inserts[i + floor];
         return parlay::delayed::map(new_out_[i], [=] (indexType ngh) {
-                                      return std::pair(ngh, index);});}));
+          return std::pair(ngh, index);});}));
       auto grouped_by = parlay::group_by_key(parlay::delayed::to_sequence(flattened));
-
-      parlay::parallel_for(floor, ceiling, [&](size_t i) {
-         G[shuffled_inserts[i]].update_neighbors(new_out_[i-floor]);
-      });
 
       t_bidirect.stop();
       t_prune.start();
@@ -286,6 +289,7 @@ struct knn_index {
         }
       });
       t_prune.stop();
+
       if (print && BP.single_batch == 0) {
         auto ind = frac * n;
         if (floor <= ind && ceiling > ind) {

@@ -1,0 +1,3 @@
+# bash
+
+numactl -i all ./neighbors -R 150 -L 300 -alpha 1 -data_type float -file_type bin -dist_func mips -base_path data/glove-25-angular/glove-25-angular_base.fbin -query_path data/glove-25-angular/glove-25-angular_query.fbin -gt_path data/glove-25-angular/glove-25-angular_groundtruth -num_passes 2 -quantize_build -normalize -verbose

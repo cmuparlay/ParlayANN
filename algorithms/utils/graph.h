@@ -101,7 +101,7 @@ struct edgeRange{
     edges[0] = 0;
   }
 
-  void prefetch(){
+  void prefetch() const {
     int l = ((edges[0] + 1) * sizeof(indexType))/64;
     for (int i = 0; i < l; i++)
       __builtin_prefetch((char*) edges.begin() + i *  64);
@@ -111,9 +111,9 @@ struct edgeRange{
   void sort(F&& less){
     std::sort(edges.begin() + 1, edges.begin() + 1 + edges[0], less);}
 
-  indexType* begin(){return edges.begin() + 1;}
+  indexType* begin() const {return edges.begin() + 1;}
 
-  indexType* end(){return edges.end() + 1 + edges[0];}
+  indexType* end() const {return edges.end() + 1 + edges[0];}
 
 private:
   parlay::slice<indexType*, indexType*> edges;
@@ -121,8 +121,10 @@ private:
   indexType id_;
 };
 
-template<typename indexType>
+template<typename indexType_>
 struct Graph{
+  using indexType = indexType_;
+  
   long max_degree() const {return maxDeg;}
   size_t size() const {return n;}
 
@@ -143,7 +145,10 @@ struct Graph{
 
   Graph(char* gFile){
     std::ifstream reader(gFile);
-    assert(reader.is_open());
+    if (!reader.is_open()) {
+      std::cout << "graph file " << gFile << " not found" << std::endl;
+      abort();
+    }
 
     //read num points and max degree
     indexType num_points;
@@ -152,7 +157,7 @@ struct Graph{
     n = num_points;
     reader.read((char*)(&max_deg), sizeof(indexType));
     maxDeg = max_deg;
-    std::cout << "Detected " << num_points
+    std::cout << "Graph: detected " << num_points
               << " points with max degree " << max_deg << std::endl;
 
     //read degrees and perform scan to find offsets
@@ -163,7 +168,8 @@ struct Graph{
       parlay::make_slice(degrees_start, degrees_end);
     auto degrees = parlay::tabulate(degrees0.size(), [&] (size_t i){
       return static_cast<size_t>(degrees0[i]);});
-    auto [offsets, total] = parlay::scan(degrees);
+    auto [o, total] = parlay::scan(degrees);
+    auto offsets = o;
     std::cout << "Total edges read from file: " << total << std::endl;
     offsets.push_back(total);
 
@@ -224,7 +230,7 @@ struct Graph{
     writer.close();
   }
 
-  edgeRange<indexType> operator [] (indexType i) {
+  edgeRange<indexType> operator [] (indexType i) const {
     if (i > n) {
       std::cout << "ERROR: graph index out of range: " << i << std::endl;
       abort();

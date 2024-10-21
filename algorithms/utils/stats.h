@@ -63,8 +63,10 @@ struct stats{
   parlay::sequence<indexType> visited;
   parlay::sequence<indexType> distances;
 
-  void increment_dist(indexType i, indexType j){distances[i]+=j;}
-  void increment_visited(indexType i, indexType j){visited[i]+=j;}
+  void increment_dist(indexType i, indexType j){
+    distances[i]+=j;}
+  void increment_visited(indexType i, indexType j){
+    visited[i]+=j;}
 
   parlay::sequence<indexType> visited_stats(){return statistics(this->visited);}
   parlay::sequence<indexType> dist_stats(){return statistics(this->distances);}

@@ -61,17 +61,16 @@ template <typename T, typename Point> inline void add_variant(py::module_ &m, co
           "data_file_path"_a, "index_output_path"_a, "graph_degree"_a, "beam_width"_a, "alpha"_a, "two_pass"_a);
 
     py::class_<GraphIndex<T, Point>>(m, variant.index_name.c_str())
-        .def(py::init<std::string &, std::string &, size_t, size_t, bool>(),
-             "index_path"_a, "data_path"_a, "num_points"_a, "dimensions"_a, "hnsw"_a=false)
-        //maybe "num_points" and "dimensions" are unnecessary?
-        //do we want to add options like visited limit, or leave those as defaults?
-        .def("batch_search", &GraphIndex<T, Point>::batch_search, "queries"_a, "num_queries"_a, "knn"_a,
-             "beam_width"_a, "visit_limit"_a)
-        .def("batch_search_from_string", &GraphIndex<T, Point>::batch_search_from_string, "queries"_a, "num_queries"_a, "knn"_a,
-             "beam_width"_a)
-        .def("check_recall", &GraphIndex<T, Point>::check_recall, "gFile"_a, "neighbors"_a, "k"_a);
-
-   
+      .def(py::init<std::string &, std::string &, bool>(),
+           "index_path"_a, "data_path"_a, "hnsw"_a=false)
+      //do we want to add options like visited limit, or leave those as defaults?
+      .def("batch_search", &GraphIndex<T, Point>::batch_search, "queries"_a, "knn"_a,
+           "beam_width"_a, "quant"_a, "visit_limit"_a)
+      .def("single_search", &GraphIndex<T, Point>::single_search, "q"_a, "knn"_a,
+           "beam_width"_a, "quant"_a, "visit_limit"_a)
+      .def("batch_search_from_string", &GraphIndex<T, Point>::batch_search_from_string, "queries"_a, "knn"_a,
+           "beam_width"_a, "quant"_a, "visit_limit"_a)
+      .def("check_recall", &GraphIndex<T, Point>::check_recall, "queries_file"_a, "graph_file"_a, "neighbors"_a, "k"_a);
 }
 
 const Variant FloatEuclidianHCNNGVariant{"build_hcnng_float_euclidian_index", "FloatEuclidianIndex"};

@@ -1,13 +1,14 @@
 # bash
-BUILD_ARGS="-R 64 -L 128 -alpha 1.15 -num_passes 2 -quantize_bits 8 -verbose"
-QUERY_ARGS="-quantize_bits 8 -verbose"
+NAME=gist
+BUILD_ARGS="-R 100 -L 200 -alpha 1.1 -num_passes 2 -quantize_bits 8 -verbose"
+QUERY_ARGS="-quantize_bits 16 -quantize_mode 3 -verbose"
 TYPE_ARGS="-data_type float -dist_func Euclidian -file_type bin"
 
-PATH=data/sift-128-euclidean
+PATH=data/$NAME
 DATA_FILE=$PATH/base.fbin
 QUERY_FILE=$PATH/query.fbin
 GROUNDTRUTH_FILE=$PATH/groundtruth
-GRAPH_FILE=$PATH/graphs/"graph_64_1.15"
+GRAPH_FILE=$PATH/graphs/graph_100_1.1
 
 # build
 echo ./neighbors $BUILD_ARGS $TYPE_ARGS -base_path $DATA_FILE -graph_outfile $GRAPH_FILE

@@ -28,6 +28,7 @@
 #include "../utils/parse_results.h"
 #include "../utils/mips_point.h"
 #include "../utils/euclidian_point.h"
+#include "../utils/jl_point.h"
 #include "../utils/stats.h"
 #include "../utils/types.h"
 #include "../utils/graph.h"
@@ -36,11 +37,12 @@
 #include "parlay/primitives.h"
 #include "parlay/random.h"
 
-template<typename Point, typename PointRange, typename QPointRange, typename indexType>
-void ANN_(Graph<indexType> &G, long k, BuildParams &BP,
-          PointRange &Query_Points, QPointRange &Q_Query_Points,
-          groundTruth<indexType> GT, char *res_file,
-          bool graph_built, PointRange &Points, QPointRange &Q_Points) {
+template<typename PointRange, typename QPointRange, typename QQPointRange, typename indexType>
+void ANN_Quantized(Graph<indexType> &G, long k, BuildParams &BP,
+                   PointRange &Query_Points, QPointRange &Q_Query_Points, QQPointRange &QQ_Query_Points,
+                   groundTruth<indexType> GT, char *res_file,
+                   bool graph_built,
+                   PointRange &Points, QPointRange &Q_Points, QQPointRange &QQ_Points) {
   parlay::internal::timer t("ANN");
 
   bool verbose = BP.verbose;
@@ -73,10 +75,13 @@ void ANN_(Graph<indexType> &G, long k, BuildParams &BP,
                                                         [] (auto x) {return (long) x;}));
 
   if(Query_Points.size() != 0) {
-    search_and_parse<Point, PointRange, QPointRange, indexType>(G_, G, Points, Query_Points,
-                                                                Q_Points, Q_Query_Points, GT,
-                                                                res_file, k, false, start_point,
-                                                                verbose);
+    search_and_parse(G_, G,
+                     Points, Query_Points,
+                     Q_Points, Q_Query_Points,
+                     QQ_Points, QQ_Query_Points,
+                     GT,
+                     res_file, k, false, start_point,
+                     verbose, BP.Q);
   } else if (BP.self) {
     if (BP.range) {
       parlay::internal::timer t_range("range search time");
@@ -108,24 +113,75 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
          PointRange_ &Query_Points,
          groundTruth<indexType> GT, char *res_file,
          bool graph_built, PointRange_ &Points) {
-  if (BP.quantize && sizeof(typename PointRange_::T) >= 2) {
+  if (BP.quantize != 0) {
     std::cout << "quantizing build and first pass of search to 1 byte" << std::endl;
     if (Point::is_metric()) {
       using QT = uint8_t;
       using QPoint = Euclidian_Point<QT>;
-      using QPR = PointRange<QT, QPoint>;
+      using QPR = PointRange<QPoint>;
       QPR Q_Points(Points);  // quantized to one byte
       QPR Q_Query_Points(Query_Points, Q_Points.params);
-      ANN_<Point, PointRange_, QPR, indexType>(G, k, BP, Query_Points, Q_Query_Points, GT, res_file, graph_built, Points, Q_Points);
+      if (BP.quantize == 1) {
+        ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, Q_Query_Points,
+                      GT, res_file, graph_built, Points, Q_Points, Q_Points);
+      } else if (BP.quantize == 2) {
+        using QQPoint = Euclidean_Bit_Point;
+        using QQPR = PointRange<QQPoint>;
+        QQPR QQ_Points(Points);
+        QQPR QQ_Query_Points(Query_Points, QQ_Points.params);
+        ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, QQ_Query_Points,
+                      GT, res_file, graph_built, Points, Q_Points, QQ_Points);
+      } else if (BP.quantize == 3) {
+        using QQPoint = Euclidean_JL_Sparse_Point<1024>;
+        using QQPR = PointRange<QQPoint>;
+        QQPR QQ_Points(Points);
+        QQPR QQ_Query_Points(Query_Points, QQ_Points.params);
+        ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, QQ_Query_Points,
+                      GT, res_file, graph_built, Points, Q_Points, QQ_Points);
+      }
     } else {
       using QT = int8_t;
-      using QPoint = Quantized_Mips_Point<QT>;
-      using QPR = PointRange<QT, QPoint>;
+      //using QPoint = Euclidian_Point<uint8_t>;
+      using QPoint = Quantized_Mips_Point<8,true,255>;
+      using QPR = PointRange<QPoint>;
       QPR Q_Points(Points);
       QPR Q_Query_Points(Query_Points, Q_Points.params);
-      ANN_<Point, PointRange_, QPR, indexType>(G, k, BP, Query_Points, Q_Query_Points, GT, res_file, graph_built, Points, Q_Points);
+      if (BP.quantize == 1) {
+        ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, Q_Query_Points,
+                      GT, res_file, graph_built, Points, Q_Points, Q_Points);
+      } else if (BP.quantize == 2) {
+        using QQPoint = Mips_Bit_Point;
+        using QQPR = PointRange<QQPoint>;
+        QQPR QQ_Points(Points);
+        QQPR QQ_Query_Points(Query_Points, QQ_Points.params);
+        ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, QQ_Query_Points,
+                      GT, res_file, graph_built, Points, Q_Points, QQ_Points);
+      } else if (BP.quantize == 3) {
+        using QQPoint = Mips_2Bit_Point;
+        using QQPR = PointRange<QQPoint>;
+        QQPR QQ_Points(Points);
+        QQPR QQ_Query_Points(Query_Points, QQ_Points.params);
+        ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, QQ_Query_Points,
+                      GT, res_file, graph_built, Points, Q_Points, QQ_Points);
+      } else if (BP.quantize == 4) {
+        using QQPoint = Mips_JL_Bit_Point<512>;
+        using QQPR = PointRange<QQPoint>;
+        QQPR QQ_Points(Points);
+        QQPR QQ_Query_Points(Query_Points, QQ_Points.params);
+        ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, QQ_Query_Points,
+                      GT, res_file, graph_built, Points, Q_Points, QQ_Points);
+      } else if (BP.quantize == 5) {
+        using QQPoint = Mips_JL_Sparse_Point<512>;
+        using QQPR = PointRange<QQPoint>;
+        QQPR QQ_Points(Points);
+        QQPR QQ_Query_Points(Query_Points, QQ_Points.params);
+        ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, QQ_Query_Points,
+                      GT, res_file, graph_built, Points, Q_Points, QQ_Points);
+      }
     }
   } else {
-    ANN_<Point, PointRange_, PointRange_, indexType>(G, k, BP, Query_Points, Query_Points, GT, res_file, graph_built, Points, Points);
+    ANN_Quantized(G, k, BP, Query_Points, Query_Points, Query_Points,
+                  GT, res_file, graph_built, Points, Points, Points);
   }
 }
+

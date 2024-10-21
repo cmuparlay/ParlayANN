@@ -38,51 +38,48 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-//tp_size must divide 64 evenly--no weird/large types!
-long dim_round_up(long dim, long tp_size){
-  long qt = (dim*tp_size)/64;
-  long remainder = (dim*tp_size)%64;
-  if(remainder == 0) return dim;
-  else return ((qt+1)*64)/tp_size;
-}
-
-  
-template<typename T_, class Point_>
+template<class Point_>
 struct PointRange{
-  using T = T_;
+  //using T = T_;
   using Point = Point_;
   using parameters = typename Point::parameters;
+  using byte = uint8_t;
 
-  long dimension() const {return dims;}
-  long aligned_dimension() const {return aligned_dims;}
+  long dimension() const {return params.dims;}
+  //long aligned_dimension() const {return aligned_dims;}
 
-  PointRange() : values(std::shared_ptr<T[]>(nullptr, std::free)) {n=0;}
+  PointRange() : values(std::shared_ptr<byte[]>(nullptr, std::free)), n(0) {}
 
   template <typename PR>
   PointRange(const PR& pr, const parameters& p) : params(p)  {
     n = pr.size();
-    dims = pr.dimension();
-    aligned_dims =  dim_round_up(dims, sizeof(T));
-    long num_bytes = n*aligned_dims*sizeof(T);
-    T* ptr = (T*) aligned_alloc(1l << 21, num_bytes);
-    madvise(ptr, num_bytes, MADV_HUGEPAGE);
-    values = std::shared_ptr<T[]>(ptr, std::free);
-    T* vptr = values.get();
+    int num_bytes = p.num_bytes();
+    aligned_bytes = (num_bytes <= 32) ? 32 : 64 * ((num_bytes - 1)/64 + 1);
+    long total_bytes = n * aligned_bytes;
+    byte* ptr = (byte*) aligned_alloc(1l << 21, total_bytes);
+    madvise(ptr, total_bytes, MADV_HUGEPAGE);
+    values = std::shared_ptr<byte[]>(ptr, std::free);
+    byte* vptr = values.get();
     parlay::parallel_for(0, n, [&] (long i) {
-      Point::translate_point(vptr + i * aligned_dims, pr[i], params);});
+      Point::translate_point(vptr + i * aligned_bytes, pr[i], params);});
   }
 
   template <typename PR>
   PointRange (PR& pr) : PointRange(pr, Point::generate_parameters(pr)) { }
 
-  PointRange(char* filename) : values(std::shared_ptr<T[]>(nullptr, std::free)){
+  template <typename PR>
+  PointRange (PR& pr, int dims) : PointRange(pr, Point::generate_parameters(dims)) { }
+
+  PointRange(char* filename) : values(std::shared_ptr<byte[]>(nullptr, std::free)){
       if(filename == NULL) {
         n = 0;
-        dims = 0;
         return;
       }
       std::ifstream reader(filename);
-      assert(reader.is_open());
+      if (!reader.is_open()) {
+        std::cout << "Data file " << filename << " not found" << std::endl;
+        std::abort();
+      }
 
       //read num points and max degree
       unsigned int num_points;
@@ -90,29 +87,30 @@ struct PointRange{
       reader.read((char*)(&num_points), sizeof(unsigned int));
       n = num_points;
       reader.read((char*)(&d), sizeof(unsigned int));
-      dims = d;
+      int dims = d;
       params = parameters(d);
-      std::cout << "Detected " << num_points << " points with dimension " << d << std::endl;
-      aligned_dims =  dim_round_up(dims, sizeof(T));
-      if(aligned_dims != dims) std::cout << "Aligning dimension to " << aligned_dims << std::endl;
-      long num_bytes = n*aligned_dims*sizeof(T);
-      T* ptr = (T*) aligned_alloc(1l << 21, num_bytes);
-      madvise(ptr, num_bytes, MADV_HUGEPAGE);
-      values = std::shared_ptr<T[]>(ptr, std::free);
+      std::cout << "Data: detected " << num_points << " points with dimension " << d << std::endl;
+      int num_bytes = params.num_bytes();
+      aligned_bytes =  64 * ((num_bytes - 1)/64 + 1);
+      if (aligned_bytes != num_bytes)
+        std::cout << "Aligning bytes to " << aligned_bytes << std::endl;
+      long total_bytes = n * aligned_bytes;
+      byte* ptr = (byte*) aligned_alloc(1l << 21, total_bytes);
+      madvise(ptr, total_bytes, MADV_HUGEPAGE);
+      values = std::shared_ptr<byte[]>(ptr, std::free);
       size_t BLOCK_SIZE = 1000000;
       size_t index = 0;
-      while(index < n){
+      while(index < n) {
           size_t floor = index;
           size_t ceiling = index+BLOCK_SIZE <= n ? index+BLOCK_SIZE : n;
-          T* data_start = new T[(ceiling-floor)*dims];
-          reader.read((char*)(data_start), sizeof(T)*(ceiling-floor)*dims);
-          T* data_end = data_start + (ceiling-floor)*dims;
-          parlay::slice<T*, T*> data = parlay::make_slice(data_start, data_end);
-          int data_bytes = dims*sizeof(T);
-          parlay::parallel_for(floor, ceiling, [&] (size_t i){
-            for (int j=0; j < dims; j++)
-              values.get()[i * aligned_dims + j] = data[(i - floor) * dims + j];
-            //std::memmove(values.get() + i*aligned_dims, data.begin() + (i-floor)*dims, data_bytes);
+          long m = ceiling - floor;
+          byte* data_start = new byte[m * num_bytes];
+          byte* data_end = data_start + m * num_bytes;
+          reader.read((char*)(data_start), m * num_bytes);
+          parlay::parallel_for(floor, ceiling, [&] (size_t i) {
+            std::memmove(values.get() + i * aligned_bytes,
+                         data_start + (i - floor) * num_bytes,
+                         num_bytes);
           });
           delete[] data_start;
           index = ceiling;
@@ -121,21 +119,24 @@ struct PointRange{
 
   size_t size() const { return n; }
 
-  unsigned int get_dims() const { return dims; }
+  unsigned int get_dims() const { return params.dims; }
   
   Point operator [] (long i) const {
     if (i > n) {
       std::cout << "ERROR: point index out of range: " << i << " from range " << n << ", " << std::endl;
       abort();
     }
-    return Point(values.get()+i*aligned_dims, i, params);
+    return Point(values.get()+i*aligned_bytes, i, params);
   }
 
+  byte* location(long i) const {
+    return values.get() + i * aligned_bytes;
+  }
+  
   parameters params;
 
 private:
-  std::shared_ptr<T[]> values;
-  unsigned int dims;
-  unsigned int aligned_dims;
+  std::shared_ptr<byte[]> values;
+  long aligned_bytes;
   size_t n;
 };
