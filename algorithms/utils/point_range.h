@@ -129,6 +129,10 @@ struct PointRange{
     return Point(values.get()+i*aligned_bytes, i, params);
   }
 
+  byte* location(long i) const {
+    return values.get() + i * aligned_bytes;
+  }
+  
   parameters params;
 
 private:

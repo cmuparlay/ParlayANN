@@ -168,7 +168,8 @@ struct Graph{
       parlay::make_slice(degrees_start, degrees_end);
     auto degrees = parlay::tabulate(degrees0.size(), [&] (size_t i){
       return static_cast<size_t>(degrees0[i]);});
-    auto [offsets, total] = parlay::scan(degrees);
+    auto [o, total] = parlay::scan(degrees);
+    auto offsets = o;
     std::cout << "Total edges read from file: " << total << std::endl;
     offsets.push_back(total);
 

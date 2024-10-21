@@ -207,7 +207,7 @@ struct Euclidian_Point {
   static parameters generate_parameters(const PR& pr) {
     long n = pr.size();
     int dims = pr.dimension();
-    using MT = typename PR::Point::T;
+    using MT = float; // typename PR::Point::T;
     parlay::sequence<MT> mins(n, 0.0);
     parlay::sequence<MT> maxs(n, 0.0);
     parlay::sequence<bool> ni(n, true);

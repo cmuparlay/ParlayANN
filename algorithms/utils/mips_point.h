@@ -289,7 +289,7 @@ private:
 template<int bits, bool trim = false, int range = (1 << bits) - 1>
 struct Quantized_Mips_Point{
   using T = int16_t;
-  using distanceType = float;
+  using distanceType = int64_t; //float;
   using byte = uint8_t;
   
   struct parameters {
@@ -320,27 +320,27 @@ struct Quantized_Mips_Point{
   }
 
 
-  float distance_16(byte* p_, byte* q_) const {
+  distanceType distance_16(byte* p_, byte* q_) const {
     int16_t* p = (int16_t*) p_;
     int16_t* q = (int16_t*) q_;
     int64_t result = 0;
     for (int i = 0; i < params.dims; i++){
       result += (int32_t) p[i] * (int32_t) q[i];
     }
-    return (float) -result;
+    return (distanceType) -result;
   }
 
-  float distance_8(byte* p_, byte* q_) const {
+  distanceType distance_8(byte* p_, byte* q_) const {
     int8_t* p = (int8_t*) p_;
     int8_t* q = (int8_t*) q_;
     int32_t result = 0;
     for (int i = 0; i < params.dims; i++){
       result += (int16_t) p[i] * (int16_t) q[i];
     }
-    return (float) -result;
+    return (distanceType) -result;
   }
 
-  float distance_4(byte* p_, byte* q_) const {
+  distanceType distance_4(byte* p_, byte* q_) const {
     int8_t* p = (int8_t*) p_;
     int8_t* q = (int8_t*) q_;
     int32_t result = 0;
@@ -351,10 +351,10 @@ struct Quantized_Mips_Point{
     for (int i = 0; i < params.dims/2; i++){
       result += (int16_t) (p[i] & mask) * (int16_t) (q[i] & mask);
     }
-    return (float) -result;
+    return (distanceType) -result;
   }
 
-  float distance(const Quantized_Mips_Point &x) const {
+  distanceType distance(const Quantized_Mips_Point &x) const {
     if constexpr (bits <= 4) {
       return distance_4(this->values, x.values);
     } else {
@@ -436,7 +436,8 @@ struct Quantized_Mips_Point{
     long n = pr.size();
     int dims = pr.dimension();
     long len = n * dims;
-    parlay::sequence<typename PR::Point::T> vals(len);
+    using MT = float;
+    parlay::sequence<MT> vals(len);
     parlay::parallel_for(0, n, [&] (long i) {
       for (int j = 0; j < dims; j++) 
         vals[i * dims + j] = pr[i][j];
@@ -602,7 +603,8 @@ struct Mips_2Bit_Point {
     long n = pr.size();
     int dims = pr.dimension();
     long len = n * dims;
-    parlay::sequence<typename PR::Point::T> vals(len);
+    using MT = float;
+    parlay::sequence<MT> vals(len);
     parlay::parallel_for(0, n, [&] (long i) {
       for (int j = 0; j < dims; j++) 
         vals[i * dims + j] = pr[i][j];
@@ -701,3 +703,146 @@ private:
 };
 
 
+
+struct Mips_4Bit_Point {
+  using distanceType = float;
+  using byte = uint8_t;
+  using word = std::bitset<64>;
+  //using word = uint64_t; 
+  using T = int8_t;
+
+  static int pop_count(word x) {
+    return x.count();
+  }
+
+  static void set_bit(word& x, int i, bool v) {
+    x[i] = v;
+  }
+  
+  struct parameters {
+    float cut;
+    int dims;
+    int num_bytes() const {return ((dims - 1) / 64 + 1) * 8 * 4;}
+    parameters() : cut(.25), dims(0) {}
+    parameters(int dims) : cut(.25), dims(dims) {}
+    parameters(float cut, int dims)
+      : cut(cut), dims(dims) {
+      std::cout << "3-value quantization with cut = " << cut << std::endl;
+    }
+  };
+
+  static bool is_metric() {return false;}
+  
+  int operator [] (long i) const {
+    abort();
+  }
+
+  static int16_t triple(word a, word b, word plus, word minus) {
+    word x = a & b;
+    return pop_count(x & plus) - pop_count(x & minus);
+  }
+      
+  float distance(byte* p_, byte* q_) const {
+    word* p = (word*) p_;
+    word* q = (word*) q_;
+    int num_blocks = params.num_bytes() / 16;
+    int16_t total = 0;
+    for (int i = 0; i < num_blocks; i++) {
+      word minus = p[2 * i] ^ q[2 * i];
+      word plus = ~minus;
+      auto triple = [=] (word a, word b) -> int16_t {
+        word x = a & b;
+        return pop_count(x & plus) - pop_count(x & minus);
+      };
+      total += triple(p[2 * i + 1], q[2 * i + 1]);
+      total += triple(p[2 * i + 1], q[2 * i + 2]) * 2;
+      total += triple(p[2 * i + 1], q[2 * i + 3]) * 4;
+      total += triple(p[2 * i + 2], q[2 * i + 1]) * 2;
+      total += triple(p[2 * i + 2], q[2 * i + 2]) * 4;
+      total += triple(p[2 * i + 2], q[2 * i + 3]) * 8;
+      total += triple(p[2 * i + 3], q[2 * i + 1]) * 4;
+      total += triple(p[2 * i + 3], q[2 * i + 2]) * 8;
+      total += triple(p[2 * i + 3], q[2 * i + 3]) * 16;
+    }
+    return total;
+  }
+
+  float distance(const Mips_4Bit_Point &x) const {
+    return distance(this->values, x.values);
+  }
+  
+  void prefetch() const {
+    int l = (params.num_bytes() - 1)/64 + 1;
+    for (int i=0; i < l; i++)
+      __builtin_prefetch(values + i * 64);
+  }
+
+  bool same_as(const Mips_4Bit_Point& q){
+    return values == q.values;
+  }
+
+  long id() const {return id_;}
+
+  Mips_4Bit_Point(byte* values, long id, parameters p)
+    : values(values), id_(id), params(p)
+  {}
+
+  bool operator==(const Mips_4Bit_Point &q) const {
+    for (int i = 0; i < params.num_bytes(); i++) {
+      if (values[i] != q.values[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  void normalize() {
+    std::cout << "can't normalize quantized point" << std::endl;
+    abort();
+  }
+  
+  template <typename Point>
+  static void translate_point(byte* byte_values, const Point& p, const parameters& params) {
+    // two words per block, one for -1, +1, the other to mark if non-zero
+    int num_blocks = params.num_bytes() / 16;
+    word* words = (word*) byte_values;
+    float cv = params.cut;
+    for (int i = 0; i < num_blocks; i++) {
+      for (int j = 0; j < 64; j++) {
+        if (j + i * 64 >= params.dims) {
+          set_bit(words[2 * i + 1], j, false);
+          return;
+        }
+        set_bit(words[2 * i + 1], j, true);
+        float pj = p[j + i * 64];
+        if (pj < -cv) set_bit(words[2 * i], j, false);
+        else if (pj > cv) set_bit(words[2 * i], j, true);
+        else set_bit(words[2 * i + 1], j, false);
+      }
+    }
+  }
+  
+  template <typename PR>
+  static parameters generate_parameters(const PR& pr) {
+    long n = pr.size();
+    int dims = pr.dimension();
+    long len = n * dims;
+    using MT = float;
+    parlay::sequence<MT> vals(len);
+    parlay::parallel_for(0, n, [&] (long i) {
+      for (int j = 0; j < dims; j++) 
+        vals[i * dims + j] = pr[i][j];
+    });
+    parlay::sort_inplace(vals);
+    float cutoff = .3;
+    float min_cut = vals[(long) (cutoff * len)];
+    float max_cut = vals[(long) ((1.0-cutoff) * (len-1))];
+    float cut = std::max(max_cut, -min_cut);
+    return parameters(cut, dims); 
+  }
+
+private:
+  byte* values;
+  long id_;
+  parameters params;
+};

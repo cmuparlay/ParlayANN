@@ -1,0 +1,4 @@
+# bash
+
+numactl -i all ./neighbors -R 64 -L 128 -alpha 1.15 -data_type float -file_type bin -dist_func Euclidian -base_path data/fashion-mnist-784-euclidean/fashion-mnist-784-euclidean_base.fbin -query_path data/fashion-mnist-784-euclidean/fashion-mnist-784-euclidean_query.fbin -gt_path data/fashion-mnist-784-euclidean/fashion-mnist-784-euclidean_groundtruth -quantize 8 -two_pass 1 -graph_path data/fashion-mnist-784-euclidean/graph_64 -verbose 
+
