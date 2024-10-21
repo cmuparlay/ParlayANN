@@ -10,7 +10,7 @@ metric = "Euclidian"
 
 Index = wp.load_index(metric, "float", DATA_DIR + "base.fbin", DATA_DIR + "graphs/graph_" + "64_1.1x")
 
-for Q in [10, 16, 25, 30] :
+for Q in [16, 25] :
     for x in range(3) :
         start = time.time()
         neighbors, distances = Index.batch_search_from_string(DATA_DIR + "query.fbin", 10, Q, True, 1000)
