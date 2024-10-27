@@ -31,6 +31,8 @@
 #include "../algorithms/utils/mips_point.h"
 #include "../algorithms/utils/stats.h"
 
+using namespace parlayANN;
+
 template <typename T, typename Point>
 void build_vamana_index(std::string metric, std::string &vector_bin_path,
                         std::string &index_output_path, uint32_t graph_degree, uint32_t beam_width,

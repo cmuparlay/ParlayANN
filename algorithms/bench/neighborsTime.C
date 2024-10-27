@@ -32,16 +32,13 @@
 #include "../utils/mips_point.h"
 #include "../utils/graph.h"
 
-
-
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 
-
-
+using namespace parlayANN;
 
 // *************************************************************
 //  TIMING
@@ -251,3 +248,5 @@ int main(int argc, char* argv[]) {
   
   return 0;
 }
+
+

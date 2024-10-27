@@ -29,6 +29,8 @@
 #include "builder.cpp"
 #include "graph_index.cpp"
 
+using namespace parlayANN;
+
 PYBIND11_MAKE_OPAQUE(std::vector<uint32_t>);
 PYBIND11_MAKE_OPAQUE(std::vector<float>);
 PYBIND11_MAKE_OPAQUE(std::vector<int8_t>);

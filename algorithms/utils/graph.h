@@ -37,6 +37,8 @@
 #include "../bench/parse_command_line.h"
 #include "types.h"
 
+namespace parlayANN {
+  
 template<typename indexType>
 struct edgeRange{
 
@@ -247,3 +249,5 @@ private:
   long maxDeg;
   std::shared_ptr<indexType[]> graph;
 };
+
+} // end namespace

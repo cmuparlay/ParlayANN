@@ -31,7 +31,7 @@
 #include <math.h>
 #include "clusterPynn.h"
 
-
+namespace parlayANN {
 
 template<typename Point, typename PointRange, typename indexType>
 struct pyNN_index{
@@ -247,3 +247,5 @@ struct pyNN_index{
 		undirect_and_prune(G, Points, alpha);
 	}
 };
+
+} // end namespace

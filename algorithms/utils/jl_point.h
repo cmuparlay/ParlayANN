@@ -17,6 +17,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+namespace parlayANN {
+
 template <int jl_dims = 128>
 struct Mips_JL_Point {
   using T = int8_t;
@@ -285,3 +287,5 @@ private:
   byte* values;
   long id_;
 };
+
+} // end namespace

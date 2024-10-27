@@ -32,6 +32,7 @@
 #include "../utils/parse_results.h"
 #include "../utils/check_nn_recall.h"
 
+namespace parlayANN {
 
 template<typename Point, typename PointRange, typename indexType>
 void ANN(Graph<indexType> &G, long k, BuildParams &BP,
@@ -59,3 +60,4 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
   };
 }
 
+} // end namespace

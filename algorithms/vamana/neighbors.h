@@ -37,6 +37,8 @@
 #include "parlay/primitives.h"
 #include "parlay/random.h"
 
+namespace parlayANN {
+
 template<typename PointRange, typename QPointRange, typename QQPointRange, typename indexType>
 void ANN_Quantized(Graph<indexType> &G, long k, BuildParams &BP,
                    PointRange &Query_Points, QPointRange &Q_Query_Points, QQPointRange &QQ_Query_Points,
@@ -171,7 +173,7 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
         ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, QQ_Query_Points,
                       GT, res_file, graph_built, Points, Q_Points, QQ_Points);
       } else if (BP.quantize == 5) {
-        using QQPoint = Mips_JL_Sparse_Point<512>;
+        using QQPoint = Mips_JL_Sparse_Point<1024>;
         using QQPR = PointRange<QQPoint>;
         QQPR QQ_Points(Points);
         QQPR QQ_Query_Points(Query_Points, QQ_Points.params);
@@ -185,3 +187,4 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
   }
 }
 
+} // end namespace

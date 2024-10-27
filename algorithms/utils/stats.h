@@ -29,6 +29,8 @@
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 
+namespace parlayANN {
+
 // template <typename T>
 // std::pair<double, int> graph_stats(parlay::sequence<Tvec_point<T> *> &v) {
 //   auto od = parlay::delayed_seq<size_t>(
@@ -206,3 +208,5 @@ struct stats{
 //     }
 //   }
 // }
+
+} // end namespace

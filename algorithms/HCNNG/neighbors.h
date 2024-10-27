@@ -34,6 +34,8 @@
 #include "../utils/graph.h"
 #include "hcnng_index.h"
 
+namespace parlayANN {
+
 template<typename Point, typename PointRange, typename indexType>
 void ANN(Graph<indexType> &G, long k, BuildParams &BP,
          PointRange &Query_Points,
@@ -57,3 +59,5 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
   if(Query_Points.size() != 0)
     search_and_parse(G_, G, Points, Query_Points, GT, res_file, k, BP.verbose);
 }
+
+} // end namespace

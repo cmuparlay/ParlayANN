@@ -38,6 +38,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+namespace parlayANN {
+
 template<class Point_>
 struct PointRange{
   //using T = T_;
@@ -140,3 +142,5 @@ private:
   long aligned_bytes;
   size_t n;
 };
+
+} // end namespace

@@ -41,6 +41,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+namespace parlayANN {
+
 float euclidian_distance_(const uint8_t *p, const uint8_t *q, unsigned d) {
   int result = 0;
   for (int i = 0; i < d; i++) {
@@ -415,3 +417,5 @@ private:
   long id_;
   parameters params;
 };
+
+} // end namespace

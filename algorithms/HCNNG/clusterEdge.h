@@ -35,6 +35,8 @@
 #include "parlay/primitives.h"
 #include "parlay/random.h"
 
+namespace parlayANN {
+  
 std::pair<size_t, size_t>
 select_two_random(parlay::sequence<size_t> &active_indices,
                   parlay::random &rnd) {
@@ -150,3 +152,5 @@ struct cluster {
     }
   }
 };
+
+} // end namespace

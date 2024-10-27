@@ -31,6 +31,8 @@
 #include <random>
 #include <set>
 
+namespace parlayANN {
+  
 struct DisjointSet {
   parlay::sequence<int> parent;
   parlay::sequence<int> rank;
@@ -278,3 +280,5 @@ struct hcnng_index {
     // v, 1.1, maxDeg);});
   }
 };
+
+} // end namespace

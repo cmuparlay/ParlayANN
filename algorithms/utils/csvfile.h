@@ -28,6 +28,8 @@
 #include <sstream>
 #include <string>
 
+namespace parlayANN {
+
 class csvfile;
 
 inline static csvfile& endrow(csvfile& file);
@@ -109,3 +111,5 @@ inline static csvfile& flush(csvfile& file) {
   file.flush();
   return file;
 }
+
+} // end namespace

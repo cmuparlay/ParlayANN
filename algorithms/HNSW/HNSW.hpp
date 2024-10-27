@@ -38,6 +38,8 @@
 
 namespace ANN{
 
+  using namespace parlayANN;
+  
 enum class type_metric{
 	L2, ANGULAR, DOT
 };

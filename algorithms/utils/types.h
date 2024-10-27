@@ -1,3 +1,6 @@
+#ifndef ALGORITHMS_ANN_TYPES_H_
+#define ALGORITHMS_ANN_TYPES_H_
+
 // This code is part of the Problem Based Benchmark Suite (PBBS)
 // Copyright (c) 2011 Guy Blelloch and the PBBS team
 //
@@ -28,6 +31,8 @@
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 #include "mmap.h"
+
+namespace parlayANN {
 
 template<typename T>
 struct groundTruth{
@@ -254,3 +259,6 @@ public:
 };
 
 #endif
+} // end namespace
+
+#endif // ALGORITHMS_ANN_TYPES_H_

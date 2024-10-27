@@ -40,6 +40,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+namespace parlayANN {
 
   float mips_distance(const uint8_t *p, const uint8_t *q, unsigned d) {
     int result = 0;
@@ -846,3 +847,5 @@ private:
   long id_;
   parameters params;
 };
+
+} // end namespace

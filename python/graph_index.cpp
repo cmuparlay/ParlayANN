@@ -40,6 +40,8 @@
 #include <utility>
 #include <optional>
 
+using namespace parlayANN;
+
 namespace py = pybind11;
 using NeighborsAndDistances = std::pair<py::array_t<unsigned int>, py::array_t<float>>;
 

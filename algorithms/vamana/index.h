@@ -38,6 +38,7 @@
 #include "parlay/random.h"
 #include "../utils/beamSearch.h"
 
+namespace parlayANN {
 
 template<typename PointRange, typename indexType>
 struct knn_index {
@@ -306,3 +307,5 @@ struct knn_index {
   }
 
 };
+
+} // end namespace

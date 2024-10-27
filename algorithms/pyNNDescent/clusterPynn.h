@@ -36,6 +36,8 @@
 #include "parlay/random.h"
 #include "../utils/union.h"
 
+namespace parlayANN {
+  
 template<typename Point, typename PointRange, typename indexType>
 struct clusterPID {
   using distanceType = typename Point::distanceType;
@@ -172,3 +174,5 @@ struct clusterPID {
                          [&](size_t i) { old_nbh[i] = intermediate_edges[i]; });
   }
 };
+
+} // end namespace
