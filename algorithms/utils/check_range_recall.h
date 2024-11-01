@@ -213,6 +213,8 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
   std::vector<long> beams;
 
   beams = {5,10,20,30,40,50,60,70,80,90,100,200,350,500,1000}; 
+
+  long double_beams = 1;
   // beams = {100};
   std::vector<double> slack = {1.0};
 
@@ -240,23 +242,29 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
   std::cout << std::endl;
   std::cout << std::endl;
   std::cout << "Regular range search" << std::endl;
-  for(long b: beams){
-    for(double sf: slack){
-      RangeParams RP(rad, b, sf, true);
+  // for(long b: beams){
+  //   for(double sf: slack){
+  //     RangeParams RP(rad, b, sf, true);
+  //     checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, all);
+  //   }
+  // }
+
+  while(double_beams<1500){
+      RangeParams RP(rad, double_beams, 1.0, true);
       checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, all);
-    }
+      double_beams *= 2;
   }
 
-  std::cout << std::endl;
-  std::cout << std::endl;
-  std::cout << "Regular range search and early stopping" << std::endl;
-  for(long b: beams){
-    for(double sf: slack){
-      long steps_to_stopping = std::max<size_t>(b/3, 10);
-      RangeParams RP(rad, b, sf, true, steps_to_stopping, esr);
-      checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, all);
-    }
-  }
+  // std::cout << std::endl;
+  // std::cout << std::endl;
+  // std::cout << "Regular range search and early stopping" << std::endl;
+  // for(long b: beams){
+  //   for(double sf: slack){
+  //     long steps_to_stopping = std::max<size_t>(b/3, 10);
+  //     RangeParams RP(rad, b, sf, true, steps_to_stopping, esr);
+  //     checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, all);
+  //   }
+  // }
 
   // std::cout << std::endl;
 
