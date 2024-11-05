@@ -40,12 +40,14 @@
 
 namespace parlayANN {
 
-template<typename PointRange, typename indexType>
+template<typename PointRange, typename QPointRange, typename indexType>
 struct knn_index {
   using Point = typename PointRange::Point;
+  using QPoint = typename QPointRange::Point;
   using distanceType = typename Point::distanceType;
   using pid = std::pair<indexType, distanceType>;
   using PR = PointRange;
+  using QPR = QPointRange;
   using GraphI = Graph<indexType>;
 
   BuildParams BP;
@@ -146,7 +148,8 @@ struct knn_index {
 
   void set_start(){start_point = 0;}
 
-  void build_index(GraphI &G, PR &Points, stats<indexType> &BuildStats, bool sort_neighbors = true){
+  void build_index(GraphI &G, PR &Points, QPR &QPoints,
+                   stats<indexType> &BuildStats, bool sort_neighbors = true){
     std::cout << "Building graph..." << std::endl;
     set_start();
     parlay::sequence<indexType> inserts = parlay::tabulate(Points.size(), [&] (size_t i){
@@ -170,9 +173,9 @@ struct knn_index {
     std::cout << "number of passes = " << BP.num_passes << std::endl;
     for (int i=0; i < BP.num_passes; i++) {
       if (i == BP.num_passes - 1)
-        batch_insert(inserts, G, Points, BuildStats, BP.alpha, true, 2, .02);
+        batch_insert(inserts, G, Points, QPoints, BuildStats, BP.alpha, true, 2, .02);
       else
-        batch_insert(inserts, G, Points, BuildStats, 1.0, true, 2, .02);
+        batch_insert(inserts, G, Points, QPoints, BuildStats, 1.0, true, 2, .02);
     }
 
     if (sort_neighbors) {
@@ -184,7 +187,8 @@ struct knn_index {
   }
 
   void batch_insert(parlay::sequence<indexType> &inserts,
-                    GraphI &G, PR &Points, stats<indexType> &BuildStats, double alpha,
+                    GraphI &G, PR &Points, QPR &QPoints,
+                    stats<indexType> &BuildStats, double alpha,
                     bool random_order = false, double base = 2,
                     double max_fraction = .02, bool print=true) {
     for(int p : inserts){
@@ -205,7 +209,7 @@ struct knn_index {
     //fix bug where max batch size could be set to zero
     if(max_batch_size == 0) max_batch_size = n;
     parlay::sequence<int> rperm;
-    if (random_order)
+    if (random_order) 
       rperm = parlay::random_permutation<int>(static_cast<int>(m));
     else
       rperm = parlay::tabulate(m, [&](int i) { return i; });
@@ -245,9 +249,15 @@ struct knn_index {
         size_t index = shuffled_inserts[i];
         int sp = BP.single_batch ? i : start_point;
         QueryParams QP((long) 0, BP.L, (double) 0.0, (long) Points.size(), (long) G.max_degree());
-        auto [beam_visited, bs_distance_comps] =
-          beam_search<Point, PointRange, indexType>(Points[index], G, Points, sp, QP);
-        auto [beam, visited] = beam_visited;
+        auto [visited, bs_distance_comps] =
+          //beam_search<Point, PointRange, indexType>(Points[index], G, Points, sp, QP);
+          beam_search_rerank__<Point, QPoint, PR, QPR, indexType>(Points[index],
+                                                                 QPoints[index],
+                                                                 G,
+                                                                 Points,
+                                                                 QPoints,
+                                                                 sp,
+                                                                 QP);
         BuildStats.increment_dist(index, bs_distance_comps);
         BuildStats.increment_visited(index, visited.size());
 

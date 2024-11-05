@@ -181,7 +181,7 @@ filtered_beam_search(const GT &G,
                      candidates_end, new_frontier.begin(), less) -
       new_frontier.begin();
     candidates.clear();
-
+    
     // trim to at most beam size
     new_frontier_size = std::min<size_t>(beamSize, new_frontier_size);
 
@@ -189,11 +189,11 @@ filtered_beam_search(const GT &G,
     // distance greater than cut * current-kth-smallest-distance.
     // Only used during query and not during build.
     if (QP.k > 0 && new_frontier_size > QP.k && Points[0].is_metric())
-      new_frontier_size =
+      new_frontier_size = std::max<indexType>(
         (std::upper_bound(new_frontier.begin(),
                           new_frontier.begin() + new_frontier_size,
                           std::pair{0, QP.cut * new_frontier[QP.k].second}, less) -
-         new_frontier.begin());
+         new_frontier.begin()), frontier.size());
 
     // copy new_frontier back to the frontier
     frontier.clear();
@@ -271,7 +271,6 @@ range_search(Point p, GT &G, PointRange &Points,
   for (auto v : starting_points) {
     if (seen.count(v) > 0 || Points[v].same_as(p)) continue;
     distance_comparisons++;
-    //std::cout << v << ", " << p.distance(Points[v]) << std::endl;
     if (p.distance(Points[v]) > radius_2 ) continue;
     result.push_back(v);
     seen.insert(v);
@@ -408,8 +407,6 @@ beam_search_rerank(const Point &p,
   using id_dist = std::pair<indexType, dtype>;
   auto QPP = QP;
 
-  int exp_factor = 2; // only check exp_factor * k of them
-
   bool use_rerank = (Base_Points.params.num_bytes() != Q_Base_Points.params.num_bytes());
   bool use_filtering = (Q_Base_Points.params.num_bytes() != QQ_Base_Points.params.num_bytes());
   auto [pairElts, dist_cmps] = filtered_beam_search(G,
@@ -417,6 +414,11 @@ beam_search_rerank(const Point &p,
                                                     qqp, QQ_Base_Points,
                                                     starting_points, QPP, use_filtering);
   auto [beamElts, visitedElts] = pairElts;
+  if (beamElts.size() < QP.k) {
+    std::cout << "Error: for point id " << p.id() << " beam search returned " << beamElts.size() << " elements, which is less than k = " << QP.k << std::endl;
+    abort();
+  }
+  
   if (stats) {
     QueryStats.increment_visited(p.id(), visitedElts.size());
     QueryStats.increment_dist(p.id(), dist_cmps);
@@ -424,7 +426,7 @@ beam_search_rerank(const Point &p,
 
   if (use_rerank) {
     // recalculate distances with non-quantized points and sort
-    int num_check = std::min<int>(QP.k * exp_factor, beamElts.size());
+    int num_check = std::min<int>(QP.k * QP.rerank_factor, beamElts.size());
     std::vector<id_dist> pts;
     for (int i=0; i < num_check; i++) {
       int j = beamElts[i].first;
@@ -450,6 +452,74 @@ beam_search_rerank(const Point &p,
     }
     return results;
   }
+}
+
+  // Returns a sequence of nearest neighbors each with their distance
+template<typename Point, typename QPoint,
+         typename PointRange, typename QPointRange,
+         typename indexType>
+std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>,
+          indexType>
+beam_search_rerank_(const Point &p,
+                    const QPoint &qp,
+                    const Graph<indexType> &G,
+                    const PointRange &Base_Points,
+                    const QPointRange &Q_Base_Points,
+                    indexType starting_point,
+                    const QueryParams &QP) {
+  using dtype = typename Point::distanceType;
+  using id_dist = std::pair<indexType, dtype>;
+  parlay::sequence<indexType> starting_points = {starting_point};
+
+  bool use_rerank = (Base_Points.params.num_bytes() != Q_Base_Points.params.num_bytes());
+  if (use_rerank) {
+    auto [pairElts, dist_cmps] = filtered_beam_search(G,
+                                                    qp, Q_Base_Points,
+                                                    qp, Q_Base_Points,
+                                                    starting_points, QP, false);
+    auto [beamElts, visitedElts] = pairElts;
+
+    // recalculate distances with non-quantized points and sort
+    int num_rerank = beamElts.size();
+    parlay::sequence<id_dist> pts;
+    for (auto v : visitedElts) {
+      int j = v.first;
+      pts.push_back(id_dist(j, p.distance(Base_Points[j])));
+    }
+    auto less = [&] (id_dist a, id_dist b) {
+      return a.second < b.second || (a.second == b.second && a.first < b.first);
+    };
+    std::sort(pts.begin(), pts.end(), less);
+
+    return std::pair(pts, dist_cmps);
+  } else {
+    auto [pairElts, dist_cmps] = beam_search(p, G, Base_Points, starting_point, QP);
+    return std::pair(pairElts.second, dist_cmps);
+  }
+}
+
+template<typename Point, typename QPoint,
+         typename PointRange, typename QPointRange,
+         typename indexType>
+std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>,
+          indexType>
+  beam_search_rerank__(const Point &p,
+                    const QPoint &qp,
+                    const Graph<indexType> &G,
+                    const PointRange &Base_Points,
+                    const QPointRange &Q_Base_Points,
+                    indexType starting_point,
+                    const QueryParams &QP) {
+  using dtype = typename Point::distanceType;
+  using id_dist = std::pair<indexType, dtype>;
+  parlay::sequence<indexType> starting_points = {starting_point};
+
+  bool use_rerank = (Base_Points.params.num_bytes() != Q_Base_Points.params.num_bytes());
+  auto [pairElts, dist_cmps] = filtered_beam_search(G,
+                                                    p, Base_Points,
+                                                    qp, Q_Base_Points,
+                                                    starting_points, QP, use_rerank);
+  return std::pair(pairElts.second, dist_cmps);
 }
 
 // template<typename PointRange, typename QPointRange, typename indexType>

@@ -1,0 +1,17 @@
+# bash
+BUILD_ARGS="-R 64 -L 128 -alpha .98 -num_passes 1 -quantize_bits 8 -verbose"
+QUERY_ARGS="-quantize_bits 16 -quantize_mode 1 -verbose"
+TYPE_ARGS="-data_type float -dist_func mips -file_type bin"
+
+PATH=data/wikipedia_cohere
+DATA_FILE=$PATH/base.bin
+QUERY_FILE=$PATH/query.bin
+GROUNDTRUTH_FILE=$PATH/groundtruth
+GRAPH_FILE=$PATH/graphs/graph_64_98
+
+# build
+echo ./neighbors $BUILD_ARGS $TYPE_ARGS -base_path $DATA_FILE -graph_outfile $GRAPH_FILE
+
+# query 
+echo ./neighbors $QUERY_ARGS $TYPE_ARGS -base_path $DATA_FILE -query_path $QUERY_FILE -gt_path $GROUNDTRUTH_FILE -graph_path $GRAPH_FILE
+

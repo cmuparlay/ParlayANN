@@ -111,8 +111,9 @@ int main(int argc, char* argv[]) {
   int quantize_build = P.getOptionIntValue("-quantize_mode", 0);
   bool verbose = P.getOption("-verbose");
   bool normalize = P.getOption("-normalize");
-  double trim = P.getOptionDoubleValue("-trim", 0.0);
+  double trim = P.getOptionDoubleValue("-trim", 0.0); // not used
   bool self = P.getOption("-self");
+  int rerank_factor = P.getOptionIntValue("-rerank_factor", 100);
   bool range = P.getOption("-range");
 
   // this integer represents the number of random edges to start with for
@@ -122,7 +123,7 @@ int main(int argc, char* argv[]) {
   std::string df = std::string(dfc);
   std::string tp = std::string(vectype);
 
-  BuildParams BP = BuildParams(R, L, alpha, num_passes, num_clusters, cluster_size, MST_deg, delta, verbose, quantize_build, radius, radius_2, self, range, single_batch, Q);
+  BuildParams BP = BuildParams(R, L, alpha, num_passes, num_clusters, cluster_size, MST_deg, delta, verbose, quantize_build, radius, radius_2, self, range, single_batch, Q, trim, rerank_factor);
   long maxDeg = BP.max_degree();
 
   if((tp != "uint8") && (tp != "int8") && (tp != "float")){

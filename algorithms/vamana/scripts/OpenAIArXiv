@@ -1,0 +1,17 @@
+# bash
+NAME=OpenAIArXiv
+BUILD_ARGS="-R 100 -L 200 -alpha 1.05 -num_passes 2 -quantize_mode 3 -verbose"
+QUERY_ARGS="-quantize_bits 16 -quantize_mode 3 -verbose"
+TYPE_ARGS="-data_type float -dist_func Euclidian -file_type bin"
+
+PATH=data/$NAME
+DATA_FILE=$PATH/base.bin
+QUERY_FILE=$PATH/query.bin
+GROUNDTRUTH_FILE=$PATH/groundtruth
+GRAPH_FILE=$PATH/graphs/graph_100_1.05_m3
+
+# build
+echo ./neighbors $BUILD_ARGS $TYPE_ARGS -base_path $DATA_FILE -graph_outfile $GRAPH_FILE
+
+# query 
+echo ./neighbors $QUERY_ARGS $TYPE_ARGS -base_path $DATA_FILE -query_path $QUERY_FILE -gt_path $GROUNDTRUTH_FILE -graph_path $GRAPH_FILE

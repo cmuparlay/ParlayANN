@@ -48,7 +48,7 @@ void ANN_Quantized(Graph<indexType> &G, long k, BuildParams &BP,
   parlay::internal::timer t("ANN");
 
   bool verbose = BP.verbose;
-  using findex = knn_index<QPointRange, indexType>;
+  using findex = knn_index<QPointRange, QQPointRange, indexType>;
   findex I(BP);
   indexType start_point;
   double idx_time;
@@ -57,7 +57,7 @@ void ANN_Quantized(Graph<indexType> &G, long k, BuildParams &BP,
     idx_time = 0;
     start_point = 0;
   } else{
-    I.build_index(G, Q_Points, BuildStats);
+    I.build_index(G, Q_Points, QQ_Points, BuildStats);
     start_point = I.get_start();
     idx_time = t.next_time();
   }
@@ -83,7 +83,7 @@ void ANN_Quantized(Graph<indexType> &G, long k, BuildParams &BP,
                      QQ_Points, QQ_Query_Points,
                      GT,
                      res_file, k, false, start_point,
-                     verbose, BP.Q);
+                     verbose, BP.Q, BP.rerank_factor);
   } else if (BP.self) {
     if (BP.range) {
       parlay::internal::timer t_range("range search time");
@@ -173,7 +173,7 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
         ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, QQ_Query_Points,
                       GT, res_file, graph_built, Points, Q_Points, QQ_Points);
       } else if (BP.quantize == 5) {
-        using QQPoint = Mips_JL_Sparse_Point<1024>;
+        using QQPoint = Mips_JL_Sparse_Point<1500>;
         using QQPR = PointRange<QQPoint>;
         QQPR QQ_Points(Points);
         QQPR QQ_Query_Points(Query_Points, QQ_Points.params);

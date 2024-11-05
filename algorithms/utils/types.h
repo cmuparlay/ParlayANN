@@ -163,7 +163,8 @@ struct BuildParams{
   long MST_deg; //HCNNG
 
   double delta; //pyNNDescent
-
+  double rerank_factor = 100; // for reranking, k * factor = to rerank
+  
   bool verbose;
 
   int quantize = 0; // use quantization for build and query (0 = none, 1 = one-level, 2 = two-level)
@@ -178,9 +179,10 @@ struct BuildParams{
 
   BuildParams(long R, long L, double a, int num_passes, long nc, long cs, long mst, double de,
               bool verbose = false, int quantize = 0, double radius = 0.0, double radius_2 = 0.0,
-              bool self = false, bool range = false, int single_batch = 0, long Q = 0, double trim = 0.0)
+              bool self = false, bool range = false, int single_batch = 0, long Q = 0, double trim = 0.0,
+              int rerank_factor = 100)
     : R(R), L(L), alpha(a), num_passes(num_passes), num_clusters(nc), cluster_size(cs), MST_deg(mst), delta(de),
-      verbose(verbose), quantize(quantize), radius(radius), radius_2(radius_2), self(self), range(range), single_batch(single_batch), Q(Q), trim(trim) {
+      verbose(verbose), quantize(quantize), radius(radius), radius_2(radius_2), self(self), range(range), single_batch(single_batch), Q(Q), trim(trim), rerank_factor(rerank_factor) {
     if(R != 0 && L != 0 && alpha != 0){alg_type = m_l>0? "HNSW": "Vamana";}
     else if(num_clusters != 0 && cluster_size != 0 && MST_deg != 0){alg_type = "HCNNG";}
     else if(R != 0 && alpha != 0 && num_clusters != 0 && cluster_size != 0 && delta != 0){alg_type = "pyNNDescent";}
@@ -216,11 +218,12 @@ struct QueryParams{
   long k;
   long beamSize;
   double cut;
+  int rerank_factor = 100;
   long limit;
   long degree_limit;
   float pad = 1.0;
 
-  QueryParams(long k, long Q, double cut, long limit, long dg) : k(k), beamSize(Q), cut(cut), limit(limit), degree_limit(dg) {}
+  QueryParams(long k, long Q, double cut, long limit, long dg, double rerank_factor = 100) : k(k), beamSize(Q), cut(cut), limit(limit), degree_limit(dg), rerank_factor(rerank_factor) {}
 
   QueryParams() {}
 
