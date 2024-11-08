@@ -41,7 +41,6 @@ void checkRangeRecall(
 
     //since distances are exact, just have to cross-check number of results
     size_t n = Query_Points.size();
-    int numCorrect = 0;
     for (indexType i = 0; i < n; i++) {
       float num_reported_results = all_rr[i].size();
       float num_actual_results = GT[i].size();

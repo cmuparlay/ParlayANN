@@ -30,7 +30,6 @@
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 #include "parlay/internal/file_map.h"
-#include "NSGDist.h"
 #include "types.h"
 
 #include <fcntl.h>

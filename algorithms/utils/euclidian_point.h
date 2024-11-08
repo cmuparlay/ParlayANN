@@ -297,7 +297,6 @@ struct Euclidean_JL_Sparse_Point {
   static void translate_point(byte* values, const In_Point& p, const parameters& params) {
     Data* bits = new (values) Data;
     const std::vector<int>& jli = params.JL_indices;
-    double nn = 0.0;
     for (int i = 0; i < jl_dims; i++) {
       double vv = 0.0;
       for (int j = 0; j < nz/2; j++) 
@@ -310,7 +309,6 @@ struct Euclidean_JL_Sparse_Point {
 
   template <typename PR>
   static parameters generate_parameters(const PR& pr) {
-    long n = pr.size();
     int source_dims = pr.dimension();
     std::vector<int> JL_indices(jl_dims * nz);
     std::mt19937 rng;

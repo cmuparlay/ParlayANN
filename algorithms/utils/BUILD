@@ -16,9 +16,9 @@ cc_library(
         "@parlaylib//parlay:parallel",
         "@parlaylib//parlay:primitives",
         "@parlaylib//parlay:random",
-        ":types",
         ":graph",
         ":stats",
+        ":types",
     ],
 )
 
@@ -45,6 +45,7 @@ cc_library(
         "@parlaylib//parlay/internal:file_map",
         ":parse_results",
         ":NSGDist",
+        ":types",
     ],
 )
 
@@ -56,7 +57,7 @@ cc_library(
         "@parlaylib//parlay:primitives",
         "@parlaylib//parlay/internal:file_map",
         ":parse_results",
-        ":NSGDist",
+        ":types",
     ],
 )
 
@@ -67,7 +68,6 @@ cc_library(
         "@parlaylib//parlay:parallel",
         "@parlaylib//parlay:primitives",
         "@parlaylib//parlay/internal:file_map",
-        ":NSGDist",
         ":types",
     ],
 )
@@ -109,6 +109,7 @@ cc_library(
         ":beamSearch",
         ":csvfile",
         ":parse_results",
+        ":stats",
         ":types",
     ],
 )
@@ -130,6 +131,7 @@ cc_library(
     deps = [
         "@parlaylib//parlay:parallel",
         "@parlaylib//parlay:primitives",
+        ":graph",
     ],
 )
 
@@ -153,4 +155,15 @@ cc_library(
     ],
 )
 
+cc_library(
+    name = "jl_point",
+    hdrs = ["jl_point.h"],
+    deps = [
+        "@parlaylib//parlay:parallel",
+        "@parlaylib//parlay:primitives",
+        "@parlaylib//parlay/internal:file_map",
+        ":types",
+        ":mips_point",
+    ],
+)
 

@@ -7,7 +7,6 @@
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 #include "parlay/internal/file_map.h"
-#include "NSGDist.h"
 #include "types.h"
 
 #include <fcntl.h>
@@ -90,7 +89,6 @@ struct Mips_JL_Point {
 
   template <typename PR>
   static parameters generate_parameters(const PR& pr) {
-    long n = pr.size();
     int dims = pr.dimension();
     std::vector<int8_t> JL_vects(jl_dims * dims);
     std::mt19937 rng;
@@ -165,7 +163,6 @@ struct Mips_JL_Bit_Point {
   static void translate_point(byte* values, const In_Point& p, const parameters& params) {
     Data* bits = new (values) Data;
     const std::vector<int8_t>& jlv = params.JL_vects;
-    double nn = 0.0;
     for (int i = 0; i < jl_dims; i++) {
       double vv = 0.0;
       for (int j = 0; j < params.source_dims; j++) {
@@ -177,7 +174,6 @@ struct Mips_JL_Bit_Point {
 
   template <typename PR>
   static parameters generate_parameters(const PR& pr) {
-    long n = pr.size();
     int source_dims = pr.dimension();
     std::vector<int8_t> JL_vects(jl_dims * source_dims);
     std::mt19937 rng;
@@ -257,7 +253,6 @@ struct Mips_JL_Sparse_Point {
     Data* bits = new (values) Data;
     const std::vector<int8_t>& jls = params.JL_signs;
     const std::vector<int>& jli = params.JL_indices;
-    double nn = 0.0;
     for (int i = 0; i < jl_dims; i++) {
       double vv = 0.0;
       for (int j = 0; j < nz; j++) 
@@ -268,7 +263,6 @@ struct Mips_JL_Sparse_Point {
 
   template <typename PR>
   static parameters generate_parameters(const PR& pr) {
-    long n = pr.size();
     int source_dims = pr.dimension();
     std::vector<int8_t> JL_signs(jl_dims * nz);
     std::vector<int> JL_indices(jl_dims * nz);
