@@ -28,7 +28,6 @@
 #include <random>
 #include <set>
 
-#include "../utils/NSGDist.h"
 #include "../utils/point_range.h"
 #include "../utils/graph.h"
 #include "../utils/types.h"

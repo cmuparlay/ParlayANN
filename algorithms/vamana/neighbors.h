@@ -22,7 +22,6 @@
 
 #include <algorithm>
 
-#include "../utils/NSGDist.h"
 #include "../utils/beamSearch.h"
 #include "../utils/check_nn_recall.h"
 #include "../utils/parse_results.h"
