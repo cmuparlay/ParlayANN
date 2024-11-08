@@ -7,6 +7,7 @@
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 #include "parlay/internal/file_map.h"
+#include "mips_point.h"
 #include "types.h"
 
 #include <fcntl.h>
