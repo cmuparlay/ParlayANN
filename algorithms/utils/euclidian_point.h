@@ -31,6 +31,7 @@
 #include "parlay/internal/file_map.h"
 
 #include "types.h"
+#include "NSGDist.h"
 // #include "common/time_loop.h"
 
 #include <fcntl.h>
