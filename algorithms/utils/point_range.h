@@ -88,7 +88,6 @@ struct PointRange{
       reader.read((char*)(&num_points), sizeof(unsigned int));
       n = num_points;
       reader.read((char*)(&d), sizeof(unsigned int));
-      int dims = d;
       params = parameters(d);
       std::cout << "Data: detected " << num_points << " points with dimension " << d << std::endl;
       int num_bytes = params.num_bytes();
@@ -106,7 +105,6 @@ struct PointRange{
           size_t ceiling = index+BLOCK_SIZE <= n ? index+BLOCK_SIZE : n;
           long m = ceiling - floor;
           byte* data_start = new byte[m * num_bytes];
-          byte* data_end = data_start + m * num_bytes;
           reader.read((char*)(data_start), m * num_bytes);
           parlay::parallel_for(floor, ceiling, [&] (size_t i) {
             std::memmove(values.get() + i * aligned_bytes,
