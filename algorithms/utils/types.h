@@ -27,6 +27,7 @@
 #define TYPES
 
 #include <algorithm>
+#include <fstream>
 
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
