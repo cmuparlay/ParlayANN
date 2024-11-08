@@ -84,7 +84,6 @@ filtered_beam_search(const GT &G,
   size_t full_dist_cmps = starting_points.size();
   int remain = frontier.size();
   int num_visited = 0;
-  double total;
 
   // used as temporaries in the loop
   std::vector<id_dist> new_frontier(2 * std::max<size_t>(beamSize,starting_points.size()) +
@@ -480,7 +479,6 @@ beam_search_rerank_(const Point &p,
     auto [beamElts, visitedElts] = pairElts;
 
     // recalculate distances with non-quantized points and sort
-    int num_rerank = beamElts.size();
     parlay::sequence<id_dist> pts;
     for (auto v : visitedElts) {
       int j = v.first;

@@ -152,29 +152,29 @@ struct RangeGroundTruth{
 
 
 struct BuildParams{
-  long L; //vamana
   long R; //vamana and pynnDescent
+  long L; //vamana
   double m_l = 0; // HNSW
   double alpha; //vamana and pyNNDescent
   int num_passes; //vamana
-  int single_batch; //vamana
 
   long num_clusters; // HCNNG and pyNNDescent
   long cluster_size; //HCNNG and pyNNDescent
   long MST_deg; //HCNNG
 
   double delta; //pyNNDescent
-  double rerank_factor = 100; // for reranking, k * factor = to rerank
   
   bool verbose;
 
   int quantize = 0; // use quantization for build and query (0 = none, 1 = one-level, 2 = two-level)
   double radius; // for radius search
   double radius_2; // for radius search
-  double trim = 0.0; // for quantization
   bool self;
   bool range;
+  int single_batch; //vamana
   long Q = 0; //beam width to pass onto query (0 indicates none specified)
+  double trim = 0.0; // for quantization
+  double rerank_factor = 100; // for reranking, k * factor = to rerank
 
   std::string alg_type;
 
@@ -192,7 +192,7 @@ struct BuildParams{
   BuildParams() {}
 
   BuildParams(long R, long L, double a, int num_passes, bool verbose = false)
-    : R(R), L(L), alpha(a), num_passes(num_passes), single_batch(0), verbose(verbose)
+    : R(R), L(L), alpha(a), num_passes(num_passes), verbose(verbose), single_batch(0)
   {alg_type = "Vamana";}
 
   BuildParams(long R, long L, double m_l, double a)
@@ -219,9 +219,9 @@ struct QueryParams{
   long k;
   long beamSize;
   double cut;
-  int rerank_factor = 100;
   long limit;
   long degree_limit;
+  int rerank_factor = 100;
   float pad = 1.0;
 
   QueryParams(long k, long Q, double cut, long limit, long dg, double rerank_factor = 100) : k(k), beamSize(Q), cut(cut), limit(limit), degree_limit(dg), rerank_factor(rerank_factor) {}
