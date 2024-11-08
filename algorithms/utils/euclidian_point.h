@@ -29,7 +29,6 @@
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 #include "parlay/internal/file_map.h"
-#include "../bench/parse_command_line.h"
 #include "NSGDist.h"
 
 #include "types.h"

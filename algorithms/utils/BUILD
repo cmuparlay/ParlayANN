@@ -36,33 +36,6 @@ cc_library(
     ],
 )
 
-# cc_library(
-#     name = "beamSearch",
-#     hdrs = ["beamSearch.h"],
-#     deps = [
-#         "@parlaylib//parlay:io",
-#         "@parlaylib//parlay:parallel",
-#         "@parlaylib//parlay:primitives",
-#         "@parlaylib//parlay:random",
-#         ":indexTools",
-#         ":types",
-#     ],
-# )
-
-# cc_library(
-#     name = "check_nn_recall",
-#     hdrs = ["check_nn_recall.h"],
-#     deps = [
-#         "@parlaylib//parlay:parallel",
-#         "@parlaylib//parlay:primitives",
-#         ":beamSearch",
-#         ":csvfile",
-#         ":parse_results",
-#         ":stats",
-#         ":types",
-#     ],
-# )
-
 cc_library(
     name = "euclidean_point",
     hdrs = ["euclidian_point.h"],
@@ -70,7 +43,6 @@ cc_library(
         "@parlaylib//parlay:parallel",
         "@parlaylib//parlay:primitives",
         "@parlaylib//parlay/internal:file_map",
-        "//algorithms/bench:parse_command_line",
         ":parse_results",
         ":NSGDist",
     ],
@@ -83,7 +55,6 @@ cc_library(
         "@parlaylib//parlay:parallel",
         "@parlaylib//parlay:primitives",
         "@parlaylib//parlay/internal:file_map",
-        "//algorithms/bench:parse_command_line",
         ":parse_results",
         ":NSGDist",
     ],
@@ -96,7 +67,6 @@ cc_library(
         "@parlaylib//parlay:parallel",
         "@parlaylib//parlay:primitives",
         "@parlaylib//parlay/internal:file_map",
-        "//algorithms/bench:parse_command_line",
         ":NSGDist",
         ":types",
     ],
@@ -109,7 +79,6 @@ cc_library(
         "@parlaylib//parlay:parallel",
         "@parlaylib//parlay:primitives",
         "@parlaylib//parlay/internal:file_map",
-        "//algorithms/bench:parse_command_line",
     ],
 )
 
@@ -151,7 +120,6 @@ cc_library(
         "@parlaylib//parlay:parallel",
         "@parlaylib//parlay:primitives",
         "@parlaylib//parlay/internal:file_map",
-        "//algorithms/bench:parse_command_line",
         ":types",
     ],
 )
