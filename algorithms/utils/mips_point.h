@@ -343,7 +343,7 @@ struct Quantized_Mips_Point{
     int8_t* p = (int8_t*) p_;
     int8_t* q = (int8_t*) q_;
     int32_t result = 0;
-    int8_t mask = 240;
+    int8_t mask = -16; // bit representation is 11110000, used as mask to extract high 4 bits
     for (int i = 0; i < params.dims/2; i++) {
       result += (int16_t) ((int8_t) (p[i] << 4)) * (int16_t) ((int8_t) (q[i] << 4));
     }

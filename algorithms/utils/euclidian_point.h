@@ -31,7 +31,7 @@
 #include "parlay/internal/file_map.h"
 
 #include "types.h"
-#include "NSGDist.h"
+//#include "NSGDist.h"
 // #include "common/time_loop.h"
 
 #include <fcntl.h>
@@ -81,8 +81,12 @@ float euclidian_distance(const int8_t *p, const int8_t *q, unsigned d) {
 }
 
 float euclidian_distance(const float *p, const float *q, unsigned d) {
-  efanna2e::DistanceL2 distfunc;
-  return distfunc.compare(p, q, d);
+  //efanna2e::DistanceL2 distfunc;
+  //return distfunc.compare(p, q, d);
+  float result = 0.0;
+  for (int i = 0; i < d; i++)
+    result += (q[i] - p[i]) * (q[i] - p[i]);
+  return (float)result;
 }
 
 template<typename T_, long range=(1l << sizeof(T_)*8) - 1>
