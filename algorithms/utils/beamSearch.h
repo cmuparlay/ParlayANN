@@ -127,7 +127,15 @@ beam_search_impl(Point p, GT &G, PointRange &Points,
     // the next node to visit is the unvisited frontier node that is closest to
     // p
     std::pair<indexType, distanceType> current = unvisited_frontier[0];
-    if(QP.early_stop > 0 && num_visited >= QP.early_stop && current.second >= QP.early_stop_radius && frontier[0].second > rad){break;}     
+    bool has_visited_enough = (num_visited >= QP.early_stop);
+    bool early_stop = (QP.early_stop > 0);
+    bool has_found_candidate = (frontier[0].second <= rad);
+    bool within_early_stop_rad;
+    if(frontier.size() >= QP.beamSize) {
+      within_early_stop_rad = (frontier[QP.beamSize-1].second <= QP.early_stop_radius);
+    } else within_early_stop_rad = true;
+    // bool within_early_stop_rad = (current.second <= QP.early_stop_radius);
+    if(early_stop && has_visited_enough && !has_found_candidate && !within_early_stop_rad) {break;}     
     G[current.first].prefetch();
     // add to visited set
     visited.insert(
@@ -197,7 +205,10 @@ beam_search_impl(Point p, GT &G, PointRange &Points,
                             visited.end(), unvisited_frontier.begin(), less) -
         unvisited_frontier.begin();
 
-    visited_inorder.push_back(current);
+    if(frontier.size() >= 10){
+      visited_inorder.push_back(frontier[9]);
+    } else visited_inorder.push_back(std::make_pair(0, std::numeric_limits<float>::max()));
+    
   }
 
   return std::make_pair(std::make_pair(std::make_pair(parlay::to_sequence(frontier),
