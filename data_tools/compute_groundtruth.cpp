@@ -59,7 +59,7 @@ parlay::sequence<parlay::sequence<pid>> compute_groundtruth(PointRange &B,
 
 void write_ibin(parlay::sequence<parlay::sequence<pid>> &result, const std::string outFile, int k){
     std::cout << "Writing file with dimension " << result[0].size() << std::endl;
-    std::cout << "File contains groundtruth for " << result.size() << " data points" << std::endl;
+    std::cout << "File contains groundtruth for " << result.size() << " query points" << std::endl;
 
     auto less = [&] (pid a, pid b) {return a.second < b.second;};
     parlay::sequence<int> preamble = {static_cast<int>(result.size()), static_cast<int>(result[0].size())};
