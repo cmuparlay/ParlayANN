@@ -1,16 +1,20 @@
+/*
+  Example usage:
+    ./compute_groundtruth -base_path ~/data/sift/sift-1M \
+    -query_path ~/data/sift/query-10K -data_type uint8 \
+    -dist_func Euclidian -k 100 -gt_path ~/data/sift/GT/sift-1M.gt
+*/
+
 #include <iostream>
 #include <algorithm>
 #include <cstdint>
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 #include "parlay/io.h"
-// #include "utils/types.h"
 #include "utils/euclidian_point.h"
 #include "utils/mips_point.h"
 #include "utils/point_range.h"
 #include "../algorithms/bench/parse_command_line.h"
-
-
 
 using pid = std::pair<int, float>;
 using namespace parlayANN;
@@ -55,8 +59,8 @@ parlay::sequence<parlay::sequence<pid>> compute_groundtruth(PointRange &B,
     return answers;
 }
 
-
-
+// ibin is the same as the binary groundtruth format used in the
+// big-ann-benchmarks (see: https://big-ann-benchmarks.com/neurips21.html)
 void write_ibin(parlay::sequence<parlay::sequence<pid>> &result, const std::string outFile, int k){
     std::cout << "Writing file with dimension " << result[0].size() << std::endl;
     std::cout << "File contains groundtruth for " << result.size() << " data points" << std::endl;
@@ -94,7 +98,6 @@ void write_ibin(parlay::sequence<parlay::sequence<pid>> &result, const std::stri
     writer.write((char *) dist_data, n * k * sizeof(float));
     writer.close();
 }
-
 
 int main(int argc, char* argv[]) {
   commandLine P(argc,argv,
