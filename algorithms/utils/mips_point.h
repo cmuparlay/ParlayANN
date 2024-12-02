@@ -434,26 +434,32 @@ struct Quantized_Mips_Point{
   static parameters generate_parameters(const PR& pr) {
     long n = pr.size();
     int dims = pr.dimension();
-    long len = n * dims;
-    using MT = float;
-    parlay::sequence<MT> vals(len);
-    parlay::parallel_for(0, n, [&] (long i) {
-      for (int j = 0; j < dims; j++) 
-        vals[i * dims + j] = pr[i][j];
-    });
-    parlay::sort_inplace(vals);
     float min_val, max_val;
+    auto min_per_point = parlay::delayed_tabulate(n, [&](size_t i) {
+      float min = 0.0;
+      auto p = pr[i];
+      for (int j = 0; j < dims; j++) min = std::min<float>(min, p[j]);
+      return min;
+    });
+    auto max_per_point = parlay::delayed_tabulate(n, [&](size_t i) {
+      float max = 0.0;
+      auto p = pr[i];
+      for (int j = 0; j < dims; j++) max = std::max<float>(max, p[j]);
+      return max;
+    });
     if (trim) {
-      float cutoff = .0001;
-      min_val = vals[(long) (cutoff * len)];
-      max_val = vals[(long) ((1.0-cutoff) * (len-1))];
+      double cutoff = .0001;
+      size_t min_rank = (cutoff * n);
+      size_t max_rank = (1.0 - cutoff) * (n - 1);
+
+      min_val = parlay::kth_smallest_copy(min_per_point, min_rank);
+      max_val = parlay::kth_smallest_copy(max_per_point, max_rank);
       std::cout << "mips scalar quantization to " << bits
-                << " bits: min value = " << vals[0]
-                << ", max value = " << vals[len-1]
-                << ", trimmed to: min = " << min_val << ", max = " << max_val << std::endl;
+                << " bits. trimmed to: min = " << min_val
+                << ", max = " << max_val << std::endl;
     } else {
-      min_val = vals[0];
-      max_val = vals[len-1];
+      min_val = parlay::reduce(min_per_point, parlay::minm<float>());
+      max_val = parlay::reduce(max_per_point, parlay::maxm<float>());
       std::cout << "mips scalar quantization to " << bits
                 << " bits: min value = " << min_val
                 << ", max value = " << max_val << std::endl;
