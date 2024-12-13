@@ -449,7 +449,7 @@ struct Quantized_Mips_Point{
     });
     if (trim) {
       double cutoff = .0001;
-      size_t min_rank = (cutoff * n);
+      size_t min_rank = cutoff * n;
       size_t max_rank = (1.0 - cutoff) * (n - 1);
 
       min_val = parlay::kth_smallest_copy(min_per_point, min_rank);
