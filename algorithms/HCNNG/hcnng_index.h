@@ -20,19 +20,21 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#include <math.h>
+
+#include <algorithm>
+#include <queue>
+#include <random>
+#include <set>
+
 #include "../utils/graph.h"
 #include "clusterEdge.h"
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 #include "parlay/random.h"
-#include <algorithm>
-#include <math.h>
-#include <queue>
-#include <random>
-#include <set>
 
 namespace parlayANN {
-  
+
 struct DisjointSet {
   parlay::sequence<int> parent;
   parlay::sequence<int> rank;
@@ -59,20 +61,17 @@ struct DisjointSet {
       parent[xroot] = yroot;
     else {
       parent[yroot] = xroot;
-      if (xrank == yrank)
-        rank[xroot] = rank[xroot] + 1;
+      if (xrank == yrank) rank[xroot] = rank[xroot] + 1;
     }
   }
 
   int find(int x) {
-    if (parent[x] != x)
-      parent[x] = find(parent[x]);
+    if (parent[x] != x) parent[x] = find(parent[x]);
     return parent[x];
   }
 
   void flatten() {
-    for (int i = 0; i < N; i++)
-      find(i);
+    for (int i = 0; i < N; i++) find(i);
   }
 
   bool is_full() {
@@ -82,8 +81,7 @@ struct DisjointSet {
         0, N, [&](size_t i) { truthvals[i] = (parent[i] == parent[0]); });
     auto ff = [&](bool a) { return not a; };
     auto filtered = parlay::filter(truthvals, ff);
-    if (filtered.size() == 0)
-      return true;
+    if (filtered.size() == 0) return true;
     return false;
   }
 };
@@ -146,29 +144,21 @@ struct hcnng_index {
       std::priority_queue<labelled_edge, std::vector<labelled_edge>,
                           decltype(less)>
           Q(less);
-      for (indexType j = 0; j < N; j++) {
-        if (j != i) {
-          distanceType dist_ij =
-              Points[active_indices[i]].distance(Points[active_indices[j]]);
-          if (Q.size() >= m) {
-            distanceType topdist = Q.top().second;
-            if (dist_ij < topdist) {
-              labelled_edge e;
-              if (i < j)
-                e = std::make_pair(std::make_pair(i, j), dist_ij);
-              else
-                e = std::make_pair(std::make_pair(j, i), dist_ij);
-              Q.pop();
-              Q.push(e);
-            }
-          } else {
+      for (indexType j = i + 1; j < N; j++) {
+        distanceType dist_ij =
+            Points[active_indices[i]].distance(Points[active_indices[j]]);
+        if (Q.size() >= m) {
+          distanceType topdist = Q.top().second;
+          if (dist_ij < topdist) {
             labelled_edge e;
-            if (i < j)
-              e = std::make_pair(std::make_pair(i, j), dist_ij);
-            else
-              e = std::make_pair(std::make_pair(j, i), dist_ij);
+            e = std::make_pair(std::make_pair(i, j), dist_ij);
+            Q.pop();
             Q.push(e);
           }
+        } else {
+          labelled_edge e;
+          e = std::make_pair(std::make_pair(i, j), dist_ij);
+          Q.push(e);
         }
       }
       indexType limit = std::min(Q.size(), m);
@@ -251,8 +241,7 @@ struct hcnng_index {
       // Don't need to do modifications.
       indexType p_star = candidates[candidate_idx].first;
       candidate_idx++;
-      if (p_star == p)
-        continue;
+      if (p_star == p) continue;
 
       new_nbhs.push_back(p_star);
 
@@ -262,8 +251,7 @@ struct hcnng_index {
           distanceType dist_starprime =
               Points[p_star].distance(Points[p_prime]);
           distanceType dist_pprime = candidates[i].second;
-          if (alpha * dist_starprime <= dist_pprime)
-            candidates[i].first = -1;
+          if (alpha * dist_starprime <= dist_pprime) candidates[i].first = -1;
         }
       }
     }
@@ -281,4 +269,4 @@ struct hcnng_index {
   }
 };
 
-} // end namespace
+}  // namespace parlayANN
