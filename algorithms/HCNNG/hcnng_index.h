@@ -66,8 +66,17 @@ struct DisjointSet {
   }
 
   int find(int x) {
-    if (parent[x] != x) parent[x] = find(parent[x]);
-    return parent[x];
+    if (parent[x] == x) return x;
+    int c = x;
+    while (parent[c] != c) {
+      c = parent[c];
+    }
+    while (x != c) {
+      int s = parent[x];
+      parent[x] = c;
+      x = s;
+    }
+    return c;
   }
 
   void flatten() {
