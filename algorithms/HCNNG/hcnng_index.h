@@ -128,9 +128,9 @@ struct hcnng_index {
   static void process_edges(GraphI &G, parlay::sequence<edge> edges) {
     long maxDeg = G.max_degree();
     auto grouped = parlay::group_by_key(edges);
-    for (auto pair : grouped) {
-      auto [index, candidates] = pair;
-      for (auto c : candidates) {
+    parlay::parallel_for(0, grouped.size(), [&] (size_t i) {
+      int32_t index = grouped[i].first;
+      for (auto c : grouped[i].second) {
         if (G[index].size() < maxDeg) {
           G[index].append_neighbor(c);
         } else {
@@ -138,7 +138,7 @@ struct hcnng_index {
           G[index].append_neighbor(c);
         }
       }
-    }
+    });
   }
 
   // parameters dim and K are just to interface with the cluster tree code
@@ -147,7 +147,7 @@ struct hcnng_index {
     // preprocessing for Kruskal's
     size_t N = active_indices.size();
     long dim = Points.dimension();
-    DisjointSet *disjset = new DisjointSet(N);
+    DisjointSet disjset(N);
     size_t m = 10;
     auto less = [&](labelled_edge a, labelled_edge b) {
       return a.second < b.second;
@@ -192,7 +192,7 @@ struct hcnng_index {
       if (candidate_edges[i].second == kNullDist) break;
       labelled_edge e_l = candidate_edges[i];
       edge e = e_l.first;
-      if ((disjset->find(e.first) != disjset->find(e.second)) &&
+      if ((disjset.find(e.first) != disjset.find(e.second)) &&
           (degrees[e.first] < MSTDeg) && (degrees[e.second] < MSTDeg)) {
         MST_edges.push_back(
             std::make_pair(active_indices[e.first], active_indices[e.second]));
@@ -200,15 +200,14 @@ struct hcnng_index {
             std::make_pair(active_indices[e.second], active_indices[e.first]));
         degrees[e.first] += 1;
         degrees[e.second] += 1;
-        disjset->_union(e.first, e.second);
+        disjset._union(e.first, e.second);
       }
       if (i % N == 0) {
-        if (disjset->is_full()) {
+        if (disjset.is_full()) {
           break;
         }
       }
     }
-    delete disjset;
     process_edges(G, std::move(MST_edges));
   }
 
