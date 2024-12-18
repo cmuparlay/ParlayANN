@@ -104,6 +104,10 @@ struct hcnng_index {
   using GraphI = Graph<indexType>;
   using PR = PointRange;
 
+  static constexpr indexType kNullId = std::numeric_limits<indexType>::max();
+  static constexpr distanceType kNullDist = std::numeric_limits<distanceType>::max();
+  static constexpr labelled_edge kNullEdge = {{kNullId, kNullId}, kNullDist};
+
   hcnng_index() {}
 
   static void remove_edge_duplicates(indexType p, GraphI &G) {
@@ -148,7 +152,7 @@ struct hcnng_index {
     auto less = [&](labelled_edge a, labelled_edge b) {
       return a.second < b.second;
     };
-    parlay::sequence<parlay::sequence<labelled_edge>> pre_labelled(N);
+    parlay::sequence<labelled_edge> candidate_edges(N*m, kNullEdge);
     parlay::parallel_for(0, N, [&](size_t i) {
       std::priority_queue<labelled_edge, std::vector<labelled_edge>,
                           decltype(less)>
@@ -171,41 +175,22 @@ struct hcnng_index {
         }
       }
       indexType limit = std::min(Q.size(), m);
-      parlay::sequence<labelled_edge> edges(limit);
       for (indexType j = 0; j < limit; j++) {
-        edges[j] = Q.top();
+        candidate_edges[i*m + j] = Q.top();
         Q.pop();
       }
-      pre_labelled[i] = edges;
     });
-    auto flat_edges = parlay::flatten(pre_labelled);
-    auto less_dup = [&](labelled_edge a, labelled_edge b) {
-      auto dist_a = a.second;
-      auto dist_b = b.second;
-      if (dist_a == dist_b) {
-        int i_a = a.first.first;
-        int j_a = a.first.second;
-        int i_b = b.first.first;
-        int j_b = b.first.second;
-        if ((i_a == i_b) && (j_a == j_b)) {
-          return true;
-        } else {
-          if (i_a != i_b)
-            return i_a < i_b;
-          else
-            return j_a < j_b;
-        }
-      } else
-        return (dist_a < dist_b);
-    };
-    auto labelled_edges =
-        parlay::remove_duplicates_ordered(flat_edges, less_dup);
+
+    parlay::sort_inplace(candidate_edges, less);
+
     auto degrees =
         parlay::tabulate(active_indices.size(), [&](size_t i) { return 0; });
     parlay::sequence<edge> MST_edges = parlay::sequence<edge>();
     // modified Kruskal's algorithm
-    for (indexType i = 0; i < labelled_edges.size(); i++) {
-      labelled_edge e_l = labelled_edges[i];
+    for (indexType i = 0; i < candidate_edges.size(); i++) {
+      // Since we sorted, any null edges form the suffix.
+      if (candidate_edges[i].second == kNullDist) break;
+      labelled_edge e_l = candidate_edges[i];
       edge e = e_l.first;
       if ((disjset->find(e.first) != disjset->find(e.second)) &&
           (degrees[e.first] < MSTDeg) && (degrees[e.second] < MSTDeg)) {
