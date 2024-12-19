@@ -105,7 +105,8 @@ struct hcnng_index {
   using PR = PointRange;
 
   static constexpr indexType kNullId = std::numeric_limits<indexType>::max();
-  static constexpr distanceType kNullDist = std::numeric_limits<distanceType>::max();
+  static constexpr distanceType kNullDist =
+      std::numeric_limits<distanceType>::max();
   static constexpr labelled_edge kNullEdge = {{kNullId, kNullId}, kNullDist};
 
   hcnng_index() {}
@@ -128,7 +129,7 @@ struct hcnng_index {
   static void process_edges(GraphI &G, parlay::sequence<edge> edges) {
     long maxDeg = G.max_degree();
     auto grouped = parlay::group_by_key(edges);
-    parlay::parallel_for(0, grouped.size(), [&] (size_t i) {
+    parlay::parallel_for(0, grouped.size(), [&](size_t i) {
       int32_t index = grouped[i].first;
       for (auto c : grouped[i].second) {
         if (G[index].size() < maxDeg) {
@@ -152,7 +153,7 @@ struct hcnng_index {
     auto less = [&](labelled_edge a, labelled_edge b) {
       return a.second < b.second;
     };
-    parlay::sequence<labelled_edge> candidate_edges(N*m, kNullEdge);
+    parlay::sequence<labelled_edge> candidate_edges(N * m, kNullEdge);
     parlay::parallel_for(0, N, [&](size_t i) {
       std::priority_queue<labelled_edge, std::vector<labelled_edge>,
                           decltype(less)>
@@ -176,7 +177,7 @@ struct hcnng_index {
       }
       indexType limit = std::min(Q.size(), m);
       for (indexType j = 0; j < limit; j++) {
-        candidate_edges[i*m + j] = Q.top();
+        candidate_edges[i * m + j] = Q.top();
         Q.pop();
       }
     });
@@ -234,17 +235,18 @@ struct hcnng_index {
       // Don't need to do modifications.
       indexType p_star = candidates[candidate_idx].first;
       candidate_idx++;
-      if (p_star == p) continue;
+      if (p_star == p || p_star == kNullId) continue;
 
       new_nbhs.push_back(p_star);
 
       for (size_t i = candidate_idx; i < candidates.size(); i++) {
         indexType p_prime = candidates[i].first;
-        if (p_prime != -1) {
+        if (p_prime != kNullId) {
           distanceType dist_starprime =
               Points[p_star].distance(Points[p_prime]);
           distanceType dist_pprime = candidates[i].second;
-          if (alpha * dist_starprime <= dist_pprime) candidates[i].first = -1;
+          if (alpha * dist_starprime <= dist_pprime)
+            candidates[i].first = kNullId;
         }
       }
     }
@@ -257,8 +259,10 @@ struct hcnng_index {
     C.multiple_clustertrees(G, Points, cluster_size, cluster_rounds, MSTk,
                             MSTDeg);
     remove_all_duplicates(G);
-    // parlay::parallel_for(0, v.size(), [&] (size_t i){robustPrune(v[i],
-    // v, 1.1, maxDeg);});
+    // TODO: enable optional pruning (what is below now works, but
+    // should be connected cleanly)
+    // parlay::parallel_for(0, G.size(), [&] (size_t i){robustPrune(i, Points,
+    // G, 1.1);});
   }
 };
 
