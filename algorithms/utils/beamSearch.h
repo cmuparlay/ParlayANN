@@ -545,21 +545,40 @@ qsearchAll(const PointRange &Query_Points,
            const QQPointRange &QQ_Base_Points,
            stats<indexType> &QueryStats,
            const indexType starting_point,
-           const QueryParams &QP) {
+           const QueryParams &QP,
+           bool random = false) {
   if (QP.k > QP.beamSize) {
     std::cout << "Error: beam search parameter Q = " << QP.beamSize
               << " same size or smaller than k = " << QP.k << std::endl;
     abort();
   }
-  parlay::sequence<indexType> starting_points = {starting_point};
   parlay::sequence<parlay::sequence<indexType>> all_neighbors(Query_Points.size());
-  parlay::parallel_for(0, Query_Points.size(), [&](size_t i) {
-    auto ngh_dist = beam_search_rerank(Query_Points[i], Q_Query_Points[i], QQ_Query_Points[i],
-                                       G,
-                                       Base_Points, Q_Base_Points, QQ_Base_Points,
-                                       QueryStats, starting_points, QP);
-    all_neighbors[i] = parlay::map(ngh_dist, [] (auto& p) {return p.first;});
-  });
+  if (random) {
+    parlay::random_generator gen;
+    std::uniform_int_distribution<long> dis(0, G.size() - 1);
+    auto indices = parlay::tabulate(Query_Points.size(), [&](size_t i) -> indexType {
+      auto r = gen[i];
+      return dis(r);
+    });
+
+    parlay::parallel_for(0, Query_Points.size(), [&](size_t i) {
+      parlay::sequence<indexType> starting_points = {indices[i]};
+      auto ngh_dist = beam_search_rerank(Query_Points[i], Q_Query_Points[i], QQ_Query_Points[i],
+                                         G,
+                                         Base_Points, Q_Base_Points, QQ_Base_Points,
+                                         QueryStats, starting_points, QP);
+      all_neighbors[i] = parlay::map(ngh_dist, [] (auto& p) {return p.first;});
+    });
+  } else {
+    parlay::sequence<indexType> starting_points = {starting_point};
+    parlay::parallel_for(0, Query_Points.size(), [&](size_t i) {
+      auto ngh_dist = beam_search_rerank(Query_Points[i], Q_Query_Points[i], QQ_Query_Points[i],
+                                         G,
+                                         Base_Points, Q_Base_Points, QQ_Base_Points,
+                                         QueryStats, starting_points, QP);
+      all_neighbors[i] = parlay::map(ngh_dist, [] (auto& p) {return p.first;});
+    });
+  }
 
   return all_neighbors;
 }
