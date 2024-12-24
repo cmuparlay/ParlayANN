@@ -127,7 +127,7 @@ nn_result checkRecall(const Graph<indexType> &G,
   return N;
 }
 
-void write_to_csv(std::string csv_filename, parlay::sequence<float> buckets,
+void write_to_csv(std::string csv_filename,
                   parlay::sequence<nn_result> results, Graph_ G) {
   csvfile csv(csv_filename);
   csv << "GRAPH"
@@ -140,7 +140,6 @@ void write_to_csv(std::string csv_filename, parlay::sequence<float> buckets,
       << endrow;
   csv << endrow;
   csv << "Num queries"
-      << "Target recall"
       << "Actual recall"
       << "QPS"
       << "Average Cmps"
@@ -152,7 +151,7 @@ void write_to_csv(std::string csv_filename, parlay::sequence<float> buckets,
       << "cut" << endrow;
   for (int i = 0; i < results.size(); i++) {
     nn_result N = results[i];
-    csv << N.num_queries << buckets[i] << N.recall << N.QPS << N.avg_cmps
+    csv << N.num_queries << N.recall << N.QPS << N.avg_cmps
         << N.tail_cmps << N.avg_visited << N.tail_visited << N.k << N.beamQ
         << N.cut << endrow;
   }
@@ -214,59 +213,27 @@ void search_and_parse(Graph_ G_,
   QP.limit = (long) G.size();
   QP.rerank_factor = rerank_factor;
   QP.degree_limit = (long) G.max_degree();
-  beams = {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 24, 26, 28, 30, 32,
-    34, 36, 38, 40, 45, 50, 55, 60, 65, 70, 80, 90, 100, 120, 140, 160,
-    180, 200, 225, 250, 275, 300, 375, 500, 750, 1000};
+  beams = {10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 125, 150, 200, 250, 275, 300, 375, 500, 750, 1000};
   if(k==0) allr = {10};
   else allr = {k};
   cuts = {1.35};
-
-  if (fixed_beam_width != 0) {
-    QP.k = allr[0];
-    QP.cut = cuts[0];
-    QP.beamSize = fixed_beam_width;
-    for (int i = 0; i < 5; i++)
-      check(QP.k, QP);
-  } else {
-    for (long r : allr) {
-      results.clear();
-      QP.k = r;
-      for (float cut : cuts){
-        QP.cut = cut;
-        for (float Q : beams){
-          QP.beamSize = Q;
-          if (Q >= r){
-            results.push_back(check(r, QP));
-          }
+  
+  std::cout<<"Fixed beam width: "<<fixed_beam_width<<std::endl;
+  for (long r : allr) {
+    results.clear();
+    QP.k = r;
+    for (float cut : cuts){
+      QP.cut = cut;
+      for (float Q : beams){
+        QP.beamSize = Q;
+        if (Q >= r){
+          results.push_back(check(r, QP));
         }
       }
-
-      // check "limited accuracy"
-      // {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 28, 30, 35}; //
-      parlay::sequence<long> limits = {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 28, 30, 35};
-      //calculate_limits(results[0].avg_visited);
-      //parlay::sequence<long> degree_limits = calculate_limits(G.max_degree());
-      //degree_limits.push_back(G.max_degree());
-      QP = QueryParams(r, r, 1.35, (long) G.size(), (long) G.max_degree());
-      for(long l : limits){
-        QP.limit = l;
-        QP.beamSize = std::max<long>(l, r);
-        //for(long dl : degree_limits){
-        QP.degree_limit = std::min<int>(G.max_degree(), 5 * l);
-        results.push_back(check(r, QP));
-      }
-      // check "best accuracy"
-      QP = QueryParams((long) 100, (long) 1000, (double) 10.0, (long) G.size(), (long) G.max_degree());
-      results.push_back(check(r, QP));
-
-      parlay::sequence<float> buckets =  {.1, .2, .3,  .4,  .5,  .6, .7, .75,  .8, .85,
-        .9, .93, .95, .97, .98, .99, .995, .999, .9995,
-        .9999, .99995, .99999};
-      auto [res, ret_buckets] = parse_result(results, buckets);
-      std::cout << std::endl;
-      if (res_file != NULL)
-        write_to_csv(std::string(res_file), ret_buckets, res, G_);
     }
+    std::cout << std::endl;
+    if (res_file != NULL)
+      write_to_csv(std::string(res_file), results, G_);
   }
 }
 
