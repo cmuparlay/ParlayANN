@@ -26,7 +26,7 @@ parser.add_argument("-p","--paper_ver", help="paper_version",action="store_true"
 parser.add_argument("-graph_name", help="graphs name")
 
 args = parser.parse_args()
-print("dataset " + args.dataset)
+print("Dataset: " + args.dataset)
 dataset = args.dataset
 
 if args.type == "visited":
@@ -89,14 +89,11 @@ if not args.graphs_only:
 Results file finds lists of distances for the specified step for each of the three groups
 '''
 def readResultsFile(result_filename, step):
-    print("Looking for file", result_filename)
     file = open(result_filename, 'r')
     lists = []
     zeros_line = "Zeros, Step " + step + ":"
     onetwos_line = "OneTwos, Step " + step + ":"
     threeplus_line = "Threeplus, Step " + step + ":"
-
-    print(zeros_line)
 
     for line in file.readlines():
       if line.find(zeros_line) != -1:
@@ -122,23 +119,21 @@ def export_legend(legend, filename="legend.pdf"):
 
 def plot_dist_histogram(dataset, graph_name, paper_ver=False):
   dir_name = "graphs/dist_histograms/" + args.type + "/" + "Step" + args.step
-  print(dir_name)
   os.makedirs(dir_name, exist_ok=True)
 
-  outputFile = dir_name + graph_name.replace('.', '') + '.pdf'
+  outputFile = dir_name + "/" + graph_name.replace('.', '') + '.pdf'
   mpl.rcParams.update({'font.size': 25})
 
   resultsFile = "dist_histograms/" + args.type  + "/" + dataset + ".txt"
   lists = readResultsFile(resultsFile, args.step)
 
-  print(len(lists))
   zeros = np.array(lists[0])
   onetwos = np.array(lists[1])
   threeplus = np.array(lists[2])
 
-  print(len(zeros))
-  print(len(onetwos))
-  print(len(threeplus))
+  print("Num zero results:", len(zeros))
+  print("Num onetwos:", len(onetwos))
+  print("Num threeplus:", len(threeplus))
 
   if args.type == "ratio":
     plt.xlabel("Ratio of D_10th to D_start")
@@ -162,10 +157,10 @@ def plot_dist_histogram(dataset, graph_name, paper_ver=False):
   if paper_ver:
     nc = 8
     legend = plt.legend(loc='center left', bbox_to_anchor=(legend_x, legend_y), ncol=nc, framealpha=0.0)
-    export_legend(legend, 'graphs/' + graph_name + '_legend.pdf')
+    export_legend(legend, dir_name + "/" + graph_name + '_legend.pdf')
   plt.close('all')
 
-print(dataset)
+
 plot_dist_histogram(dataset, args.graph_name, args.paper_ver)
 
 
