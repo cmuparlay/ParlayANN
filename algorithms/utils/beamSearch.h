@@ -97,6 +97,7 @@ beam_search_impl(Point p, GT &G, PointRange &Points,
   // Use the first of these to pick next vertex to visit.
   std::vector<std::pair<indexType, distanceType>> unvisited_frontier(QP.beamSize);
   unvisited_frontier[0] = frontier[0];
+  auto d_start = frontier[0].second;
 
   // maintains sorted set of visited vertices (id-distance pairs)
   std::vector<std::pair<indexType, distanceType>> visited;
@@ -128,14 +129,15 @@ beam_search_impl(Point p, GT &G, PointRange &Points,
     // p
     std::pair<indexType, distanceType> current = unvisited_frontier[0];
     bool has_visited_enough = (num_visited >= QP.early_stop);
-    bool early_stop = (QP.early_stop > 0);
+    bool early_stop = (QP.early_stop > 0); 
+    if(!early_stop && QP.early_stop_radius != 0){
+      std::cout << QP.early_stop << std::endl;
+    }
     bool has_found_candidate = (frontier[0].second <= rad);
-    bool within_early_stop_rad;
-    if(frontier.size() >= QP.beamSize) {
-      within_early_stop_rad = (frontier[QP.beamSize-1].second <= QP.early_stop_radius);
-    } else within_early_stop_rad = true;
-    // bool within_early_stop_rad = (current.second <= QP.early_stop_radius);
-    if(early_stop && has_visited_enough && !has_found_candidate && !within_early_stop_rad) {break;}     
+    bool within_early_stop_rad = (current.second <= QP.early_stop_radius);
+    if(early_stop && has_visited_enough && !has_found_candidate && !within_early_stop_rad) {
+      break;
+    }
     G[current.first].prefetch();
     // add to visited set
     visited.insert(
@@ -205,9 +207,28 @@ beam_search_impl(Point p, GT &G, PointRange &Points,
                             visited.end(), unvisited_frontier.begin(), less) -
         unvisited_frontier.begin();
 
+      
+    // uncomment to make visited_inorder returns the 10th closest item
+    // if(frontier.size() >= 10){
+    //   visited_inorder.push_back(frontier[9]);
+    // } else visited_inorder.push_back(std::make_pair(0, std::numeric_limits<float>::max()));
+
+    // if(frontier.size() >= 1){
+    //   visited_inorder.push_back(frontier[0]);
+    // } else visited_inorder.push_back(std::make_pair(0, std::numeric_limits<float>::max()));
+
+    // if(frontier.size() >= 100){
+    //   visited_inorder.push_back(frontier[99]);
+    // } else visited_inorder.push_back(std::make_pair(0, std::numeric_limits<float>::max()));
+
+    // feature d_10th/d_start
+    float ratio;
     if(frontier.size() >= 10){
-      visited_inorder.push_back(frontier[9]);
-    } else visited_inorder.push_back(std::make_pair(0, std::numeric_limits<float>::max()));
+      ratio = frontier[9].second/d_start;
+    } else ratio = std::numeric_limits<float>::max()/d_start;
+    visited_inorder.push_back(std::make_pair(0, ratio));
+
+    // visited_inorder.push_back(current);
     
   }
 
@@ -533,11 +554,11 @@ RangeSearchOverSubset(PointRange &Query_Points,
 	                                      RangeParams &RP, parlay::sequence<indexType> active_indices) {
   parlay::sequence<parlay::sequence<indexType>> all_neighbors(active_indices.size());
   parlay::sequence<parlay::sequence<std::pair<indexType, typename Point::distanceType>>> visit_order(active_indices.size());
+  QueryParams QP(RP.initial_beam, RP.initial_beam, 0.0, G.size(), G.max_degree(), RP.early_stop, RP.early_stop_radius);
   parlay::sequence<int> second_round(active_indices.size(), 0);
   parlay::parallel_for(0, active_indices.size(), [&](size_t i) {
     parlay::sequence<indexType> neighbors;
     parlay::sequence<std::pair<indexType, typename Point::distanceType>> neighbors_within_larger_ball;
-    QueryParams QP(RP.initial_beam, RP.initial_beam, 0.0, G.size(), G.max_degree(), RP.early_stop, RP.early_stop_radius);
     auto [tmp, visit_order_pt] = beam_search(Query_Points[active_indices[i]], G, Base_Points, starting_points, QP, RP.rad);
     auto [pairElts, dist_cmps] = tmp;
     auto [beamElts, visitedElts] = pairElts;

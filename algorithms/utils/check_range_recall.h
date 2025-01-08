@@ -34,7 +34,7 @@
 #include "stats.h"
 
 template<typename distanceType, typename indexType>
-void convergence_stats(parlay::sequence<parlay::sequence<std::pair<indexType, distanceType>>> visited_order){
+void convergence_stats(parlay::sequence<parlay::sequence<std::pair<indexType, distanceType>>> visited_order, std::string restype){
   //get the max length of any visit order
   //we expect this to be just a little over L_search
   size_t max_len = 0;
@@ -44,66 +44,23 @@ void convergence_stats(parlay::sequence<parlay::sequence<std::pair<indexType, di
 
   std::cout << "Max length: " << max_len << std::endl;
 
-  parlay::sequence<double> avg_dists(max_len);
-  parlay::sequence<double> fifty_dists;
-
-  //iterate over each coord of avg_dists
-  parlay::parallel_for(0, max_len, [&] (size_t i){
-    double total = 0;
-    size_t nonzero = 0;
+  parlay::sequence<parlay::sequence<double>> all_dists = parlay::tabulate(max_len, [&] (size_t i){
+    parlay::sequence<double> dists;
     for(size_t j=0; j<visited_order.size(); j++){
       if(visited_order[j].size() > i){
-        total += static_cast<double>(visited_order[j][i].second);
-        nonzero++;
+        dists.push_back(static_cast<double>(visited_order[j][i].second));
       }
     }
-    if(i == 10){
-      for(size_t j=0; j<visited_order.size(); j++){
-      if(visited_order[j].size() > i){
-        fifty_dists.push_back(static_cast<double>(visited_order[j][i].second));
-      }
-    }
-    }
-    double avg = total/static_cast<double>(nonzero);
-
-    avg_dists[i] = static_cast<double>(avg);
+    parlay::sort_inplace(dists);
+    return dists;
   });
 
-  parlay::sort_inplace(fifty_dists);
   std::cout << std::setprecision(6) << std::endl;
 
-  std::cout << parlay::to_chars(fifty_dists) << std::endl;
-
-
-  // size_t index1 = 0;
-  // size_t index2 = visited_order.size()/2;
-  // size_t index3 = visited_order.size()/3;
-
-  // auto seq1 = parlay::tabulate(visited_order[index1].size(), [&] (size_t i){return visited_order[index1][i].second;});
-  // auto seq2 = parlay::tabulate(visited_order[index2].size(), [&] (size_t i){return visited_order[index2][i].second;});
-  // auto seq3 = parlay::tabulate(visited_order[index3].size(), [&] (size_t i){return visited_order[index3][i].second;});
-
-  // std::cout << std::setprecision(2) << std::endl;
-  // std::cout << "Point 1: ";
-  // for(float f: seq1){
-  //   std::cout << f << ", ";
-  // }
-  // std::cout << std::endl;
-  // std::cout << "Point 2: ";
-  //  for(float f: seq2){
-  //   std::cout << f << ", ";
-  // }
-  // std::cout << std::endl;
-  // std::cout << "Point 3: ";
-  //  for(float f: seq3){
-  //   std::cout << f << ", ";
-  // }
-
-
-  // std::cout << std::setprecision(6) << std::endl;
-
-  // std::cout << parlay::to_chars(avg_dists) << std::endl;
-  // std::cout << std::endl;
+  for(size_t i=0; i<max_len; i++){
+    std::cout << restype << ", Step " << i << ": " << parlay::to_chars(all_dists[i]) << std::endl;
+  }
+  
 }
 
 template<typename Point, typename PointRange, typename indexType>
@@ -148,19 +105,18 @@ void calculateWeightedRecall(
   double pointwise_recall = pointwise_weighted_recall/num_nonzero;
 
   std::cout << "Pointwise Weighted Recall = " << pointwise_recall << ", Cumulative Weighted Recall = " << cumulative_weighted_recall << ", QPS = " << QPS << std::endl;
-
 }
 
 template<typename Point, typename PointRange, typename indexType>
-void checkRangeRecall(
+std::tuple<double, double, double> checkRangeRecall(
         Graph<indexType> &G,
         PointRange &Base_Points,
         PointRange &Query_Points,
         RangeGroundTruth<indexType> GT,
         RangeParams RP,
         long start_point, 
-        parlay::sequence<indexType> &active_indices, 
-        bool converge_stats = false) {
+        parlay::sequence<indexType> &active_indices,
+        std::string restype = "") {
 
 
   // parlay::sequence<parlay::sequence<indexType>> all_rr;
@@ -197,8 +153,11 @@ void checkRangeRecall(
   std::cout << "For ";
   RP.print();
   std::cout << ", Pointwise Recall = " << pointwise_recall << ", Cumulative Recall = " << cumulative_recall << ", QPS = " << QPS << std::endl;
+  std::cout << "Convergence stats: " << std::endl;
+  convergence_stats(visit_order, restype);
+  return std::make_tuple(pointwise_recall, cumulative_recall, QPS);
   // calculateWeightedRecall<Point, PointRange, indexType>(Base_Points, Query_Points, GT, active_indices, all_rr, RP.rad, QPS);
-  convergence_stats(visit_order);
+  
   
 }
 
@@ -212,9 +171,9 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
 
   std::vector<long> beams;
 
-  // beams = {5,10,20,30,40,50,60,70,80,90,100,200,350,500,1000}; 
+  // beams = {2,4,5,6,8,10,20,30,40,50,60,70,80,90,100,200,350,500,1000}; 
   beams = {100};
-  std::vector<double> slack = {1.0};
+  double sf = 1.0;
 
   //three categories: 0, 1-20, 20+
 
@@ -223,133 +182,210 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
   parlay::sequence<indexType> rng_res = GT.results_between(3, std::numeric_limits<indexType>::max());
   parlay::sequence<indexType> all = parlay::tabulate(Query_Points.size(), [&] (indexType i){return i;});
 
-  std::cout << "For all points: " << std::endl;
-
-  
+  long steps_to_stopping;
 
 
-
-
-
-  // std::cout << "Sweeping once with regular beam search" << std::endl;
+  std::cout << "Radius: " << rad << ", early stopping radius: " << esr << std::endl;
+  parlay::sequence<double> pointwise_recall;
+  parlay::sequence<double> cumulative_recall;
+  parlay::sequence<double> qps;
   // for(long b: beams){
   //   RangeParams RP(rad, b);
-  //   checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, all, true);
-
+  //   std::tuple<double, double, double> stats = checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, all);
+  //   pointwise_recall.push_back(std::get<0>(stats));
+  //   cumulative_recall.push_back(std::get<1>(stats));
+  //   qps.push_back(std::get<2>(stats));
   // }
+  // std::cout << "All, Beam Search, Pointwise Recall: " << parlay::to_chars(pointwise_recall) << std::endl;
+  // std::cout << "All, Beam Search, Cumulative Recall: " << parlay::to_chars(cumulative_recall) << std::endl;
+  // std::cout << "All, Beam Search, QPS: " << parlay::to_chars(qps) << std::endl;
   // std::cout << std::endl;
   // std::cout << std::endl;
-  // std::cout << "Regular range search" << std::endl;
+  // pointwise_recall.clear();
+  // cumulative_recall.clear();
+  // qps.clear();
+ 
   // for(long b: beams){
-  //   for(double sf: slack){
-  //     RangeParams RP(rad, b, sf, true);
-  //     checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, all);
-  //   }
+  //   RangeParams RP(rad, b, sf, true);
+  //   std::tuple<double, double, double> stats = checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, all);
+  //   pointwise_recall.push_back(std::get<0>(stats));
+  //   cumulative_recall.push_back(std::get<1>(stats));
+  //   qps.push_back(std::get<2>(stats));
   // }
+  // std::cout << "All, Range Search, Pointwise Recall: " << parlay::to_chars(pointwise_recall) << std::endl;
+  // std::cout << "All, Range Search, Cumulative Recall: " << parlay::to_chars(cumulative_recall) << std::endl;
+  // std::cout << "All, Range Search, QPS: " << parlay::to_chars(qps) << std::endl;
+  // std::cout << std::endl;
+  // std::cout << std::endl;
+  // pointwise_recall.clear();
+  // cumulative_recall.clear();
+  // qps.clear();
 
-  // std::cout << std::endl;
-  // std::cout << std::endl;
-  // std::cout << "Regular range search and early stopping" << std::endl;
+
+
+
   // for(long b: beams){
-  //   for(double sf: slack){
-  //     long steps_to_stopping = std::max<size_t>(b/3, 10);
-  //     RangeParams RP(rad, b, sf, true, steps_to_stopping, esr);
-  //     checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, all);
-  //   }
+  //   steps_to_stopping = std::max<size_t>(b/4, 10);
+  //   RangeParams RP(rad, b, sf, true, steps_to_stopping, esr);
+  //   std::tuple<double, double, double> stats = checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, all);
+  //   pointwise_recall.push_back(std::get<0>(stats));
+  //   cumulative_recall.push_back(std::get<1>(stats));
+  //   qps.push_back(std::get<2>(stats));
   // }
-
+  // std::cout << "All, Early Stopping, Pointwise Recall: " << parlay::to_chars(pointwise_recall) << std::endl;
+  // std::cout << "All, Early Stopping, Cumulative Recall: " << parlay::to_chars(cumulative_recall) << std::endl;
+  // std::cout << "All, Early Stopping, QPS: " << parlay::to_chars(qps) << std::endl;
   // std::cout << std::endl;
+  // std::cout << std::endl;
+  // pointwise_recall.clear();
+  // cumulative_recall.clear();
+  // qps.clear();
 
-  // std::cout << "For all " << zero_res.size() << " points with zero results: " << std::endl;
-
-  std::cout << "Sweeping once with regular range search" << std::endl;
   for(long b: beams){
     RangeParams RP(rad, b);
-    checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, zero_res, true);
-
+    std::tuple<double, double, double> stats = checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, zero_res, "Zeros");
+    qps.push_back(std::get<2>(stats));
   }
+
+  std::cout << "Zeros, Beam Search, QPS: " << parlay::to_chars(qps) << std::endl;
+  std::cout << std::endl;
+  std::cout << std::endl;
+  qps.clear();
+
+  // for(long b: beams){
+  //   RangeParams RP(rad, b, sf, true);
+  //   std::tuple<double, double, double> stats = checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, zero_res);
+  //   qps.push_back(std::get<2>(stats));
+  // }
+
+  // std::cout << "Zeros, Range Search, QPS: " << parlay::to_chars(qps) << std::endl;
+  // std::cout << std::endl;
+  // std::cout << std::endl;
+  // qps.clear();
  
-  // std::cout << std::endl;
-  // std::cout << std::endl;
-  // // std::cout << "Trying again with early stopping" << std::endl;
-  // // for(long b: beams){
-  // //   for(double sf: slack){
-  // //     steps_to_stopping = std::max<size_t>(b/3, 10);
-  // //     RangeParams RP(rad, b, sf, true, steps_to_stopping, esr);
-  // //     checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, zero_res);
-  // //   }
-  // // }
 
-  // // std::cout << std::endl;
-
-  // std::cout << "For all " << nn_res.size() <<  " points with 1 to 2 results" << std::endl;
-
-  // std::cout << "Sweeping once with regular beam search" << std::endl;
   // for(long b: beams){
-  //   RangeParams RP(rad, b);
-  //   checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, nn_res, true);
-
+  //   steps_to_stopping = std::max<size_t>(b/4, 10);
+  //   RangeParams RP(rad, b, sf, true, steps_to_stopping, esr);
+  //   std::tuple<double, double, double> stats = checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, zero_res);
+  //   qps.push_back(std::get<2>(stats));
   // }
 
+  // std::cout << "Zeros, Early Stopping, QPS: " << parlay::to_chars(qps) << std::endl;
   // std::cout << std::endl;
   // std::cout << std::endl;
-  std::cout << "Trying again with two-round search" << std::endl;
+  // qps.clear();
+
+
   for(long b: beams){
-    for(double sf: slack){
-      
-      RangeParams RP(rad, b, sf, true);
-      checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, nn_res);
-    }
+    RangeParams RP(rad, b);
+    std::tuple<double, double, double> stats = checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, nn_res, "OneTwos");
+    pointwise_recall.push_back(std::get<0>(stats));
+    cumulative_recall.push_back(std::get<1>(stats));
+    qps.push_back(std::get<2>(stats));
   }
 
-  // std::cout << std::endl;
-  // std::cout << std::endl;
-  // // std::cout << "Trying again with two-round search and early stopping" << std::endl;
-  // // for(long b: beams){
-  // //   for(double sf: slack){
-  // //     steps_to_stopping = std::max<size_t>(b/3, 10);
-  // //     RangeParams RP(rad, b, sf, true, steps_to_stopping, esr);
-  // //     checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, nn_res);
-  // //   }
-  // // }
+  std::cout << "Onetwos, Beam Search, Pointwise Recall: " << parlay::to_chars(pointwise_recall) << std::endl;
+  std::cout << "Onetwos, Beam Search, Cumulative Recall: " << parlay::to_chars(cumulative_recall) << std::endl;
+  std::cout << "Onetwos, Beam Search, QPS: " << parlay::to_chars(qps) << std::endl;
+  std::cout << std::endl;
+  std::cout << std::endl;
+  pointwise_recall.clear();
+  cumulative_recall.clear();
+  qps.clear();
 
   // std::cout << std::endl;
-
-  // std::cout << "For all " << rng_res.size() <<  " points with greater than 3 results" << std::endl;
-
-  // std::cout << "Sweeping once with regular beam search" << std::endl;
+  // std::cout << std::endl;
   // for(long b: beams){
-  //   RangeParams RP(rad, b);
-  //   checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, rng_res, true);
-
+  //   RangeParams RP(rad, b, sf, true);
+  //   std::tuple<double, double, double> stats = checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, nn_res);
+  //   pointwise_recall.push_back(std::get<0>(stats));
+  //   cumulative_recall.push_back(std::get<1>(stats));
+  //   qps.push_back(std::get<2>(stats));
   // }
+
+  // std::cout << "Onetwos, Range Search, Pointwise Recall: " << parlay::to_chars(pointwise_recall) << std::endl;
+  // std::cout << "Onetwos, Range Search, Cumulative Recall: " << parlay::to_chars(cumulative_recall) << std::endl;
+  // std::cout << "Onetwos, Range Search, QPS: " << parlay::to_chars(qps) << std::endl;
   // std::cout << std::endl;
   // std::cout << std::endl;
-  std::cout << "Trying again with two-round search" << std::endl;
+  // pointwise_recall.clear();
+  // cumulative_recall.clear();
+  // qps.clear();
+
+  // std::cout << std::endl;
+  // std::cout << std::endl;
+  // for(long b: beams){
+  //   steps_to_stopping = std::max<size_t>(b/4, 10);
+  //   RangeParams RP(rad, b, sf, true, steps_to_stopping, esr);
+  //   std::tuple<double, double, double> stats = checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, nn_res);
+  //   pointwise_recall.push_back(std::get<0>(stats));
+  //   cumulative_recall.push_back(std::get<1>(stats));
+  //   qps.push_back(std::get<2>(stats));
+  // }
+
+  // std::cout << "Onetwos, Early Stopping, Pointwise Recall: " << parlay::to_chars(pointwise_recall) << std::endl;
+  // std::cout << "Onetwos, Early Stopping, Cumulative Recall: " << parlay::to_chars(cumulative_recall) << std::endl;
+  // std::cout << "Onetwos, Early Stopping, QPS: " << parlay::to_chars(qps) << std::endl;
+  // std::cout << std::endl;
+  // std::cout << std::endl;
+  // pointwise_recall.clear();
+  // cumulative_recall.clear();
+  // qps.clear();
+
+
   for(long b: beams){
-    for(double sf: slack){
-      RangeParams RP(rad, b, sf, true);
-      checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, rng_res);
-    }
+    RangeParams RP(rad, b);
+    std::tuple<double, double, double> stats = checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, rng_res, "Threeplus");
+    pointwise_recall.push_back(std::get<0>(stats));
+    cumulative_recall.push_back(std::get<1>(stats));
+    qps.push_back(std::get<2>(stats));
   }
+
+  std::cout << "Threeplus, Beam Search, Pointwise Recall: " << parlay::to_chars(pointwise_recall) << std::endl;
+  std::cout << "Threeplus, Beam Search, Cumulative Recall: " << parlay::to_chars(cumulative_recall) << std::endl;
+  std::cout << "Threeplus, Beam Search, QPS: " << parlay::to_chars(qps) << std::endl;
+  std::cout << std::endl;
+  std::cout << std::endl;
+  pointwise_recall.clear();
+  cumulative_recall.clear();
+  qps.clear();
+
+  // for(long b: beams){
+  //   RangeParams RP(rad, b, sf, true);
+  //   std::tuple<double, double, double> stats = checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, rng_res);
+  //   pointwise_recall.push_back(std::get<0>(stats));
+  //   cumulative_recall.push_back(std::get<1>(stats));
+  //   qps.push_back(std::get<2>(stats));
+  // }
+
+  // std::cout << "Threeplus, Range Search, Pointwise Recall: " << parlay::to_chars(pointwise_recall) << std::endl;
+  // std::cout << "Threeplus, Range Search, Cumulative Recall: " << parlay::to_chars(cumulative_recall) << std::endl;
+  // std::cout << "Threeplus, Range Search, QPS: " << parlay::to_chars(qps) << std::endl;
   // std::cout << std::endl;
   // std::cout << std::endl;
-  // // std::cout << "Trying again with two-round search and early stopping" << std::endl;
-  // // for(long b: beams){
-  // //   for(double sf: slack){
-  // //     steps_to_stopping = std::max<size_t>(b/3, 10);
-  // //     RangeParams RP(rad, b, sf, true, steps_to_stopping, esr);
-  // //     checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, rng_res);
-  // //   }
-  // // }
+  // pointwise_recall.clear();
+  // cumulative_recall.clear();
+  // qps.clear();
 
+
+  // for(long b: beams){
+  //   steps_to_stopping = std::max<size_t>(b/4, 10);
+  //   RangeParams RP(rad, b, sf, true, steps_to_stopping, esr);
+  //   std::tuple<double, double, double> stats = checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, rng_res);
+  //   pointwise_recall.push_back(std::get<0>(stats));
+  //   cumulative_recall.push_back(std::get<1>(stats));
+  //   qps.push_back(std::get<2>(stats));
+  // }
+
+  // std::cout << "Threeplus, Early Stopping, Pointwise Recall: " << parlay::to_chars(pointwise_recall) << std::endl;
+  // std::cout << "Threeplus, Early Stopping, Cumulative Recall: " << parlay::to_chars(cumulative_recall) << std::endl;
+  // std::cout << "Threeplus, Early Stopping, QPS: " << parlay::to_chars(qps) << std::endl;
   // std::cout << std::endl;
-
-
-
-
-
-
+  // std::cout << std::endl;
+  // pointwise_recall.clear();
+  // cumulative_recall.clear();
+  // qps.clear();
 
   
 }

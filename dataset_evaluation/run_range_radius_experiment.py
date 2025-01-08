@@ -13,65 +13,13 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import numpy as np
 import statistics as st
+from dataset_info import mk, dsinfo, data_options
 
-
-
-# parameters:
-#  - datastructures: neighbors_bench only for now
-#  - threads, update_percent, number of nearest neighbors
-
-
-bigann = "/ssd1/data/bigann"
-msturing= "/ssd1/data/MSTuringANNS"
-deep = "/ssd1/data/deep1b"
-gist="/ssd1/data/gist"
-ssnpp="/ssd1/data/FB_ssnpp"
-wikipedia="/ssd1/data/wikipedia_cohere"
-msmarco="/ssd1/data/msmarco_websearch"
-text2image="/ssd1/data/text2image1B"
-openai="/ssd1/data/OpenAIArXiv"
-data_options = {
-  "bigann-1M" : {"base": bigann+"/base.1B.u8bin.crop_nb_1000000", 
-                "query": bigann+"/query.public.10K.u8bin", 
-                "data_type" : "uint8", 
-                "dist_fn": "Euclidian"},
-  "msturing-1M" : {"base": msturing+"/base1b.fbin.crop_nb_1000000", 
-                "query": msturing+"/query10K.fbin", 
-                "data_type" : "float", 
-                "dist_fn": "Euclidian"},
-  "deep-1M" : {"base": deep+"/base.1B.fbin.crop_nb_1000000", 
-                "query": deep+"/query.public.10K.fbin", 
-                "data_type" : "float",
-                "dist_fn": "Euclidian"},
-  "gist-1M" : {"base": gist+"/gist_base.fbin", 
-                "query": gist+"/gist_query.fbin", 
-                "data_type" : "float", 
-                "dist_fn": "Euclidian"},
-  "ssnpp-1M" : {"base": ssnpp+"/FB_ssnpp_database.u8bin.crop_nb_1000000", 
-                "query": ssnpp+"/FB_ssnpp_public_queries.u8bin", 
-                "data_type" : "uint8", 
-                "dist_fn": "Euclidian"},
-  "wikipedia-1M" : {"base":wikipedia+"/wikipedia_base.bin.crop_nb_1000000", 
-                "query": wikipedia+"/wikipedia_query.bin", 
-                "data_type" : "float", 
-                "dist_fn": "mips"},
-  "msmarco-1M" : {"base": msmarco+"/vectors.bin.crop_nb_1000000", 
-                "query": msmarco+"/query.bin", 
-                "data_type" : "float", 
-                "dist_fn": "mips"},
-  "text2image-1M" : {"base": text2image+"/base.1B.fbin.crop_nb_1000000", 
-                "query": text2image+"/query.public.100K.fbin", 
-                "data_type" : "float", 
-                "dist_fn": "mips"},
-  "openai-1M" : {"base": openai+"/openai_base_1M.bin", 
-                "query": openai+"/openai_query_10K.bin", 
-                "data_type" : "float", 
-                "dist_fn": "Euclidian"},
-}
 parser = argparse.ArgumentParser()
 parser.add_argument("-radius", help="radius list of lists")
 parser.add_argument("-dataset", help="dataset list")
 parser.add_argument("-g","--graphs_only", help="graphs only",action="store_true")
+parser.add_argument("-p","--paper_version", help="paper version",action="store_true")
 parser.add_argument("-graph_name", help="graphs name")
 
 args = parser.parse_args()
@@ -164,8 +112,15 @@ def normalize_radius_list(radius_list, pct_list):
     rad_list = sorted(radius_list)
     percent_list = [x for _, x in sorted(zip(radius_list, pct_list))]
     normalized_rad = []
+    highest_rad = rad_list[-1]
+    additive_factor=0
+    if highest_rad < 0:
+      additive_factor = 2
+    print(rad_list)
     for r in rad_list:
-        normalized_rad.append(r/(rad_list[-1]))
+        normalized_rad.append(r/(abs(rad_list[-1]))+additive_factor)
+    print(additive_factor)
+    print(normalized_rad)
     return normalized_rad, percent_list
 
 for dataset_name in datasets:
@@ -173,28 +128,7 @@ for dataset_name in datasets:
     result_data[dataset_name]["radiuses"] = radiuses
     result_data[dataset_name]["percents"] = percents
 
-mk = ['o', 'v', '^', '1', 's', '+', 'x', 'D', '|', '>', '<',]
 
-dsinfo = {
-  "bigann-1M" : {"marker": mk[0], 
-                "color": "C0"},
-  "msturing-1M" : {"marker": mk[1], 
-                "color": "C1"},
-  "deep-1M" : {"marker": mk[2], 
-                "color": "C2"},
-  "gist-1M" : {"marker": mk[3], 
-                "color": "C3"},
-  "ssnpp-1M" : {"marker": mk[4], 
-                "color": "C4"},
-  "wikipedia-1M" : {"marker": mk[5], 
-                "color": "C5"},
-  "msmarco-1M" : {"marker": mk[6], 
-                "color": "C6"},
-  "text2image-1M" : {"marker": mk[7], 
-                "color": "C7"},
-  "openai-1M" : {"marker": mk[8], 
-                "color": "C8"},
-}
 
 def export_legend(legend, filename="legend.pdf"):
     fig  = legend.figure
@@ -246,15 +180,13 @@ def plot_radius_graph(result_data, graph_name, paper_ver=False):
 
   if paper_ver:
     nc = 8
-    if len(algs) == 2:
-      ncol = 1
-    elif len(algs) == 5:
-      ncol = 3
+    if len(result_data) == 9:
+      nc = 5
     legend = plt.legend(loc='center left', bbox_to_anchor=(legend_x, legend_y), ncol=nc, framealpha=0.0)
     export_legend(legend, 'graphs/' + graph_name + '_legend.pdf')
   plt.close('all')
 
 
-plot_radius_graph(result_data, args.graph_name)
+plot_radius_graph(result_data, args.graph_name, args.paper_version)
 
 
