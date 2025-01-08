@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 import math 
 
 p="/ssd1/data/"
-filenames = ['FB_ssnpp/ssnpp-1M', 'FB_ssnpp/ssnpp-10M', 'FB_ssnpp/ssnpp-100M', 'bigann/range_gt_1M_10000','bigann/range_gt_10M_10000','bigann/range_gt_100M_10000','MSTuringANNS/range_gt_1M_100K_.3', 'gist/range_gt_1M_.5', 'deep1b/range_gt_1M_.02','msmarco_websearch/range_gt_1M_-62', 'wikipedia_cohere/range_gt_1M_-10.5', 'OpenAIArXiv/openai_gt_1M_.2', 'text2image1B/range_gt_1M_-.6']
-titles = ['SSNPP', 'SSNPP-10M', 'SSNPP-100M', 'BIGANN', 'BIGANN-10M', 'BIGANN-100M', 'MSTuring', 'GIST', 'DEEP', 'MSMARCO', 'Wikipedia', 'OpenAI', 'Text2Image']
+filenames = ['FB_ssnpp/ssnpp-1M', 'FB_ssnpp/ssnpp-10M', 'FB_ssnpp/ssnpp-100M', 'bigann/range_gt_1M_10000','bigann/range_gt_10M_10000','bigann/range_gt_100M_10000','MSTuringANNS/range_gt_1M_100K_.3', 'gist/range_gt_1M_.5', 'deep1b/range_gt_1M_.02','msmarco_websearch/range_gt_1M_-62', 'wikipedia_cohere/range_gt_1M_-10.5', 'wikipedia_cohere/range_gt_10M_-10.5', 'OpenAIArXiv/openai_gt_1M_.2', 'text2image1B/range_gt_1M_-.6']
+titles = ['SSNPP', 'SSNPP-10M', 'SSNPP-100M', 'BIGANN', 'BIGANN-10M', 'BIGANN-100M', 'MSTuring', 'GIST', 'DEEP', 'MSMARCO', 'Wikipedia', 'Wikipedia-10M', 'OpenAI', 'Text2Image']
 result_dir="graphs/range_result_histograms/"
 
 dsinfo = {
@@ -27,6 +27,8 @@ dsinfo = {
   "SSNPP-100M" : {"mult": 1000,  
                 "color": "C4"},
   "Wikipedia" : {"mult": 100, 
+                "color": "C5"},
+  "Wikipedia-10M" : {"mult": 100, 
                 "color": "C5"},
   "MSMARCO" : {"mult": 100, 
                 "color": "C6"},
@@ -53,7 +55,7 @@ def range_res_stats(results):
 
 def plot_distances_hist(filename, title):
     num_results = np.fromfile(p+filename, dtype=np.int32, count=1)[0]
-    print("Dataste:", title)
+    print("Dataset:", title)
     print("Num results: ", num_results)
     all_results = np.fromfile(p+filename, dtype=np.int32, count=num_results+2)
     result = all_results[2:]
