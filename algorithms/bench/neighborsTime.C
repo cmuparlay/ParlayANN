@@ -46,6 +46,16 @@ using namespace parlayANN;
 
 using uint = unsigned int;
 
+template<typename Point, typename PointRange, typename indexType>
+parlay::sequence<float> graph_distances_from_origin(PointRange &Points, long origin) {
+  parlay::sequence<float> distances = parlay::sequence<float>(Points.size(), 0.0);
+  parlay::parallel_for(0, Points.size(), [&](long i) {
+    distances[i] = Points[origin].distance(Points[i]);
+  });
+  return distances;
+}
+
+
 
 template<typename Point, typename PointRange, typename indexType>
 void timeNeighbors(Graph<indexType> &G,
@@ -65,7 +75,8 @@ void timeNeighbors(Graph<indexType> &G,
     if(outFile != NULL) {
       G.save(outFile);
     }
-
+    auto distances = graph_distances_from_origin<Point, PointRange, indexType>(Points, 0);
+    for (int i = 0; i < 10; i++) std::cout << "Vector "<< i << "'s distance from origin (vector 0): " << distances[i] << std::endl;
 
 }
 
@@ -75,7 +86,7 @@ int main(int argc, char* argv[]) {
         "[-L <bm>] [-k <k> ]  [-gt_path <g>] [-query_path <qF>]"
         "[-graph_path <gF>] [-graph_outfile <oF>] [-res_path <rF>]" "[-num_passes <np>]"
         "[-memory_flag <algoOpt>] [-mst_deg <q>] [-num_clusters <nc>] [-cluster_size <cs>]"
-        "[-data_type <tp>] [-dist_func <df>] [-base_path <b>] <inFile>");
+        "[-data_type <tp>] [-dist_func <df>] [-base_path <b>] [-distance_origin <do>]<inFile>");
 
   char* iFile = P.getOptionValue("-base_path");
   char* oFile = P.getOptionValue("-graph_outfile");
@@ -115,6 +126,7 @@ int main(int argc, char* argv[]) {
   bool self = P.getOption("-self");
   int rerank_factor = P.getOptionIntValue("-rerank_factor", 100);
   bool range = P.getOption("-range");
+  int distance_origin = P.getOptionIntValue("-distance_origin", 0); //distance of all other vectors from the specified vector
 
   // this integer represents the number of random edges to start with for
   // inserting in a single batch per round
