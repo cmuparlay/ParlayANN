@@ -28,8 +28,6 @@ print("datasets " + args.datasets)
 print("groups:", args.groups)
 
 
-
-
 already_ran = set()
 
 def runstring(op, outfile):
@@ -192,7 +190,7 @@ def plot_qps_recall_graph(result_data, graph_name, paper_ver=False):
 
   fig, axs = plt.subplots()
   # fig = plt.figure()
-  opacity = 0.8
+  
   rects = {}
   
   for dataset_name, dataset_data in result_data.items():
@@ -209,8 +207,12 @@ def plot_qps_recall_graph(result_data, graph_name, paper_ver=False):
       xmin = min(min(recall), xmin)
       xmax = max(max(recall), xmax)
       x_2ndmax = max(max(recall[0:len(recall)-1]), x_2ndmax)
+      if "alpha" in alginfo:
+        alpha = alginfo["alpha"]
+      else:
+        alpha = 1.0
       rects[dataset_name] = axs.plot(recall, qps,
-        alpha=opacity,
+        alpha=alpha,
         color=alginfo["color"],
         linewidth=3.0,
         linestyle=linestyle,
