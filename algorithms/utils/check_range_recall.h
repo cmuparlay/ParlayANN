@@ -168,8 +168,12 @@ void checkRangeRecall(
   parlay::internal::timer t;
   float query_time;
   stats<indexType> QueryStats(active_indices.size());
+  parlay::sequence<indexType> start_points = {start_point};
  
-  auto [all_rr, visit_order]= RangeSearchOverSubset<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_point, RP, active_indices);
+  auto all_rr = DoubleBeamRangeSearch<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_points, RP);
+  //auto all_rr = DoubleBeamRangeSearchNoUpdate<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_points, RP);
+  //auto [all_rr, visit_order]= RangeSearchOverSubset<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_point, RP, active_indices);
+  
   query_time = t.next_time();
   
 
@@ -212,8 +216,8 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
 
   std::vector<long> beams;
 
-  beams = {5,10,20,30,40,50,60,70,80,90,100,200,350,500,1000}; 
-
+  beams = {1,2,3,4,5,10,20,30,40,50,100,200,350,500,1000}; 
+  //beams = {5};
   long double_beams = 1;
   // beams = {100};
   std::vector<double> slack = {1.0};
@@ -229,10 +233,6 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
 
   
 
-
-
-
-
   // std::cout << "Sweeping once with regular beam search" << std::endl;
   // for(long b: beams){
   //   RangeParams RP(rad, b);
@@ -242,18 +242,18 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
   std::cout << std::endl;
   std::cout << std::endl;
   std::cout << "Regular range search" << std::endl;
-  // for(long b: beams){
-  //   for(double sf: slack){
-  //     RangeParams RP(rad, b, sf, true);
-  //     checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, all);
-  //   }
-  // }
-
-  while(double_beams<1500){
-      RangeParams RP(rad, double_beams, 1.0, true);
+  for(long b: beams){
+    for(double sf: slack){
+      RangeParams RP(rad, b, sf, true);
       checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, all);
-      double_beams *= 2;
+    }
   }
+
+  // while(double_beams<1500){
+  //     RangeParams RP(rad, double_beams, 1.0, true);
+  //     checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, all);
+  //     double_beams *= 2;
+  // }
 
   // std::cout << std::endl;
   // std::cout << std::endl;

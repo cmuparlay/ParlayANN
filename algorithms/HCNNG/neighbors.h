@@ -35,7 +35,7 @@
 #include "hcnng_index.h"
 
 template<typename Point, typename PointRange, typename indexType>
-void ANN(Graph<indexType> &G, long k, BuildParams &BP,
+void ANN(Graph<indexType> &G, long k,   BuildParams &BP,
          PointRange &Query_Points,
          groundTruth<indexType> GT, char *res_file,
          bool graph_built, PointRange &Points) {
