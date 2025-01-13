@@ -59,7 +59,7 @@ void crop_file(char* iFile, int min, int max, char* oFile){
   writer.open(oFile, std::ios::binary | std::ios::out);
 
   writer.write((char *)(preamble.begin()), 2*sizeof(int));
-  writer.write((char *) data, dim*n*sizeof(T));
+  writer.write((char *) data, dim*static_cast<size_t>(n)*sizeof(T));
   writer.close();
 }
 
