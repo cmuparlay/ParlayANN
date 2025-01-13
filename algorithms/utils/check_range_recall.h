@@ -124,12 +124,8 @@ std::tuple<double, double, double> checkRangeRecall(
   parlay::internal::timer t;
   float query_time;
   stats<indexType> QueryStats(active_indices.size());
-  parlay::sequence<indexType> start_points = {start_point};
  
-  auto all_rr = DoubleBeamRangeSearch<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_points, RP);
-  //auto all_rr = DoubleBeamRangeSearchNoUpdate<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_points, RP);
-  //auto [all_rr, visit_order]= RangeSearchOverSubset<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_point, RP, active_indices);
-  
+  auto [all_rr, visit_order]= RangeSearchOverSubset<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_point, RP, active_indices);
   query_time = t.next_time();
   
 
