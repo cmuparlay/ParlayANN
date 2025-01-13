@@ -1,0 +1,42 @@
+Detected 10000 points with num matches 15341
+Detected 1000000 points with dimension 128
+Detected 10000 points with dimension 128
+Building graph...
+Pass 10% complete
+Pass 20% complete
+Pass 30% complete
+Pass 40% complete
+Pass 50% complete
+Pass 60% complete
+Pass 70% complete
+Pass 80% complete
+Pass 90% complete
+Pass 100% complete
+beam search time: total: 3.9010
+bidirect time: total: 0.6832
+prune time: total: 1.9962
+Average visited: 131, Tail visited: 135
+Vamana graph built with 1000000 points and parameters R = 64, L = 128
+Graph has average degree 48.06 and maximum degree 64
+Graph built in 6.785 seconds
+For all points: 
+
+
+Regular range search
+
+For Beam: 1, Pointwise Recall = 0.8168, Cumulative Recall = 0.9771, QPS = 1.005e+06
+For Beam: 2, Pointwise Recall = 0.8977, Cumulative Recall = 0.9809, QPS = 1.947e+06
+For Beam: 3, Pointwise Recall = 0.9312, Cumulative Recall = 0.9835, QPS = 1.707e+06
+For Beam: 4, Pointwise Recall = 0.9522, Cumulative Recall = 0.9853, QPS = 1.618e+06
+For Beam: 5, Pointwise Recall = 0.9589, Cumulative Recall = 0.9869, QPS = 1.736e+06
+For Beam: 10, Pointwise Recall = 0.9853, Cumulative Recall = 0.9922, QPS = 1.485e+06
+For Beam: 20, Pointwise Recall = 0.9931, Cumulative Recall = 0.9954, QPS = 9.117e+05
+For Beam: 30, Pointwise Recall = 0.9944, Cumulative Recall = 0.9967, QPS = 6.957e+05
+For Beam: 40, Pointwise Recall = 0.9987, Cumulative Recall = 0.9977, QPS = 5.822e+05
+For Beam: 50, Pointwise Recall = 0.9993, Cumulative Recall = 0.9981, QPS = 4.805e+05
+For Beam: 100, Pointwise Recall = 0.9998, Cumulative Recall = 0.9992, QPS = 2.853e+05
+For Beam: 200, Pointwise Recall = 0.9999, Cumulative Recall = 0.9996, QPS = 1.377e+05
+For Beam: 350, Pointwise Recall = 1, Cumulative Recall = 1, QPS = 7.464e+04
+For Beam: 500, Pointwise Recall = 1, Cumulative Recall = 1, QPS = 4.607e+04
+For Beam: 1000, Pointwise Recall = 1, Cumulative Recall = 1, QPS = 1.457e+04
+Parlay time: 8.0682

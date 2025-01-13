@@ -1,0 +1,81 @@
+Detected 10000 points with num results 100
+Detected 10000000 points with dimension 128
+Detected 10000 points with dimension 128
+Building with 10000 clusters
+Calculating clusters
+KMeans run on: 2000000 many points to obtain: 10000 many clusters.
+HCNNG clusterer size:89410n_clusters: 10000
+init centroid:
+Beginning iteration 0...
+Round 0, number of assignment changes: 780114
+Beginning iteration 1...
+Round 1, number of assignment changes: 421468
+Beginning iteration 2...
+Round 2, number of assignment changes: 286616
+Beginning iteration 3...
+Round 3, number of assignment changes: 214168
+Beginning iteration 4...
+Round 4, number of assignment changes: 169529
+Beginning iteration 5...
+Round 5, number of assignment changes: 139278
+Beginning iteration 6...
+Round 6, number of assignment changes: 116736
+Beginning iteration 7...
+Round 7, number of assignment changes: 100203
+Beginning iteration 8...
+Round 8, number of assignment changes: 86505
+Beginning iteration 9...
+Round 9, number of assignment changes: 76591
+Beginning iteration 10...
+Round 10, number of assignment changes: 67933
+Beginning iteration 11...
+Round 11, number of assignment changes: 61190
+Beginning iteration 12...
+Round 12, number of assignment changes: 55445
+Beginning iteration 13...
+Round 13, number of assignment changes: 49957
+Beginning iteration 14...
+Round 14, number of assignment changes: 45863
+Beginning iteration 15...
+Round 15, number of assignment changes: 42156
+Beginning iteration 16...
+Round 16, number of assignment changes: 38855
+Beginning iteration 17...
+Round 17, number of assignment changes: 35979
+Beginning iteration 18...
+Round 18, number of assignment changes: 33469
+Beginning iteration 19...
+Round 19, number of assignment changes: 31033
+KMeansClustering Time: 164.074
+ClusterStats: num_points: 10000000 num_clusters: 10000 Min: 0 Max: 3128 Avg: 1000
+Calculating centroids
+Building graph...
+Pass 10% complete
+Pass 20% complete
+Pass 30% complete
+Pass 40% complete
+Pass 50% complete
+Pass 60% complete
+Pass 70% complete
+Pass 80% complete
+Pass 90% complete
+Pass 100% complete
+beam search time: total: 0.0962
+bidirect time: total: 0.1782
+prune time: total: 0.1162
+After build: 23.83, 32
+Found 10000 centroids
+Index built in 167.4 s
+For recall = 0.242, QPS = 1.833e+05, n_probes = 1, average cmps = 1152
+For recall = 0.6205, QPS = 5.207e+04, n_probes = 5, average cmps = 5438
+For recall = 0.7625, QPS = 2.858e+04, n_probes = 10, average cmps = 10725
+For recall = 0.8699, QPS = 1.46e+04, n_probes = 20, average cmps = 21192
+For recall = 0.9545, QPS = 6299, n_probes = 50, average cmps = 52200
+For recall = 0.984, QPS = 3215, n_probes = 100, average cmps = 102877
+For recall = 0.9956, QPS = 1704, n_probes = 200, average cmps = 202921
+For recall = 0.9995, QPS = 705.5, n_probes = 500, average cmps = 69671
+For recall = 1, QPS = 351.5, n_probes = 1000, average cmps = 129218
+
+Saving index...
+Done saving
+Parlay time: 222.2521

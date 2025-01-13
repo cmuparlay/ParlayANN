@@ -1,0 +1,56 @@
+Detected 10000 points with num matches 973
+Detected 1000000 points with dimension 96
+Detected 10000 points with dimension 96
+Building graph...
+Pass 10% complete
+Pass 20% complete
+Pass 30% complete
+Pass 40% complete
+Pass 50% complete
+Pass 60% complete
+Pass 70% complete
+Pass 80% complete
+Pass 90% complete
+Pass 100% complete
+beam search time: total: 9.0326
+bidirect time: total: 0.8902
+prune time: total: 2.6888
+Average visited: 131, Tail visited: 135
+Vamana graph built with 1000000 points and parameters R = 64, L = 128
+Graph has average degree 45.89 and maximum degree 64
+Graph built in 12.95 seconds
+For all points: 
+
+
+Regular range search
+74 elements advanced to round two
+For Beam: 1, Pointwise Recall = 0.9567, Cumulative Recall = 0.9949, QPS = 5.578e+05
+58 elements advanced to round two
+For Beam: 2, Pointwise Recall = 0.9827, Cumulative Recall = 0.9979, QPS = 6.339e+05
+47 elements advanced to round two
+For Beam: 3, Pointwise Recall = 0.9827, Cumulative Recall = 0.9979, QPS = 7.791e+05
+41 elements advanced to round two
+For Beam: 4, Pointwise Recall = 0.9827, Cumulative Recall = 0.9979, QPS = 8.148e+05
+36 elements advanced to round two
+For Beam: 5, Pointwise Recall = 0.9957, Cumulative Recall = 0.999, QPS = 6.647e+05
+24 elements advanced to round two
+For Beam: 10, Pointwise Recall = 0.9957, Cumulative Recall = 0.999, QPS = 3.326e+05
+15 elements advanced to round two
+For Beam: 20, Pointwise Recall = 1, Cumulative Recall = 1, QPS = 3.321e+05
+10 elements advanced to round two
+For Beam: 30, Pointwise Recall = 1, Cumulative Recall = 1, QPS = 2.145e+05
+8 elements advanced to round two
+For Beam: 40, Pointwise Recall = 1, Cumulative Recall = 1, QPS = 2.066e+05
+4 elements advanced to round two
+For Beam: 50, Pointwise Recall = 1, Cumulative Recall = 1, QPS = 1.62e+05
+2 elements advanced to round two
+For Beam: 100, Pointwise Recall = 1, Cumulative Recall = 1, QPS = 1.001e+05
+0 elements advanced to round two
+For Beam: 200, Pointwise Recall = 1, Cumulative Recall = 1, QPS = 5.845e+04
+0 elements advanced to round two
+For Beam: 350, Pointwise Recall = 1, Cumulative Recall = 1, QPS = 3.696e+04
+0 elements advanced to round two
+For Beam: 500, Pointwise Recall = 1, Cumulative Recall = 1, QPS = 2.616e+04
+0 elements advanced to round two
+For Beam: 1000, Pointwise Recall = 1, Cumulative Recall = 1, QPS = 1.033e+04
+Parlay time: 15.1756

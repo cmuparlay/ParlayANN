@@ -1,0 +1,73 @@
+Detected 100000 points with num matches 8888
+Detected 1000000 points with dimension 100
+Aligning dimension to 112
+Detected 100000 points with dimension 100
+Aligning dimension to 112
+Building graph...
+Pass 10% complete
+Pass 20% complete
+Pass 30% complete
+Pass 40% complete
+Pass 50% complete
+Pass 60% complete
+Pass 70% complete
+Pass 80% complete
+Pass 90% complete
+Pass 100% complete
+beam search time: total: 15.8381
+bidirect time: total: 0.5984
+prune time: total: 10.2630
+Average visited: 132, Tail visited: 143
+Vamana graph built with 1000000 points and parameters R = 64, L = 128
+Graph has average degree 59.87 and maximum degree 64
+Graph built in 27.02 seconds
+For all points: 
+
+
+Regular range search
+1379 elements advanced to round two
+first round time:7.084, second_round_time:5.823
+For Beam: 1, Pointwise Recall = 0.5525, Cumulative Recall = 0.8425, QPS = 1.266e+06
+473 elements advanced to round two
+first round time:12.74, second_round_time:5.739
+For Beam: 2, Pointwise Recall = 0.782, Cumulative Recall = 0.9252, QPS = 9.578e+05
+225 elements advanced to round two
+first round time:17.16, second_round_time:4.529
+For Beam: 3, Pointwise Recall = 0.8763, Cumulative Recall = 0.9569, QPS = 7.21e+05
+131 elements advanced to round two
+first round time:20.65, second_round_time:4.106
+For Beam: 4, Pointwise Recall = 0.9186, Cumulative Recall = 0.971, QPS = 6.033e+05
+96 elements advanced to round two
+first round time:23.77, second_round_time:4.083
+For Beam: 5, Pointwise Recall = 0.9432, Cumulative Recall = 0.9779, QPS = 5.554e+05
+45 elements advanced to round two
+first round time:37.16, second_round_time:2.823
+For Beam: 10, Pointwise Recall = 0.9817, Cumulative Recall = 0.9922, QPS = 3.661e+05
+28 elements advanced to round two
+first round time:60.41, second_round_time:1.679
+For Beam: 20, Pointwise Recall = 0.9927, Cumulative Recall = 0.9956, QPS = 2.2e+05
+27 elements advanced to round two
+first round time:81.85, second_round_time:1.283
+For Beam: 30, Pointwise Recall = 0.9964, Cumulative Recall = 0.9967, QPS = 1.74e+05
+24 elements advanced to round two
+first round time:104, second_round_time:1.29
+For Beam: 40, Pointwise Recall = 0.9972, Cumulative Recall = 0.9971, QPS = 1.366e+05
+24 elements advanced to round two
+first round time:124.5, second_round_time:0.8449
+For Beam: 50, Pointwise Recall = 0.9972, Cumulative Recall = 0.9971, QPS = 1.148e+05
+21 elements advanced to round two
+first round time:226.6, second_round_time:0.6106
+For Beam: 100, Pointwise Recall = 0.9992, Cumulative Recall = 0.9989, QPS = 6.312e+04
+5 elements advanced to round two
+first round time:441, second_round_time:0.3185
+For Beam: 200, Pointwise Recall = 0.9996, Cumulative Recall = 0.9992, QPS = 3.247e+04
+3 elements advanced to round two
+first round time:775.7, second_round_time:0.1302
+For Beam: 350, Pointwise Recall = 0.9996, Cumulative Recall = 0.9992, QPS = 1.849e+04
+1 elements advanced to round two
+first round time:1114, second_round_time:0.02201
+For Beam: 500, Pointwise Recall = 0.9996, Cumulative Recall = 0.9992, QPS = 1.287e+04
+0 elements advanced to round two
+first round time:2409, second_round_time:0
+For Beam: 1000, Pointwise Recall = 1, Cumulative Recall = 0.9993, QPS = 5955
+Parlay time: 65.3143

@@ -1,0 +1,28 @@
+Detected 10000 points with num matches 15341
+Detected 1000000 points with dimension 128
+Detected 10000 points with dimension 128
+Building graph...
+Pass 10% complete
+Pass 20% complete
+Pass 30% complete
+Pass 40% complete
+Pass 50% complete
+Pass 60% complete
+Pass 70% complete
+Pass 80% complete
+Pass 90% complete
+Pass 100% complete
+beam search time: total: 3.9640
+bidirect time: total: 0.7305
+prune time: total: 2.0306
+Average visited: 131, Tail visited: 135
+Vamana graph built with 1000000 points and parameters R = 64, L = 128
+Graph has average degree 48.06 and maximum degree 64
+Graph built in 6.949 seconds
+For all points: 
+
+
+Regular range search
+251 elements advanced to round two
+For Beam: 1, Pointwise Recall = 0.9228, Cumulative Recall = 0.9967, QPS = 1.385e+05
+Parlay time: 7.0435
