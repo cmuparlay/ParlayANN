@@ -1,0 +1,36 @@
+Detected 10000 points with num results 100
+Detected 10000000 points with dimension 128
+Detected 10000 points with dimension 128
+Building with 10000 clusters
+Calculating clusters
+Calculating centroids
+Building graph...
+Pass 10% complete
+Pass 20% complete
+Pass 30% complete
+Pass 40% complete
+Pass 50% complete
+Pass 60% complete
+Pass 70% complete
+Pass 80% complete
+Pass 90% complete
+Pass 100% complete
+beam search time: total: 0.0221
+bidirect time: total: 0.0063
+prune time: total: 0.0211
+After build: 18.34, 32
+Found 1743 centroids
+Index built in 4.425 s
+For recall = 0.1565, QPS = 5.649e+04, n_probes = 1, average cmps = 6077
+For recall = 0.4415, QPS = 1.298e+04, n_probes = 5, average cmps = 30156
+For recall = 0.5842, QPS = 6495, n_probes = 10, average cmps = 59969
+For recall = 0.7213, QPS = 3533, n_probes = 20, average cmps = 119443
+For recall = 0.8651, QPS = 1514, n_probes = 50, average cmps = 4294834063
+For recall = 0.9382, QPS = 766, n_probes = 100, average cmps = 159358
+For recall = 0.9774, QPS = 428.4, n_probes = 200, average cmps = 4294850927
+For recall = 0.9971, QPS = 179.5, n_probes = 500, average cmps = 4294875841
+For recall = 0.9997, QPS = 91.38, n_probes = 1000, average cmps = 213738
+
+Saving index...
+Done saving
+Parlay time: 218.1144

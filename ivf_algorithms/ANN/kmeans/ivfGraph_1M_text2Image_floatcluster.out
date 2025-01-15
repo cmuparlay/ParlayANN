@@ -1,0 +1,74 @@
+Detected 100000 points with num results 100
+Detected 1000000 points with dimension 200
+Aligning dimension to 208
+Detected 10000 points with dimension 200
+Aligning dimension to 208
+Building with 1000 clusters
+Calculating clusters
+KMeans run on: 200000 many points to obtain: 1000 many clusters.
+HCNNG clusterer size:8615n_clusters: 1000
+init centroid:
+Beginning iteration 0...
+Round 0, number of assignment changes: 262828
+Beginning iteration 1...
+Round 1, number of assignment changes: 161381
+Beginning iteration 2...
+Round 2, number of assignment changes: 65929
+Beginning iteration 3...
+Round 3, number of assignment changes: 48731
+Beginning iteration 4...
+Round 4, number of assignment changes: 22811
+Beginning iteration 5...
+Round 5, number of assignment changes: 19776
+Beginning iteration 6...
+Round 6, number of assignment changes: 11304
+Beginning iteration 7...
+Round 7, number of assignment changes: 11657
+Beginning iteration 8...
+Round 8, number of assignment changes: 7281
+Beginning iteration 9...
+Round 9, number of assignment changes: 8613
+Beginning iteration 10...
+Round 10, number of assignment changes: 5265
+Beginning iteration 11...
+Round 11, number of assignment changes: 6796
+Beginning iteration 12...
+Round 12, number of assignment changes: 4213
+Beginning iteration 13...
+Round 13, number of assignment changes: 6159
+Beginning iteration 14...
+Round 14, number of assignment changes: 3576
+Beginning iteration 15...
+Round 15, number of assignment changes: 5464
+Beginning iteration 16...
+Round 16, number of assignment changes: 3023
+Beginning iteration 17...
+Round 17, number of assignment changes: 5022
+Beginning iteration 18...
+Round 18, number of assignment changes: 2671
+Beginning iteration 19...
+Round 19, number of assignment changes: 4656
+KMeansClustering Time: 18.4684
+ClusterStats: num_points: 1000000 num_clusters: 1000 Min: 0 Max: 15442 Avg: 1000
+Calculating centroids
+Building graph...
+Pass 10% complete
+Pass 20% complete
+Pass 30% complete
+Pass 40% complete
+Pass 50% complete
+Pass 60% complete
+Pass 70% complete
+Pass 80% complete
+Pass 90% complete
+Pass 100% complete
+beam search time: total: 0.1709
+bidirect time: total: 0.0367
+prune time: total: 0.1502
+After build: 25.14, 32
+Found 1000 centroids
+Index built in 19.78 s
+
+Saving index...
+Done saving
+Parlay time: 20.7313
