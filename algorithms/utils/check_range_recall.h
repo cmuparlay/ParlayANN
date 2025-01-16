@@ -243,6 +243,27 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
   cumulative_recall.clear();
   qps.clear();
 
+
+  //TODO: rangeparams and checkrangerecall update for double beam
+  for(long b: beams){
+    RangeParams RP(rad, b);
+    std::tuple<double, double, double> stats = checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, all);
+    pointwise_recall.push_back(std::get<0>(stats));
+    cumulative_recall.push_back(std::get<1>(stats));
+    qps.push_back(std::get<2>(stats));
+  }
+  std::cout << "All, Double Beam, Pointwise Recall: " << parlay::to_chars(pointwise_recall) << std::endl;
+  std::cout << "All, Double Beam, Cumulative Recall: " << parlay::to_chars(cumulative_recall) << std::endl;
+  std::cout << "All, Double Beam, QPS: " << parlay::to_chars(qps) << std::endl;
+  std::cout << std::endl;
+  std::cout << std::endl;
+  pointwise_recall.clear();
+  cumulative_recall.clear();
+  qps.clear();
+
+  
+
+
   for(long b: beams){
     RangeParams RP(rad, b);
     std::tuple<double, double, double> stats = checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, zero_res, "Zeros");
@@ -274,6 +295,17 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
   }
 
   std::cout << "Zeros, Early Stopping, QPS: " << parlay::to_chars(qps) << std::endl;
+  std::cout << std::endl;
+  std::cout << std::endl;
+  qps.clear();
+
+  for(long b: beams){
+    RangeParams RP(rad, b);
+    std::tuple<double, double, double> stats = checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, zero_res, "Zeros");
+    qps.push_back(std::get<2>(stats));
+  }
+
+  std::cout << "Zeros, Double Beam, QPS: " << parlay::to_chars(qps) << std::endl;
   std::cout << std::endl;
   std::cout << std::endl;
   qps.clear();
@@ -335,6 +367,23 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
   cumulative_recall.clear();
   qps.clear();
 
+  for(long b: beams){
+    RangeParams RP(rad, b);
+    std::tuple<double, double, double> stats = checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, nn_res, "OneTwos");
+    pointwise_recall.push_back(std::get<0>(stats));
+    cumulative_recall.push_back(std::get<1>(stats));
+    qps.push_back(std::get<2>(stats));
+  }
+
+  std::cout << "Onetwos, Double Beam, Pointwise Recall: " << parlay::to_chars(pointwise_recall) << std::endl;
+  std::cout << "Onetwos, Double Beam, Cumulative Recall: " << parlay::to_chars(cumulative_recall) << std::endl;
+  std::cout << "Onetwos, Double Beam, QPS: " << parlay::to_chars(qps) << std::endl;
+  std::cout << std::endl;
+  std::cout << std::endl;
+  pointwise_recall.clear();
+  cumulative_recall.clear();
+  qps.clear();
+
 
   for(long b: beams){
     RangeParams RP(rad, b);
@@ -383,6 +432,23 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
   std::cout << "Threeplus, Early Stopping, Pointwise Recall: " << parlay::to_chars(pointwise_recall) << std::endl;
   std::cout << "Threeplus, Early Stopping, Cumulative Recall: " << parlay::to_chars(cumulative_recall) << std::endl;
   std::cout << "Threeplus, Early Stopping, QPS: " << parlay::to_chars(qps) << std::endl;
+  std::cout << std::endl;
+  std::cout << std::endl;
+  pointwise_recall.clear();
+  cumulative_recall.clear();
+  qps.clear();
+
+  for(long b: beams){
+    RangeParams RP(rad, b);
+    std::tuple<double, double, double> stats = checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, rng_res, "Threeplus");
+    pointwise_recall.push_back(std::get<0>(stats));
+    cumulative_recall.push_back(std::get<1>(stats));
+    qps.push_back(std::get<2>(stats));
+  }
+
+  std::cout << "Threeplus, Double Beam, Pointwise Recall: " << parlay::to_chars(pointwise_recall) << std::endl;
+  std::cout << "Threeplus, Double Beam, Cumulative Recall: " << parlay::to_chars(cumulative_recall) << std::endl;
+  std::cout << "Threeplus, Double Beam, QPS: " << parlay::to_chars(qps) << std::endl;
   std::cout << std::endl;
   std::cout << std::endl;
   pointwise_recall.clear();
