@@ -61,7 +61,7 @@ def string_to_list(s):
   return [ss.strip() for ss in s]
 
 pt_groupings = ["All", "Zeros", "Onetwos", "Threeplus"]
-search_types = ["Beam Search", "Range Search", "Early Stopping"]
+search_types = ["Beam Search", "Greedy Search", "Early Stopping"]
 recall_types = ["Pointwise Recall", "Cumulative Recall"]
 
 valid_groups = []
@@ -172,7 +172,7 @@ def export_legend(legend, filename="legend.pdf"):
     fig.savefig(filename, dpi="figure", bbox_inches=bbox)
 
 linestyles = {"Beam Search": "solid",
-              "Range Search": "dashed",
+              "Greedy Search": "dashed",
               "Early Stopping": "dotted",
             }
 

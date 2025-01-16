@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import math 
 
 p="/ssd1/data/"
-filenames = ['FB_ssnpp/ssnpp-1M', 'FB_ssnpp/ssnpp-10M', 'FB_ssnpp/ssnpp-100M', 'bigann/range_gt_1M_10000','bigann/range_gt_10M_10000','bigann/range_gt_100M_10000','MSTuringANNS/range_gt_1M_100K_.3', 'gist/range_gt_1M_.5', 'deep1b/range_gt_1M_.02','msmarco_websearch/range_gt_1M_-62', 'wikipedia_cohere/range_gt_1M_-10.5', 'wikipedia_cohere/range_gt_10M_-10.5', 'OpenAIArXiv/openai_gt_1M_.2', 'text2image1B/range_gt_1M_-.6']
+filenames = ['FB_ssnpp/ssnpp-1M', 'FB_ssnpp/ssnpp-10M', 'FB_ssnpp/ssnpp-100M', 'bigann/range_gt_1M_10000','bigann/range_gt_10M_10000','bigann/range_gt_100M_10000','MSTuringANNS/range_gt_1M_100K_.3', 'gist/range_gt_1M_10K_.5', 'deep1b/range_gt_1M_.02','msmarco_websearch/range_gt_1M_-62', 'wikipedia_cohere/range_gt_1M_-10.5', 'wikipedia_cohere/range_gt_10M_-10.5', 'OpenAIArXiv/openai_gt_1M_.2', 'text2image1B/range_gt_1M_-.6']
 titles = ['SSNPP', 'SSNPP-10M', 'SSNPP-100M', 'BIGANN', 'BIGANN-10M', 'BIGANN-100M', 'MSTuring', 'GIST', 'DEEP', 'MSMARCO', 'Wikipedia', 'Wikipedia-10M', 'OpenAI', 'Text2Image']
 result_dir="graphs/range_result_histograms/"
 
@@ -18,7 +18,7 @@ dsinfo = {
                 "color": "C1"},
   "DEEP" : {"mult": 100, 
                 "color": "C2"},
-  "GIST" : {"mult": 10,  
+  "GIST" : {"mult": 100,  
                 "color": "C3"},
   "SSNPP" : {"mult": 1000,  
                 "color": "C4"},

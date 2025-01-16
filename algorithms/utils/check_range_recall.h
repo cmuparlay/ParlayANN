@@ -214,9 +214,9 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
     cumulative_recall.push_back(std::get<1>(stats));
     qps.push_back(std::get<2>(stats));
   }
-  std::cout << "All, Range Search, Pointwise Recall: " << parlay::to_chars(pointwise_recall) << std::endl;
-  std::cout << "All, Range Search, Cumulative Recall: " << parlay::to_chars(cumulative_recall) << std::endl;
-  std::cout << "All, Range Search, QPS: " << parlay::to_chars(qps) << std::endl;
+  std::cout << "All, Greedy Search, Pointwise Recall: " << parlay::to_chars(pointwise_recall) << std::endl;
+  std::cout << "All, Greedy Search, Cumulative Recall: " << parlay::to_chars(cumulative_recall) << std::endl;
+  std::cout << "All, Greedy Search, QPS: " << parlay::to_chars(qps) << std::endl;
   std::cout << std::endl;
   std::cout << std::endl;
   pointwise_recall.clear();
@@ -281,7 +281,7 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
     qps.push_back(std::get<2>(stats));
   }
 
-  std::cout << "Zeros, Range Search, QPS: " << parlay::to_chars(qps) << std::endl;
+  std::cout << "Zeros, Greedy Search, QPS: " << parlay::to_chars(qps) << std::endl;
   std::cout << std::endl;
   std::cout << std::endl;
   qps.clear();
@@ -338,9 +338,9 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
     qps.push_back(std::get<2>(stats));
   }
 
-  std::cout << "Onetwos, Range Search, Pointwise Recall: " << parlay::to_chars(pointwise_recall) << std::endl;
-  std::cout << "Onetwos, Range Search, Cumulative Recall: " << parlay::to_chars(cumulative_recall) << std::endl;
-  std::cout << "Onetwos, Range Search, QPS: " << parlay::to_chars(qps) << std::endl;
+  std::cout << "Onetwos, Greedy Search, Pointwise Recall: " << parlay::to_chars(pointwise_recall) << std::endl;
+  std::cout << "Onetwos, Greedy Search, Cumulative Recall: " << parlay::to_chars(cumulative_recall) << std::endl;
+  std::cout << "Onetwos, Greedy Search, QPS: " << parlay::to_chars(qps) << std::endl;
   std::cout << std::endl;
   std::cout << std::endl;
   pointwise_recall.clear();
@@ -410,9 +410,9 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
     qps.push_back(std::get<2>(stats));
   }
 
-  std::cout << "Threeplus, Range Search, Pointwise Recall: " << parlay::to_chars(pointwise_recall) << std::endl;
-  std::cout << "Threeplus, Range Search, Cumulative Recall: " << parlay::to_chars(cumulative_recall) << std::endl;
-  std::cout << "Threeplus, Range Search, QPS: " << parlay::to_chars(qps) << std::endl;
+  std::cout << "Threeplus, Greedy Search, Pointwise Recall: " << parlay::to_chars(pointwise_recall) << std::endl;
+  std::cout << "Threeplus, Greedy Search, Cumulative Recall: " << parlay::to_chars(cumulative_recall) << std::endl;
+  std::cout << "Threeplus, Greedy Search, QPS: " << parlay::to_chars(qps) << std::endl;
   std::cout << std::endl;
   std::cout << std::endl;
   pointwise_recall.clear();
