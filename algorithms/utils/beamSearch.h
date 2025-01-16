@@ -135,7 +135,7 @@ beam_search_impl(Point p, GT &G, PointRange &Points,
       std::cout << QP.early_stop << std::endl;
     }
     bool has_found_candidate = (frontier[0].second <= rad);
-    bool within_early_stop_rad = (frontier[0].second <= QP.early_stop_radius);
+    bool within_early_stop_rad = (current.second <= QP.early_stop_radius);
     if(early_stop && has_visited_enough && !has_found_candidate && !within_early_stop_rad) {
       break;
     }

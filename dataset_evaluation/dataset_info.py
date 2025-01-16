@@ -41,7 +41,7 @@ data_options = {
                 "alpha": 1.15,
                 "gt": bigann+"/range_gt_100M_10000"},
   "msturing-1M" : {"base": msturing+"/base1b.fbin.crop_nb_1000000", 
-                "query": msturing+"/query10K.fbin", 
+                "query": msturing+"/query100K.fbin", 
                 "data_type" : "float", 
                 "dist_fn": "Euclidian",
                 "radius": .3,
@@ -93,7 +93,7 @@ data_options = {
                 "data_type" : "float", 
                 "dist_fn": "mips",
                 "radius": -10.5,
-                "esr": -9.5 #final choice 
+                "esr": -9.5, #final choice 
                 "alpha": 1.0, 
                 "gt": wikipedia+"/range_gt_1M_-10.5"},
   "wikipedia-10M" : {"base":wikipedia+"/wikipedia_base.bin.crop_nb_10000000", 
@@ -101,7 +101,7 @@ data_options = {
                 "data_type" : "float", 
                 "dist_fn": "mips",
                 "radius": -10.5,
-                "esr": -9.5 #final choice 
+                "esr": -9.5, #final choice 
                 "alpha": 1.0, 
                 "gt": wikipedia+"/range_gt_10M_-10.5"},
   "msmarco-1M" : {"base": msmarco+"/vectors.bin.crop_nb_1000000", 
@@ -120,7 +120,7 @@ data_options = {
                 "esr": 0, 
                 "alpha": 1.0,
                 "gt": text2image+"/range_gt_1M_-.6"},
-  "openai-1M" : {"base": openai+"/openai_base_1M.bin", 
+  "openai-1M" : {"base": openai+"/openai_base.bin.crop_nb_1000000", 
                 "query": openai+"/openai_query_10K.bin", 
                 "data_type" : "float", 
                 "dist_fn": "Euclidian",
