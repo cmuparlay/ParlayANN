@@ -22,6 +22,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-groups", nargs='+', help="specify which groups to plot recall for: all, zeros, onetwos, or threeplus")
 parser.add_argument("-datasets", help="dataset list")
 parser.add_argument("-g","--graphs_only", help="graphs only",action="store_true")
+parser.add_argument("-p","--paper_ver", help="paper_version",action="store_true")
 parser.add_argument("-graph_name", help="graphs name")
 
 args = parser.parse_args()
@@ -254,6 +255,6 @@ def plot_qps_recall_graph(result_data, graph_name, paper_ver=False):
   plt.close('all')
 
 
-plot_qps_recall_graph(result_data, args.graph_name)
+plot_qps_recall_graph(result_data, args.graph_name, args.paper_version)
 
 

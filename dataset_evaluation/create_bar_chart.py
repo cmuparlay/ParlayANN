@@ -23,11 +23,18 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-dataset", help="dataset")
 parser.add_argument("-recalls", help="recall list")
 parser.add_argument("-g","--graphs_only", help="graphs only",action="store_true")
+parser.add_argument("-p","--paper_version", help="paper_version",action="store_true")
+parser.add_argument("-recall_type", help="specify cumulative or pointwise recall")
 parser.add_argument("-graph_name", help="graphs name")  
 
 args = parser.parse_args()
-print("dataset " + args.dataset)
+print("dataset:" + args.dataset)
 print("recalls:", args.recalls)
+print("recall type:", args.recall_type)
+
+if (args.recall_type != "Cumulative Recall") and (args.recall_type != "Pointwise Recall"):
+  print("Invalid recall type")
+  exit(1)
 
 already_ran = set()
 
@@ -82,7 +89,7 @@ algorithms=["Beam Search", "Greedy Search", "Doubling Search", "Early Stopping"]
 
 for algorithm in algorithms:
     result_data[algorithm] = {}
-    recall_line = "All, " + algorithm + ", Cumulative Recall"
+    recall_line = "All, " + algorithm + ", " + args.recall_type
     timings_line = "All, " + algorithm + ", Timings"
     beams_line = "All, " + algorithm + ", Beams"
     timings, recall, beams = readResultsFile(args.dataset, recall_line, timings_line, beams_line)
@@ -163,6 +170,7 @@ def plot_time_bar_chart(result_data, graph_name, paper_ver=False):
     multiplier += 1
 
   ax.set_ylabel('Time (s)')
+  ax.set_xlabel(args.recall_type)
   ax.set_xticks(y + width, recalls)
 
 
@@ -171,7 +179,7 @@ def plot_time_bar_chart(result_data, graph_name, paper_ver=False):
   plt.grid()
   plt.tight_layout()
   ax.set_ylim(0, max_height+1.2)
-  # fig.set_figheight(max_height+1)
+
   if not paper_ver:
     plt.title(graph_name)
     plt.legend(loc='center left', bbox_to_anchor=(legend_x, legend_y))
@@ -179,15 +187,15 @@ def plot_time_bar_chart(result_data, graph_name, paper_ver=False):
 
   if paper_ver:
     nc = 8
-    if len(algs) == 2:
+    if len(algorithms) == 2:
       ncol = 1
-    elif len(algs) == 5:
+    elif len(algorithms) == 5:
       ncol = 3
     legend = plt.legend(loc='center left', bbox_to_anchor=(legend_x, legend_y), ncol=nc, framealpha=0.0)
     export_legend(legend, directory + "/" + graph_name + '_legend.pdf')
   plt.close('all')
 
 
-plot_time_bar_chart(result_data, args.graph_name)
+plot_time_bar_chart(result_data, args.graph_name, args.paper_version)
 
 
