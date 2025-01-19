@@ -148,6 +148,7 @@ def export_legend(legend, filename="legend.pdf"):
 linestyles = {"Beam Search": "solid",
               "Greedy Search": "dashed",
               "Early Stopping": "dotted",
+              "Doubling Search": "dashdot",
             }
 
 def plot_qps_recall_graph(result_data, graph_name, paper_ver=False):
