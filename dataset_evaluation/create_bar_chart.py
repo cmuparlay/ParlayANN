@@ -136,6 +136,9 @@ def plot_time_bar_chart(result_data, graph_name, paper_ver=False):
     data = result_data[algorithm]
     for recall in recalls:
       index = find_index_closest_to(data["recall"], float(recall))
+      if abs(data["recall"][index]-float(recall)) > 1:
+        print("No recall values close enough to", recall, "continuing")
+        continue
       beams.append(data["beams"][index])
       total_time = float(data["timings"][index][0]) + float(data["timings"][index][1])
       if total_time > max_height:
