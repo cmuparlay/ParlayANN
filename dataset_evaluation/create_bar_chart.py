@@ -111,6 +111,11 @@ alginfo = {
   "Early Stopping": {"color": "C3"},
 }
 
+def remove_indices(lst, indices):
+    """Removes elements from a list based on given indices."""
+    new_lst = [lst[i] for i in range(len(lst)) if i not in indices]
+    return new_lst
+
 def plot_time_bar_chart(result_data, graph_name, paper_ver=False):
   directory = "graphs/bar_charts"
   os.makedirs(directory, exist_ok=True)
@@ -126,18 +131,22 @@ def plot_time_bar_chart(result_data, graph_name, paper_ver=False):
   width = .2
   multiplier = 0
 
-  x = np.arange(len(recalls))
+  y = np.arange(len(recalls))
 
   # create a set of bars with one color for each algorithm
   for algorithm in algorithms:
+    x = np.arange(len(recalls))
     beams = []
     beam_heights = []
     total_heights = []
     data = result_data[algorithm]
-    for recall in recalls:
+    indices_to_remove = []
+    for i in range(len(recalls)):
+      recall = recalls[i]
       index = find_index_closest_to(data["recall"], float(recall))
-      if abs(data["recall"][index]-float(recall)) > 1:
-        print("No recall values close enough to", recall, "continuing")
+      if abs(data["recall"][index]-float(recall)) > .01:
+        print("No recall values close enough to", recall, "for algorithm", algorithm)
+        indices_to_remove.append(i)
         continue
       beams.append(data["beams"][index])
       total_time = float(data["timings"][index][0]) + float(data["timings"][index][1])
@@ -145,15 +154,16 @@ def plot_time_bar_chart(result_data, graph_name, paper_ver=False):
         max_height = total_time
       total_heights.append(float(data["timings"][index][1]))
       beam_heights.append(float(data["timings"][index][0]))
+    x = np.array(remove_indices(x, indices_to_remove))
     offset = width * multiplier
     labels = [str(x) for x in beams]
     rects_low = ax.bar(x+offset, beam_heights, width, color=alginfo["Beam Search"]["color"])
     rects_high = ax.bar(x+offset, total_heights, width, bottom=beam_heights, label=algorithm, color=(alginfo[algorithm])["color"])
-    ax.bar_label(rects_high, labels=labels, padding=2)
+    ax.bar_label(rects_high, labels=labels, padding=2, fontsize=16)
     multiplier += 1
 
   ax.set_ylabel('Time (s)')
-  ax.set_xticks(x + width, recalls)
+  ax.set_xticks(y + width, recalls)
 
 
   legend_x = 1
