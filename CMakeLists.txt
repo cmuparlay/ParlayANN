@@ -33,5 +33,3 @@ target_include_directories(ParlayANN INTERFACE
 add_subdirectory(algorithms)
 #add_subdirectory(data_tools)
 #add_subdirectory(range_search)
-
-
