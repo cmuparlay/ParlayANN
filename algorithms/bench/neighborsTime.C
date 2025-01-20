@@ -52,9 +52,25 @@ parlay::sequence<float> graph_distances_from_origin(PointRange &Points, long ori
   parlay::parallel_for(0, Points.size(), [&](long i) {
     distances[i] = Points[origin].distance(Points[i]);
   });
+
   return distances;
 }
 
+float median_distance(parlay::sequence<float> distances) {
+  int k = distances.size() / 2;
+
+  return *parlay::kth_smallest(distances, k);
+  
+}
+
+std::pair<float, float>  min_max_distance(parlay::sequence<float> distances) {
+  std::pair<float*, float*> tmp = parlay::minmax_element(distances);
+  return std::make_pair(*tmp.first, *tmp.second);
+}
+
+float average_distance(parlay::sequence<float> distances) {
+  return parlay::reduce(distances) / distances.size();
+}
 
 
 template<typename Point, typename PointRange, typename indexType>
@@ -63,8 +79,6 @@ void timeNeighbors(Graph<indexType> &G,
 		   BuildParams &BP, char* outFile,
 		   groundTruth<indexType> GT, char* res_file, bool graph_built, PointRange &Points)
 {
-
-
     time_loop(1, 0,
       [&] () {},
       [&] () {
@@ -75,9 +89,13 @@ void timeNeighbors(Graph<indexType> &G,
     if(outFile != NULL) {
       G.save(outFile);
     }
-    auto distances = graph_distances_from_origin<Point, PointRange, indexType>(Points, 0);
-    for (int i = 0; i < 10; i++) std::cout << "Vector "<< i << "'s distance from origin (vector 0): " << distances[i] << std::endl;
-
+    auto distances = graph_distances_from_origin<Point,  PointRange,  indexType>(Points, 0);
+    std::cout << "median distance is " << median_distance(distances) << std::endl;
+    std::pair<float, float> mm = min_max_distance(distances);
+    std::cout << "min and max distances is " << mm.first << ' ' << mm.second << std::endl;
+    std::cout << "average distance is " << average_distance(distances) << std::endl;
+    
+    
 }
 
 int main(int argc, char* argv[]) {
