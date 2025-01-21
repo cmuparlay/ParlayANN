@@ -14,6 +14,7 @@ from matplotlib.patches import Rectangle
 import numpy as np
 import statistics as st
 from dataset_info import mk, dsinfo, data_options
+from utils import runtest
 
 
 
@@ -21,40 +22,13 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-groups", nargs='+', help="specify which groups to plot recall for: all, zeros, onetwos, or threeplus")
 parser.add_argument("-datasets", help="dataset list")
 parser.add_argument("-g","--graphs_only", help="graphs only",action="store_true")
+parser.add_argument("-p","--paper_version", help="paper_version",action="store_true")
 parser.add_argument("-graph_name", help="graphs name")
 
 args = parser.parse_args()
 print("datasets " + args.datasets)
 print("groups:", args.groups)
 
-
-already_ran = set()
-
-def runstring(op, outfile):
-    if op in already_ran:
-        return
-    already_ran.add(op)
-    os.system("echo \"" + op + "\"")
-    os.system("echo \"" + op + "\" >> " + outfile)
-    x = os.system(op + " >> " + outfile)
-    if (x) :
-        if (os.WEXITSTATUS(x) == 0) : raise NameError("  aborted: " + op)
-        os.system("echo Failed")
-    
-def runtest(dataset_name, outfile) :
-    ds = data_options[dataset_name]
-    op = "./../rangeSearch/vamanaRange/range"
-    op += " -base_path " + ds["base"] 
-    op += " -gt_path " + ds["gt"] 
-    op += " -query_path " + ds["query"] 
-    op += " -data_type " + ds["data_type"] 
-    op += " -dist_func " + ds["dist_fn"] 
-    op += " -r " + str(ds["radius"] )
-    op += " -early_stopping_radius " + str(ds["esr"] )
-    op += " -alpha " + str(ds["alpha"] )
-    op += " -R " + str(64)
-    op += " -L " + str(128)
-    runstring(op, outfile)
 
 def string_to_list(s):
   s = s.strip().strip('[').strip(']').split(',')
@@ -174,6 +148,7 @@ def export_legend(legend, filename="legend.pdf"):
 linestyles = {"Beam Search": "solid",
               "Greedy Search": "dashed",
               "Early Stopping": "dotted",
+              "Doubling Search": "dashdot",
             }
 
 def plot_qps_recall_graph(result_data, graph_name, paper_ver=False):
@@ -185,7 +160,6 @@ def plot_qps_recall_graph(result_data, graph_name, paper_ver=False):
   print(outputFile)
   xmin = 1.0
   xmax = 0
-  x_2ndmax = 0 #keep 2nd max to set ticks reasonably
 
 
   fig, axs = plt.subplots()
@@ -206,7 +180,6 @@ def plot_qps_recall_graph(result_data, graph_name, paper_ver=False):
       qps, recall = pareto_frontier(qps_raw, recall_raw, True)
       xmin = min(min(recall), xmin)
       xmax = max(max(recall), xmax)
-      x_2ndmax = max(max(recall[0:len(recall)-1]), x_2ndmax)
       if "alpha" in alginfo:
         alpha = alginfo["alpha"]
       else:
@@ -244,7 +217,6 @@ def plot_qps_recall_graph(result_data, graph_name, paper_ver=False):
       # plt.xticks(ticker.LogitLocator().tick_values(xmin, xmax))
       xticks = [0, .5, .9, .99, .999, .9999, 1.0]
       real_xticks=[]
-      print(xmin, xmax)
       for i in range(len(xticks)):
         if (xticks[i] < xmin) & (i < len(xticks)-1):
           if (xticks[i+1] < xmin):
@@ -253,7 +225,6 @@ def plot_qps_recall_graph(result_data, graph_name, paper_ver=False):
           if (xticks[i-1] > xmax):
             continue
         real_xticks.append(xticks[i])
-      print(real_xticks)
       plt.xticks(real_xticks)
 
   axs.set_yscale('log')
@@ -276,15 +247,11 @@ def plot_qps_recall_graph(result_data, graph_name, paper_ver=False):
 
   if paper_ver:
     nc = 8
-    if len(algs) == 2:
-      ncol = 1
-    elif len(algs) == 5:
-      ncol = 3
     legend = plt.legend(loc='center left', bbox_to_anchor=(legend_x, legend_y), ncol=nc, framealpha=0.0)
     export_legend(legend, 'graphs/' + graph_name + '_legend.pdf')
   plt.close('all')
 
 
-plot_qps_recall_graph(result_data, args.graph_name)
+plot_qps_recall_graph(result_data, args.graph_name, args.paper_version)
 
 

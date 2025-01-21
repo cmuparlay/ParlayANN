@@ -14,3 +14,6 @@ crop : crop.cpp
 
 random_sample : random_sample.cpp
 	$(CC) $(CFLAGS) -o random_sample random_sample.cpp $(LFLAGS) 
+
+make_tags : make_tags.cpp
+	$(CC) $(CFLAGS) -o make_tags make_tags.cpp $(LFLAGS) 
