@@ -112,10 +112,10 @@ def find_index_closest_to(recall_list, target):
   return recall_list.index(closest_value)
 
 alginfo = {
-  "Beam Search" : {"color": "C0"},
-  "Greedy Search" : {"color": "C1"},
-  "Doubling Search" : {"color": "C2"},
-  "Early Stopping": {"color": "C3"},
+  "Beam Search" : {"color": "C0", "label": "Beam Search"},
+  "Greedy Search" : {"color": "C1", "label": "Greedy Search"},
+  "Doubling Search" : {"color": "C2", "label": "Doubling Beam Search"},
+  "Early Stopping": {"color": "C3", "label": "Beam Search with Early Stopping"},
 }
 
 def remove_indices(lst, indices):
@@ -164,8 +164,12 @@ def plot_time_bar_chart(result_data, graph_name, paper_ver=False):
     x = np.array(remove_indices(x, indices_to_remove))
     offset = width * multiplier
     labels = [str(x) for x in beams]
-    rects_low = ax.bar(x+offset, beam_heights, width, color=alginfo["Beam Search"]["color"])
-    rects_high = ax.bar(x+offset, total_heights, width, bottom=beam_heights, label=algorithm, color=(alginfo[algorithm])["color"])
+    if algorithm == "Early Stopping":
+      rects_low = ax.bar(x+offset, beam_heights, width, color=alginfo[algorithm]["color"])
+      rects_high = ax.bar(x+offset, total_heights, width, bottom=beam_heights, label=alginfo[algorithm]["label"], color=(alginfo["Greedy Search"])["color"])
+    else: 
+      rects_low = ax.bar(x+offset, beam_heights, width, color=alginfo["Beam Search"]["color"])
+      rects_high = ax.bar(x+offset, total_heights, width, bottom=beam_heights, label=alginfo[algorithm]["label"], color=(alginfo[algorithm])["color"])
     ax.bar_label(rects_high, labels=labels, padding=2, fontsize=16)
     multiplier += 1
 
@@ -192,6 +196,8 @@ def plot_time_bar_chart(result_data, graph_name, paper_ver=False):
     elif len(algorithms) == 5:
       ncol = 3
     legend = plt.legend(loc='center left', bbox_to_anchor=(legend_x, legend_y), ncol=nc, framealpha=0.0)
+    legend.legendHandles[3].set_facecolor(alginfo["Early Stopping"]["color"])
+    legend.legendHandles[3].set_edgecolor(alginfo["Early Stopping"]["color"])
     export_legend(legend, directory + "/" + graph_name + '_legend.pdf')
   plt.close('all')
 
