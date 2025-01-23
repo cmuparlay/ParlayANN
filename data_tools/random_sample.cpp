@@ -8,9 +8,7 @@
 
 #include <random>
 
-
-
-
+using namespace parlayANN;
 
 template<typename T>
 void random_sample(char* iFile, int n, char* oFile){
