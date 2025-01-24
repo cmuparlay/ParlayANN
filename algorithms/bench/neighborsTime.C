@@ -22,6 +22,7 @@
 
 #include <iostream>
 #include <algorithm>
+#include <map>
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 #include "parse_command_line.h"
@@ -46,31 +47,75 @@ using namespace parlayANN;
 
 using uint = unsigned int;
 
-template<typename Point, typename PointRange, typename indexType>
-parlay::sequence<float> graph_distances_from_origin(PointRange &Points, long origin) {
-  parlay::sequence<float> distances = parlay::sequence<float>(Points.size(), 0.0);
-  parlay::parallel_for(0, Points.size(), [&](long i) {
-    distances[i] = Points[origin].distance(Points[i]);
-  });
+
+// template<typename Point, typename PointRange, typename indexType>
+// parlay::sequence<float> graph_distances_from_origin(PointRange &Points, long origin) {
+//   parlay::sequence<float> distances = parlay::sequence<float>(Points.size(), 0.0);
+//   parlay::parallel_for(0, Points.size(), [&](long i) {
+//     distances[i] = Points[origin].distance(Points[i]);
+//   });
+
+//   return distances;
+// }
+
+
+
+// /**
+// returns the median distance from the root vector 0 to all other vectors.
+
+// */
+// float median_distance(parlay::sequence<float> distances) {
+//   int k = distances.size() / 2;
+  
+//   return *parlay::kth_smallest(distances, k);
+  
+// }
+
+// /**returns the min and max distances from the root vector to all other vectors*/
+// std::pair<float, float>  min_max_distance(parlay::sequence<float> distances) {
+//   std::pair<float*, float*> tmp = parlay::minmax_element(distances);
+//   return std::make_pair(*tmp.first, *tmp.second);
+// }
+
+
+// /**returns the average distance from the root vector to all other vectors */
+// float average_distance(parlay::sequence<float> distances) {
+//   return parlay::reduce(distances) / distances.size();
+// }
+
+
+/**
+   Findings: index i of Graph G returns an edgeRange struct which contains the # of neighbors of the ith node as the first elements and the rest are the indices of the neighbors.
+   How to generate the # of hops to every node in G from the start: BFS
+ */
+
+template<typename indexType>
+std::vector<int> numHopsFromOrigin(Graph<indexType> &G) {
+  std::set<indexType> visited;
+  std::vector<int> distances;
+  for (int i = 0; i < G.size(); i++) distances.push_back(0);
+  std::queue<indexType> q;
+
+
+  q.push(0);
+  while (!q.empty()) {
+    indexType currentNode = q.front();
+    q.pop();
+    visited.insert(currentNode);
+    edgeRange<indexType> neighbors = G[currentNode];
+    for (size_t i = 0; i < neighbors.size(); i++) {
+      indexType neighbor = neighbors[i];
+      if (visited.find(neighbor) == visited.end()) {
+	q.push(neighbor);
+	distances[neighbor] = distances[currentNode] + 1;      
+      }
+    }
+  }
 
   return distances;
+
 }
 
-float median_distance(parlay::sequence<float> distances) {
-  int k = distances.size() / 2;
-
-  return *parlay::kth_smallest(distances, k);
-  
-}
-
-std::pair<float, float>  min_max_distance(parlay::sequence<float> distances) {
-  std::pair<float*, float*> tmp = parlay::minmax_element(distances);
-  return std::make_pair(*tmp.first, *tmp.second);
-}
-
-float average_distance(parlay::sequence<float> distances) {
-  return parlay::reduce(distances) / distances.size();
-}
 
 
 template<typename Point, typename PointRange, typename indexType>
@@ -85,17 +130,23 @@ void timeNeighbors(Graph<indexType> &G,
         ANN<Point, PointRange, indexType>(G, k, BP, Query_Points, GT, res_file, graph_built, Points);
       },
       [&] () {});
-
     if(outFile != NULL) {
       G.save(outFile);
     }
-    auto distances = graph_distances_from_origin<Point,  PointRange,  indexType>(Points, 0);
-    std::cout << "median distance is " << median_distance(distances) << std::endl;
-    std::pair<float, float> mm = min_max_distance(distances);
-    std::cout << "min and max distances is " << mm.first << ' ' << mm.second << std::endl;
-    std::cout << "average distance is " << average_distance(distances) << std::endl;
-    
-    
+    std::vector<int> distances = numHopsFromOrigin<indexType>(G);
+    int maxHops = 0;
+    int indexMaxNode = 0;
+    for (int i = 0; i < distances.size(); i++) {
+      if (distances[i] > maxHops) {
+	maxHops = distances[i];
+	indexMaxNode = i;
+      }
+    }
+
+    std::cout <<"Max number of hops: " << maxHops << " at node " << indexMaxNode << std::endl;
+  
+    std::sort(distances.begin(), distances.end());
+    std::cout << "Median number of hops is " << distances[distances.size() / 2] << std::endl; 
 }
 
 int main(int argc, char* argv[]) {
