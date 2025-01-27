@@ -211,26 +211,31 @@ beam_search_impl(Point p, GT &G, PointRange &Points,
       
     // features topk closest for various k 
     // if(frontier.size() >= 10){
-    //   visited_inorder.push_back(frontier[9]);
+    //   if (has_found_candidate) visited_inorder.push_back(std::make_pair(1, frontier[9].second));
+    //   else visited_inorder.push_back(std::make_pair(0, frontier[9].second));
     // } else visited_inorder.push_back(std::make_pair(0, std::numeric_limits<float>::max()));
+
 
     // if(frontier.size() >= 1){
-    //   visited_inorder.push_back(frontier[0]);
-    // } else visited_inorder.push_back(std::make_pair(0, std::numeric_limits<float>::max()));
-
-    // if(frontier.size() >= 100){
-    //   visited_inorder.push_back(frontier[99]);
+    //   if (has_found_candidate) visited_inorder.push_back(std::make_pair(1, frontier[0].second));
+    //   else visited_inorder.push_back(std::make_pair(0, frontier[0].second));
     // } else visited_inorder.push_back(std::make_pair(0, std::numeric_limits<float>::max()));
 
     // feature d_10th/d_start
-    // float ratio;
-    // if(frontier.size() >= 10){
-    //   ratio = frontier[9].second/d_start;
-    // } else ratio = std::numeric_limits<float>::max()/d_start;
-    // visited_inorder.push_back(std::make_pair(0, ratio));
+    float ratio;
+    if(frontier.size() >= 10){
+      ratio = frontier[9].second/d_start;
+      if (has_found_candidate) visited_inorder.push_back(std::make_pair(1, ratio));
+      else visited_inorder.push_back(std::make_pair(0, ratio));
+      
+    } else {
+      ratio = std::numeric_limits<float>::max()/d_start;
+      visited_inorder.push_back(std::make_pair(0, ratio));
+    }
 
     // feature currently visited
-    visited_inorder.push_back(current);
+    // if (has_found_candidate) visited_inorder.push_back(std::make_pair(1, current.second));
+    // else visited_inorder.push_back(std::make_pair(0, current.second));
     
   }
 

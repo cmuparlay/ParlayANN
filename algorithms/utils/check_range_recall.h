@@ -35,6 +35,7 @@
 
 template<typename distanceType, typename indexType>
 void convergence_stats(parlay::sequence<parlay::sequence<std::pair<indexType, distanceType>>> visited_order, std::string restype){
+  if(restype=="") return;
   //get the max length of any visit order
   //we expect this to be just a little over L_search
   size_t max_len = 0;
@@ -55,11 +56,30 @@ void convergence_stats(parlay::sequence<parlay::sequence<std::pair<indexType, di
     return dists;
   });
 
+  parlay::sequence<parlay::sequence<double>> filtered_dists = parlay::tabulate(max_len, [&] (size_t i){
+    parlay::sequence<double> dists;
+    for(size_t j=0; j<visited_order.size(); j++){
+      if(visited_order[j].size() > i && visited_order[j][i].first == 0){
+        dists.push_back(static_cast<double>(visited_order[j][i].second));
+      }
+    }
+    parlay::sort_inplace(dists);
+    return dists;
+  });
+
+
+
   std::cout << std::setprecision(6) << std::endl;
 
   for(size_t i=0; i<max_len; i++){
     std::cout << restype << ", Step " << i << ": " << parlay::to_chars(all_dists[i]) << std::endl;
   }
+
+    for(size_t i=0; i<max_len; i++){
+    std::cout << restype << ", Step " << i << ", Filtered: " << parlay::to_chars(filtered_dists[i]) << std::endl;
+  }
+
+
   
 }
 
@@ -154,7 +174,7 @@ std::tuple<double, double, double> checkRangeRecall(
   RP.print();
   std::cout << ", Pointwise Recall = " << pointwise_recall << ", Cumulative Recall = " << cumulative_recall << ", QPS = " << QPS << std::endl;
   std::cout << "Convergence stats: " << std::endl;
-  // convergence_stats(visit_order, restype);
+  convergence_stats(visit_order, restype);
   return std::make_tuple(pointwise_recall, cumulative_recall, QPS);
   // calculateWeightedRecall<Point, PointRange, indexType>(Base_Points, Query_Points, GT, active_indices, all_rr, RP.rad, QPS);
   
@@ -174,8 +194,8 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
   std::vector<long> beams;
 
   // beams = {2,4,5,6,8,10,20,30,40,50,60,70,80,90,100,200,350,500,1000}; 
-  beams = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,22,25,28,30,32,35,38,40,42,45,47,50,52,55,58,60,68,70,72,75,78,80,85,90,95,100,110,120,125,150,160,175,200,250,300,315,330,340,350,500,625,750,875,1000}; 
-  // beams = {100};
+  // beams = {1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,22,25,28,30,32,35,38,40,42,45,47,50,52,55,58,60,68,70,72,75,78,80,85,90,95,100,110,120,125,150,160,175,200,250,300,315,330,340,350,500,625,750,875,1000}; 
+  beams = {100};
   double sf = 1.0;
 
   //three categories: 0, 1-20, 20+
