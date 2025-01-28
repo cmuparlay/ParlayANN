@@ -13,4 +13,7 @@ crop : crop.cpp
 	$(CC) $(CFLAGS) -o crop crop.cpp $(LFLAGS) 
 
 random_sample : random_sample.cpp
-	$(CC) $(CFLAGS) -o random_sample random_sample.cpp $(LFLAGS) 
+	$(CC) $(CFLAGS) -o random_sample random_sample.cpp $(LFLAGS)
+
+vbase_graph : vbase_graph.cpp
+	$(CC) $(CFLAGS) -o vbase_graph vbase_graph.cpp $(LFLAGS)
