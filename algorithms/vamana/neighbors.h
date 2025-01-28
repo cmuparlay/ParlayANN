@@ -178,6 +178,13 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
         QQPR QQ_Query_Points(Query_Points, QQ_Points.params);
         ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, QQ_Query_Points,
                       GT, res_file, graph_built, Points, Q_Points, QQ_Points);
+      } else if (BP.quantize == 6) {
+        using QQPoint = Mips_JL_Sparse_Point_Normalized<1500>;
+        using QQPR = PointRange<QQPoint>;
+        QQPR QQ_Points(Points);
+        QQPR QQ_Query_Points(Query_Points, QQ_Points.params);
+        ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, QQ_Query_Points,
+                      GT, res_file, graph_built, Points, Q_Points, QQ_Points);
       }
     }
   } else {

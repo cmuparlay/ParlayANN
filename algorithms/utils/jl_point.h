@@ -282,4 +282,105 @@ private:
   long id_;
 };
 
+template <int jl_dims>
+struct Mips_JL_Sparse_Point_Normalized {
+  using distanceType = float;
+  using Data = std::bitset<jl_dims>;
+  using byte = uint8_t;
+  constexpr static int nz = 5; // number of non_zeros per row
+  
+  struct parameters {
+    std::vector<int8_t> JL_signs;
+    std::vector<int> JL_indices;
+    int source_dims;
+    int dims;
+    int num_bytes() const {return sizeof(Data) + sizeof(float);}
+    parameters() : source_dims(0) {}
+    parameters(int dims) : source_dims(dims) {}
+    parameters(std::vector<int8_t> const& JL_signs,
+               std::vector<int> const& JL_indices,
+               int source_dims)
+      : JL_signs(JL_signs), JL_indices(JL_indices), source_dims(source_dims), dims(jl_dims) {
+      std::cout << "JL sparse quantization, dims = " << jl_dims << std::endl;
+    }
+  };
+  
+  static bool is_metric() {return false;}
+  
+  int8_t operator [] (long j) const {
+    Data* pbits = (Data*) values;
+    return (*pbits)[j] ? 1 : -1;}
+
+  float distance(const Mips_JL_Sparse_Point_Normalized &q) const {
+    Data* pbits = (Data*) values;
+    Data* qbits = (Data*) q.values;
+    float pr = *((float*) (values + sizeof(Data)));
+    float qr = *((float*) (q.values + sizeof(Data)));
+    return (*pbits ^ *qbits).count() * pr * qr;
+  }
+
+  void prefetch() const {
+    int l = (sizeof(Data) - 1)/64 + 1;
+    for (int i=0; i < l; i++)
+      __builtin_prefetch((char*) values + i* 64);
+  }
+    
+  bool same_as(const Mips_JL_Sparse_Point_Normalized& q){
+    return &q == this;
+  }
+
+  long id() const {return id_;}
+
+  Mips_JL_Sparse_Point_Normalized(byte* values, long id, const parameters& p)
+    : values(values), id_(id) {}
+
+  bool operator==(const Mips_JL_Sparse_Point_Normalized &q) const {
+    Data* pbits = (Data*) values;
+    Data* qbits = (Data*) q.values;
+    return *pbits == *qbits; }
+
+  void normalize() {
+    std::cout << "can't normalize quantized point" << std::endl;
+    abort();
+  }
+
+  template <typename In_Point>
+  static void translate_point(byte* values, const In_Point& p, const parameters& params) {
+    Data* bits = new (values) Data;
+    float* radius = (float*) (values + sizeof(Data));
+    const std::vector<int8_t>& jls = params.JL_signs;
+    const std::vector<int>& jli = params.JL_indices;
+    double norm = 0.0;
+    for (int j = 0; j < params.source_dims; j++)
+      norm += p[j] * p[j];
+    *radius = std::sqrt(norm);
+    if (*radius > 0)
+      for (int i = 0; i < jl_dims; i++) {
+        double vv = 0.0;
+        for (int j = 0; j < nz; j++) 
+          vv += (float) p[jli[i * nz + j]] * jls[i * nz + j];
+        (*bits)[i] = (vv > 0);
+    }
+  }
+
+  template <typename PR>
+  static parameters generate_parameters(const PR& pr) {
+    int source_dims = pr.dimension();
+    std::vector<int8_t> JL_signs(jl_dims * nz);
+    std::vector<int> JL_indices(jl_dims * nz);
+    std::mt19937 rng;
+    std::uniform_int_distribution<std::mt19937::result_type> dist_s(0,1);
+    std::uniform_int_distribution<std::mt19937::result_type> dist_i(0,source_dims);
+    for (int i = 0; i < jl_dims * nz; i++) {
+      JL_signs[i] = (dist_s(rng) == 0) ? -1 : 1;
+      JL_indices[i] = dist_i(rng);
+    }
+    return parameters(JL_signs, JL_indices, source_dims);
+  }
+
+private:
+  byte* values;
+  long id_;
+};
+
 } // end namespace
