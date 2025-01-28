@@ -46,7 +46,10 @@ nn_result checkRecall(const Graph<indexType> &G,
   auto volatile xx = parlay::random_permutation<long>(5000000);
   t.next_time();
   if (random) {
-    all_ngh = beamSearchRandom(Query_Points, G, Base_Points, QueryStats, QP);
+    all_ngh = qsearchAll<PointRange, QPointRange, QQPointRange, indexType>(Query_Points, Q_Query_Points, QQ_Query_Points,
+                                                                           G,
+                                                                           Base_Points, Q_Base_Points, QQ_Base_Points,
+                                                                           QueryStats, start_point, QP, /*random=*/true);
   } else {
     all_ngh = qsearchAll<PointRange, QPointRange, QQPointRange, indexType>(Query_Points, Q_Query_Points, QQ_Query_Points,
                                                                            G,

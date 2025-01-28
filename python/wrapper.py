@@ -70,23 +70,23 @@ def build_pynndescent_index(metric, dtype, data_dir, index_dir, max_deg, num_clu
         raise Exception('Invalid metric ' + metric)
 
 
-def build_hnsw_index(metric, dtype, data_dir, index_dir, R, L, alpha, two_pass):
+def build_hnsw_index(metric, dtype, data_dir, index_dir, R, efc, m_l, alpha):
     if metric == 'Euclidian':
         if dtype == 'uint8':
-            build_hnsw_uint8_euclidian_index(metric, data_dir, index_dir, R, L, alpha, two_pass)
+            build_hnsw_uint8_euclidian_index(metric, data_dir, index_dir, R, efc, m_l, alpha)
         elif dtype == 'int8':
-            build_hnsw_int8_euclidian_index(metric, data_dir, index_dir, R, L, alpha, two_pass)
+            build_hnsw_int8_euclidian_index(metric, data_dir, index_dir, R, efc, m_l, alpha)
         elif dtype == 'float':
-            build_hnsw_float_euclidian_index(metric, data_dir, index_dir, R, L, alpha, two_pass)
+            build_hnsw_float_euclidian_index(metric, data_dir, index_dir, R, efc, m_l, alpha)
         else:
             raise Exception('Invalid data type ' + dtype)
     elif metric == 'mips':
         if dtype == 'uint8':
-            build_hnsw_uint8_mips_index(metric, data_dir, index_dir, R, L, alpha, two_pass)
+            build_hnsw_uint8_mips_index(metric, data_dir, index_dir, R, efc, m_l, alpha)
         elif dtype == 'int8':
-            build_hnsw_int8_mips_index(metric, data_dir, index_dir, R, L, alpha, two_pass)
+            build_hnsw_int8_mips_index(metric, data_dir, index_dir, R, efc, m_l, alpha)
         elif dtype == 'float':
-            build_hnsw_float_mips_index(metric, data_dir, index_dir, R, L, alpha, two_pass)
+            build_hnsw_float_mips_index(metric, data_dir, index_dir, R, efc, m_l, alpha)
         else:
             raise Exception('Invalid data type ' + dtype)
     else:

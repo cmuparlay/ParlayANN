@@ -20,19 +20,21 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+#include <math.h>
+
+#include <algorithm>
+#include <queue>
+#include <random>
+#include <set>
+
 #include "../utils/graph.h"
 #include "clusterEdge.h"
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 #include "parlay/random.h"
-#include <algorithm>
-#include <math.h>
-#include <queue>
-#include <random>
-#include <set>
 
 namespace parlayANN {
-  
+
 struct DisjointSet {
   parlay::sequence<int> parent;
   parlay::sequence<int> rank;
@@ -59,20 +61,26 @@ struct DisjointSet {
       parent[xroot] = yroot;
     else {
       parent[yroot] = xroot;
-      if (xrank == yrank)
-        rank[xroot] = rank[xroot] + 1;
+      if (xrank == yrank) rank[xroot] = rank[xroot] + 1;
     }
   }
 
   int find(int x) {
-    if (parent[x] != x)
-      parent[x] = find(parent[x]);
-    return parent[x];
+    if (parent[x] == x) return x;
+    int c = x;
+    while (parent[c] != c) {
+      c = parent[c];
+    }
+    while (x != c) {
+      int s = parent[x];
+      parent[x] = c;
+      x = s;
+    }
+    return c;
   }
 
   void flatten() {
-    for (int i = 0; i < N; i++)
-      find(i);
+    for (int i = 0; i < N; i++) find(i);
   }
 
   bool is_full() {
@@ -82,8 +90,7 @@ struct DisjointSet {
         0, N, [&](size_t i) { truthvals[i] = (parent[i] == parent[0]); });
     auto ff = [&](bool a) { return not a; };
     auto filtered = parlay::filter(truthvals, ff);
-    if (filtered.size() == 0)
-      return true;
+    if (filtered.size() == 0) return true;
     return false;
   }
 };
@@ -97,6 +104,11 @@ struct hcnng_index {
   using GraphI = Graph<indexType>;
   using PR = PointRange;
 
+  static constexpr indexType kNullId = std::numeric_limits<indexType>::max();
+  static constexpr distanceType kNullDist =
+      std::numeric_limits<distanceType>::max();
+  static constexpr labelled_edge kNullEdge = {{kNullId, kNullId}, kNullDist};
+
   hcnng_index() {}
 
   static void remove_edge_duplicates(indexType p, GraphI &G) {
@@ -105,7 +117,7 @@ struct hcnng_index {
       points.push_back(G[p][i]);
     }
     auto np = parlay::remove_duplicates(points);
-    G[p].update_neighbors(points);
+    G[p].update_neighbors(np);
   }
 
   void remove_all_duplicates(GraphI &G) {
@@ -117,9 +129,9 @@ struct hcnng_index {
   static void process_edges(GraphI &G, parlay::sequence<edge> edges) {
     long maxDeg = G.max_degree();
     auto grouped = parlay::group_by_key(edges);
-    for (auto pair : grouped) {
-      auto [index, candidates] = pair;
-      for (auto c : candidates) {
+    parlay::parallel_for(0, grouped.size(), [&](size_t i) {
+      int32_t index = grouped[i].first;
+      for (auto c : grouped[i].second) {
         if (G[index].size() < maxDeg) {
           G[index].append_neighbor(c);
         } else {
@@ -127,7 +139,7 @@ struct hcnng_index {
           G[index].append_neighbor(c);
         }
       }
-    }
+    });
   }
 
   // parameters dim and K are just to interface with the cluster tree code
@@ -136,79 +148,52 @@ struct hcnng_index {
     // preprocessing for Kruskal's
     size_t N = active_indices.size();
     long dim = Points.dimension();
-    DisjointSet *disjset = new DisjointSet(N);
+    DisjointSet disjset(N);
     size_t m = 10;
     auto less = [&](labelled_edge a, labelled_edge b) {
       return a.second < b.second;
     };
-    parlay::sequence<parlay::sequence<labelled_edge>> pre_labelled(N);
+    parlay::sequence<labelled_edge> candidate_edges(N * m, kNullEdge);
     parlay::parallel_for(0, N, [&](size_t i) {
       std::priority_queue<labelled_edge, std::vector<labelled_edge>,
                           decltype(less)>
           Q(less);
-      for (indexType j = 0; j < N; j++) {
-        if (j != i) {
-          distanceType dist_ij =
-              Points[active_indices[i]].distance(Points[active_indices[j]]);
-          if (Q.size() >= m) {
-            distanceType topdist = Q.top().second;
-            if (dist_ij < topdist) {
-              labelled_edge e;
-              if (i < j)
-                e = std::make_pair(std::make_pair(i, j), dist_ij);
-              else
-                e = std::make_pair(std::make_pair(j, i), dist_ij);
-              Q.pop();
-              Q.push(e);
-            }
-          } else {
+      for (indexType j = i + 1; j < N; j++) {
+        distanceType dist_ij =
+            Points[active_indices[i]].distance(Points[active_indices[j]]);
+        if (Q.size() >= m) {
+          distanceType topdist = Q.top().second;
+          if (dist_ij < topdist) {
             labelled_edge e;
-            if (i < j)
-              e = std::make_pair(std::make_pair(i, j), dist_ij);
-            else
-              e = std::make_pair(std::make_pair(j, i), dist_ij);
+            e = std::make_pair(std::make_pair(i, j), dist_ij);
+            Q.pop();
             Q.push(e);
           }
+        } else {
+          labelled_edge e;
+          e = std::make_pair(std::make_pair(i, j), dist_ij);
+          Q.push(e);
         }
       }
       indexType limit = std::min(Q.size(), m);
-      parlay::sequence<labelled_edge> edges(limit);
       for (indexType j = 0; j < limit; j++) {
-        edges[j] = Q.top();
+        candidate_edges[i * m + j] = Q.top();
         Q.pop();
       }
-      pre_labelled[i] = edges;
     });
-    auto flat_edges = parlay::flatten(pre_labelled);
-    auto less_dup = [&](labelled_edge a, labelled_edge b) {
-      auto dist_a = a.second;
-      auto dist_b = b.second;
-      if (dist_a == dist_b) {
-        int i_a = a.first.first;
-        int j_a = a.first.second;
-        int i_b = b.first.first;
-        int j_b = b.first.second;
-        if ((i_a == i_b) && (j_a == j_b)) {
-          return true;
-        } else {
-          if (i_a != i_b)
-            return i_a < i_b;
-          else
-            return j_a < j_b;
-        }
-      } else
-        return (dist_a < dist_b);
-    };
-    auto labelled_edges =
-        parlay::remove_duplicates_ordered(flat_edges, less_dup);
+
+    parlay::sort_inplace(candidate_edges, less);
+
     auto degrees =
         parlay::tabulate(active_indices.size(), [&](size_t i) { return 0; });
     parlay::sequence<edge> MST_edges = parlay::sequence<edge>();
     // modified Kruskal's algorithm
-    for (indexType i = 0; i < labelled_edges.size(); i++) {
-      labelled_edge e_l = labelled_edges[i];
+    for (indexType i = 0; i < candidate_edges.size(); i++) {
+      // Since we sorted, any null edges form the suffix.
+      if (candidate_edges[i].second == kNullDist) break;
+      labelled_edge e_l = candidate_edges[i];
       edge e = e_l.first;
-      if ((disjset->find(e.first) != disjset->find(e.second)) &&
+      if ((disjset.find(e.first) != disjset.find(e.second)) &&
           (degrees[e.first] < MSTDeg) && (degrees[e.second] < MSTDeg)) {
         MST_edges.push_back(
             std::make_pair(active_indices[e.first], active_indices[e.second]));
@@ -216,15 +201,14 @@ struct hcnng_index {
             std::make_pair(active_indices[e.second], active_indices[e.first]));
         degrees[e.first] += 1;
         degrees[e.second] += 1;
-        disjset->_union(e.first, e.second);
+        disjset._union(e.first, e.second);
       }
       if (i % N == 0) {
-        if (disjset->is_full()) {
+        if (disjset.is_full()) {
           break;
         }
       }
     }
-    delete disjset;
     process_edges(G, std::move(MST_edges));
   }
 
@@ -251,19 +235,18 @@ struct hcnng_index {
       // Don't need to do modifications.
       indexType p_star = candidates[candidate_idx].first;
       candidate_idx++;
-      if (p_star == p)
-        continue;
+      if (p_star == p || p_star == kNullId) continue;
 
       new_nbhs.push_back(p_star);
 
       for (size_t i = candidate_idx; i < candidates.size(); i++) {
         indexType p_prime = candidates[i].first;
-        if (p_prime != -1) {
+        if (p_prime != kNullId) {
           distanceType dist_starprime =
               Points[p_star].distance(Points[p_prime]);
           distanceType dist_pprime = candidates[i].second;
           if (alpha * dist_starprime <= dist_pprime)
-            candidates[i].first = -1;
+            candidates[i].first = kNullId;
         }
       }
     }
@@ -276,9 +259,11 @@ struct hcnng_index {
     C.multiple_clustertrees(G, Points, cluster_size, cluster_rounds, MSTk,
                             MSTDeg);
     remove_all_duplicates(G);
-    // parlay::parallel_for(0, v.size(), [&] (size_t i){robustPrune(v[i],
-    // v, 1.1, maxDeg);});
+    // TODO: enable optional pruning (what is below now works, but
+    // should be connected cleanly)
+    // parlay::parallel_for(0, G.size(), [&] (size_t i){robustPrune(i, Points,
+    // G, 1.1);});
   }
 };
 
-} // end namespace
+}  // namespace parlayANN

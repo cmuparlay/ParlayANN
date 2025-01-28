@@ -42,14 +42,18 @@ void build_vamana_index(std::string metric, std::string &vector_bin_path,
 
   using Range = PointRange<Point>;
   Range* Points = new Range(vector_bin_path.data());
-  if (!Point::is_metric()) { // normalize) {
+  if (!Point::is_metric()) { // normalize if not a metric
     std::cout << "normalizing" << std::endl;
     for (int i=0; i < Points->size(); i++) 
       (*Points)[i].normalize();
     if (Points->dimension() <= 200) {
-      if (Points->dimension() < 100)
+      if (Points->dimension() < 100) {
+        std::cout << "Setting alpha to 1.0 because dimensionality is " << Points->dimension() << " (< 100)" << std::endl;
         alpha = 1.0;
-      else alpha = .98;
+      } else {
+        std::cout << "Setting alpha to 0.98 because dimensionality is " << Points->dimension() << " (>= 100 & <= 200)" << std::endl;
+        alpha = .98;
+        };
     }
   }
 
@@ -67,9 +71,9 @@ void build_vamana_index(std::string metric, std::string &vector_bin_path,
       Graph<unsigned int> G = Graph<unsigned int>(graph_degree, Points->size());
 
       //call the build function
-      using index = knn_index<QuantRange, unsigned int>;
+      using index = knn_index<QuantRange, QuantRange, unsigned int>;
       index I(BP);
-      I.build_index(G, Quant_Points, BuildStats);
+      I.build_index(G, Quant_Points, Quant_Points, BuildStats);
       G.save(index_output_path.data());
     } else {
       using QuantT = int8_t;
@@ -80,16 +84,16 @@ void build_vamana_index(std::string metric, std::string &vector_bin_path,
       Graph<unsigned int> G = Graph<unsigned int>(graph_degree, Points->size());
 
       //call the build function
-      using index = knn_index<QuantRange, unsigned int>;
+      using index = knn_index<QuantRange, QuantRange, unsigned int>;
       index I(BP);
-      I.build_index(G, Quant_Points, BuildStats);
+      I.build_index(G, Quant_Points, Quant_Points, BuildStats);
       G.save(index_output_path.data());
     }
   } else {
     Graph<unsigned int> G = Graph<unsigned int>(graph_degree, Points->size());
-    using index = knn_index<PointRange<Point>, unsigned int>;
+    using index = knn_index<PointRange<Point>, PointRange<Point>, unsigned int>;
     index I(BP);
-    I.build_index(G, *Points, BuildStats);
+    I.build_index(G, *Points, *Points, BuildStats);
     G.save(index_output_path.data());
   } 
 }
