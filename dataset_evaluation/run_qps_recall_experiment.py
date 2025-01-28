@@ -35,7 +35,7 @@ def string_to_list(s):
   return [ss.strip() for ss in s]
 
 pt_groupings = ["All", "Zeros", "Onetwos", "Threeplus"]
-search_types = ["Beam Search", "Greedy Search", "Early Stopping"]
+search_types = ["Beam Search", "Greedy Search", "Early Stopping", "Doubling Search"]
 recall_types = ["Pointwise Recall", "Cumulative Recall"]
 
 valid_groups = []

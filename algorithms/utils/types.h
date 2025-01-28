@@ -225,13 +225,12 @@ struct RangeParams{
   bool second_round;
   long early_stop;
   double early_stop_radius;
-  bool is_double_beam;
-  bool two_round_limit;
+  bool is_double_beam = false;
 
   RangeParams(double rad, long ib) : rad(rad), initial_beam(ib) {slack_factor = 1.0; second_round = false; early_stop = 0; early_stop_radius = 0;}
   RangeParams(double rad, long ib, double sf, bool sr) : rad(rad), initial_beam(ib), slack_factor(sf), second_round(sr) {early_stop = 0; early_stop_radius = 0;}
   RangeParams(double rad, long ib, double sf, bool sr, long es, double esr) : rad(rad), initial_beam(ib), slack_factor(sf), second_round(sr), early_stop(es), early_stop_radius(esr) {}
-  RangeParams(double rad, long ib, bool idb, long es, double esr, bool trl): rad(rad), initial_beam(ib), slack_factor(sf), is_double_beam(idb), early_stop(es), early_stop_radius(esr), two_round_limit(trl){}
+  RangeParams(double rad, long ib, bool idb, long es, double esr): rad(rad), initial_beam(ib), is_double_beam(idb), early_stop(es), early_stop_radius(esr){}
   RangeParams() {}
 
   void print(){
