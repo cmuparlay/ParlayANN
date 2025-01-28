@@ -23,6 +23,7 @@ parser.add_argument("-step", help="Specify which step to measure at")
 parser.add_argument("-dataset", help="dataset")
 parser.add_argument("-g","--graphs_only", help="graphs only",action="store_true")
 parser.add_argument("-p","--paper_ver", help="paper_version",action="store_true")
+parser.add_argument("-f", "--filter", help="filter out candidates who have already found a match", action="store_true")
 parser.add_argument("-graph_name", help="graphs name")
 
 args = parser.parse_args()
@@ -35,8 +36,6 @@ elif args.type == "top1":
   executable = "../rangeSearch/vamanaRange/range_top1"
 elif args.type == "top10":
   executable = "../rangeSearch/vamanaRange/range_top10"
-elif args.type == "top100":
-  executable = "../rangeSearch/vamanaRange/range_top100"
 elif args.type == "ratio":
   executable = "../rangeSearch/vamanaRange/range_ratio"
 
@@ -84,16 +83,20 @@ if not args.graphs_only:
     runtest(dataset, outFile)
 
 
-
 '''
 Results file finds lists of distances for the specified step for each of the three groups
 '''
-def readResultsFile(result_filename, step):
+def readResultsFile(result_filename, step, filter):
     file = open(result_filename, 'r')
     lists = []
-    zeros_line = "Zeros, Step " + step + ":"
-    onetwos_line = "OneTwos, Step " + step + ":"
-    threeplus_line = "Threeplus, Step " + step + ":"
+    if not filter:
+      zeros_line = "Zeros, Step " + step + ":"
+      onetwos_line = "OneTwos, Step " + step + ":"
+      threeplus_line = "Threeplus, Step " + step + ":"
+    else:
+      zeros_line = "Zeros, Step " + step + ", Filtered:"
+      onetwos_line = "OneTwos, Step " + step + ", Filtered:"
+      threeplus_line = "Threeplus, Step " + step + ", Filtered:"
 
     for line in file.readlines():
       if line.find(zeros_line) != -1:
@@ -108,73 +111,6 @@ def readResultsFile(result_filename, step):
           threeplus = line.split(': ')[1]
           threeplus = eval(threeplus)
           lists.append(threeplus)
-    return lists
-
-def retrieve_results_before_step(result_filename, step):
-  onetwosarray = []
-  threeplusarray = []
-  for i in range(int(step)):
-    onetwos_line = "OneTwos, Step " + str(i) + ":"
-    threeplus_line = "Threeplus, Step " + str(i) + ":"
-    file = open(result_filename, 'r')
-    for line in file.readlines():
-      if line.find(onetwos_line) != -1:
-          onetwos = line.split(': ')[1]
-          onetwos = eval(onetwos)
-          onetwosarray.append(onetwos)
-      if line.find(threeplus_line) != -1:
-          threeplus = line.split(': ')[1]
-          threeplus = eval(threeplus)
-          threeplusarray.append(threeplus)
-  return (onetwosarray, threeplusarray)
-
-def exclude_already_found(candidate_list, visited_over_time, dataset):
-  radius = data_options[dataset]['radius']
-  retained_candidates = []
-  for i in range(len(candidate_list)):
-    found = False
-    for j in range(len(visited_over_time)):
-      if(visited_over_time[j][i] <= radius):
-        found = True
-        continue
-    if not found:
-      retained_candidates.append(candidate_list[i])
-  return retained_candidates
-
-
-'''
-Results file finds lists of distances for the specified step for each of the three groups
-'''
-def readResultsFileAndExcludeFound(result_filename, step, dataset):
-    file = open(result_filename, 'r')
-    lists = []
-    zeros_line = "Zeros, Step " + step + ":"
-    onetwos_line = "OneTwos, Step " + step + ":"
-    threeplus_line = "Threeplus, Step " + step + ":"
-
-    print("Finding results before specified step")
-    (onetwosarray, threeplusarray) = retrieve_results_before_step(result_filename, step)
-
-    for line in file.readlines():
-      if line.find(zeros_line) != -1:
-          zeros = line.split(': ')[1]
-          zeros = eval(zeros)
-          lists.append(zeros)
-      if line.find(onetwos_line) != -1:
-          onetwos = line.split(': ')[1]
-          onetwos = eval(onetwos)
-          lists.append(onetwos)
-      if line.find(threeplus_line) != -1:
-          threeplus = line.split(': ')[1]
-          threeplus = eval(threeplus)
-          lists.append(threeplus)
-
-    print("Before exclusion, onetwos had", len(lists[1]), "members")
-    print("Before exclusion, threeplus had", len(lists[2]), "members")
-    lists[1] = exclude_already_found(lists[1], onetwosarray, dataset)
-    lists[2] = exclude_already_found(lists[2], threeplusarray, dataset)
-    print("After exclusion, onetwos had", len(lists[1]), "members")
-    print("After exclusion, threeplus had", len(lists[2]), "members")
     return lists
 
 def export_legend(legend, filename="legend.pdf"):
@@ -183,32 +119,47 @@ def export_legend(legend, filename="legend.pdf"):
     bbox  = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
     fig.savefig(filename, dpi="figure", bbox_inches=bbox)
 
+def normalize_ratio_arr(ratio_arr):
+  ratio_arr_normalized = np.zeros(len(ratio_arr))
+  for i in range(len(ratio_arr)):
+    ratio_arr_normalized[i] = 2-ratio_arr[i]
+  return ratio_arr_normalized
 
-def plot_dist_histogram(dataset, graph_name, paper_ver=False):
-  dir_name = "graphs/dist_histograms/" + args.type + "/" + "Step" + args.step
+
+def plot_dist_histogram(dataset, graph_name, paper_ver, filter):
+  if not filter:
+    dir_name = "graphs/dist_histograms/" + args.type + "/" + "Step" + args.step
+  else:
+    dir_name = "graphs/dist_histograms/" + args.type + "_Filtered" + "/" + "Step" + args.step
   os.makedirs(dir_name, exist_ok=True)
 
   outputFile = dir_name + "/" + graph_name.replace('.', '') + '.pdf'
   mpl.rcParams.update({'font.size': 25})
 
   resultsFile = "dist_histograms/" + args.type  + "/" + dataset + ".txt"
-  if args.type == "visited":
-    lists = readResultsFileAndExcludeFound(resultsFile, args.step, args.dataset)
-  else:
-    lists = readResultsFile(resultsFile, args.step)
+  lists = readResultsFile(resultsFile, args.step, filter)
 
   zeros = np.array(lists[0])
   onetwos = np.array(lists[1])
   threeplus = np.array(lists[2])
 
+  if (dataset == "msmarco-1M") and (args.type == "ratio") :
+    zeros = normalize_ratio_arr(zeros)
+    onetwos = normalize_ratio_arr(onetwos)
+    threeplus = normalize_ratio_arr(threeplus)
+
   print("Num zero results:", len(zeros))
-  print("Num onetwos:", len(onetwos))
+  print("Num onetwos", len(onetwos))
   print("Num threeplus:", len(threeplus))
 
   if args.type == "ratio":
-    plt.xlabel("Ratio of D_10th to D_start")
-  else:
-    plt.xlabel("Distance from Query Point")
+    plt.xlabel("d_top10 / d_start")
+  elif args.type == "visited":
+    plt.xlabel("d_visited")
+  elif args.type == "top10":
+    plt.xlabel("d_top10")
+  elif args.type == "top1":
+    plt.xlabel("d_top1")
   
   plt.ylabel("Frequency")
   if len(zeros) != 0:
@@ -217,6 +168,20 @@ def plot_dist_histogram(dataset, graph_name, paper_ver=False):
     plt.hist(onetwos, bins=math.ceil(len(onetwos)/5), alpha=.5, label = '1-2 Results')
   if len(threeplus) != 0:
     plt.hist(threeplus, bins=math.ceil(len(threeplus)/5), alpha=.5, label = '3+ Results')
+
+  if filter:
+    esr = 0
+    ds = data_options[dataset]
+    if args.type == "ratio":
+      esr = ds["esr_ratio"]
+    elif args.type == "visited":
+      esr = ds["esr"]
+    elif args.type == "top1":
+      esr = ds["esr_top1"]
+    elif args.type == "top10":
+      esr = ds["esr_top10"]
+    if esr != 0:
+      plt.axvline(x=esr, color='black', linestyle='--')
 
 
   legend_x = 1
@@ -234,7 +199,7 @@ def plot_dist_histogram(dataset, graph_name, paper_ver=False):
   plt.close('all')
 
 
-plot_dist_histogram(dataset, args.graph_name, args.paper_ver)
+plot_dist_histogram(dataset, args.graph_name, args.paper_ver, args.filter)
 
 
 

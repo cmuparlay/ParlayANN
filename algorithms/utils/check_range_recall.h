@@ -35,6 +35,7 @@
 
 template<typename distanceType, typename indexType>
 void convergence_stats(parlay::sequence<parlay::sequence<std::pair<indexType, distanceType>>> visited_order, std::string restype){
+  if(restype=="") return;
   //get the max length of any visit order
   //we expect this to be just a little over L_search
   size_t max_len = 0;
@@ -55,11 +56,30 @@ void convergence_stats(parlay::sequence<parlay::sequence<std::pair<indexType, di
     return dists;
   });
 
+  parlay::sequence<parlay::sequence<double>> filtered_dists = parlay::tabulate(max_len, [&] (size_t i){
+    parlay::sequence<double> dists;
+    for(size_t j=0; j<visited_order.size(); j++){
+      if(visited_order[j].size() > i && visited_order[j][i].first == 0){
+        dists.push_back(static_cast<double>(visited_order[j][i].second));
+      }
+    }
+    parlay::sort_inplace(dists);
+    return dists;
+  });
+
+
+
   std::cout << std::setprecision(6) << std::endl;
 
   for(size_t i=0; i<max_len; i++){
     std::cout << restype << ", Step " << i << ": " << parlay::to_chars(all_dists[i]) << std::endl;
   }
+
+    for(size_t i=0; i<max_len; i++){
+    std::cout << restype << ", Step " << i << ", Filtered: " << parlay::to_chars(filtered_dists[i]) << std::endl;
+  }
+
+
   
 }
 
