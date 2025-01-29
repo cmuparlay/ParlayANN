@@ -342,7 +342,7 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
   std::cout << "All, Greedy Search, Pointwise Recall: " << parlay::to_chars(pointwise_recall) << std::endl;
   std::cout << "All, Greedy Search, Cumulative Recall: " << parlay::to_chars(cumulative_recall) << std::endl;
   std::cout << "All, Greedy Search, QPS: " << parlay::to_chars(qps) << std::endl;
-  std::cout << "All, Beam Search, Beams: "<< parlay::to_chars(beam_size) << std::endl;
+  std::cout << "All, Greedy Search, Beams: "<< parlay::to_chars(beam_size) << std::endl;
   std::cout << "All, Greedy Search, Timings: "<< parlay::to_chars(timings)<< std::endl;
   std::cout << std::endl;
   std::cout << std::endl;
@@ -368,7 +368,7 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
   std::cout << "All, Early Stopping, Pointwise Recall: " << parlay::to_chars(pointwise_recall) << std::endl;
   std::cout << "All, Early Stopping, Cumulative Recall: " << parlay::to_chars(cumulative_recall) << std::endl;
   std::cout << "All, Early Stopping, QPS: " << parlay::to_chars(qps) << std::endl;
-  std::cout << "All, Beam Search, Beams: "<< parlay::to_chars(beam_size) << std::endl;
+  std::cout << "All, Early Stopping, Beams: "<< parlay::to_chars(beam_size) << std::endl;
   std::cout << "All, Early Stopping, Timings: "<< parlay::to_chars(timings)<< std::endl;
   std::cout << std::endl;
   std::cout << std::endl;
@@ -393,7 +393,7 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
   std::cout << "All, Doubling Search, Pointwise Recall: " << parlay::to_chars(pointwise_recall) << std::endl;
   std::cout << "All, Doubling Search, Cumulative Recall: " << parlay::to_chars(cumulative_recall) << std::endl;
   std::cout << "All, Doubling Search, QPS: " << parlay::to_chars(qps) << std::endl;
-  std::cout << "All, Beam Search, Beams: "<< parlay::to_chars(beam_size) << std::endl;
+  std::cout << "All, Doubling Search, Beams: "<< parlay::to_chars(beam_size) << std::endl;
   std::cout << "All, Doubling Search, Timings: "<< parlay::to_chars(timings)<< std::endl;
   std::cout << std::endl;
   std::cout << std::endl;
