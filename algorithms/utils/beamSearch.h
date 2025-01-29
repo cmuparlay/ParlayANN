@@ -98,6 +98,8 @@ filtered_beam_search(const GT &G,
   dtype filter_threshold_sum = 0.0;
   int filter_threshold_count = 0;
   dtype filter_threshold;
+  indexType filter_id;
+  indexType filter_tail_mean = 0;
 
   // offset into the unvisited_frontier vector (unvisited_frontier[offset] is the next to visit)
   int offset = 0;
@@ -117,7 +119,16 @@ filtered_beam_search(const GT &G,
     // if using filtering based on lower quality distances measure, then maintain the average
     // of low quality distance to the last point in the frontier (if frontier is full)
     if (use_filtering && frontier_full) {
-      filter_threshold_sum += Q_Points[frontier.back().first].distance(qp);
+      constexpr int width = 5;
+      indexType id = frontier.back().first;
+      if (filter_threshold_count == 0 || filter_id != id) {
+        filter_tail_mean = 0.0;
+        for (int i = frontier.size() - width; i < frontier.size(); i ++) 
+          filter_tail_mean += Q_Points[frontier[i].first].distance(qp);
+        filter_tail_mean /= width;
+        filter_id = id;
+      }
+      filter_threshold_sum += filter_tail_mean;
       filter_threshold_count++;
       filter_threshold = filter_threshold_sum / filter_threshold_count;
     }

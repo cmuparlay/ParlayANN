@@ -316,7 +316,7 @@ struct Mips_JL_Sparse_Point_Normalized {
     Data* qbits = (Data*) q.values;
     float pr = *((float*) (values + sizeof(Data)));
     float qr = *((float*) (q.values + sizeof(Data)));
-    return (*pbits ^ *qbits).count() * pr * qr;
+    return (*pbits ^ *qbits).count() * pr; // * qr;
   }
 
   void prefetch() const {
