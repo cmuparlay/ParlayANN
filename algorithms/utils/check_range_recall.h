@@ -145,7 +145,7 @@ std::tuple<double, double, double,double,double> checkRangeRecall(
   float query_time;
   stats<indexType> QueryStats(active_indices.size());
 
-  parlay::sequence<indexType> start_points = {start_point};
+  parlay::sequence<indexType> start_points = {static_cast<indexType>(start_point)};
   //parlay::sequence<parlay::sequence<indexType>> all_rr;
   // std::cout << "Entered check range" << std::endl;
 
