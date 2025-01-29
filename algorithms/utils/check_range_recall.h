@@ -305,18 +305,22 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
   parlay::sequence<double> cumulative_recall;
   parlay::sequence<double> qps;
   parlay::sequence<std::pair<double,double>> timings;
+  parlay::sequence<long> beam_size;
   for(long b: beams){
     RangeParams RP(rad, b);
     std::tuple<double, double, double, double ,double> stats = checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, all);
     pointwise_recall.push_back(std::get<0>(stats));
     cumulative_recall.push_back(std::get<1>(stats));
+    
     qps.push_back(std::get<2>(stats));
     timings.push_back(std::make_pair(std::get<3>(stats),std::get<4>(stats)));
+    beam_size.push_back(b);
     
   }
   std::cout << "All, Beam Search, Pointwise Recall: " << parlay::to_chars(pointwise_recall) << std::endl;
   std::cout << "All, Beam Search, Cumulative Recall: " << parlay::to_chars(cumulative_recall) << std::endl;
   std::cout << "All, Beam Search, QPS: " << parlay::to_chars(qps) << std::endl;
+  std::cout << "All, Beam Search, Beams: "<< parlay::to_chars(beam_size) << std::endl;
   std::cout << "All, Beam Search, Timings"<< parlay::to_chars(timings)<< std::endl;
   std::cout << std::endl;
   std::cout << std::endl;
@@ -324,6 +328,7 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
   cumulative_recall.clear();
   qps.clear();
   timings.clear();
+  beam_size.clear();
  
   for(long b: beams){
     RangeParams RP(rad, b, sf, true);
@@ -332,10 +337,12 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
     cumulative_recall.push_back(std::get<1>(stats));
     qps.push_back(std::get<2>(stats));
     timings.push_back(std::make_pair(std::get<3>(stats),std::get<4>(stats)));
+    beam_size.push_back(b);
   }
   std::cout << "All, Greedy Search, Pointwise Recall: " << parlay::to_chars(pointwise_recall) << std::endl;
   std::cout << "All, Greedy Search, Cumulative Recall: " << parlay::to_chars(cumulative_recall) << std::endl;
   std::cout << "All, Greedy Search, QPS: " << parlay::to_chars(qps) << std::endl;
+  std::cout << "All, Beam Search, Beams: "<< parlay::to_chars(beam_size) << std::endl;
   std::cout << "All, Greedy Search, Timings"<< parlay::to_chars(timings)<< std::endl;
   std::cout << std::endl;
   std::cout << std::endl;
@@ -343,7 +350,7 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
   cumulative_recall.clear();
   qps.clear();
   timings.clear();
-
+  beam_size.clear();
 
 
 
@@ -356,10 +363,12 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
     qps.push_back(std::
     get<2>(stats));
     timings.push_back(std::make_pair(std::get<3>(stats),std::get<4>(stats)));
+    beam_size.push_back(b);
   }
   std::cout << "All, Early Stopping, Pointwise Recall: " << parlay::to_chars(pointwise_recall) << std::endl;
   std::cout << "All, Early Stopping, Cumulative Recall: " << parlay::to_chars(cumulative_recall) << std::endl;
   std::cout << "All, Early Stopping, QPS: " << parlay::to_chars(qps) << std::endl;
+  std::cout << "All, Beam Search, Beams: "<< parlay::to_chars(beam_size) << std::endl;
   std::cout << "All, Early Stopping, Timings"<< parlay::to_chars(timings)<< std::endl;
   std::cout << std::endl;
   std::cout << std::endl;
@@ -367,6 +376,7 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
   cumulative_recall.clear();
   qps.clear();
   timings.clear();
+  beam_size.clear();
 
 
   //TODO: rangeparams and checkrangerecall update for Doubling Search
@@ -378,10 +388,12 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
     qps.push_back(std::
     get<2>(stats));
     timings.push_back(std::make_pair(std::get<3>(stats),std::get<4>(stats)));
+    beam_size.push_back(b);
   }
   std::cout << "All, Doubling Search, Pointwise Recall: " << parlay::to_chars(pointwise_recall) << std::endl;
   std::cout << "All, Doubling Search, Cumulative Recall: " << parlay::to_chars(cumulative_recall) << std::endl;
   std::cout << "All, Doubling Search, QPS: " << parlay::to_chars(qps) << std::endl;
+  std::cout << "All, Beam Search, Beams: "<< parlay::to_chars(beam_size) << std::endl;
   std::cout << "All, Doubling Search, Timings"<< parlay::to_chars(timings)<< std::endl;
   std::cout << std::endl;
   std::cout << std::endl;
@@ -389,6 +401,7 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
   cumulative_recall.clear();
   qps.clear();
   timings.clear();
+  beam_size.clear();
 
   
 
