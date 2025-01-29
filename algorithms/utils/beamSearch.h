@@ -79,6 +79,10 @@ filtered_beam_search(const GT &G,
   std::vector<id_dist> visited;
   visited.reserve(2 * beamSize);
 
+  std::vector<id_dist> not_sorted_visited;
+  not_sorted_visited.reserve(2 * beamSize);
+
+  
   // counters
   size_t dist_cmps = starting_points.size();
   size_t full_dist_cmps = starting_points.size();
@@ -111,6 +115,7 @@ filtered_beam_search(const GT &G,
     // add to visited set
     auto position = std::upper_bound(visited.begin(), visited.end(), current, less);
     visited.insert(position, current);
+    not_sorted_visited.push_back(current);
     num_visited++;
     bool frontier_full = frontier.size() == beamSize;
 
@@ -209,7 +214,7 @@ filtered_beam_search(const GT &G,
   }
 
   return std::make_pair(std::make_pair(parlay::to_sequence(frontier),
-                                       parlay::to_sequence(visited)),
+                                       parlay::to_sequence(not_sorted_visited)),
                         full_dist_cmps);
 }
 
