@@ -131,9 +131,6 @@ beam_search_impl(Point p, GT &G, PointRange &Points,
     std::pair<indexType, distanceType> current = unvisited_frontier[0];
     bool has_visited_enough = (num_visited >= QP.early_stop);
     bool early_stop = (QP.early_stop > 0); 
-    if(!early_stop && QP.early_stop_radius != 0){
-      std::cout << QP.early_stop << std::endl;
-    }
     bool has_found_candidate = (frontier[0].second <= rad);
     bool within_early_stop_rad = (current.second <= QP.early_stop_radius);
     if(early_stop && has_visited_enough && !has_found_candidate && !within_early_stop_rad) {
@@ -700,7 +697,6 @@ std::pair<parlay::sequence<parlay::sequence<indexType>>,std::pair<double,double>
   parlay::sequence<parlay::sequence<indexType>> starting_points_index(active_indices.size());
   parlay::WorkerSpecific<double> first_round_time;
   parlay::WorkerSpecific<double> second_round_time;
-
   
   parlay::parallel_for(0, active_indices.size(), [&](size_t i) {
 

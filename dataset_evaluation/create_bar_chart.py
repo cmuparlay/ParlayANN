@@ -24,7 +24,7 @@ parser.add_argument("-dataset", help="dataset")
 parser.add_argument("-recalls", help="recall list")
 parser.add_argument("-g","--graphs_only", help="graphs only",action="store_true")
 parser.add_argument("-p","--paper_version", help="paper_version",action="store_true")
-parser.add_argument("-recall_type", help="specify cumulative or pointwise recall")
+parser.add_argument("-recall_type", help="specify average or pointwise precision")
 parser.add_argument("-graph_name", help="graphs name")  
 
 args = parser.parse_args()
@@ -32,7 +32,7 @@ print("dataset:" + args.dataset)
 print("recalls:", args.recalls)
 print("recall type:", args.recall_type)
 
-if (args.recall_type != "Cumulative Recall") and (args.recall_type != "Pointwise Recall"):
+if (args.recall_type != "Average Precision") and (args.recall_type != "Pointwise Precision"):
   print("Invalid recall type")
   exit(1)
 
@@ -52,7 +52,7 @@ else:
 
 
 if not args.graphs_only:
-    directory = "qps_recall_results/"
+    directory = "bar_chart_results/"
     os.makedirs(directory, exist_ok=True)
     outFile = directory + "/" + str(args.dataset) + ".txt"
     # clear output file
@@ -69,10 +69,14 @@ Also includes list of pairs of timings for each run
 Returns list of recalls and list of QPS
 '''
 def readResultsFile(dataset_name, recall_line, timings_line, beams_line):
-    result_filename = "qps_recall_results/" + str(dataset_name) + ".txt"
+    result_filename = "bar_chart_results/" + str(dataset_name) + ".txt"
     file = open(result_filename, 'r')
+    print(recall_line)
+    print(timings_line)
+    print(beams_line)
     for line in file.readlines():
       if line.find(recall_line) != -1:
+          print("recall found")
           recall = line.split(': ')[1]
           recall = eval(recall)
       if line.find(timings_line) != -1:
@@ -85,7 +89,7 @@ def readResultsFile(dataset_name, recall_line, timings_line, beams_line):
 
 result_data = {}
 
-algorithms=["Beam Search", "Greedy Search", "Doubling Search", "Early Stopping"]
+algorithms=["Beam Search", "Greedy Search", "Greedy Search with Early Stopping", "Doubling Search", "Doubling Search with Early Stopping"]
 
 for algorithm in algorithms:
     result_data[algorithm] = {}
@@ -115,7 +119,7 @@ alginfo = {
   "Beam Search" : {"color": "C0", "label": "Beam Search"},
   "Greedy Search" : {"color": "C1", "label": "Greedy Search"},
   "Doubling Search" : {"color": "C2", "label": "Doubling Beam Search"},
-  "Early Stopping": {"color": "C3", "label": "Beam Search with Early Stopping"},
+  "Early Stopping": {"color": "tab:gray", "label": "Beam Search with Early Stopping"},
 }
 
 def remove_indices(lst, indices):
@@ -164,9 +168,12 @@ def plot_time_bar_chart(result_data, graph_name, paper_ver=False):
     x = np.array(remove_indices(x, indices_to_remove))
     offset = width * multiplier
     labels = [str(x) for x in beams]
-    if algorithm == "Early Stopping":
-      rects_low = ax.bar(x+offset, beam_heights, width, color=alginfo[algorithm]["color"])
-      rects_high = ax.bar(x+offset, total_heights, width, bottom=beam_heights, label=alginfo[algorithm]["label"], color=(alginfo["Greedy Search"])["color"])
+    if algorithm == "Greedy Search with Early Stopping":
+      rects_low = ax.bar(x+offset, beam_heights, width, color=alginfo["Early Stopping"]["color"])
+      rects_high = ax.bar(x+offset, total_heights, width, bottom=beam_heights, label="Greedy Search", color=(alginfo["Greedy Search"])["color"])
+    elif algorithm == "Doubling Search with Early Stopping":
+      rects_low = ax.bar(x+offset, beam_heights, width, color=alginfo["Early Stopping"]["color"])
+      rects_high = ax.bar(x+offset, total_heights, width, bottom=beam_heights, label="Doubling Search", color=(alginfo["Doubling Search"])["color"])
     else: 
       rects_low = ax.bar(x+offset, beam_heights, width, color=alginfo["Beam Search"]["color"])
       rects_high = ax.bar(x+offset, total_heights, width, bottom=beam_heights, label=alginfo[algorithm]["label"], color=(alginfo[algorithm])["color"])

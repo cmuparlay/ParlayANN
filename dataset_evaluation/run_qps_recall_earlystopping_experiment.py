@@ -35,7 +35,7 @@ def string_to_list(s):
   return [ss.strip() for ss in s]
 
 pt_groupings = ["All", "Zeros", "Onetwos", "Threeplus"]
-search_types = ["Beam Search", "Greedy Search with Early Stopping", "Doubling Search with Early Stopping"]
+search_types = ["Greedy Search", "Doubling Search", "Greedy Search with Early Stopping", "Doubling Search with Early Stopping"]
 recall_types = ["Pointwise Precision", "Average Precision"]
 
 valid_groups = []
@@ -145,7 +145,8 @@ def export_legend(legend, filename="legend.pdf"):
     bbox  = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
     fig.savefig(filename, dpi="figure", bbox_inches=bbox)
 
-linestyles = {"Beam Search": "solid",
+linestyles = {"Greedy Search": "solid",
+              "Doubling Search": "dashdot",
               "Greedy Search with Early Stopping": "dashed",
               "Doubling Search with Early Stopping": "dotted",
             }
