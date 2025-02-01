@@ -189,7 +189,6 @@ def plot_qps_recall_graph(result_data, graph_name, paper_ver=False):
         color=alginfo["color"],
         linewidth=3.0,
         linestyle=linestyle,
-        marker=alginfo["marker"],
         markersize=14,
         label=dataset_name+", " + algorithm)
 

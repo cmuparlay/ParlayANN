@@ -170,7 +170,7 @@ def plot_time_bar_chart(result_data, graph_name, paper_ver=False):
     else: 
       rects_low = ax.bar(x+offset, beam_heights, width, color=alginfo["Beam Search"]["color"])
       rects_high = ax.bar(x+offset, total_heights, width, bottom=beam_heights, label=alginfo[algorithm]["label"], color=(alginfo[algorithm])["color"])
-    ax.bar_label(rects_high, labels=labels, padding=2, fontsize=16)
+    ax.bar_label(rects_high, labels=labels, padding=2, fontsize=12)
     multiplier += 1
 
   ax.set_ylabel('Time (s)')
@@ -182,7 +182,8 @@ def plot_time_bar_chart(result_data, graph_name, paper_ver=False):
   legend_y = 0.5 
   plt.grid()
   plt.tight_layout()
-  ax.set_ylim(0, max_height+1.2)
+  ax.set_ylim(0, int(max_height*2))
+  ax.set_yscale('symlog')
 
   if not paper_ver:
     plt.title(graph_name)
@@ -196,8 +197,8 @@ def plot_time_bar_chart(result_data, graph_name, paper_ver=False):
     elif len(algorithms) == 5:
       ncol = 3
     legend = plt.legend(loc='center left', bbox_to_anchor=(legend_x, legend_y), ncol=nc, framealpha=0.0)
-    legend.legendHandles[3].set_facecolor(alginfo["Early Stopping"]["color"])
-    legend.legendHandles[3].set_edgecolor(alginfo["Early Stopping"]["color"])
+    legend.legend_handles[3].set_facecolor(alginfo["Early Stopping"]["color"])
+    legend.legend_handles[3].set_edgecolor(alginfo["Early Stopping"]["color"])
     export_legend(legend, directory + "/" + graph_name + '_legend.pdf')
   plt.close('all')
 
