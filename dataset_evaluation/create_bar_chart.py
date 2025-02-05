@@ -139,7 +139,7 @@ def plot_time_bar_chart(result_data, graph_name, paper_ver=False):
 
   fig, ax = plt.subplots()
 
-  width = .2
+  width = .166666
   multiplier = 0
 
   y = np.arange(len(recalls))
@@ -169,14 +169,14 @@ def plot_time_bar_chart(result_data, graph_name, paper_ver=False):
     offset = width * multiplier
     labels = [str(x) for x in beams]
     if algorithm == "Greedy Search with Early Stopping":
-      rects_low = ax.bar(x+offset, beam_heights, width, color=alginfo["Early Stopping"]["color"])
-      rects_high = ax.bar(x+offset, total_heights, width, bottom=beam_heights, label="Greedy Search", color=(alginfo["Greedy Search"])["color"])
+      rects_low = ax.bar(x+offset, beam_heights, width, color=alginfo["Early Stopping"]["color"], label="Early Stopping Beam Search", edgecolor='black')
+      rects_high = ax.bar(x+offset, total_heights, width, bottom=beam_heights, color=(alginfo["Greedy Search"])["color"], edgecolor='black')
     elif algorithm == "Doubling Search with Early Stopping":
-      rects_low = ax.bar(x+offset, beam_heights, width, color=alginfo["Early Stopping"]["color"])
-      rects_high = ax.bar(x+offset, total_heights, width, bottom=beam_heights, label="Doubling Search", color=(alginfo["Doubling Search"])["color"])
-    else: 
-      rects_low = ax.bar(x+offset, beam_heights, width, color=alginfo["Beam Search"]["color"])
-      rects_high = ax.bar(x+offset, total_heights, width, bottom=beam_heights, label=alginfo[algorithm]["label"], color=(alginfo[algorithm])["color"])
+      rects_low = ax.bar(x+offset, beam_heights, width, color=alginfo["Early Stopping"]["color"], edgecolor='black')
+      rects_high = ax.bar(x+offset, total_heights, width, bottom=beam_heights, color=(alginfo["Doubling Search"])["color"], edgecolor='black')
+    else:
+      rects_low = ax.bar(x+offset, beam_heights, width, color=alginfo["Beam Search"]["color"],  edgecolor='black')
+      rects_high = ax.bar(x+offset, total_heights, width, bottom=beam_heights, label=alginfo[algorithm]["label"], color=(alginfo[algorithm])["color"], edgecolor='black')
     ax.bar_label(rects_high, labels=labels, padding=2, fontsize=12)
     multiplier += 1
 
@@ -204,8 +204,8 @@ def plot_time_bar_chart(result_data, graph_name, paper_ver=False):
     elif len(algorithms) == 5:
       ncol = 3
     legend = plt.legend(loc='center left', bbox_to_anchor=(legend_x, legend_y), ncol=nc, framealpha=0.0)
-    legend.legend_handles[3].set_facecolor(alginfo["Early Stopping"]["color"])
-    legend.legend_handles[3].set_edgecolor(alginfo["Early Stopping"]["color"])
+    # legend.legend_handles[3].set_facecolor(alginfo["Early Stopping"]["color"])
+    # legend.legend_handles[3].set_edgecolor(alginfo["Early Stopping"]["color"])
     export_legend(legend, directory + "/" + graph_name + '_legend.pdf')
   plt.close('all')
 
