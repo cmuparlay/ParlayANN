@@ -44,7 +44,7 @@ namespace parlayANN {
 //   return std::make_pair(avg_deg, maxDegree);
 // }
 
-std::pair<double, int> graph_stats_(Graph<unsigned int> &G) {
+inline std::pair<double, int> graph_stats_(Graph<unsigned int> &G) {
   auto od = parlay::delayed_seq<size_t>(
       G.size(), [&](size_t i) { return G[i].size(); });
   size_t j = parlay::max_element(od) - od.begin();
