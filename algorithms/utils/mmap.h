@@ -11,7 +11,7 @@
 namespace parlayANN {
 
 // returns a pointer and a length
-std::pair<char*, size_t> mmapStringFromFile(const char* filename) {
+inline std::pair<char*, size_t> mmapStringFromFile(const char* filename) {
   struct stat sb;
   int fd = open(filename, O_RDONLY);
   if (fd == -1) {
