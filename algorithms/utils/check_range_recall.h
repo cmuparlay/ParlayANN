@@ -25,6 +25,8 @@
 #include <algorithm>
 #include <set>
 
+#include "doubling_search.h"
+#include "range_search.h"
 #include "beamSearch.h"
 #include "csvfile.h"
 #include "parse_results.h"
