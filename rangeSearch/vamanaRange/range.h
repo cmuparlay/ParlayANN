@@ -35,14 +35,15 @@
 #include "parlay/primitives.h"
 #include "parlay/random.h"
 
+namespace parlayANN{
 
-template<typename Point, typename PointRange, typename indexType>
+template<typename Point, typename PointRange, typename QPointRange, typename indexType>
 void RNG(Graph<indexType> &G, double rad, BuildParams &BP,
          PointRange &Query_Points,
          RangeGroundTruth<indexType> GT,
          char* res_file, bool graph_built, PointRange &Points) {
   parlay::internal::timer t("ANN");
-  using findex = knn_index<Point, PointRange, indexType>;
+  using findex = knn_index<PointRange, QPointRange, indexType>;
   findex I(BP);
   double idx_time;
   stats<unsigned int> BuildStats(G.size());
@@ -66,5 +67,4 @@ void RNG(Graph<indexType> &G, double rad, BuildParams &BP,
   if(Query_Points.size() != 0) range_search_wrapper<Point, PointRange, indexType>(G, Points, Query_Points, GT, rad, start_point);
 }
 
-
-
+}

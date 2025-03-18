@@ -41,7 +41,7 @@
 #include <unistd.h>
 
 
-
+using namespace parlayANN;
 
 // *************************************************************
 //  TIMING
@@ -61,7 +61,7 @@ void timeRange(Graph<indexType> &G,
     time_loop(1, 0,
       [&] () {},
       [&] () {
-        RNG<Point, PointRange, indexType>(G, rad, BP, Query_Points, GT, res_file, graph_built, Points);
+        RNG<Point, PointRange, QPointRange, indexType>(G, rad, BP, Query_Points, GT, res_file, graph_built, Points);
       },
       [&] () {});
 
@@ -128,57 +128,57 @@ int main(int argc, char* argv[]) {
   
   if(tp == "float"){
     if(df == "Euclidian"){
-      PointRange<float, Euclidian_Point<float>> Points = PointRange<float, Euclidian_Point<float>>(iFile);
-      PointRange<float, Euclidian_Point<float>> Query_Points = PointRange<float, Euclidian_Point<float>>(qFile);
+      PointRange<Euclidian_Point<float>> Points = PointRange<Euclidian_Point<float>>(iFile);
+      PointRange<Euclidian_Point<float>> Query_Points = PointRange<Euclidian_Point<float>>(qFile);
       Graph<unsigned int> G; 
       if(gFile == NULL) G = Graph<unsigned int>(maxDeg, Points.size());
       else G = Graph<unsigned int>(gFile);
-      timeRange<Euclidian_Point<float>, PointRange<float, Euclidian_Point<float>>, uint>(G, Query_Points, r, BP, 
+      timeRange<Euclidian_Point<float>, PointRange<Euclidian_Point<float>>, uint>(G, Query_Points, r, BP, 
         oFile, GT, rFile, graph_built, Points);
     } else if(df == "mips"){
-      PointRange<float, Mips_Point<float>> Points = PointRange<float, Mips_Point<float>>(iFile);
-      PointRange<float, Mips_Point<float>> Query_Points = PointRange<float, Mips_Point<float>>(qFile);
+      PointRange<Mips_Point<float>> Points = PointRange<Mips_Point<float>>(iFile);
+      PointRange<Mips_Point<float>> Query_Points = PointRange<Mips_Point<float>>(qFile);
       Graph<unsigned int> G; 
       if(gFile == NULL) G = Graph<unsigned int>(maxDeg, Points.size());
       else G = Graph<unsigned int>(gFile);
-      timeRange<Mips_Point<float>, PointRange<float, Mips_Point<float>>, uint>(G, Query_Points, r, BP, 
+      timeRange<Mips_Point<float>, PointRange<Mips_Point<float>>, uint>(G, Query_Points, r, BP, 
         oFile, GT, rFile, graph_built, Points);
     }
     
   } else if(tp == "uint8"){
     if(df == "Euclidian"){
-      PointRange<uint8_t, Euclidian_Point<uint8_t>> Points = PointRange<uint8_t, Euclidian_Point<uint8_t>>(iFile);
-      PointRange<uint8_t, Euclidian_Point<uint8_t>> Query_Points = PointRange<uint8_t, Euclidian_Point<uint8_t>>(qFile);
+      PointRange<Euclidian_Point<uint8_t>> Points = PointRange<Euclidian_Point<uint8_t>>(iFile);
+      PointRange<Euclidian_Point<uint8_t>> Query_Points = PointRange<Euclidian_Point<uint8_t>>(qFile);
       Graph<unsigned int> G; 
       if(gFile == NULL) G = Graph<unsigned int>(maxDeg, Points.size());
       else G = Graph<unsigned int>(gFile);
-      timeRange<Euclidian_Point<uint8_t>, PointRange<uint8_t, Euclidian_Point<uint8_t>>, uint>(G, Query_Points, r, BP, 
+      timeRange<Euclidian_Point<uint8_t>, PointRange<Euclidian_Point<uint8_t>>, uint>(G, Query_Points, r, BP, 
         oFile, GT, rFile, graph_built, Points);
     } else if(df == "mips"){
-      PointRange<uint8_t, Mips_Point<uint8_t>> Points = PointRange<uint8_t, Mips_Point<uint8_t>>(iFile);
-      PointRange<uint8_t, Mips_Point<uint8_t>> Query_Points = PointRange<uint8_t, Mips_Point<uint8_t>>(qFile);
+      PointRange< Mips_Point<uint8_t>> Points = PointRange< Mips_Point<uint8_t>>(iFile);
+      PointRange< Mips_Point<uint8_t>> Query_Points = PointRange< Mips_Point<uint8_t>>(qFile);
       Graph<unsigned int> G; 
       if(gFile == NULL) G = Graph<unsigned int>(maxDeg, Points.size());
       else G = Graph<unsigned int>(gFile);
-      timeRange<Mips_Point<uint8_t>, PointRange<uint8_t, Mips_Point<uint8_t>>, uint>(G, Query_Points, r, BP, 
+      timeRange<Mips_Point<uint8_t>, PointRange< Mips_Point<uint8_t>>, uint>(G, Query_Points, r, BP, 
         oFile, GT, rFile, graph_built, Points);
     }
   } else if(tp == "int8"){
     if(df == "Euclidian"){
-      PointRange<int8_t, Euclidian_Point<int8_t>> Points = PointRange<int8_t, Euclidian_Point<int8_t>>(iFile);
-      PointRange<int8_t, Euclidian_Point<int8_t>> Query_Points = PointRange<int8_t, Euclidian_Point<int8_t>>(qFile);
+      PointRange<Euclidian_Point<int8_t>> Points = PointRange<Euclidian_Point<int8_t>>(iFile);
+      PointRange<Euclidian_Point<int8_t>> Query_Points = PointRange< Euclidian_Point<int8_t>>(qFile);
       Graph<unsigned int> G; 
       if(gFile == NULL) G = Graph<unsigned int>(maxDeg, Points.size());
       else G = Graph<unsigned int>(gFile);
-      timeRange<Euclidian_Point<int8_t>, PointRange<int8_t, Euclidian_Point<int8_t>>, uint>(G, Query_Points, r, BP,
+      timeRange<Euclidian_Point<int8_t>, PointRange<Euclidian_Point<int8_t>>, uint>(G, Query_Points, r, BP,
         oFile, GT, rFile, graph_built, Points);
     } else if(df == "mips"){
-      PointRange<int8_t, Mips_Point<int8_t>> Points = PointRange<int8_t, Mips_Point<int8_t>>(iFile);
-      PointRange<int8_t, Mips_Point<int8_t>> Query_Points = PointRange<int8_t, Mips_Point<int8_t>>(qFile);
+      PointRange<Mips_Point<int8_t>> Points = PointRange<Mips_Point<int8_t>>(iFile);
+      PointRange<Mips_Point<int8_t>> Query_Points = PointRange<Mips_Point<int8_t>>(qFile);
       Graph<unsigned int> G; 
       if(gFile == NULL) G = Graph<unsigned int>(maxDeg, Points.size());
       else G = Graph<unsigned int>(gFile);
-      timeRange<Mips_Point<int8_t>, PointRange<int8_t, Mips_Point<int8_t>>, uint>(G, Query_Points, r, BP,
+      timeRange<Mips_Point<int8_t>, PointRange< Mips_Point<int8_t>>, uint>(G, Query_Points, r, BP,
         oFile, GT, rFile, graph_built, Points);
     }
   }
