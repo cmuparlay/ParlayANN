@@ -61,7 +61,7 @@ void timeRange(Graph<indexType> &G,
     time_loop(1, 0,
       [&] () {},
       [&] () {
-        RNG<Point, PointRange, QPointRange, indexType>(G, rad, BP, Query_Points, GT, res_file, graph_built, Points);
+        RNG<Point, PointRange, indexType>(G, rad, BP, Query_Points, GT, res_file, graph_built, Points);
       },
       [&] () {});
 
@@ -99,8 +99,7 @@ int main(int argc, char* argv[]) {
   if(cluster_size<0) P.badArgument();
   double r = P.getOptionDoubleValue("-r", 0);
   double alpha = P.getOptionDoubleValue("-alpha", 0);
-  int two_pass = P.getOptionIntValue("-two_pass", 0);
-  if(two_pass > 1 | two_pass < 0) P.badArgument();
+  int two_pass = P.getOptionIntValue("-two_pass", 1);
   bool pass = (two_pass == 1);
   double delta = P.getOptionDoubleValue("-delta", 0);
   if(delta<0) P.badArgument();
@@ -109,7 +108,7 @@ int main(int argc, char* argv[]) {
   std::string df = std::string(dfc);
   std::string tp = std::string(vectype);
 
-  BuildParams BP = BuildParams(R, L, alpha, pass, num_clusters, cluster_size, MST_deg, delta);
+  BuildParams BP = BuildParams(R, L, alpha, two_pass, num_clusters, cluster_size, MST_deg, delta);
   long maxDeg = BP.max_degree();
 
   if((tp != "uint8") && (tp != "int8") && (tp != "float")){

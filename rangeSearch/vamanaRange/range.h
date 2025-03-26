@@ -37,24 +37,27 @@
 
 namespace parlayANN{
 
-template<typename Point, typename PointRange, typename QPointRange, typename indexType>
+template<typename Point, typename PointRange,  typename indexType>
 void RNG(Graph<indexType> &G, double rad, BuildParams &BP,
          PointRange &Query_Points,
          RangeGroundTruth<indexType> GT,
          char* res_file, bool graph_built, PointRange &Points) {
   parlay::internal::timer t("ANN");
-  using findex = knn_index<PointRange, QPointRange, indexType>;
+  using findex = knn_index<PointRange, PointRange, indexType>;
   findex I(BP);
   double idx_time;
+  indexType start_point;
+  
   stats<unsigned int> BuildStats(G.size());
   if(graph_built){
     idx_time = 0;
   } else{
-    I.build_index(G, Points, BuildStats);
+    I.build_index(G, Points, Points, BuildStats);
+    start_point = I.get_start();
     idx_time = t.next_time();
   }
 
-  indexType start_point = I.get_start();
+  
   std::string name = "Vamana";
   std::string params =
       "R = " + std::to_string(BP.R) + ", L = " + std::to_string(BP.L);
