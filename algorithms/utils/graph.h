@@ -114,7 +114,7 @@ struct edgeRange{
 
   indexType* begin() const {return edges.begin() + 1;}
 
-  indexType* end() const {return edges.end() + 1 + edges[0];}
+  indexType* end() const {return edges.begin() + 1 + edges[0];}
 
 private:
   parlay::slice<indexType*, indexType*> edges;
