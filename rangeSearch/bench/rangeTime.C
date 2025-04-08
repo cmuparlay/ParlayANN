@@ -104,6 +104,7 @@ int main(int argc, char* argv[]) {
   double delta = P.getOptionDoubleValue("-delta", 0);
   if(delta<0) P.badArgument();
   char* dfc = P.getOptionValue("-dist_func");
+  double esr = P.getOptionDoubleValue("-early_stopping_radius", 0);
 
   std::string df = std::string(dfc);
   std::string tp = std::string(vectype);

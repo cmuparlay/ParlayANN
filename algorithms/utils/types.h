@@ -222,9 +222,16 @@ struct QueryParams{
   long limit;
   long degree_limit;
   int rerank_factor = 100;
+  long early_stop;
+  double early_stopping_radius;
+  bool is_double_beam = false;
+  bool is_early_stop = false;
   float pad = 1.0;
 
   QueryParams(long k, long Q, double cut, long limit, long dg, double rerank_factor = 100) : k(k), beamSize(Q), cut(cut), limit(limit), degree_limit(dg), rerank_factor(rerank_factor) {}
+
+  QueryParams(long k, long Q, double cut, long limit, long dg, long es, double esr, bool ies, bool idb) : k(k), beamSize(Q), cut(cut), limit(limit), degree_limit(dg), early_stop(es), early_stopping_radius(esr),
+  is_double_beam(idb), is_early_stop(ies) {}
 
   QueryParams() {}
 
@@ -233,9 +240,14 @@ struct QueryParams{
 struct RangeParams{
   double rad;
   long initial_beam;
+  long early_stop;
+  double early_stop_radius;
+  bool is_double_beam = false;
+  bool is_early_stop = false;
 
-  RangeParams(double rad, long ib) : rad(rad), initial_beam(ib) {}
-
+  RangeParams(double rad, long ib) : rad(rad), initial_beam(ib) {early_stop = 0; early_stop_radius = 0;}
+  RangeParams(double rad, long ib, long es, double esr) : rad(rad), initial_beam(ib),  early_stop(es), early_stop_radius(esr) {}
+  RangeParams(double rad, long ib, bool ies, bool idb, long es, double esr): rad(rad), initial_beam(ib), is_double_beam(idb), early_stop(es), early_stop_radius(esr){}
   RangeParams() {}
 
   void print(){

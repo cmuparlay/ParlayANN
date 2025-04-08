@@ -1,10 +1,9 @@
-#ifndef ALGORITHMS_CHECK_RANGE_RECALL
-#define ALGORITHMS_CHECK_RANGE_RECALL
-
 #include <algorithm>
 #include <set>
 
 #include "beamSearch.h"
+#include "doublingSearch.h"
+#include "rangeSearch.h"
 #include "csvfile.h"
 #include "parse_results.h"
 #include "parlay/parallel.h"
@@ -19,18 +18,21 @@ void checkRangeRecall(
         Graph<indexType> &G,
         PointRange &Base_Points,
         PointRange &Query_Points,
-        RangeGroundTruth<indexType> GT,
-        RangeParams RP,
-        long start_point) {
+        RangeGroundTruth<indexType> GT, RangeParams RP,
+        long start_point,parlay::sequence<indexType> &active_indices) {
 
 
-  parlay::sequence<parlay::sequence<indexType>> all_rr;
+  //parlay::sequence<parlay::sequence<indexType>> all_rr;
 
   parlay::internal::timer t;
   float query_time;
   stats<indexType> QueryStats(Query_Points.size());
+  parlay::sequence<indexType> start_points = {static_cast<indexType>(start_point)};
+  
  
-  all_rr = RangeSearch<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_point, RP);
+  //all_rr = RangeSearch<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_point, RP);
+  
+  auto [all_rr,timings] = DoubleBeamRangeSearch<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_points, RP, active_indices);
   query_time = t.next_time();
   
 
@@ -67,18 +69,19 @@ template<typename Point, typename PointRange, typename indexType>
 void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
    PointRange &Query_Points, 
   RangeGroundTruth<indexType> GT, double rad,
-  indexType start_point=0){
+  indexType start_point=0, bool is_early_stopping = false, bool is_double_beam=false, long es = 0, double esr= 0.0){
 
   std::vector<long> beams;
 
   beams = {10, 20, 30, 40, 50, 100, 1000, 2000, 3000}; 
 
+  parlay::sequence<indexType> all = parlay::tabulate(Query_Points.size(), [&] (indexType i){return i;});
+
   for(long b: beams){
-    RangeParams RP(rad, b);
-    checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point);
+    RangeParams RP(rad, b, is_early_stopping, is_double_beam, es, esr);
+    checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, all);
   }
   
 }
 
 } // end namespace
-#endif // ALGORITHMS_CHECK_RANGE_RECALL
