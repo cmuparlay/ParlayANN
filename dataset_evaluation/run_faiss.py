@@ -2,11 +2,54 @@ import numpy as np
 import os 
 import faiss 
 import sklearn.preprocessing
+import time
 
 from dataset_info import data_options
 
-faiss_configs = {"BIGANN-1M": {'indexkey':"OPQ32_128,IVF1048576_HNSW32,PQ32"}}
+faiss_configs = {"bigann-1M": {'indexkey':"OPQ32_64,IVF4096_HNSW32,PQ64x4fs", "two_level_clustering":False, 
+    "query_args": ["nprobe=1,quantizer_efSearch=4",
+                    "nprobe=2,quantizer_efSearch=4",
+                    "nprobe=3,quantizer_efSearch=4",
+                    "nprobe=4,quantizer_efSearch=4",
+                    "nprobe=4,quantizer_efSearch=8",
+                    "nprobe=5,quantizer_efSearch=8",
+                    "nprobe=6,quantizer_efSearch=8",
+                    "nprobe=7,quantizer_efSearch=8",
+                    "nprobe=8,quantizer_efSearch=4"]},
+"bigann-10M": {"indexkey": "OPQ32_128,IVF1048576_HNSW32,PQ32",
+    "query_args": ["nprobe=1,quantizer_efSearch=4",
+                "nprobe=2,quantizer_efSearch=4",
+                "nprobe=4,quantizer_efSearch=4",
+                "nprobe=4,quantizer_efSearch=8",
+                "nprobe=8,quantizer_efSearch=4",
+                "nprobe=8,quantizer_efSearch=8",
+                "nprobe=8,quantizer_efSearch=16",
+                "nprobe=8,quantizer_efSearch=32",
+                "nprobe=16,quantizer_efSearch=16",
+                "nprobe=16,quantizer_efSearch=32",
+                "nprobe=16,quantizer_efSearch=64",
+                "nprobe=32,quantizer_efSearch=8",
+                "nprobe=32,quantizer_efSearch=32",
+                "nprobe=32,quantizer_efSearch=64",
+                "nprobe=32,quantizer_efSearch=128",
+                "nprobe=64,quantizer_efSearch=16",
+                "nprobe=64,quantizer_efSearch=32",
+                "nprobe=64,quantizer_efSearch=64",
+                "nprobe=64,quantizer_efSearch=128",
+                "nprobe=64,quantizer_efSearch=256",
+                "nprobe=128,quantizer_efSearch=32",
+                "nprobe=128,quantizer_efSearch=64",
+                "nprobe=128,quantizer_efSearch=128",
+                "nprobe=128,quantizer_efSearch=256",
+                "nprobe=128,quantizer_efSearch=512",
+                "nprobe=256,quantizer_efSearch=64",
+                "nprobe=256,quantizer_efSearch=128",
+                "nprobe=256,quantizer_efSearch=512"]}
+}
 
+def sanitize(x):
+    """ make the simplest possible array of the input"""
+    return np.ascontiguousarray(x)
 
 '''
 mmap the bin data to a numpy array
@@ -16,6 +59,15 @@ def read_data(fname, dtype):
     print("Detected", n, "results with dimension", d)
     assert os.stat(fname).st_size == 8 + n * d * np.dtype(dtype).itemsize
     return np.memmap(fname, dtype=dtype, mode="r", offset=8, shape=(n, d))
+
+def get_dataset_iterator(filename, dtype, bs=512, split=(1,0)):
+    nsplit, rank = split
+    x = read_data(filename, dtype)
+    nb = x.shape[0]
+    i0, i1 = nb * rank // nsplit, nb * (rank + 1) // nsplit
+    for j0 in range(i0, i1, bs):
+        j1 = min(j0 + bs, i1)
+        yield sanitize(x[j0:j1])
 
 '''
 Range groundtruth consists of the total number of matches, 
@@ -102,7 +154,7 @@ def two_level_clustering(xt, nc1, nc2, clustering_niter=25, spherical=False):
     return np.vstack(c2)
 
 
-class Faiss(BaseANN):
+class Faiss():
     def __init__(self, dataset_name):
         self.dataset = data_options[dataset_name]
         self.index_params = faiss_configs[dataset_name]
@@ -113,10 +165,11 @@ class Faiss(BaseANN):
         return f"data/{name}.{self.indexkey}.faissindex"
 
     def fit(self, dataset):
-        index_params = self._index_params
+        index_params = self.index_params
 
-        ds = DATASETS[dataset]()
-        d = ds.d
+        dataset_arr = read_data(self.dataset["base"], map_type(self.dataset["data_type"]))
+        nb = dataset_arr.shape[0]
+        d = dataset_arr.shape[1]
 
         # get build parameters
         buildthreads = index_params.get("buildthreads", -1)
@@ -136,11 +189,8 @@ class Faiss(BaseANN):
             print("Set build-time number of threads:", buildthreads)
             faiss.omp_set_num_threads(buildthreads)
 
-        metric_type = (
-                faiss.METRIC_L2 if ds.distance() == "euclidean" else
-                faiss.METRIC_INNER_PRODUCT if ds.distance() in ("ip", "angular") else
-                1/0
-        )
+        metric_type = self.metric 
+
         index = faiss.index_factory(d, self.indexkey, metric_type)
 
         index_ivf, vec_transform = unwind_index_ivf(index)
@@ -206,7 +256,7 @@ class Faiss(BaseANN):
         # train on dataset
         print(f"getting first {maxtrain} dataset vectors for training")
 
-        xt2 = next(ds.get_dataset_iterator(bs=maxtrain))
+        xt2 = next(get_dataset_iterator(self.dataset["base"], map_type(self.dataset["data_type"]), bs=maxtrain))
 
         print("train, size", xt2.shape)
         assert np.all(np.isfinite(xt2))
@@ -269,10 +319,10 @@ class Faiss(BaseANN):
             index.add(ds.get_database())
         else:
             i0 = 0
-            for xblock in ds.get_dataset_iterator(bs=add_bs):
+            for xblock in get_dataset_iterator(self.dataset["base"], map_type(self.dataset["data_type"]), bs=add_bs):
                 i1 = i0 + len(xblock)
                 print("  adding %d:%d / %d [%.3f s, RSS %d kiB] " % (
-                    i0, i1, ds.nb, time.time() - t0,
+                    i0, i1, nb, time.time() - t0,
                     faiss.get_mem_usage_kb()))
                 index.add(xblock)
                 i0 = i1
@@ -286,12 +336,6 @@ class Faiss(BaseANN):
         self.ps.initialize(self.index)
 
     def load_index(self, dataset):
-        if not os.path.exists(self.index_name(dataset)):
-            if 'url' not in self._index_params:
-                return False
-
-            print('Downloading index in background. This can take a while.')
-            download_accelerated(self._index_params['url'], self.index_name(dataset), quiet=True)
 
         print("Loading index")
 
@@ -322,11 +366,11 @@ range_result is a list of ids that lie within the range
 def compute_average_precision(range_result, fname):
     gt_total_res, gt_limits, gt_ids = read_groundtruth(fname)
     total_correct = 0
-    reported_limits, reported_ids, reported_dists = range_result
+    reported_limits, reported_dists, reported_ids = range_result
     assert len(reported_limits) == len(gt_limits)
     for i in range(len(reported_limits)-1):
         num_correct = np.intersect1d(gt_ids[gt_limits[i]:gt_limits[i+1]], reported_ids[reported_limits[i]:reported_limits[i+1]])
-        total_correct += num_correct
+        total_correct += num_correct.shape[0]
     return total_correct/gt_total_res
 
 def map_type(dtype):
@@ -335,12 +379,44 @@ def map_type(dtype):
     elif dtype == "float":
         return np.float32
 
-dataset_name = "bigann-1M"
-dataset = data_options[dataset_name]
+'''
+Takes in an index object and the dataset name
+Times each query, computes QPS and average precision
+'''
+def time_queries(dataset_name):
+    index = Faiss(dataset_name)
+    try:
+        index.load_index(dataset_name)
+    except:
+        index.fit(dataset_name)
+        index.load_index(dataset_name)
+        
+    dataset = data_options[dataset_name]
+    queries = read_data(dataset["query"], map_type(dataset["data_type"]))
+    radius = dataset["radius"]
+    query_argument_groups = faiss_configs[dataset_name]["query_args"]
+    qps = []
+    ap = []
+    for query_args in query_argument_groups:
+        index.set_query_arguments(query_args)
+        #run once for warmup
+        index.range_query(queries, radius)
+        start = time.time()
+        index.range_query(queries, radius)
+        elapsed_time = time.time() - start
+        res = index.get_range_results()
+        pc = compute_average_precision(res, dataset["gt"])
+        ap.append(pc)
+        qps_single = queries.shape[0]/elapsed_time
+        qps.append(qps_single)
+    print("QPS:", qps)
+    print("Average Precision:", ap)
+     
 
-queries = read_data(dataset["query"], map_type(dataset["data_type"]))
 
-total_res, lims, I = read_groundtruth(dataset["gt"])
+dataset_name = "bigann-10M"
+time_queries(dataset_name)
+
 
 
 
