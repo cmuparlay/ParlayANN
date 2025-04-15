@@ -15,15 +15,15 @@
 #include "stats.h"
 
 namespace parlayANN{
-    template<typename Point, typename PointRange, typename indexType, typename distanceType> 
-    bool early_stopping(Point q, std::vector<std::pair<indexType, distanceType>>& frontier, 
-         std::vector<std::pair<indexType, distanceType>>& unvisited_frontier, double rad, long es, double esr, int num_visited){
-            bool has_visited_enough = (num_visited >= es);
-            bool early_stop = (es > 0); 
-            bool has_found_candidate = (frontier[0].second <= rad);
-            bool within_early_stop_rad = (unvisited_frontier[0].second <= esr);
-            return early_stop && has_visited_enough && !has_found_candidate && !within_early_stop_rad;
-         }
-
-
+  template<typename PointInfo>
+  bool early_stopping(const PointInfo& frontier, 
+                      const PointInfo& unvisited_frontier,
+                      const PointInfo& visited,
+                      const QueryParams& QP){
+    bool has_visited_enough = (visited.size >= QP.early_stop);
+    bool early_stop = (QP.early_stop > 0); 
+    bool has_found_candidate = (frontier[0].second <= QP.radius);
+    bool within_early_stop_rad = (unvisited_frontier[0].second <= QP.early_stopping_radius);
+    return early_stop && has_visited_enough && !has_found_candidate && !within_early_stop_rad;
+    }
 }

@@ -223,6 +223,7 @@ struct QueryParams{
   long degree_limit;
   int rerank_factor = 100;
   long early_stop;
+  double radius;
   double early_stopping_radius;
   bool is_double_beam = false;
   bool is_early_stop = false;
