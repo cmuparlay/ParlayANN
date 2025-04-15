@@ -30,11 +30,12 @@ filtered_beam_search(const GT &G,
                      const QPoint qp, const QPointRange &Q_Points,
                      const parlay::sequence<indexType> starting_points,
                      const QueryParams &QP,
-                     bool use_filtering = false, bool early_stopping = false
+                     bool use_filtering = false
                      ) {
   using dtype = typename Point::distanceType;
   using id_dist = std::pair<indexType, dtype>;
   int beamSize = QP.beamSize;
+  int max_degree = QP.degree_limit;
 
   if (starting_points.size() == 0) {
     std::cout << "beam search expects at least one start point" << std::endl;
@@ -50,7 +51,7 @@ filtered_beam_search(const GT &G,
 
   // used as a hash filter (can give false negative -- i.e. can say
   // not in table when it is)
-  int bits = std::max<int>(10, std::ceil(std::log2(beamSize * beamSize)) - 2);
+  int bits = std::max<int>(10, std::ceil(std::log2(beamSize * max_degree)) - 1);
   std::vector<indexType> hash_filter(1 << bits, -1);
   auto has_been_seen = [&](indexType a) -> bool {
     int loc = parlay::hash64_2(a) & ((1 << bits) - 1);
@@ -111,6 +112,7 @@ filtered_beam_search(const GT &G,
     //ADD EARLY STOPPING
     // the next node to visit is the unvisited frontier node that is closest to p
     id_dist current = unvisited_frontier[offset];
+
     G[current.first].prefetch();
     // add to visited set
     auto position = std::upper_bound(visited.begin(), visited.end(), current, less);
