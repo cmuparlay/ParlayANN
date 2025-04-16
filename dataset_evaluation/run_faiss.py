@@ -6,7 +6,7 @@ import time
 
 from dataset_info import data_options
 
-faiss_configs = {"bigann-1M": {'indexkey':"OPQ32_64,IVF4096_HNSW32,PQ64x4fs", "two_level_clustering":False, 
+faiss_configs = {"bigann-1M": {'indexkey':"OPQ32_64,IVF65536_HNSW32,PQ64x4fsr",
     "query_args": ["nprobe=1,quantizer_efSearch=4",
                     "nprobe=2,quantizer_efSearch=4",
                     "nprobe=3,quantizer_efSearch=4",
@@ -15,36 +15,58 @@ faiss_configs = {"bigann-1M": {'indexkey':"OPQ32_64,IVF4096_HNSW32,PQ64x4fs", "t
                     "nprobe=5,quantizer_efSearch=8",
                     "nprobe=6,quantizer_efSearch=8",
                     "nprobe=7,quantizer_efSearch=8",
-                    "nprobe=8,quantizer_efSearch=4"]},
-"bigann-10M": {"indexkey": "OPQ32_128,IVF1048576_HNSW32,PQ32",
+                    "nprobe=8,quantizer_efSearch=8",
+                    "nprobe=10,quantizer_efSearch=8",
+                    "nprobe=12,quantizer_efSearch=8",
+                    "nprobe=14,quantizer_efSearch=8",
+                    "nprobe=16,quantizer_efSearch=8",
+                    "nprobe=20,quantizer_efSearch=32",
+                    "nprobe=24,quantizer_efSearch=32",
+                    "nprobe=28,quantizer_efSearch=32",
+                    "nprobe=32,quantizer_efSearch=32",
+                    "nprobe=64,quantizer_efSearch=64",
+                    "nprobe=128,quantizer_efSearch=128",
+                    "nprobe=256,quantizer_efSearch=256",
+                    "nprobe=512,quantizer_efSearch=512",
+                    "nprobe=1024,quantizer_efSearch=1024",]},
+"bigann-10M": {'indexkey': "OPQ32_64,IVF1048576_HNSW32,PQ64x4fsr",
     "query_args": ["nprobe=1,quantizer_efSearch=4",
                 "nprobe=2,quantizer_efSearch=4",
                 "nprobe=4,quantizer_efSearch=4",
-                "nprobe=4,quantizer_efSearch=8",
-                "nprobe=8,quantizer_efSearch=4",
                 "nprobe=8,quantizer_efSearch=8",
-                "nprobe=8,quantizer_efSearch=16",
-                "nprobe=8,quantizer_efSearch=32",
                 "nprobe=16,quantizer_efSearch=16",
-                "nprobe=16,quantizer_efSearch=32",
                 "nprobe=16,quantizer_efSearch=64",
-                "nprobe=32,quantizer_efSearch=8",
                 "nprobe=32,quantizer_efSearch=32",
-                "nprobe=32,quantizer_efSearch=64",
                 "nprobe=32,quantizer_efSearch=128",
                 "nprobe=64,quantizer_efSearch=16",
-                "nprobe=64,quantizer_efSearch=32",
                 "nprobe=64,quantizer_efSearch=64",
-                "nprobe=64,quantizer_efSearch=128",
                 "nprobe=64,quantizer_efSearch=256",
                 "nprobe=128,quantizer_efSearch=32",
-                "nprobe=128,quantizer_efSearch=64",
                 "nprobe=128,quantizer_efSearch=128",
-                "nprobe=128,quantizer_efSearch=256",
                 "nprobe=128,quantizer_efSearch=512",
                 "nprobe=256,quantizer_efSearch=64",
-                "nprobe=256,quantizer_efSearch=128",
-                "nprobe=256,quantizer_efSearch=512"]}
+                "nprobe=256,quantizer_efSearch=512",
+                "nprobe=512,quantizer_efSearch=512"]},
+"bigann-100M": {'indexkey':"OPQ64_128,IVF1048576_HNSW32,PQ128x4fsr",
+    "query_args": ["nprobe=1,quantizer_efSearch=4",
+                "nprobe=2,quantizer_efSearch=4",
+                "nprobe=4,quantizer_efSearch=4",
+                "nprobe=8,quantizer_efSearch=4",
+                "nprobe=8,quantizer_efSearch=16",
+                "nprobe=16,quantizer_efSearch=16",
+                "nprobe=32,quantizer_efSearch=32",
+                "nprobe=64,quantizer_efSearch=64",
+                "nprobe=128,quantizer_efSearch=128",
+                "nprobe=128,quantizer_efSearch=512",
+                "nprobe=256,quantizer_efSearch=64",
+                "nprobe=256,quantizer_efSearch=512",
+                "nprobe=512,quantizer_efSearch=512",
+                "nprobe=1024,quantizer_efSearch=512",
+                "nprobe=2048,quantizer_efSearch=512",
+                "nprobe=4096,quantizer_efSearch=512"]},
+"ssnpp-1M" : {},
+"ssnpp-10M": {"indexkey": "OPQ32_128,IVF65536_HNSW32,PQ32"},
+"ssnpp-100M": {},
 }
 
 def sanitize(x):
@@ -414,7 +436,7 @@ def time_queries(dataset_name):
      
 
 
-dataset_name = "bigann-10M"
+dataset_name = "bigann-1M"
 time_queries(dataset_name)
 
 
