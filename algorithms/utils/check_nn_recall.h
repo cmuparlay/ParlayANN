@@ -200,6 +200,22 @@ void search_and_parse(Graph_ G_,
   std::vector<long> beams;
   std::vector<long> allr;
   std::vector<double> cuts;
+  std::vector<indexType> gt;
+  if (GT.n == 0) {
+    std::cout << "building ground truth" << std::endl;
+    int number = 100;
+    gt = std::vector<indexType>(number * Query_Points.size());
+    parlay::parallel_for(0, Query_Points.size(), [&] (long i) {
+      std::vector<std::pair<double,long>> distances(Base_Points.size());
+      for (long j = 0; j < Base_Points.size(); j++) 
+        distances[j] = std::pair(Query_Points[i].distance(Base_Points[j]), j);
+      std::sort(distances.begin(), distances.end(), [&] (auto x, auto y) {return x.first < y.first;});
+      for (int k = 0; k < number; k++) gt[i*number + k] = distances[k].second;});
+    GT.coords = parlay::make_slice(gt.data(), gt.data() + number * Query_Points.size());
+    GT.n = Query_Points.size();
+    GT.dim = number;
+  }
+        
 
   auto check = [&] (const long k, const QueryParams QP) {
     return checkRecall(G,

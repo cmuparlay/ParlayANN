@@ -175,13 +175,14 @@ struct BuildParams{
   long Q = 0; //beam width to pass onto query (0 indicates none specified)
   double trim = 0.0; // for quantization
   double rerank_factor = 100; // for reranking, k * factor = to rerank
+  long prefix;   // build just on first prefix points (0 means all)
 
   std::string alg_type;
 
   BuildParams(long R, long L, double a, int num_passes, long nc, long cs, long mst, double de,
               bool verbose = false, int quantize = 0, double radius = 0.0, double radius_2 = 0.0,
               bool self = false, bool range = false, int single_batch = 0, long Q = 0, double trim = 0.0,
-              int rerank_factor = 100)
+              int rerank_factor = 100, long prefix = 0)
     : R(R), L(L), alpha(a), num_passes(num_passes), num_clusters(nc), cluster_size(cs), MST_deg(mst), delta(de),
       verbose(verbose), quantize(quantize), radius(radius), radius_2(radius_2), self(self), range(range), single_batch(single_batch), Q(Q), trim(trim), rerank_factor(rerank_factor) {
     if(R != 0 && L != 0 && alpha != 0){alg_type = m_l>0? "HNSW": "Vamana";}
