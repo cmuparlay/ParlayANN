@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <set>
+#include <queue>
 
 #include "beamSearch.h"
 #include "csvfile.h"
@@ -203,14 +204,42 @@ void search_and_parse(Graph_ G_,
   std::vector<indexType> gt;
   if (GT.n == 0) {
     std::cout << "building ground truth" << std::endl;
+    bool rerank = (Base_Points.params.num_bytes() != Q_Base_Points.params.num_bytes());
     int number = 100;
+    int over = rerank ? 150 : number;
     gt = std::vector<indexType>(number * Query_Points.size());
+    parlay::internal::timer t;
+    t.start();
+    using dpair = std::pair<double, long>;
     parlay::parallel_for(0, Query_Points.size(), [&] (long i) {
+      std::priority_queue<dpair> pqueue;
       std::vector<std::pair<double,long>> distances(Base_Points.size());
-      for (long j = 0; j < Base_Points.size(); j++) 
-        distances[j] = std::pair(Query_Points[i].distance(Base_Points[j]), j);
-      std::sort(distances.begin(), distances.end(), [&] (auto x, auto y) {return x.first < y.first;});
-      for (int k = 0; k < number; k++) gt[i*number + k] = distances[k].second;});
+      pqueue.push(dpair(Q_Query_Points[i].distance(Q_Base_Points[0]), 0));
+      for (long j = 1; j < Base_Points.size(); j++) {
+        auto p = std::pair(Q_Query_Points[i].distance(Q_Base_Points[j]), j);
+        if (pqueue.size() < over) pqueue.push(p);
+        else if (p.first < pqueue.top().first) {
+          pqueue.pop();
+          pqueue.push(p);
+        }
+      }
+      std::vector<dpair> batch;
+      for (int k = 0; k < over; k++) {
+        batch.push_back(pqueue.top());
+        pqueue.pop();
+      }
+      if (rerank) {
+        for (long k = 0; k < batch.size(); k++) 
+          batch[k].first = Query_Points[i].distance(Base_Points[batch[k].second]);
+        std::sort(batch.begin(),batch.end());
+      } else std::reverse(batch.begin(),batch.end());
+      // for (long k = 0; k < number; k++) 
+      //   batch[k].first = Query_Points[i].distance(Base_Points[batch[k].second]);
+      // std::sort(batch.begin(), batch.begin() + number);
+      for (long k = 0; k < number; k++)
+        gt[i*number + k] = batch[k].second;
+      });
+    std::cout << "GT QPS: " << Query_Points.size()/t.stop() << std::endl;
     GT.coords = parlay::make_slice(gt.data(), gt.data() + number * Query_Points.size());
     GT.n = Query_Points.size();
     GT.dim = number;
