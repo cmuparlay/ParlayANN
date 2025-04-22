@@ -20,7 +20,7 @@ template<typename Point, typename PointRange, typename indexType>
 std::pair<parlay::sequence<parlay::sequence<indexType>>,std::pair<double,double>> DoubleBeamRangeSearch(PointRange &Query_Points,
 	                                       Graph<indexType> &G, PointRange &Base_Points, stats<indexType> &QueryStats, 
                                         parlay::sequence<indexType> starting_points,
-	                                      RangeParams &RP, parlay::sequence<indexType> active_indices) {
+	                                      QueryParams &QP, parlay::sequence<indexType> active_indices) {
   parlay::sequence<parlay::sequence<indexType>> all_neighbors(active_indices.size());
   //parlay::sequence<int> second_round(Query_Points.size(), 0);
   parlay::sequence<parlay::sequence<indexType>> starting_points_index(active_indices.size());
@@ -41,7 +41,7 @@ std::pair<parlay::sequence<parlay::sequence<indexType>>,std::pair<double,double>
     }
 
     bool results_smaller_than_beam = false;
-    size_t initial_beam = RP.initial_beam;
+    size_t initial_beam = QP.beamSize;
     // Initialize starting points
     for(size_t k; k< starting_points.size(); k++){
       starting_points_index[i].push_back(starting_points[k]);
@@ -52,7 +52,7 @@ std::pair<parlay::sequence<parlay::sequence<indexType>>,std::pair<double,double>
       parlay::sequence<indexType> neighbors;
       parlay::sequence<std::pair<indexType, typename Point::distanceType>> neighbors_within_larger_ball;
 
-      QueryParams QP(initial_beam, initial_beam, 0.0, G.size(), G.max_degree(), RP.early_stop, RP.early_stop_radius, false, true);
+      QueryParams QP(initial_beam, initial_beam, 0.0, G.size(), G.max_degree(), QP.early_stop, QP.early_stopping_radius, false, true);
 
       all_neighbors[i].clear();
 
@@ -80,7 +80,7 @@ std::pair<parlay::sequence<parlay::sequence<indexType>>,std::pair<double,double>
       neighbors.clear();
 
       for (indexType j = 0; j < beamElts.size(); j++) {
-        if(beamElts[j].second <= RP.rad) neighbors.push_back(beamElts[j].first);
+        if(beamElts[j].second <= QP.radius) neighbors.push_back(beamElts[j].first);
       }
       if(neighbors.size() < initial_beam){
         //Neighbors size is smaller than beam size

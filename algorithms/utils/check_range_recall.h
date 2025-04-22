@@ -18,10 +18,10 @@ void checkRangeRecall(
         Graph<indexType> &G,
         PointRange &Base_Points,
         PointRange &Query_Points,
-        RangeGroundTruth<indexType> GT, RangeParams RP,
+        RangeGroundTruth<indexType> GT, QueryParams QP,
         long start_point,parlay::sequence<indexType> &active_indices) {
 
-  if(RP.is_double_beam){
+  if(QP.is_double_beam){
     
     parlay::internal::timer t;
     float query_time;
@@ -30,7 +30,7 @@ void checkRangeRecall(
     
   
     
-    auto [all_rr,timings] = DoubleBeamRangeSearch<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_points, RP, active_indices);
+    auto [all_rr,timings] = DoubleBeamRangeSearch<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_points, QP, active_indices);
     query_time = t.next_time();
     
 
@@ -55,7 +55,7 @@ void checkRangeRecall(
     float QPS = Query_Points.size() / query_time;
     auto stats_ = {QueryStats.dist_stats(), QueryStats.visited_stats()};
     std::cout << "For ";
-    RP.print();
+    QP.print();
     std::cout << ", Pointwise Recall = " << pointwise_recall << ", Cumulative Recall = " << cumulative_recall << ", QPS = " << QPS << std::endl;
     
   }else{
@@ -67,9 +67,9 @@ void checkRangeRecall(
   parlay::sequence<indexType> start_points = {static_cast<indexType>(start_point)};
   
  
-  all_rr = RangeSearch<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_point, RP);
+  all_rr = RangeSearch<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_point, QP);
   
-  //auto [all_rr,timings] = DoubleBeamRangeSearch<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_points, RP, active_indices);
+  //auto [all_rr,timings] = DoubleBeamRangeSearch<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_points, QP, active_indices);
   query_time = t.next_time();
   
 
@@ -94,7 +94,7 @@ void checkRangeRecall(
   float QPS = Query_Points.size() / query_time;
   auto stats_ = {QueryStats.dist_stats(), QueryStats.visited_stats()};
   std::cout << "For ";
-  RP.print();
+  QP.print();
   std::cout << ", Pointwise Recall = " << pointwise_recall << ", Cumulative Recall = " << cumulative_recall << ", QPS = " << QPS << std::endl;
   
   }
@@ -116,7 +116,6 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
 
   long es = 0;
 
-  
 
   parlay::sequence<indexType> all = parlay::tabulate(Query_Points.size(), [&] (indexType i){return i;});
 
@@ -124,8 +123,10 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
     if(is_early_stopping){
       es = std::max((long)10, b/4);
     }
-    RangeParams RP(rad, b, is_early_stopping, is_double_beam, es, esr);
-    checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, all);
+    // QueryParams QP(rad, b, is_early_stopping, is_double_beam, es, esr);
+    QueryParams QP(k, Q, cut, limit, dg, rad, es, esr, false, false);
+    long k, long Q, double cut, long limit, long dg, long es, double esr, bool ies, bool idb
+    checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, QP, start_point, all);
   }
   
 }
