@@ -10,10 +10,10 @@
 #include "parlay/primitives.h"
 #include "parlay/random.h"
 #include "beamSearch.h"
+#include "earlyStopping.h"
 #include "types.h"
 #include "graph.h"
 #include "stats.h"
-
 
 namespace parlayANN {
     template<typename Point, typename PointRange, typename indexType>
@@ -38,8 +38,12 @@ RangeSearch(PointRange &Query_Points,
     parlay::sequence<indexType> neighbors;
     parlay::sequence<std::pair<indexType, typename Point::distanceType>> neighbors_with_distance;
     QueryParams QP(RP.initial_beam, RP.initial_beam, 0.0, G.size(), G.max_degree(), RP.early_stop, RP.early_stop_radius, 
-            RP.is_early_stop, false);
-    auto [pairElts, dist_cmps] = beam_search(Query_Points[i], G, Base_Points, starting_points, QP);
+                   RP.is_early_stop, false, RP.rad);
+    using dtype = typename Point::distanceType;
+    using id_dist = std::pair<indexType, dtype>;
+
+    auto [pairElts, dist_cmps] = beam_search_es(Query_Points[i], G, Base_Points, starting_points, QP,
+                                                early_stopping<std::vector<id_dist>>);
     auto [beamElts, visitedElts] = pairElts;
     for (indexType j = 0; j < beamElts.size(); j++) {
       if(beamElts[j].second <= RP.rad) {

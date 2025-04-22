@@ -112,11 +112,9 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
 
   std::vector<long> beams;
 
-  beams = {10, 20, 30, 40, 50, 100, 1000, 2000, 3000}; 
+  beams = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40, 50, 100, 1000, 2000, 3000}; 
 
   long es = 0;
-
-  
 
   parlay::sequence<indexType> all = parlay::tabulate(Query_Points.size(), [&] (indexType i){return i;});
 
@@ -125,6 +123,10 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
       es = std::max((long)10, b/4);
     }
     RangeParams RP(rad, b, is_early_stopping, is_double_beam, es, esr);
+
+    QueryParams QP(b, b, 0.0, G.size(), G.max_degree(), es,
+                   esr, is_early_stopping, false, rad);
+    
     checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, RP, start_point, all);
   }
   

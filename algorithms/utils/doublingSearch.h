@@ -52,7 +52,7 @@ std::pair<parlay::sequence<parlay::sequence<indexType>>,std::pair<double,double>
       parlay::sequence<indexType> neighbors;
       parlay::sequence<std::pair<indexType, typename Point::distanceType>> neighbors_within_larger_ball;
 
-      QueryParams QP(initial_beam, initial_beam, 0.0, G.size(), G.max_degree(), RP.early_stop, RP.early_stop_radius, false, true);
+      QueryParams QP(initial_beam, initial_beam, 0.0, G.size(), G.max_degree(), RP.early_stop, RP.early_stop_radius, false, true, RP.rad);
 
       all_neighbors[i].clear();
 

@@ -231,8 +231,8 @@ struct QueryParams{
 
   QueryParams(long k, long Q, double cut, long limit, long dg, double rerank_factor = 100) : k(k), beamSize(Q), cut(cut), limit(limit), degree_limit(dg), rerank_factor(rerank_factor) {}
 
-  QueryParams(long k, long Q, double cut, long limit, long dg, long es, double esr, bool ies, bool idb) : k(k), beamSize(Q), cut(cut), limit(limit), degree_limit(dg), early_stop(es), early_stopping_radius(esr),
-  is_double_beam(idb), is_early_stop(ies) {}
+  QueryParams(long k, long Q, double cut, long limit, long dg, long es, double esr, bool ies, bool idb, double radius) : k(k), beamSize(Q), cut(cut), limit(limit), degree_limit(dg), early_stop(es), early_stopping_radius(esr),
+                                                                                                                         is_double_beam(idb), is_early_stop(ies), radius(radius) {}
 
   QueryParams() {}
 

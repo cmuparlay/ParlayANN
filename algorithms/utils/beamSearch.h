@@ -15,7 +15,6 @@
 #include "types.h"
 #include "graph.h"
 #include "stats.h"
-#include "earlyStopping.h"
 
 namespace parlayANN {
 
@@ -239,13 +238,34 @@ filtered_beam_search(const GT &G,
                         full_dist_cmps);
 }
 
+  struct EStop {
+    template<typename PointInfo>
+    bool operator () (const PointInfo& frontier, 
+                      const PointInfo& unvisited_frontier,
+                      const PointInfo& visited,
+                      const QueryParams& QP) { return false;}
+  };
+
+  
 // version without filtering
-template<typename Point, typename PointRange, typename indexType>
+  template<typename Point, typename PointRange, typename indexType> // = EarlyStopping>
 std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>,
                     parlay::sequence<std::pair<indexType, typename Point::distanceType>>>, size_t>
 beam_search(const Point p, const Graph<indexType> &G, const PointRange &Points,
-            const parlay::sequence<indexType> starting_points, const QueryParams &QP) {
-  return filtered_beam_search(G, p, Points, p, Points, starting_points, QP, false);
+            const parlay::sequence<indexType> starting_points, const QueryParams &QP
+            ) {
+    return filtered_beam_search(G,p, Points, p, Points, starting_points, QP, false); //early_stop);
+}
+
+  // version without filtering
+  template<typename Point, typename PointRange, typename indexType, typename ES> // = EarlyStopping>
+std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>,
+                    parlay::sequence<std::pair<indexType, typename Point::distanceType>>>, size_t>
+beam_search_es(const Point p, const Graph<indexType> &G, const PointRange &Points,
+            const parlay::sequence<indexType> starting_points, const QueryParams &QP,
+            ES early_stop // = ES{}
+            ) {
+    return filtered_beam_search(G,p, Points, p, Points, starting_points, QP, false, early_stop);
 }
 
 // backward compatibility (for hnsw)
