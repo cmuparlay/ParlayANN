@@ -290,7 +290,7 @@ beam_search(const Point p, const Graph<indexType> &G, const PointRange &Points,
 template<typename Point, typename PointRange, typename indexType>
 std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>, size_t>
 greedy_search(Point p, Graph<indexType> &G, PointRange &Points,
-	      parlay::sequence<std::pair<indexType, typename Point::distanceType>> starting_points, RangeParams &RP,
+	      parlay::sequence<std::pair<indexType, typename Point::distanceType>> starting_points, QueryParams &QP,
         parlay::sequence<std::pair<indexType, typename Point::distanceType>> already_visited) {
   // compare two (node_id,distance) pairs, first by distance and then id if
   // equal
@@ -362,7 +362,7 @@ greedy_search(Point p, Graph<indexType> &G, PointRange &Points,
       total += dist;
       dist_cmps++;
       // filter out if not within radius
-      if (dist > RP.rad) continue;
+      if (dist > QP.radius) continue;
       frontier.push(std::pair{a, dist});
     }
   }

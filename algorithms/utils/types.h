@@ -238,26 +238,6 @@ struct QueryParams{
 
 };
 
-struct RangeParams{
-  double rad;
-  long initial_beam;
-  long early_stop;
-  double early_stop_radius;
-  bool is_double_beam = false;
-  bool is_early_stop = false;
-
-  RangeParams(double rad, long ib) : rad(rad), initial_beam(ib) {early_stop = 0; early_stop_radius = 0;}
-  RangeParams(double rad, long ib, long es, double esr) : rad(rad), initial_beam(ib),  early_stop(es), early_stop_radius(esr) {}
-  RangeParams(double rad, long ib, bool ies, bool idb, long es, double esr): rad(rad), initial_beam(ib), is_double_beam(idb), early_stop(es), early_stop_radius(esr){}
-  RangeParams() {}
-
-  void print(){
-    std::cout << "Beam: " << initial_beam;
-  }
-
-};
-
-
 template<typename T, typename Point>
 class Desc_HNSW{
 public:
