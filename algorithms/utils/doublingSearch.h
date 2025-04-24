@@ -52,7 +52,7 @@ std::pair<parlay::sequence<parlay::sequence<indexType>>,std::pair<double,double>
       parlay::sequence<indexType> neighbors;
       parlay::sequence<std::pair<indexType, typename Point::distanceType>> neighbors_within_larger_ball;
 
-      QueryParams QP2(initial_beam, initial_beam, 0.0, G.size(), G.max_degree(), QP.early_stop, QP.early_stopping_radius, false, true, QP.radius);
+      QueryParams QP2(initial_beam, initial_beam, 0.0, G.size(), G.max_degree(), QP.early_stop, QP.early_stopping_radius, QP.is_early_stop, QP.is_double_beam, QP.is_beam_search, QP.radius);
 
       all_neighbors[i].clear();
 
@@ -62,7 +62,7 @@ std::pair<parlay::sequence<parlay::sequence<indexType>>,std::pair<double,double>
       // size_t dist_cmps;
       
       // if(initial_beam <= 1000){
-      auto [pairElts, dist_cmps] = beam_search(Query_Points[active_indices[i]], G, Base_Points, starting_points_index[i], QP);
+      auto [pairElts, dist_cmps] = beam_search(Query_Points[active_indices[i]], G, Base_Points, starting_points_index[i], QP2);
       auto [beamElts, visitedElts] = pairElts;
       // }else{
       //   pair = beam_search_impl_with_set(Query_Points[active_indices[i]], G, Base_Points, starting_points_index[i], QP, 0);

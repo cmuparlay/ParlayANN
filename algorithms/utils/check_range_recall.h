@@ -55,7 +55,7 @@ void checkRangeRecall(
     float QPS = Query_Points.size() / query_time;
     auto stats_ = {QueryStats.dist_stats(), QueryStats.visited_stats()};
     std::cout << "For ";
-    //RP.print();
+    QP.print();
     std::cout << ", Pointwise Recall = " << pointwise_recall << ", Cumulative Recall = " << cumulative_recall << ", QPS = " << QPS << std::endl;
     
   }else{
@@ -94,7 +94,7 @@ void checkRangeRecall(
   float QPS = Query_Points.size() / query_time;
   auto stats_ = {QueryStats.dist_stats(), QueryStats.visited_stats()};
   std::cout << "For ";
-  //RP.print();
+  QP.print();
   std::cout << ", Pointwise Recall = " << pointwise_recall << ", Cumulative Recall = " << cumulative_recall << ", QPS = " << QPS << std::endl;
   
   }
@@ -108,7 +108,7 @@ template<typename Point, typename PointRange, typename indexType>
 void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
    PointRange &Query_Points, 
   RangeGroundTruth<indexType> GT, double rad,
-  indexType start_point=0, bool is_early_stopping = false, bool is_double_beam=false, double esr= 0.0){
+  indexType start_point=0, bool is_early_stopping = false, bool is_double_beam=false, bool is_beam_search = false, double esr= 0.0){
 
   std::vector<long> beams;
 
@@ -125,7 +125,7 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
     //RangeParams RP(rad, b, is_early_stopping, is_double_beam, es, esr);
 
     QueryParams QP(b, b, 0.0, G.size(), G.max_degree(), es,
-                   esr, is_early_stopping, false, rad);
+                   esr, is_early_stopping, is_double_beam, is_beam_search, rad);
     
     checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, QP, start_point, all);
   }

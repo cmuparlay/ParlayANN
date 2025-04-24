@@ -63,7 +63,7 @@ RangeSearch(PointRange &Query_Points,
     //   QueryStats.increment_visited(i, in_range.size());
     //   QueryStats.increment_dist(i, dist_cmps);
     // }
-    if(neighbors.size() < QP.beamSize){
+    if(neighbors.size() < QP.beamSize || QP.is_beam_search){
       all_neighbors[i] = neighbors;
     } else{
       auto [in_range, dist_cmps] = greedy_search(Query_Points[i], G, Base_Points, neighbors_with_distance, QP, visitedElts);
