@@ -1,8 +1,8 @@
-#include "../ivf/ivf.h"
-#include "../ivf/ivfGraph.h"
-#include "../ivf/clustering.h"
-#include "../ivf/posting_list.h"
-#include "../ivf/check_ivf_recall.h"
+#include "../../ivf/ivf.h"
+#include "../../ivf/ivfGraph.h"
+#include "../../ivf/clustering.h"
+#include "../../ivf/posting_list.h"
+#include "../../ivf/check_ivf_recall.h"
 
 #include "utils/euclidian_point.h"
 #include "utils/mips_point.h"
