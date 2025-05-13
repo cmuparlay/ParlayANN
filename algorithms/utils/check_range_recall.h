@@ -112,7 +112,7 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
 
   std::vector<long> beams;
 
-  beams = {1, 1, 3, 5, 7, 10, 20, 40, 60, 80, 100, 150, 200, 300, 400, 500, 1000, 2000, 3000}; 
+  beams = {1, 1, 2, 3, 4, 5, 7, 10, 20, 30, 40, 50, 60, 80, 100, 150, 200, 300, 400, 500, 1000}; 
 
   long es = 0;
 

@@ -70,7 +70,7 @@ RangeSearch(PointRange &Query_Points,
 
       parlay::sequence<indexType> ans;
 
-#define EndWithBeam
+      //#define EndWithBeam
 #ifdef EndWithBeam
       int beamSize = in_range.size() * 1.2;
       QueryParams QP2(beamSize, beamSize, 0.0, G.size(), G.max_degree());
