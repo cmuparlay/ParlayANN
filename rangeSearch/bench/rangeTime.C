@@ -118,6 +118,8 @@ int main(int argc, char* argv[]) {
   if(searchType == "earlyStopping"){
     is_early_stop = true;
   }
+  if(searchType == "greedySearch"){
+  }
   if(searchType == "doublingSearch"){
     is_double_beam = true;
   }

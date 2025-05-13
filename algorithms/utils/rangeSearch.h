@@ -67,10 +67,23 @@ RangeSearch(PointRange &Query_Points,
       all_neighbors[i] = neighbors;
     } else{
       auto [in_range, dist_cmps] = greedy_search(Query_Points[i], G, Base_Points, neighbors_with_distance, QP, visitedElts);
+
       parlay::sequence<indexType> ans;
-      for (auto r : in_range) {
-        if(r.second <= QP.radius) ans.push_back(r.first);
-      }
+
+#define EndWithBeam
+#ifdef EndWithBeam
+      int beamSize = in_range.size() * 1.2;
+      QueryParams QP2(beamSize, beamSize, 0.0, G.size(), G.max_degree());
+      auto [pairElts, dist_cmps2] = beam_search(Query_Points[i], G, Base_Points, in_range, QP2);
+      for (auto r : pairElts.first) 
+        if (r.second <= QP.radius)
+          ans.push_back(r.first);
+#else
+      for (auto r : in_range)
+        if (Query_Points[i].distance(Base_Points[r]) <= QP.radius)
+          ans.push_back(r);
+#endif
+
       all_neighbors[i] = ans;
       QueryStats.increment_visited(i, in_range.size());
       QueryStats.increment_dist(i, dist_cmps);

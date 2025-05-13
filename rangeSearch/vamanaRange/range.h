@@ -51,9 +51,10 @@ void RNG(Graph<indexType> &G, double rad, double esr, BuildParams &BP,
   stats<unsigned int> BuildStats(G.size());
   if(graph_built){
     idx_time = 0;
+    start_point = 1;
   } else{
     I.build_index(G, Points, Points, BuildStats);
-    start_point = I.get_start();
+    start_point = 1; //  I.get_start();
     idx_time = t.next_time();
   }
 

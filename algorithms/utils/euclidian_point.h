@@ -116,6 +116,11 @@ struct Euclidian_Point {
     return euclidian_distance(this->values, x.values, params.dims);
   }
 
+  bool within_radius(const Euclidian_Point& x, float r) const {
+    float d2 = euclidian_distance(this->values, x.values, params.dims);
+    return d2 < r * r;
+  }
+
   void normalize() {
     double norm = 0.0;
     for (int j = 0; j < params.dims; j++)

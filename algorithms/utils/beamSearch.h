@@ -288,7 +288,7 @@ beam_search(const Point p, const Graph<indexType> &G, const PointRange &Points,
 
 //a variant specialized for range searching
 template<typename Point, typename PointRange, typename indexType>
-std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>, size_t>
+std::pair<parlay::sequence<indexType>, size_t>
 greedy_search(Point p, Graph<indexType> &G, PointRange &Points,
 	      parlay::sequence<std::pair<indexType, typename Point::distanceType>> starting_points, QueryParams &QP,
         parlay::sequence<std::pair<indexType, typename Point::distanceType>> already_visited) {
@@ -311,15 +311,15 @@ greedy_search(Point p, Graph<indexType> &G, PointRange &Points,
   // Frontier maintains the points within radius found so far 
   // Each entry is a (id,distance) pair.
   // Initialized with starting points 
-  std::queue<std::pair<indexType, distanceType>> frontier;
+  std::queue<indexType> frontier;
   for (auto q : starting_points){
     if (!has_been_seen.count(q.first) > 0) has_been_seen.insert(q.first);
-    frontier.push(q);
+    frontier.push(q.first);
   }
   
 
   // maintains set of visited vertices (id-distance pairs)
-  std::vector<std::pair<indexType, distanceType>> visited;
+  std::vector<indexType> visited;
 
   // counters
   size_t dist_cmps = starting_points.size();
@@ -336,9 +336,9 @@ greedy_search(Point p, Graph<indexType> &G, PointRange &Points,
   while (frontier.size() > 0) {
     // the next node to visit is the unvisited frontier node that is closest to
     // p
-    std::pair<indexType, distanceType> current = frontier.front();
+    indexType current = frontier.front();
     frontier.pop();
-    G[current.first].prefetch();
+    G[current].prefetch();
     // add to visited set
     visited.push_back(current);
     num_visited++;
@@ -348,8 +348,8 @@ greedy_search(Point p, Graph<indexType> &G, PointRange &Points,
     // approximate hash it will be removed below by the union or will
     // not bump anyone else.
     keep.clear();
-    for (indexType i=0; i<G[current.first].size(); i++) {
-      auto a = G[current.first][i];
+    for (indexType i=0; i<G[current].size(); i++) {
+      auto a = G[current][i];
       //TODO this is a bug when searching for a point not in the graph???
       if (a == p.id() || has_been_seen.count(a) > 0) continue;  // skip if already seen
       keep.push_back(a);
@@ -359,11 +359,10 @@ greedy_search(Point p, Graph<indexType> &G, PointRange &Points,
 
     for (auto a : keep) {
       distanceType dist = Points[a].distance(p);
-      total += dist;
       dist_cmps++;
       // filter out if not within radius
       if (dist > QP.radius) continue;
-      frontier.push(std::pair{a, dist});
+      frontier.push(a);
     }
   }
 

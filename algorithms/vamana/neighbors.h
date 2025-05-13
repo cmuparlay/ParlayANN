@@ -57,7 +57,7 @@ void ANN_Quantized(Graph<indexType> &G, long k, BuildParams &BP,
     start_point = 0;
   } else{
     I.build_index(G, Q_Points, QQ_Points, BuildStats);
-    start_point = I.get_start();
+    start_point = 0; // I.get_start();
     idx_time = t.next_time();
   }
   std::cout << "start index = " << start_point << std::endl;

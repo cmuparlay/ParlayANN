@@ -206,6 +206,7 @@ struct Graph{
   void save(char* oFile) {
     std::cout << "Writing graph with " << n
               << " points and max degree " << maxDeg
+              << " to " << oFile 
               << std::endl;
     parlay::sequence<indexType> preamble =
       {static_cast<indexType>(n), static_cast<indexType>(maxDeg)};
