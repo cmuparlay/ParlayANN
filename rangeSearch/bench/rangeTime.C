@@ -32,14 +32,11 @@
 #include "../utils/mips_point.h"
 #include "../utils/graph.h"
 
-
-
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-
 
 using namespace parlayANN;
 
@@ -49,36 +46,27 @@ using namespace parlayANN;
 
 using uint = unsigned int;
 
-
 template<typename Point, typename PointRange, typename indexType>
 void timeRange(Graph<indexType> &G,
-		   PointRange &Query_Points, double rad, double esr,
-		   BuildParams &BP, char* outFile,
-		   RangeGroundTruth<indexType> GT, char* res_file, bool graph_built, PointRange &Points, bool is_early_stop, bool is_double_beam, bool is_beam_search)
+               PointRange &Query_Points, long k,
+               BuildParams &BP, char* outFile,
+               RangeGroundTruth<indexType> GT, char* res_file, bool graph_built,
+               PointRange &Points)
 {
-
-
-    time_loop(1, 0,
-      [&] () {},
-      [&] () {
-        RNG<Point, PointRange, indexType>(G, rad, esr, BP, Query_Points, GT, res_file, graph_built, Points, is_early_stop, is_double_beam, is_beam_search);
-      },
-      [&] () {});
-
-    if(outFile != NULL) {
-      G.save(outFile);
-    }
-
-
+  RNG<Point, PointRange, indexType>(G, BP.radius, BP.early_stopping_radius,
+                                    BP, Query_Points, GT, res_file,
+                                    graph_built, Points,
+                                    BP.early_stop, BP.double_beam, BP.beam_search);
+  if(outFile != NULL) G.save(outFile);
 }
 
 int main(int argc, char* argv[]) {
     commandLine P(argc,argv,
     "[-a <alpha>] [-d <delta>] [-R <deg>]"
-        "[-L <bm>] [-r <rad> ]  [-gt_path <g>] [-query_path <qF>]"
-        "[-graph_path <gF>] [-graph_outfile <oF>] [-res_path <rF>]"
-        "[-memory_flag <algoOpt>] [-mst_deg <q>] [num_clusters <nc>] [cluster_size <cs>]"
-        "[-data_type <tp>] [-dist_func <df>][-base_path <b>][-search_mode <sm>] <inFile>");
+        "[-L <bm>] [-k <k> ]  [-gt_path <g>] [-query_path <qF>]"
+        "[-graph_path <gF>] [-graph_outfile <oF>] [-res_path <rF>]" "[-num_passes <np>]"
+        "[-memory_flag <algoOpt>] [-mst_deg <q>] [-num_clusters <nc>] [-cluster_size <cs>]"
+        "[-data_type <tp>] [-dist_func <df>] [-base_path <b>] <inFile>");
 
   char* iFile = P.getOptionValue("-base_path");
   char* oFile = P.getOptionValue("-graph_outfile");
@@ -87,6 +75,7 @@ int main(int argc, char* argv[]) {
   char* cFile = P.getOptionValue("-gt_path");
   char* rFile = P.getOptionValue("-res_path");
   char* vectype = P.getOptionValue("-data_type");
+  long Q = P.getOptionIntValue("-Q", 0);
   long R = P.getOptionIntValue("-R", 0);
   if(R<0) P.badArgument();
   long L = P.getOptionIntValue("-L", 0);
@@ -97,20 +86,38 @@ int main(int argc, char* argv[]) {
   if(num_clusters<0) P.badArgument();
   long cluster_size = P.getOptionIntValue("-cluster_size", 0);
   if(cluster_size<0) P.badArgument();
-  double r = P.getOptionDoubleValue("-r", 0);
-  double alpha = P.getOptionDoubleValue("-alpha", 0);
-  int two_pass = P.getOptionIntValue("-two_pass", 1);
-  bool pass = (two_pass == 1);
+  double radius  = P.getOptionDoubleValue("-radius", 0.0);
+  double radius_2  = P.getOptionDoubleValue("-radius_2", radius);
+  long k = P.getOptionIntValue("-k", 0);
+  if (k > 1000 || k < 0) P.badArgument();
+  double alpha = P.getOptionDoubleValue("-alpha", 1.0);
+  int num_passes = P.getOptionIntValue("-num_passes", 1);
+  int two_pass = P.getOptionIntValue("-two_pass", 0);
+  if(two_pass > 1 | two_pass < 0) P.badArgument();
+  if (two_pass == 1) num_passes = 2;
   double delta = P.getOptionDoubleValue("-delta", 0);
   if(delta<0) P.badArgument();
   char* dfc = P.getOptionValue("-dist_func");
+  int quantize = P.getOptionIntValue("-quantize_bits", 0);
+  int quantize_build = P.getOptionIntValue("-quantize_mode", 0);
+  bool verbose = P.getOption("-verbose");
+  bool normalize = P.getOption("-normalize");
+  double trim = P.getOptionDoubleValue("-trim", 0.0); // not used
+  bool self = P.getOption("-self");
+  int rerank_factor = P.getOptionIntValue("-rerank_factor", 100);
+  bool range = P.getOption("-range");
   char* sm = P.getOptionValue("-search_mode");
   double esr = P.getOptionDoubleValue("-early_stopping_radius", 0);
-
+  double rad  = P.getOptionDoubleValue("-r", 0.0);
+  
+  // this integer represents the number of random edges to start with for
+  // inserting in a single batch per round
+  int single_batch = P.getOptionIntValue("-single_batch", 0);
+    
   std::string df = std::string(dfc);
   std::string tp = std::string(vectype);
 
-  std::string searchType = std::string(sm);
+    std::string searchType = std::string(sm);
   bool is_early_stop = false;
   bool is_double_beam = false;
   bool is_beam_search = false;
@@ -131,8 +138,11 @@ int main(int argc, char* argv[]) {
     is_beam_search = true;
   }
 
-  BuildParams BP = BuildParams(R, L, alpha, two_pass, num_clusters, cluster_size, MST_deg, delta);
+  BuildParams BP = BuildParams(R, L, alpha, num_passes, num_clusters, cluster_size, MST_deg, delta, verbose, quantize_build, rad, esr, self, range, single_batch, Q, trim, rerank_factor);
   long maxDeg = BP.max_degree();
+  BP.early_stop = is_early_stop;
+  BP.double_beam = is_double_beam;
+  BP.beam_search = is_beam_search;
 
   if((tp != "uint8") && (tp != "int8") && (tp != "float")){
     std::cout << "Error: vector type not specified correctly, specify int8, uint8, or float" << std::endl;
@@ -150,59 +160,112 @@ int main(int argc, char* argv[]) {
   
   if(tp == "float"){
     if(df == "Euclidian"){
-      PointRange<Euclidian_Point<float>> Points = PointRange<Euclidian_Point<float>>(iFile);
-      PointRange<Euclidian_Point<float>> Query_Points = PointRange<Euclidian_Point<float>>(qFile);
+      PointRange<Euclidian_Point<float>> Points(iFile);
+      PointRange<Euclidian_Point<float>> Query_Points(qFile);
+      if (normalize) {
+        std::cout << "normalizing data" << std::endl;
+        for (int i=0; i < Points.size(); i++) 
+          Points[i].normalize();
+        for (int i=0; i < Query_Points.size(); i++) 
+          Query_Points[i].normalize();
+      }
       Graph<unsigned int> G; 
       if(gFile == NULL) G = Graph<unsigned int>(maxDeg, Points.size());
       else G = Graph<unsigned int>(gFile);
-      timeRange<Euclidian_Point<float>, PointRange<Euclidian_Point<float>>, uint>(G, Query_Points, r, esr, BP, 
-        oFile, GT, rFile, graph_built, Points, is_early_stop, is_double_beam, is_beam_search);
+      if (quantize == 8) {
+        std::cout << "quantizing data to 1 byte" << std::endl;
+        using QT = uint8_t;
+        using QPoint = Euclidian_Point<QT>;
+        using PR = PointRange<QPoint>;
+        PR Points_(Points);
+        PR Query_Points_(Query_Points, Points_.params);
+        timeRange<QPoint, PR, uint>(G, Query_Points_, k, BP, oFile, GT, rFile, graph_built, Points_);
+      } else if (quantize == 16) {
+        std::cout << "quantizing data to 2 bytes" << std::endl;
+        using Point = Euclidian_Point<uint16_t>;
+        using PR = PointRange<Point>;
+        PR Points_(Points);
+        PR Query_Points_(Query_Points, Points_.params);
+        timeRange<Point, PR, uint>(G, Query_Points_, k, BP, oFile, GT, rFile, graph_built, Points_);
+      } else {
+        using Point = Euclidian_Point<float>;
+        using PR = PointRange<Point>;
+        timeRange<Point, PR, uint>(G, Query_Points, k, BP, oFile, GT, rFile, graph_built, Points);
+      }
     } else if(df == "mips"){
-      PointRange<Mips_Point<float>> Points = PointRange<Mips_Point<float>>(iFile);
-      PointRange<Mips_Point<float>> Query_Points = PointRange<Mips_Point<float>>(qFile);
+      PointRange<Mips_Point<float>> Points(iFile);
+      PointRange<Mips_Point<float>> Query_Points(qFile);
+      if (normalize) {
+        std::cout << "normalizing data" << std::endl;
+        for (int i=0; i < Points.size(); i++) 
+          Points[i].normalize();
+        for (int i=0; i < Query_Points.size(); i++) 
+          Query_Points[i].normalize();
+      }
       Graph<unsigned int> G; 
       if(gFile == NULL) G = Graph<unsigned int>(maxDeg, Points.size());
       else G = Graph<unsigned int>(gFile);
-      timeRange<Mips_Point<float>, PointRange<Mips_Point<float>>, uint>(G, Query_Points, r, esr, BP, 
-        oFile, GT, rFile, graph_built, Points, is_early_stop, is_double_beam, is_beam_search);
+      if (quantize == 8) {
+        std::cout << "quantizing data to 1 byte" << std::endl;
+        using QT = int8_t;
+        using Point = Quantized_Mips_Point<8>;
+        using PR = PointRange<Point>;
+        PR Points_(Points);
+        PR Query_Points_(Query_Points, Points_.params);
+        timeRange<Point, PR, uint>(G, Query_Points_, k, BP, oFile, GT, rFile, graph_built, Points_);
+      } else if (quantize == 16) {
+        std::cout << "quantizing data to 2 bytes" << std::endl;
+        using QT = int16_t;
+        using Point = Quantized_Mips_Point<16>;
+        using PR = PointRange<Point>;
+        PR Points_(Points);
+        PR Query_Points_(Query_Points, Points_.params);
+        timeRange<Point, PR, uint>(G, Query_Points_, k, BP, oFile, GT, rFile, graph_built, Points_);
+      } else {
+        using Point = Mips_Point<float>;
+        using PR = PointRange<Point>;
+        timeRange<Point, PR, uint>(G, Query_Points, k, BP, oFile, GT, rFile, graph_built, Points);
+      }
     }
-    
   } else if(tp == "uint8"){
     if(df == "Euclidian"){
-      PointRange<Euclidian_Point<uint8_t>> Points = PointRange<Euclidian_Point<uint8_t>>(iFile);
-      PointRange<Euclidian_Point<uint8_t>> Query_Points = PointRange<Euclidian_Point<uint8_t>>(qFile);
+      PointRange<Euclidian_Point<uint8_t>> Points(iFile);
+      PointRange<Euclidian_Point<uint8_t>> Query_Points(qFile);
       Graph<unsigned int> G; 
       if(gFile == NULL) G = Graph<unsigned int>(maxDeg, Points.size());
       else G = Graph<unsigned int>(gFile);
-      timeRange<Euclidian_Point<uint8_t>, PointRange<Euclidian_Point<uint8_t>>, uint>(G, Query_Points, r, esr, BP, 
-        oFile, GT, rFile, graph_built, Points, is_early_stop, is_double_beam, is_beam_search);
+      timeRange<Euclidian_Point<uint8_t>, PointRange<Euclidian_Point<uint8_t>>, uint>(G, Query_Points, k, BP, 
+        oFile, GT, rFile, graph_built, Points);
     } else if(df == "mips"){
-      PointRange< Mips_Point<uint8_t>> Points = PointRange< Mips_Point<uint8_t>>(iFile);
-      PointRange< Mips_Point<uint8_t>> Query_Points = PointRange< Mips_Point<uint8_t>>(qFile);
+      PointRange<Mips_Point<uint8_t>> Points(iFile);
+      PointRange<Mips_Point<uint8_t>> Query_Points(qFile);
       Graph<unsigned int> G; 
       if(gFile == NULL) G = Graph<unsigned int>(maxDeg, Points.size());
       else G = Graph<unsigned int>(gFile);
-      timeRange<Mips_Point<uint8_t>, PointRange< Mips_Point<uint8_t>>, uint>(G, Query_Points, r, esr, BP, 
-        oFile, GT, rFile, graph_built, Points, is_early_stop, is_double_beam, is_beam_search);
+      timeRange<Mips_Point<uint8_t>, PointRange<Mips_Point<uint8_t>>, uint>(G, Query_Points, k, BP, 
+        oFile, GT, rFile, graph_built, Points);
     }
   } else if(tp == "int8"){
     if(df == "Euclidian"){
-      PointRange<Euclidian_Point<int8_t>> Points = PointRange<Euclidian_Point<int8_t>>(iFile);
-      PointRange<Euclidian_Point<int8_t>> Query_Points = PointRange< Euclidian_Point<int8_t>>(qFile);
+      PointRange<Euclidian_Point<int8_t>> Points(iFile);
+      PointRange<Euclidian_Point<int8_t>> Query_Points(qFile);
       Graph<unsigned int> G; 
       if(gFile == NULL) G = Graph<unsigned int>(maxDeg, Points.size());
       else G = Graph<unsigned int>(gFile);
-      timeRange<Euclidian_Point<int8_t>, PointRange<Euclidian_Point<int8_t>>, uint>(G, Query_Points, r, esr, BP,
-        oFile, GT, rFile, graph_built, Points, is_early_stop, is_double_beam, is_beam_search);
+      timeRange<Euclidian_Point<int8_t>, PointRange<Euclidian_Point<int8_t>>, uint>(G, Query_Points, k, BP,
+        oFile, GT, rFile, graph_built, Points);
     } else if(df == "mips"){
-      PointRange<Mips_Point<int8_t>> Points = PointRange<Mips_Point<int8_t>>(iFile);
-      PointRange<Mips_Point<int8_t>> Query_Points = PointRange<Mips_Point<int8_t>>(qFile);
+      PointRange<Mips_Point<int8_t>> Points(iFile);
+      PointRange<Mips_Point<int8_t>> Query_Points(qFile);
       Graph<unsigned int> G; 
       if(gFile == NULL) G = Graph<unsigned int>(maxDeg, Points.size());
       else G = Graph<unsigned int>(gFile);
-      timeRange<Mips_Point<int8_t>, PointRange< Mips_Point<int8_t>>, uint>(G, Query_Points, r, esr, BP,
-        oFile, GT, rFile, graph_built, Points, is_early_stop, is_double_beam, is_beam_search);
+      timeRange<Mips_Point<int8_t>, PointRange<Mips_Point<int8_t>>, uint>(G, Query_Points, k, BP,
+        oFile, GT, rFile, graph_built, Points);
     }
   }
   
+  return 0;
 }
+
+

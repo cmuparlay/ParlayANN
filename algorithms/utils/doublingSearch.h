@@ -17,13 +17,12 @@
 
 namespace parlayANN{
 template<typename Point, typename PointRange, typename indexType>
-std::pair<parlay::sequence<parlay::sequence<indexType>>,std::pair<double,double>> DoubleBeamRangeSearch(PointRange &Query_Points,
-	                                       Graph<indexType> &G, PointRange &Base_Points, stats<indexType> &QueryStats, 
-                                        parlay::sequence<indexType> starting_points,
-	                                      QueryParams &QP, parlay::sequence<indexType> active_indices) {
+std::pair<parlay::sequence<parlay::sequence<indexType>>,std::pair<double,double>>
+DoubleBeamRangeSearch(PointRange &Query_Points,
+                      Graph<indexType> &G, PointRange &Base_Points, stats<indexType> &QueryStats, 
+                      parlay::sequence<indexType> starting_points,
+                      QueryParams &QP, parlay::sequence<indexType> active_indices) {
   parlay::sequence<parlay::sequence<indexType>> all_neighbors(active_indices.size());
-  //parlay::sequence<int> second_round(Query_Points.size(), 0);
-  parlay::sequence<parlay::sequence<indexType>> starting_points_index(active_indices.size());
   parlay::WorkerSpecific<double> first_round_time;
   parlay::WorkerSpecific<double> second_round_time;
   
@@ -43,49 +42,36 @@ std::pair<parlay::sequence<parlay::sequence<indexType>>,std::pair<double,double>
     bool results_smaller_than_beam = false;
     size_t initial_beam = QP.beamSize;
     // Initialize starting points
-    for(size_t k; k< starting_points.size(); k++){
-      starting_points_index[i].push_back(starting_points[k]);
-    }
-
+    parlay::sequence<indexType> starting_points_idx;
+    for (auto s : starting_points) 
+      starting_points_idx.push_back(s);
     
     while(!results_smaller_than_beam){
       parlay::sequence<indexType> neighbors;
-      parlay::sequence<std::pair<indexType, typename Point::distanceType>> neighbors_within_larger_ball;
 
-      QueryParams QP2(initial_beam, initial_beam, 0.0, G.size(), G.max_degree(), QP.early_stop, QP.early_stopping_radius, QP.is_early_stop, QP.is_double_beam, QP.is_beam_search, QP.radius);
+      QueryParams QP2(initial_beam, initial_beam, 0.0,
+                      G.size(), G.max_degree(),
+                      QP.early_stop, QP.early_stopping_radius,
+                      QP.is_early_stop, QP.is_double_beam, QP.is_beam_search, QP.radius);
 
       all_neighbors[i].clear();
 
-      // std::pair<std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>, parlay::sequence<std::pair<indexType, typename Point::distanceType>>>, size_t>, parlay::sequence<std::pair<indexType, typename Point::distanceType>>> pair; 
-      // parlay::sequence<std::pair<indexType, typename Point::distanceType>> beamElts;
-      // parlay::sequence<std::pair<indexType, typename Point::distanceType>> visitedElts;
-      // size_t dist_cmps;
-      
-      // if(initial_beam <= 1000){
-      auto [pairElts, dist_cmps] = beam_search(Query_Points[active_indices[i]], G, Base_Points, starting_points_index[i], QP2);
+      auto [pairElts, dist_cmps] = beam_search(Query_Points[active_indices[i]], G,
+                                               Base_Points, starting_points_idx, QP2);
       auto [beamElts, visitedElts] = pairElts;
-      // }else{
-      //   pair = beam_search_impl_with_set(Query_Points[active_indices[i]], G, Base_Points, starting_points_index[i], QP, 0);
-      //   auto [tmp, visit_order_pt] = pair;
-      //   auto [pairElts, dist_cmps] = tmp;
-      //   auto [beamElts, visitedElts] = pairElts;
-      // }
 
-      starting_points_index[i].clear();
-      for(size_t l=0; l<visitedElts.size(); l++){
-        starting_points_index[i].push_back(visitedElts[l].first);
-      }
-
+      starting_points_idx.clear();
+      for (auto v : visitedElts) 
+        starting_points_idx.push_back(v.first);
 
       neighbors.clear();
 
-      for (indexType j = 0; j < beamElts.size(); j++) {
-        if(beamElts[j].second <= QP.radius) neighbors.push_back(beamElts[j].first);
-      }
-      if(neighbors.size() < initial_beam){
-        //Neighbors size is smaller than beam size
+      for (auto b : beamElts) 
+        if(b.second <= QP.radius) neighbors.push_back(b.first);
+
+      if(neighbors.size() < initial_beam)
         results_smaller_than_beam = true;
-      } 
+
       all_neighbors[i] = neighbors;
 
       QueryStats.increment_visited(i, visitedElts.size());
