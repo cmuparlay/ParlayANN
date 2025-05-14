@@ -17,6 +17,9 @@
 #include "earlyStopping.h"
 
 namespace parlayANN{
+
+  bool doneonce = false;
+  
   template<typename PointRange,
            typename QPointRange,
            typename indexType>
@@ -40,44 +43,40 @@ DoubleBeamRangeSearch(Graph<indexType> &G,
     bool first_run = true;
     if(first_run) t_search_first.start();
     else t_search_other.start();
-    using dtype = typename decltype(Query_Points[0])::distanceType;
+    using Point = decltype(Query_Points[0]);
+    using dtype = typename Point::distanceType;
     using id_dist = std::pair<indexType, dtype>;
-    auto [pairElts, dist_cmps] = filtered_beam_search(G, Query_Points[i], Base_Points, Query_Points[i], Base_Points, starting_points, QP, false, early_stopping<std::vector<id_dist>>);
-    auto [beamElts, visitedElts] = pairElts;
-    for (auto b : beamElts) 
-      if(b.second <= QP.radius) neighbors.push_back(b.first);
 
     bool results_smaller_than_beam = false;
-    if (neighbors.size() < QP.beamSize)
-      results_smaller_than_beam = true;
-    
-    all_neighbors[i] = std::move(neighbors);
-
-    size_t initial_beam = QP.beamSize * 2;
+    size_t initial_beam = QP.beamSize;
     // Initialize starting points
     parlay::sequence<indexType> starting_points_idx;
-    for (auto s : visitedElts) 
-      starting_points_idx.push_back(s.first);
+    for (auto s : starting_points) 
+      starting_points_idx.push_back(s);
     
     while(!results_smaller_than_beam){
       parlay::sequence<indexType> neighbors;
 
+      if (!doneonce) {
+        std::cout << Q_Query_Points[i].translate_distance(QP.radius) << std::endl;;
+        doneonce = true;
+      }
       QueryParams QP2(initial_beam, initial_beam, 0.0,
                       G.size(), G.max_degree(),
-                      QP.early_stop, QP.early_stopping_radius,
-                      QP.is_early_stop, QP.is_double_beam, QP.is_beam_search, QP.radius);
+                      QP.early_stop, Q_Query_Points[i].translate_distance(QP.radius),
+                      first_run && QP.is_early_stop, QP.is_double_beam, QP.is_beam_search, 1.0);
 
-      auto [pairElts, dist_cmps] = beam_search(Query_Points[active_indices[i]], G,
-                                               Base_Points, starting_points, QP2);
+      auto [pairElts, dist_cmps] = filtered_beam_search(G, Q_Query_Points[i], Q_Base_Points, Q_Query_Points[i], Q_Base_Points, starting_points, QP2, false, early_stopping<std::vector<id_dist>,Point>);
       auto [beamElts, visitedElts] = pairElts;
 
       starting_points_idx.clear();
       for (auto v : visitedElts) 
         starting_points_idx.push_back(v.first);
 
-      for (auto b : beamElts) 
-        if(b.second <= QP.radius) neighbors.push_back(b.first);
-
+      for (auto b : beamElts)
+        if (Query_Points[i].distance(Base_Points[b.first]) <= QP.radius)
+          neighbors.push_back(b.first);
+      
       if (neighbors.size() < initial_beam)
         results_smaller_than_beam = true;
 

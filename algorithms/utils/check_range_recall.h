@@ -13,11 +13,11 @@
 
 namespace parlayANN {
 
-template<typename Point, typename PointRange, typename indexType>
+template<typename Point, typename PointRange, typename QPointRange, typename indexType>
 void checkRangeRecall(
         Graph<indexType> &G,
-        PointRange &Base_Points,
-        PointRange &Query_Points,
+        PointRange &Base_Points, PointRange &Query_Points,
+        QPointRange &Q_Base_Points, QPointRange &Q_Query_Points,
         RangeGroundTruth<indexType> GT, QueryParams QP,
         long start_point,parlay::sequence<indexType> &active_indices) {
 
@@ -28,7 +28,10 @@ void checkRangeRecall(
     stats<indexType> QueryStats(Query_Points.size());
     parlay::sequence<indexType> start_points = {static_cast<indexType>(start_point)};
     
-    auto [all_rr,timings] = DoubleBeamRangeSearch<PointRange, PointRange, indexType>(G, Query_Points, Base_Points, Query_Points, Base_Points, QueryStats, start_points, QP, active_indices);
+    auto [all_rr,timings] = DoubleBeamRangeSearch(G,
+                                                  Query_Points, Base_Points,
+                                                  Q_Query_Points, Q_Base_Points,
+                                                  QueryStats, start_points, QP, active_indices);
     query_time = t.next_time();
 
     float pointwise_recall = 0.0;
@@ -63,8 +66,11 @@ void checkRangeRecall(
   stats<indexType> QueryStats(Query_Points.size());
   parlay::sequence<indexType> start_points = {static_cast<indexType>(start_point)};
   
- 
-  all_rr = RangeSearch<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_point, QP);
+
+  all_rr = RangeSearch<Point,PointRange,QPointRange,indexType>(G,
+                              Query_Points, Base_Points,
+                              Q_Query_Points, Q_Base_Points,
+                              QueryStats, start_point, QP);
   
   //auto [all_rr,timings] = DoubleBeamRangeSearch<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_points, RP, active_indices);
   query_time = t.next_time();
@@ -101,9 +107,10 @@ void checkRangeRecall(
 }
 
 
-template<typename Point, typename PointRange, typename indexType>
-void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
-   PointRange &Query_Points, 
+template<typename Point, typename PointRange, typename QPointRange, typename indexType>
+void range_search_wrapper(Graph<indexType> &G,
+                          PointRange &Base_Points, PointRange &Query_Points,
+                          QPointRange &Q_Base_Points, QPointRange &Q_Query_Points, 
   RangeGroundTruth<indexType> GT, double rad,
   indexType start_point=0, bool is_early_stopping = false, bool is_double_beam=false, bool is_beam_search = false, double esr= 0.0){
 
@@ -124,7 +131,10 @@ void range_search_wrapper(Graph<indexType> &G, PointRange &Base_Points,
     QueryParams QP(b, b, 0.0, G.size(), G.max_degree(), es,
                    esr, is_early_stopping, is_double_beam, is_beam_search, rad);
     
-    checkRangeRecall<Point, PointRange, indexType>(G, Base_Points, Query_Points, GT, QP, start_point, all);
+    checkRangeRecall<Point>(G,
+                            Base_Points, Query_Points,
+                            Q_Base_Points, Q_Query_Points,
+                            GT, QP, start_point, all);
   }
   
 }

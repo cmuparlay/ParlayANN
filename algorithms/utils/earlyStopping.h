@@ -16,7 +16,7 @@
 #include "stats.h"
 
 namespace parlayANN{
-  template<typename PointInfo>
+  template<typename PointInfo, typename Point>
   bool early_stopping(const PointInfo& frontier, 
                       const PointInfo& unvisited_frontier,
                       const PointInfo& visited,

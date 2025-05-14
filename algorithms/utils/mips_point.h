@@ -86,6 +86,10 @@ struct Mips_Point {
     return mips_distance(this->values, x.values, params.dims);
   }
 
+  float translate_distance(float r) const {
+    return r;
+  }
+
   void prefetch() const {
     int l = (params.dims * sizeof(T) - 1)/64 + 1;
     for (int i=0; i < l; i++)
@@ -288,7 +292,7 @@ private:
 template<int bits, bool trim = false, int range = (1 << bits) - 1>
 struct Quantized_Mips_Point{
   using T = int16_t;
-  using distanceType = int64_t; //float;
+  using distanceType = float; // int64_t; //float;
   using byte = uint8_t;
   
   struct parameters {
@@ -365,6 +369,9 @@ struct Quantized_Mips_Point{
     }
   }
 
+  float translate_distance(float r) const {
+    return r;
+  }
   
   void prefetch() const {
     int l = (params.num_bytes() - 1)/64 + 1;
