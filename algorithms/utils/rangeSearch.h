@@ -16,7 +16,93 @@
 #include "stats.h"
 
 namespace parlayANN {
-    template<typename Point, typename PointRange, typename indexType>
+
+  //a variant specialized for range searching
+template<typename Point, typename PointRange, typename indexType>
+std::pair<parlay::sequence<indexType>, size_t>
+greedy_search(Point p, Graph<indexType> &G, PointRange &Points,
+	      parlay::sequence<std::pair<indexType, typename Point::distanceType>> starting_points, QueryParams &QP,
+        parlay::sequence<std::pair<indexType, typename Point::distanceType>> already_visited) {
+  // compare two (node_id,distance) pairs, first by distance and then id if
+  // equal
+  using distanceType = typename Point::distanceType; 
+  auto less = [&](std::pair<indexType, distanceType> a, std::pair<indexType, distanceType> b) {
+    return a.second < b.second || (a.second == b.second && a.first < b.first);
+  };
+  
+
+  //need to use an unordered map for a dynamically sized hash table
+  std::unordered_set<indexType> has_been_seen;
+
+  //Insert everything from visited list into has_been_seen
+  for(auto v : already_visited){
+    if(!has_been_seen.count(v.first) > 0) has_been_seen.insert(v.first);
+  }
+
+  // Frontier maintains the points within radius found so far 
+  // Each entry is a (id,distance) pair.
+  // Initialized with starting points 
+  std::queue<indexType> frontier;
+  for (auto q : starting_points){
+    if (!has_been_seen.count(q.first) > 0) has_been_seen.insert(q.first);
+    frontier.push(q.first);
+  }
+  
+
+  // maintains set of visited vertices (id-distance pairs)
+  std::vector<indexType> visited;
+
+  // counters
+  size_t dist_cmps = starting_points.size();
+  int remain = 1;
+  int num_visited = 0;
+  double total;
+
+  // used as temporaries in the loop
+  std::vector<indexType> keep;
+  keep.reserve(G.max_degree());
+
+  // The main loop.  Terminate beam search when the entire frontier
+  // has been visited or have reached max_visit.
+  while (frontier.size() > 0) {
+    // the next node to visit is the unvisited frontier node that is closest to
+    // p
+    indexType current = frontier.front();
+    frontier.pop();
+    G[current].prefetch();
+    // add to visited set
+    visited.push_back(current);
+    num_visited++;
+
+    // keep neighbors that have not been visited (using approximate
+    // hash). Note that if a visited node is accidentally kept due to
+    // approximate hash it will be removed below by the union or will
+    // not bump anyone else.
+    keep.clear();
+    for (indexType i=0; i<G[current].size(); i++) {
+      auto a = G[current][i];
+      //TODO this is a bug when searching for a point not in the graph???
+      if (a == p.id() || has_been_seen.count(a) > 0) continue;  // skip if already seen
+      keep.push_back(a);
+      Points[a].prefetch();
+      has_been_seen.insert(a);
+    }
+
+    for (auto a : keep) {
+      distanceType dist = Points[a].distance(p);
+      dist_cmps++;
+      // filter out if not within radius
+      if (dist > QP.radius) continue;
+      frontier.push(a);
+    }
+  }
+
+  return std::make_pair(parlay::to_sequence(visited), dist_cmps);    
+  }
+
+
+
+  template<typename Point, typename PointRange, typename indexType>
 parlay::sequence<parlay::sequence<indexType>>
 RangeSearch(PointRange& Query_Points,
             Graph<indexType> &G, PointRange &Base_Points, stats<indexType> &QueryStats,
@@ -42,8 +128,7 @@ RangeSearch(PointRange &Query_Points,
     using dtype = typename Point::distanceType;
     using id_dist = std::pair<indexType, dtype>;
 
-    auto [pairElts, dist_cmps] = beam_search_es(Query_Points[i], G, Base_Points, starting_points, QP,
-                                                early_stopping<std::vector<id_dist>>);
+    auto [pairElts, dist_cmps] = filtered_beam_search(G, Query_Points[i], Base_Points, Query_Points[i], Base_Points, starting_points, QP, false, early_stopping<std::vector<id_dist>>);
     auto [beamElts, visitedElts] = pairElts;
     for (indexType j = 0; j < beamElts.size(); j++) {
       if(beamElts[j].second <= QP.radius) {

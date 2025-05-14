@@ -28,11 +28,8 @@ void checkRangeRecall(
     stats<indexType> QueryStats(Query_Points.size());
     parlay::sequence<indexType> start_points = {static_cast<indexType>(start_point)};
     
-  
-    
-    auto [all_rr,timings] = DoubleBeamRangeSearch<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_points, QP, active_indices);
+    auto [all_rr,timings] = DoubleBeamRangeSearch<PointRange, PointRange, indexType>(G, Query_Points, Base_Points, Query_Points, Base_Points, QueryStats, start_points, QP, active_indices);
     query_time = t.next_time();
-    
 
     float pointwise_recall = 0.0;
     float reported_results = 0.0;

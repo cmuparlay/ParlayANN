@@ -17,10 +17,14 @@
 #include "earlyStopping.h"
 
 namespace parlayANN{
-template<typename Point, typename PointRange, typename indexType>
+  template<typename PointRange,
+           typename QPointRange,
+           typename indexType>
 std::pair<parlay::sequence<parlay::sequence<indexType>>,std::pair<double,double>>
-DoubleBeamRangeSearch(PointRange &Query_Points,
-                      Graph<indexType> &G, PointRange &Base_Points, stats<indexType> &QueryStats, 
+DoubleBeamRangeSearch(Graph<indexType> &G,
+                      PointRange &Query_Points, PointRange &Base_Points,
+                      QPointRange &Q_Query_Points, QPointRange &Q_Base_Points,
+                      stats<indexType> &QueryStats, 
                       parlay::sequence<indexType> starting_points,
                       QueryParams &QP, parlay::sequence<indexType> active_indices) {
   parlay::sequence<parlay::sequence<indexType>> all_neighbors(active_indices.size());
@@ -36,10 +40,9 @@ DoubleBeamRangeSearch(PointRange &Query_Points,
     bool first_run = true;
     if(first_run) t_search_first.start();
     else t_search_other.start();
-    using dtype = typename Point::distanceType;
+    using dtype = typename decltype(Query_Points[0])::distanceType;
     using id_dist = std::pair<indexType, dtype>;
-    auto [pairElts, dist_cmps] = beam_search_es(Query_Points[i], G, Base_Points, starting_points, QP,
-                                                early_stopping<std::vector<id_dist>>);
+    auto [pairElts, dist_cmps] = filtered_beam_search(G, Query_Points[i], Base_Points, Query_Points[i], Base_Points, starting_points, QP, false, early_stopping<std::vector<id_dist>>);
     auto [beamElts, visitedElts] = pairElts;
     for (auto b : beamElts) 
       if(b.second <= QP.radius) neighbors.push_back(b.first);
@@ -65,7 +68,7 @@ DoubleBeamRangeSearch(PointRange &Query_Points,
                       QP.is_early_stop, QP.is_double_beam, QP.is_beam_search, QP.radius);
 
       auto [pairElts, dist_cmps] = beam_search(Query_Points[active_indices[i]], G,
-                                               Base_Points, starting_points_idx, QP2);
+                                               Base_Points, starting_points, QP2);
       auto [beamElts, visitedElts] = pairElts;
 
       starting_points_idx.clear();
