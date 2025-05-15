@@ -92,14 +92,13 @@ greedy_search(Point p, Graph<indexType> &G, PointRange &Points,
       distanceType dist = Points[a].distance(p);
       dist_cmps++;
       // filter out if not within radius
-      if (dist > QP.radius) continue;
+      if (dist > 1.08 * QP.radius) continue;
       frontier.push(a);
     }
   }
 
   return std::make_pair(parlay::to_sequence(visited), dist_cmps);    
   }
-
 
 
   template<typename Point, typename PointRange, typename QPointRange, typename indexType>
@@ -130,8 +129,6 @@ RangeSearch(Graph<indexType> &G,
   parlay::parallel_for(0, Query_Points.size(), [&](size_t i) {
     parlay::sequence<indexType> neighbors;
     parlay::sequence<std::pair<indexType, typename Point::distanceType>> neighbors_with_distance;
-    //QueryParams QP(RP.initial_beam, RP.initial_beam, 0.0, G.size(), G.max_degree(), RP.early_stop, RP.early_stop_radius, 
-    //             RP.is_early_stop, false, RP.rad);
     using dtype = typename Point::distanceType;
     using id_dist = std::pair<indexType, dtype>;
     QueryParams QP1(QP.beamSize, QP.beamSize, 0.0,
@@ -140,7 +137,10 @@ RangeSearch(Graph<indexType> &G,
                     QP.is_early_stop, QP.is_double_beam, QP.is_beam_search,
                     Q_Query_Points[i].translate_distance(QP.radius));
 
-    auto [pairElts, dist_cmps] = filtered_beam_search(G, Q_Query_Points[i], Q_Base_Points, Q_Query_Points[i], Q_Base_Points, starting_points, QP1, false, early_stopping<std::vector<id_dist>>);
+    auto [pairElts, dist_cmps] = filtered_beam_search(G, Q_Query_Points[i], Q_Base_Points,
+                                                      Q_Query_Points[i], Q_Base_Points,
+                                                      starting_points, QP1,
+                                                      false, early_stopping<std::vector<id_dist>>);
     auto [beamElts, visitedElts] = pairElts;
     for (auto b : beamElts) {
       if (Query_Points[i].distance(Base_Points[b.first]) <= QP.radius) {
@@ -154,7 +154,8 @@ RangeSearch(Graph<indexType> &G,
     } else{
       if (Query_Points[i].id() < 100) 
         std::cout << Query_Points[i].id() << std::endl;
-      auto [in_range, dist_cmps] = greedy_search(Q_Query_Points[i], G, Q_Base_Points, neighbors_with_distance, QP1, visitedElts);
+      auto [in_range, dist_cmps] = greedy_search(Q_Query_Points[i], G, Q_Base_Points,
+                                                 neighbors_with_distance, QP1, visitedElts);
 
       parlay::sequence<indexType> ans;
 

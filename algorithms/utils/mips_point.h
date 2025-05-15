@@ -298,11 +298,12 @@ struct Quantized_Mips_Point{
   struct parameters {
     float max_val;
     int dims;
+    float scale;
     int num_bytes() const {return (dims * bits - 1) / 8 + 1;}
     parameters() : max_val(1), dims(0) {}
     parameters(int dims) : max_val(1), dims(dims) {}
     parameters(float max_val, int dims)
-      : max_val(max_val), dims(dims) {}
+      : max_val(max_val), dims(dims), scale((range/2) / max_val) {}
   };
 
   static bool is_metric() {return false;}
@@ -370,7 +371,7 @@ struct Quantized_Mips_Point{
   }
 
   float translate_distance(float r) const {
-    return r;
+    return r * params.scale * params.scale;
   }
   
   void prefetch() const {
@@ -424,7 +425,7 @@ struct Quantized_Mips_Point{
   static void translate_point(byte* byte_values, const Point& p, const parameters& params) {
     for (int j = 0; j < params.dims; j++) {
       float mv = params.max_val;
-      float scale = (range/2) / mv;
+      float scale = params.scale; //(range/2) / mv;
       float pj = p[j];
       // cap if underflow or overflow
       if (pj < -mv) assign(byte_values, j, - range/2); // - 1);

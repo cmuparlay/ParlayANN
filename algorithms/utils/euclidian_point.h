@@ -116,8 +116,10 @@ struct Euclidian_Point {
     return euclidian_distance(this->values, x.values, params.dims);
   }
 
-  float translate_distance(float r) const {
-    return r * params.slope * params.slope;
+  float translate_distance(double r) const {
+    if constexpr (sizeof(T) == 2)
+                   return r * params.slope * params.slope / 256;
+    else return r * params.slope * params.slope;
   }
 
   void normalize() {
