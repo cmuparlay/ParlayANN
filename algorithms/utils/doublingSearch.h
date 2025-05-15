@@ -47,7 +47,7 @@ DoubleBeamRangeSearch(Graph<indexType> &G,
                     QP.early_stop, Q_Query_Points[i].translate_distance(QP.early_stopping_radius),
                     QP.is_early_stop, QP.is_double_beam, QP.is_beam_search, QP.radius);
 
-      auto [pairElts, dist_cmps] = filtered_beam_search(G, Q_Query_Points[i], Q_Base_Points, Query_Points[i], Base_Points, starting_points, QP1, false, early_stopping<std::vector<id_dist>>);
+      auto [pairElts, dist_cmps] = filtered_beam_search(G, Q_Query_Points[i], Q_Base_Points, Q_Query_Points[i], Q_Base_Points, starting_points, QP1, false, early_stopping<std::vector<id_dist>>);
     auto [beamElts, visitedElts] = pairElts;
     for (auto b : beamElts)
       if (Query_Points[i].distance(Base_Points[b.first]) <= QP.radius)

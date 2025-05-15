@@ -110,9 +110,10 @@ RangeSearch(Graph<indexType> &G,
             stats<indexType> &QueryStats,
             indexType starting_point, QueryParams &QP) {
   parlay::sequence<indexType> start_points = {starting_point};
-  return RangeSearch<Point, PointRange, QPointRange, indexType>(G, Query_Points, Base_Points,
-                                                   Q_Query_Points, Q_Base_Points,
-                                                   QueryStats, start_points, QP);
+  return RangeSearch<Point>(G,
+                            Query_Points, Base_Points,
+                            Q_Query_Points, Q_Base_Points,
+                            QueryStats, start_points, QP);
 }
 
   template<typename Point, typename PointRange, typename QPointRange, typename indexType>
@@ -139,30 +140,21 @@ RangeSearch(Graph<indexType> &G,
                     QP.is_early_stop, QP.is_double_beam, QP.is_beam_search,
                     Q_Query_Points[i].translate_distance(QP.radius));
 
-    auto [pairElts, dist_cmps] = filtered_beam_search(G, Query_Points[i], Base_Points, Query_Points[i], Base_Points, starting_points, QP1, false, early_stopping<std::vector<id_dist>>);
+    auto [pairElts, dist_cmps] = filtered_beam_search(G, Q_Query_Points[i], Q_Base_Points, Q_Query_Points[i], Q_Base_Points, starting_points, QP1, false, early_stopping<std::vector<id_dist>>);
     auto [beamElts, visitedElts] = pairElts;
-    for (indexType j = 0; j < beamElts.size(); j++) {
-      if(beamElts[j].second <= QP.radius) {
-        neighbors.push_back(beamElts[j].first);
-        neighbors_with_distance.push_back(beamElts[j]);
+    for (auto b : beamElts) {
+      if (Query_Points[i].distance(Base_Points[b.first]) <= QP.radius) {
+        neighbors.push_back(b.first);
+        neighbors_with_distance.push_back(b);
       }
     }
-    // if(neighbors.size() < RP.initial_beam){
-    //   all_neighbors[i] = neighbors;
-    // } else{
-    //   auto [in_range, dist_cmps] = range_search(Query_Points[i], G, Base_Points, neighbors, RP);
-    //   parlay::sequence<indexType> ans;
-    //   for (auto r : in_range) ans.push_back(r.first);
-    //   if(in_range.size() > neighbors.size()) std::cout << "Range search found additional candidates" << std::endl;
-    //   all_neighbors[i] = ans;
-    //   second_round[i] = 1;
-    //   QueryStats.increment_visited(i, in_range.size());
-    //   QueryStats.increment_dist(i, dist_cmps);
-    // }
+    if (Query_Points[i].id() == 0)
     if(neighbors.size() < QP.beamSize || QP.is_beam_search){
       all_neighbors[i] = neighbors;
     } else{
-      auto [in_range, dist_cmps] = greedy_search(Q_Query_Points[i], G, Q_Base_Points, neighbors_with_distance, QP, visitedElts);
+      if (Query_Points[i].id() < 100) 
+        std::cout << Query_Points[i].id() << std::endl;
+      auto [in_range, dist_cmps] = greedy_search(Q_Query_Points[i], G, Q_Base_Points, neighbors_with_distance, QP1, visitedElts);
 
       parlay::sequence<indexType> ans;
 
