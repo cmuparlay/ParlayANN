@@ -101,6 +101,7 @@ greedy_search(Point p, Graph<indexType> &G, PointRange &Points,
   }
 
 
+
   template<typename Point, typename PointRange, typename QPointRange, typename indexType>
 parlay::sequence<parlay::sequence<indexType>>
 RangeSearch(Graph<indexType> &G,
@@ -109,8 +110,7 @@ RangeSearch(Graph<indexType> &G,
             stats<indexType> &QueryStats,
             indexType starting_point, QueryParams &QP) {
   parlay::sequence<indexType> start_points = {starting_point};
-  return RangeSearch<Point>(G,
-                            Query_Points, Base_Points,
+  return RangeSearch<Point>(G, Query_Points, Base_Points,
                             Q_Query_Points, Q_Base_Points,
                             QueryStats, start_points, QP);
 }
@@ -129,6 +129,8 @@ RangeSearch(Graph<indexType> &G,
   parlay::parallel_for(0, Query_Points.size(), [&](size_t i) {
     parlay::sequence<indexType> neighbors;
     parlay::sequence<std::pair<indexType, typename Point::distanceType>> neighbors_with_distance;
+    //QueryParams QP(RP.initial_beam, RP.initial_beam, 0.0, G.size(), G.max_degree(), RP.early_stop, RP.early_stop_radius, 
+    //             RP.is_early_stop, false, RP.rad);
     using dtype = typename Point::distanceType;
     using id_dist = std::pair<indexType, dtype>;
     QueryParams QP1(QP.beamSize, QP.beamSize, 0.0,
@@ -137,10 +139,7 @@ RangeSearch(Graph<indexType> &G,
                     QP.is_early_stop, QP.is_double_beam, QP.is_beam_search,
                     Q_Query_Points[i].translate_distance(QP.radius));
 
-    auto [pairElts, dist_cmps] = filtered_beam_search(G, Q_Query_Points[i], Q_Base_Points,
-                                                      Q_Query_Points[i], Q_Base_Points,
-                                                      starting_points, QP1,
-                                                      false, early_stopping<std::vector<id_dist>>);
+    auto [pairElts, dist_cmps] = filtered_beam_search(G, Q_Query_Points[i], Q_Base_Points, Q_Query_Points[i], Q_Base_Points, starting_points, QP1, false, early_stopping<std::vector<id_dist>>);
     auto [beamElts, visitedElts] = pairElts;
     for (auto b : beamElts) {
       if (Query_Points[i].distance(Base_Points[b.first]) <= QP.radius) {
@@ -148,20 +147,16 @@ RangeSearch(Graph<indexType> &G,
         neighbors_with_distance.push_back(b);
       }
     }
-    if (Query_Points[i].id() == 0)
     if(neighbors.size() < QP.beamSize || QP.is_beam_search){
       all_neighbors[i] = neighbors;
     } else{
-      if (Query_Points[i].id() < 100) 
-        std::cout << Query_Points[i].id() << std::endl;
-      auto [in_range, dist_cmps] = greedy_search(Q_Query_Points[i], G, Q_Base_Points,
-                                                 neighbors_with_distance, QP1, visitedElts);
+      auto [in_range, dist_cmps] = greedy_search(Q_Query_Points[i], G, Q_Base_Points, neighbors_with_distance, QP1, visitedElts);
 
       parlay::sequence<indexType> ans;
 
-      #define EndWithBeam
+      //#define EndWithBeam
 #ifdef EndWithBeam
-      int beamSize = in_range.size() * 1.2;
+      int beamSize = in_range.size() * 1.1;
       QueryParams QP2(beamSize, beamSize, 0.0, G.size(), G.max_degree());
       auto [pairElts, dist_cmps2] = beam_search(Q_Query_Points[i], G, Q_Base_Points, in_range, QP2);
       for (auto r : pairElts.first) 
