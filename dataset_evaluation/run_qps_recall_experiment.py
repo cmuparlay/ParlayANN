@@ -15,6 +15,7 @@ import numpy as np
 import statistics as st
 from dataset_info import mk, dsinfo, data_options
 from utils import runtest
+from run_faiss import run_faiss
 
 
 
@@ -34,15 +35,17 @@ def string_to_list(s):
   s = s.strip().strip('[').strip(']').split(',')
   return [ss.strip() for ss in s]
 
-pt_groupings = ["All", "Zeros", "Onetwos", "Threeplus"]
+pt_groupings = ["All"]
 search_types = ["Beam Search", "Greedy Search with Early Stopping", "Doubling Search with Early Stopping"]
-recall_types = ["Pointwise Precision", "Average Precision"]
+recall_types = ["Average Precision"]
 
 valid_groups = []
 for g in pt_groupings:
   for s in search_types:
     for r in recall_types:
       valid_groups.append(g + ", " + s + ", " + r)
+
+valid_groups.append("FAISS")
 
 groups = args.groups[0]
 groups = eval(groups)
@@ -60,15 +63,22 @@ else:
   exit(1)
 
 
-
 if not args.graphs_only:
   for dataset_name in datasets:
-      directory = "qps_recall_results/"
-      os.makedirs(directory, exist_ok=True)
-      outFile = directory + "/" + str(dataset_name) + ".txt"
-      # clear output file
-      os.system("echo \"\" > " + outFile)
-      runtest(dataset_name, outFile)
+      if groups != ["FAISS"]:
+        directory = "qps_recall_results/"
+        os.makedirs(directory, exist_ok=True)
+        outFile = directory + "/" + str(dataset_name) + ".txt"
+        # clear output file
+        os.system("echo \"\" > " + outFile)
+        runtest(dataset_name, outFile)
+      elif "FAISS" in groups:
+        directory = "qps_recall_results/"
+        os.makedirs(directory, exist_ok=True)
+        outFile = directory + "/" + str(dataset_name) + "_FAISS" + ".txt"
+        # clear output file
+        os.system("echo \"\" > " + outFile)
+        run_faiss(dataset_name, outFile)
 
 
 
@@ -81,6 +91,19 @@ Also includes *two* different recall choices: cumulative and pointwise
 Returns list of recalls and list of QPS
 '''
 def readResultsFile(dataset_name, group):
+    if group == "FAISS":
+      result_filename = "qps_recall_results/" + str(dataset_name) + "_FAISS" + ".txt"
+      file = open(result_filename, 'r')
+      qps_line = "QPS"
+      recall_line = "Average Precision"
+      for line in file.readlines():
+        if line.find(recall_line) != -1:
+            recall = line.split(': ')[1]
+            recall = eval(recall)
+        if line.find(qps_line) != -1:
+            qps = line.split(': ')[1]
+            qps = eval(qps)
+      return qps, recall
     result_filename = "qps_recall_results/" + str(dataset_name) + ".txt"
     file = open(result_filename, 'r')
     categories = string_to_list(group)
@@ -108,7 +131,7 @@ for dataset_name in datasets:
         result_data[dataset_name][group + ", QPS"] = qps
         result_data[dataset_name][group] = recall
 
-# print(result_data)
+print(result_data)
 
 def pareto_frontier(Xs, Ys, maxX = True):
     """
@@ -148,6 +171,7 @@ def export_legend(legend, filename="legend.pdf"):
 linestyles = {"Beam Search": "solid",
               "Greedy Search with Early Stopping": "dashed",
               "Doubling Search with Early Stopping": "dotted",
+              "FAISS": "solid",
             }
 
 def plot_qps_recall_graph(result_data, graph_name, paper_ver=False):
@@ -170,26 +194,46 @@ def plot_qps_recall_graph(result_data, graph_name, paper_ver=False):
     alginfo = dsinfo[dataset_name]
     
     for group in groups:
-
-      algorithm = string_to_list(group)[1]
-      recall_type = string_to_list(group)[2]
-      linestyle = linestyles[algorithm]
-      recall_raw = dataset_data[group]
-      qps_raw = dataset_data[group + ", QPS"]
-      qps, recall = pareto_frontier(qps_raw, recall_raw, True)
-      xmin = min(min(recall), xmin)
-      xmax = max(max(recall), xmax)
-      if "alpha" in alginfo:
-        alpha = alginfo["alpha"]
+      if group == "FAISS":
+        algorithm = "FAISS"
+        recall_type = "Average Precision"
+        linestyle = linestyles[algorithm]
+        recall_raw = dataset_data[group]
+        qps_raw = dataset_data[group + ", QPS"]
+        qps, recall = pareto_frontier(qps_raw, recall_raw, True)
+        xmin = min(min(recall), xmin)
+        xmax = max(max(recall), xmax)
+        if "alpha" in alginfo:
+          alpha = alginfo["alpha"]
+        else:
+          alpha = 1.0
+        rects[dataset_name] = axs.plot(recall, qps,
+          alpha=alpha,
+          color="C9",
+          linewidth=3.0,
+          linestyle=linestyle,
+          markersize=14,
+          label="FAISS, All Datasets") # temp change for getting FAISS legend entry
       else:
-        alpha = 1.0
-      rects[dataset_name] = axs.plot(recall, qps,
-        alpha=alpha,
-        color=alginfo["color"],
-        linewidth=3.0,
-        linestyle=linestyle,
-        markersize=14,
-        label=dataset_name+", " + algorithm)
+        algorithm = string_to_list(group)[1]
+        recall_type = string_to_list(group)[2]
+        linestyle = linestyles[algorithm]
+        recall_raw = dataset_data[group]
+        qps_raw = dataset_data[group + ", QPS"]
+        qps, recall = pareto_frontier(qps_raw, recall_raw, True)
+        xmin = min(min(recall), xmin)
+        xmax = max(max(recall), xmax)
+        if "alpha" in alginfo:
+          alpha = alginfo["alpha"]
+        else:
+          alpha = 1.0
+        rects[dataset_name] = axs.plot(recall, qps,
+          alpha=alpha,
+          color=alginfo["color"],
+          linewidth=3.0,
+          linestyle=linestyle,
+          markersize=14,
+          label=dataset_name+", " + algorithm)
 
 
   # axs.set_xscale('log')

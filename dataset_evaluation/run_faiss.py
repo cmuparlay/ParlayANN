@@ -87,8 +87,56 @@ faiss_configs = {"bigann-1M": {'indexkey':"OPQ32_64,IVF65536_HNSW32,PQ64x4fsr",
                     "nprobe=256,quantizer_efSearch=256",
                     "nprobe=512,quantizer_efSearch=512",
                     "nprobe=1024,quantizer_efSearch=1024",]},
-"ssnpp-10M": {"indexkey": "OPQ32_128,IVF65536_HNSW32,PQ32"},
-"ssnpp-100M": {},
+"ssnpp-10M": {"indexkey": "OPQ64_128,IVF65536_HNSW32,PQ128x4fsr",
+"query_args":["nprobe=1,quantizer_efSearch=4",
+                    "nprobe=2,quantizer_efSearch=4",
+                    "nprobe=3,quantizer_efSearch=4",
+                    "nprobe=4,quantizer_efSearch=4",
+                    "nprobe=4,quantizer_efSearch=8",
+                    "nprobe=5,quantizer_efSearch=8",
+                    "nprobe=6,quantizer_efSearch=8",
+                    "nprobe=7,quantizer_efSearch=8",
+                    "nprobe=8,quantizer_efSearch=8",
+                    "nprobe=10,quantizer_efSearch=8",
+                    "nprobe=12,quantizer_efSearch=8",
+                    "nprobe=14,quantizer_efSearch=8",
+                    "nprobe=16,quantizer_efSearch=8",
+                    "nprobe=20,quantizer_efSearch=32",
+                    "nprobe=24,quantizer_efSearch=32",
+                    "nprobe=28,quantizer_efSearch=32",
+                    "nprobe=32,quantizer_efSearch=32",
+                    "nprobe=64,quantizer_efSearch=64",
+                    "nprobe=128,quantizer_efSearch=128",
+                    "nprobe=256,quantizer_efSearch=256",]},
+"ssnpp-100M": {"indexkey": "OPQ32_128,IVF1048576_HNSW32,PQ32",
+"query_args":["nprobe=1,quantizer_efSearch=4,ht=92",
+              "nprobe=1,quantizer_efSearch=4,ht=98",
+              "nprobe=1,quantizer_efSearch=4,ht=104",
+              "nprobe=1,quantizer_efSearch=4,ht=112",
+              "nprobe=1,quantizer_efSearch=8,ht=96",
+              "nprobe=1,quantizer_efSearch=8,ht=108",
+              "nprobe=1,quantizer_efSearch=16,ht=98",
+              "nprobe=1,quantizer_efSearch=16,ht=114",
+              "nprobe=1,quantizer_efSearch=16,ht=116",
+              "nprobe=1,quantizer_efSearch=32,ht=98",
+              "nprobe=1,quantizer_efSearch=32,ht=110",
+              "nprobe=1,quantizer_efSearch=32,ht=112",
+              "nprobe=1,quantizer_efSearch=32,ht=120",
+              "nprobe=4,quantizer_efSearch=16,ht=256",
+              "nprobe=4,quantizer_efSearch=32,ht=104",
+              "nprobe=4,quantizer_efSearch=32,ht=112",
+              "nprobe=4,quantizer_efSearch=32,ht=256",
+              "nprobe=8,quantizer_efSearch=32,ht=112",
+              "nprobe=4,quantizer_efSearch=64,ht=256",
+              "nprobe=8,quantizer_efSearch=64,ht=116",
+              "nprobe=8,quantizer_efSearch=64,ht=128",
+              "nprobe=16,quantizer_efSearch=32,ht=256",
+              "nprobe=16,quantizer_efSearch=64,ht=118",
+              "nprobe=32,quantizer_efSearch=64,ht=256",
+              "nprobe=64,quantizer_efSearch=256,ht=116",
+              "nprobe=32,quantizer_efSearch=512,ht=256",
+              "nprobe=64,quantizer_efSearch=512,ht=126",
+              "nprobe=256,quantizer_efSearch=256,ht=128",]},
 "deep-1M": {"indexkey": "OPQ32_64,IVF65536_HNSW32,PQ64x4fsr",
     "query_args": ["nprobe=1,quantizer_efSearch=4",
                     "nprobe=2,quantizer_efSearch=4",
@@ -598,13 +646,18 @@ def time_queries(dataset_name):
         qps.append(qps_single)
     print("QPS:", qps)
     print("Average Precision:", ap)
+    return qps, ap
      
 
+'''
+Runs FAISS on the specified dataset and saves the results to outFile
+'''
+def run_faiss(dataset_name, outFile):
+    qps, ap = time_queries(dataset_name)
+    with open(outFile, 'w') as f:
+        f.write("QPS: " + str(qps) + "\n")
+        f.write("Average Precision: " + str(ap) + "\n")
 
-datasets = ["ssnpp-1M"]
-for dataset_name in datasets:
-    print("Dataset name:", dataset_name)
-    time_queries(dataset_name)
 
 
 

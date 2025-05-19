@@ -39,6 +39,6 @@ def runtest(dataset_name, outfile) :
     op += " -r " + str(ds["radius"] )
     op += " -early_stopping_radius " + str(ds["esr"] )
     op += " -alpha " + str(ds["alpha"] )
-    op += " -R " + str(64)
-    op += " -L " + str(128)
+    op += " -R " + str(80)
+    op += " -L " + str(200)
     runstring(op, outfile)
