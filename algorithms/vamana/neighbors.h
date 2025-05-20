@@ -83,29 +83,6 @@ void ANN_Quantized(Graph<indexType> &G, long k, BuildParams &BP,
                      GT,
                      res_file, k, false, start_point,
                      verbose, BP.Q, BP.rerank_factor);
-  } else if (BP.self) {
-    if (BP.range) {
-      parlay::internal::timer t_range("range search time");
-      double radius = BP.radius;
-      double radius_2 = BP.radius_2;
-      std::cout << "radius = " << radius << " radius_2 = " << radius_2 << std::endl;
-      QueryParams QP;
-      long n = Points.size();
-      parlay::sequence<long> counts(n);
-      parlay::sequence<long> distance_comps(n);
-      parlay::parallel_for(0, G.size(), [&] (long i) {
-        parlay::sequence<indexType> pts;
-        pts.push_back(Points[i].id());
-        auto [r, dc] = range_search(Points[i], G, Points, pts, radius, radius_2, QP, true);
-        counts[i] = r.size();
-        distance_comps[i] = dc;});
-      t_range.total();
-      long range_num_distances = parlay::reduce(distance_comps);
-
-      std::cout << "edges within range: " << parlay::reduce(counts) << std::endl;
-      std::cout << "distance comparisons during build = " << build_num_distances << std::endl;
-      std::cout << "distance comparisons during range = " << range_num_distances << std::endl;
-    }
   }
 }
 
