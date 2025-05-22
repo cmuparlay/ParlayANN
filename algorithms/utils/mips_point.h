@@ -37,6 +37,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include "NSGDist.h"
 
 namespace parlayANN {
 
@@ -57,11 +58,13 @@ namespace parlayANN {
   }
 
   float mips_distance(const float *p, const float *q, unsigned d) {
-    float result = 0;
-    for (int i = 0; i < d; i++) {
-      result += (q[i]) * (p[i]);
-    }
-    return -result;
+    efanna2e::DistanceInnerProduct distfunc;
+    return distfunc.compare(p, q, d);
+    // float result = 0;
+    // for (int i = 0; i < d; i++) {
+    //   result += (q[i]) * (p[i]);
+    // }
+    // return -result;
   }
 
 template<typename T_>
