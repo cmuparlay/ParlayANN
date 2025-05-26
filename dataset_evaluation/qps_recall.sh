@@ -4,10 +4,10 @@
 # large_datasets=("bigann-10M" "bigann-10M" "wikipedia-10M" "ssnpp-10M" "ssnpp-100M")
 large_datasets=("bigann-100M")
 # datasets=("bigann-1M" "bigann-10M" "bigann-100M" "deep-1M" "msturing-1M" "ssnpp-1M" "openai-1M" "text2image-1M" "msmarcowebsearch-1M" "wikipedia-1M")
-datasets=("bigann-100M" "ssnpp-10M" "ssnpp-100M" "wikipedia-10M")
+datasets=("bigann-100M" "ssnpp-10M" "ssnpp-100M" "wikipedia-10M" "bigann-1M" "deep-1M" "msturing-1M" "ssnpp-1M" "gist-1M" "openai-1M" "text2image-1M" "msmarcowebsearch-1M" "wikipedia-1M")
 for dataset in "${datasets[@]}";
 do 
-    python3 run_qps_recall_experiment.py -p -datasets [$dataset] -groups ['"Beam Search", "Greedy Search with Early Stopping", "Doubling Search with Early Stopping"'] -graph_name $dataset"_test_ap" 
+    python3 run_qps_recall_experiment.py -p -g -datasets [$dataset] -groups ['"Beam Search", "Greedy Search with Early Stopping", "Doubling Search with Early Stopping","FAISS"'] -graph_name $dataset
 done  
 
 

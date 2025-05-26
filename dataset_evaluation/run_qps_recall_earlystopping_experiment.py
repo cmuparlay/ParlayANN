@@ -219,13 +219,13 @@ def plot_qps_recall_graph(result_data, graph_name, paper_ver=False):
       plt.xticks(real_xticks)
 
   axs.set_yscale('log')
-  plt.xlabel(recall_type, fontsize=14)
+  plt.xlabel(recall_type, fontsize=20)
   plt.xticks(rotation=45)
 
 
-  plt.ylabel('QPS', fontsize=14)
+  plt.ylabel('QPS', fontsize=20)
   # axs.tick_params(axis='x', labelsize=14) 
-  plt.tick_params(axis='both', which='both', labelsize=14)
+  plt.tick_params(axis='both', which='both', labelsize=20)
 
 
   legend_x = 1

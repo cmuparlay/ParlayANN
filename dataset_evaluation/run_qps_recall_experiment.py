@@ -9,7 +9,7 @@ import csv
 import matplotlib as mpl
 # mpl.use('Agg')
 mpl.rcParams['grid.linestyle'] = ":"
-mpl.rcParams.update({'font.size': 25})
+mpl.rcParams.update({'font.size': 40})
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import numpy as np
@@ -160,7 +160,7 @@ def plot_qps_recall_graph(result_data, graph_name, paper_ver=False):
   os.makedirs("graphs/qps_recall", exist_ok=True)
 
   outputFile = 'graphs/qps_recall/' + graph_name.replace('.', '') + '.pdf'
-  mpl.rcParams.update({'font.size': 30})
+  mpl.rcParams.update({'font.size': 25})
 
   print(outputFile)
   xmin = 1.0
@@ -251,13 +251,13 @@ def plot_qps_recall_graph(result_data, graph_name, paper_ver=False):
       plt.xticks(real_xticks)
 
   axs.set_yscale('log')
-  plt.xlabel("Average Precision", fontsize=14)
+  plt.xlabel("Average Precision", fontsize=20)
   plt.xticks(rotation=45)
 
 
-  plt.ylabel('QPS', fontsize=14)
+  plt.ylabel('QPS', fontsize=20)
   # axs.tick_params(axis='x', labelsize=14) 
-  plt.tick_params(axis='both', which='both', labelsize=14)
+  plt.tick_params(axis='both', which='both', labelsize=20)
 
 
   legend_x = 1
