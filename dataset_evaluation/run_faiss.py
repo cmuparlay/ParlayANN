@@ -424,6 +424,8 @@ class Faiss():
         self.indexkey = self.index_params['indexkey'] if 'indexkey' in self.index_params else "OPQ32_128,IVF65536_HNSW32,PQ32"
 
     def index_name(self, name):
+        if name == "SSNPP-1B":
+            return "/ssd0/range_search_indices/{self.indexkey}.faissindex"
         return f"data/{name}.{self.indexkey}.faissindex"
 
     def fit(self, dataset):
