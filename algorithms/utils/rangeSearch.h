@@ -112,7 +112,9 @@ RangeSearch(Graph<indexType> &G,
             QueryParams &QP) {
     using Point = typename PointRange::Point;
   parlay::sequence<parlay::sequence<indexType>> all_neighbors(Query_Points.size());
-  // parlay::sequence<int> second_round(Query_Points.size(), 0);
+  std::cout << "Early stopping radius: " << QP.early_stopping_radius << std::endl;
+  std::cout << "Early stopping steps: " << QP.early_stop << std::endl;
+  std::cout << "Early stopping done: " << QP.is_early_stop << std::endl;
   parlay::parallel_for(0, Query_Points.size(), [&](size_t i) {
     parlay::sequence<indexType> neighbors;
     parlay::sequence<std::pair<indexType, typename Point::distanceType>> neighbors_with_distance;
