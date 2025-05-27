@@ -178,6 +178,7 @@ struct BuildParams{
   bool early_stop = false;
   bool double_beam = false;
   bool beam_search = false;
+  double param = 0.0;
   
   std::string alg_type;
 
@@ -186,9 +187,9 @@ struct BuildParams{
               double early_stopping_radius = 0.0,
               bool self = false, bool range = false, int single_batch = 0,
               long Q = 0, double trim = 0.0,
-              int rerank_factor = 100)
+              int rerank_factor = 100, double param = 0.0)
     : R(R), L(L), alpha(a), num_passes(num_passes), num_clusters(nc), cluster_size(cs), MST_deg(mst), delta(de),
-      verbose(verbose), quantize(quantize), radius(radius), early_stopping_radius(early_stopping_radius), self(self), range(range), single_batch(single_batch), Q(Q), trim(trim), rerank_factor(rerank_factor) {
+      verbose(verbose), quantize(quantize), radius(radius), early_stopping_radius(early_stopping_radius), self(self), range(range), single_batch(single_batch), Q(Q), trim(trim), rerank_factor(rerank_factor), param(param) {
     if(R != 0 && L != 0 && alpha != 0){alg_type = m_l>0? "HNSW": "Vamana";}
     else if(num_clusters != 0 && cluster_size != 0 && MST_deg != 0){alg_type = "HCNNG";}
     else if(R != 0 && alpha != 0 && num_clusters != 0 && cluster_size != 0 && delta != 0){alg_type = "pyNNDescent";}
@@ -228,6 +229,7 @@ struct QueryParams{
   long degree_limit;
   int rerank_factor = 100;
   long early_stop;
+  double param;
   double radius;
   double early_stopping_radius;
   bool is_double_beam = false;
@@ -235,8 +237,9 @@ struct QueryParams{
   bool is_beam_search = false;
   float pad = 1.0;
 
-  QueryParams(long k, long Q, double cut, long limit, long dg, double rerank_factor = 100)
-    : k(k), beamSize(Q), cut(cut), limit(limit), degree_limit(dg), rerank_factor(rerank_factor) {}
+  QueryParams(long k, long Q, double cut, long limit, long dg, double rerank_factor = 100, double param = 0)
+    : k(k), beamSize(Q), cut(cut), limit(limit), degree_limit(dg), rerank_factor(rerank_factor), param(param)
+  {}
 
   QueryParams(long k, long Q, double cut, long limit, long dg, long es,
               double esr, bool ies, bool idb, bool ibs, double radius)

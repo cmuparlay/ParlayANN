@@ -116,8 +116,13 @@ filtered_beam_search(const GT &G,
 
   // The main loop.  Terminate beam search when the entire frontier
   // has been visited or have reached max_visit.
+  int rounds = 0;
+  
   while (remain > offset && num_visited < QP.limit) {
-    
+
+    if (p.id() == 153 && num_visited % 10 == 1)
+      ; //std::cout << num_visited << " : " << frontier[frontier.size()-1].second << std::endl;
+
     // the next node to visit is the unvisited frontier node that is closest to p
     id_dist current = unvisited_frontier[offset];
     if (early_stop(frontier, unvisited_frontier, visited, QP))
@@ -133,7 +138,7 @@ filtered_beam_search(const GT &G,
     // if using filtering based on lower quality distances measure, then maintain the average
     // of low quality distance to the last point in the frontier (if frontier is full)
     if (use_filtering && frontier_full) {
-      constexpr int width = 5;
+      int width = frontier.size();
       indexType id = frontier.back().first;
       if (filter_threshold_count == 0 || filter_id != id) {
         filter_tail_mean = 0.0;
@@ -186,11 +191,12 @@ filtered_beam_search(const GT &G,
     // This iproves performance for higher accuracies (e.g. beam sizes of 100+)
     if (candidates.size() == 0 || 
         (QP.limit >= 2 * beamSize &&
-         candidates.size() < beamSize/8 &&
+         candidates.size() < QP.param * beamSize &&
          offset + 1 < remain)) {
       offset++;
       continue;
     }
+    rounds++;
     offset = 0;
 
     // sort the candidates by distance from p,
@@ -232,6 +238,9 @@ filtered_beam_search(const GT &G,
                                   unvisited_frontier.begin(), less) -
               unvisited_frontier.begin());
   }
+
+  if (p.id() == 153)
+    std::cout << "rounds = " << rounds << " : " << QP.param << std::endl;
 
   return std::make_pair(std::make_pair(parlay::to_sequence(frontier),
                                        parlay::to_sequence(visited)),
@@ -369,19 +378,20 @@ beam_search_rerank(const Point &p,
                    const QPointRange &Q_Base_Points,
                    const QQPointRange &QQ_Base_Points,
                    stats<indexType> &QueryStats,
-                   const parlay::sequence<indexType> starting_points,
+                   const parlay::sequence<indexType>& starting_points,
                    const QueryParams &QP,
                    bool stats = true) {
   using dtype = typename Point::distanceType;
   using id_dist = std::pair<indexType, dtype>;
-  auto QPP = QP;
-
   bool use_rerank = (Base_Points.params.num_bytes() != Q_Base_Points.params.num_bytes());
   bool use_filtering = (Q_Base_Points.params.num_bytes() != QQ_Base_Points.params.num_bytes());
+
+  auto QPP = QP;
   auto [pairElts, dist_cmps] = filtered_beam_search(G,
                                                     qp, Q_Base_Points,
                                                     qqp, QQ_Base_Points,
                                                     starting_points, QPP, use_filtering);
+  
   auto [beamElts, visitedElts] = pairElts;
   if (beamElts.size() < QP.k) {
     std::cout << "Error: for point id " << p.id() << " beam search returned " << beamElts.size() << " elements, which is less than k = " << QP.k << std::endl;

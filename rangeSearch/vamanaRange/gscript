@@ -27,3 +27,6 @@ RM=/ssd1/data/msmarco_websearch
 
 RO=/ssd1/data/OpenAIArXiv
 ./range  -alpha 1.05 -R 64 -L 128 -r .2 -early_stopping_radius 0.6 -base_path $RO/openai_base.bin.crop_nb_1000000 -data_type float -dist_func Euclidian -query_path $RO/openai_query_10K.bin   -gt_path $RO/openai_gt_1M_.2 -search_mode earlyStopping -graph_path $RO/graph1M
+
+./range  -alpha 1 -R 64 -L 128 -r -.6 -early_stopping_radius -.4 -base_path data/t2i/base.1M.fbin -data_type float -dist_func mips -file_type bin -query_path data/t2i/query.fbin  -gt_path data/t2i/rangegt.1M_-10.5 -search_mode earlyStopping -graph_outfile /ssd1/data/text2image1B/graph1M
+
