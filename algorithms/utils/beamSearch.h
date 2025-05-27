@@ -48,6 +48,9 @@ filtered_beam_search(const GT &G,
   if (starting_points.size() == 0) {
     std::cout << "beam search expects at least one start point" << std::endl;
     abort();
+  } else if (starting_points.size() > beamSize) {
+    std::cout << "beam search has more starting points than beam size" << std::endl;
+    abort();
   }
 
   // compare two (node_id,distance) pairs, first by distance and then id if
