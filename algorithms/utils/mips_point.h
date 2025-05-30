@@ -59,7 +59,7 @@ namespace parlayANN {
 
   float mips_distance(const float *p, const float *q, unsigned d) {
     efanna2e::DistanceInnerProduct distfunc;
-    return distfunc.compare(p, q, d);
+    return -distfunc.compare(p, q, d);
     // float result = 0;
     // for (int i = 0; i < d; i++) {
     //   result += (q[i]) * (p[i]);

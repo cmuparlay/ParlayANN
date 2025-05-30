@@ -79,28 +79,31 @@ void RNG(Graph<indexType> &G, double rad, double esr, BuildParams &BP,
         using QPR = PointRange<QPoint>;
         QPR Q_Points(Points);  // quantized to one byte
         QPR Q_Query_Points(Query_Points, Q_Points.params);
-        range_search_wrapper<Point>(G,
-                                    Points, Query_Points,
-                                    Q_Points, Q_Query_Points,
-                                    GT, rad, start_point, is_early_stop,
-                                    is_double_beam, is_beam_search, esr);
+        range_search_wrapper(G,
+                             Points, Query_Points,
+                             Q_Points, Q_Query_Points,
+                             Q_Points, Q_Query_Points,
+                             GT, rad, start_point, is_early_stop,
+                             is_double_beam, is_beam_search, esr);
       } else {
         using QPoint = Quantized_Mips_Point<8,true,255>;
         using QPR = PointRange<QPoint>;
         QPR Q_Points(Points);
         QPR Q_Query_Points(Query_Points, Q_Points.params);
-        range_search_wrapper<Point>(G,
-                                    Points, Query_Points,
-                                    Q_Points, Q_Query_Points,
-                                    GT, rad, start_point, is_early_stop,
-                                    is_double_beam, is_beam_search, esr);
+        range_search_wrapper(G,
+                             Points, Query_Points,
+                             Q_Points, Q_Query_Points,
+                             Q_Points, Q_Query_Points,
+                             GT, rad, start_point, is_early_stop,
+                             is_double_beam, is_beam_search, esr);
       }
     } else {
-      range_search_wrapper<Point>(G,
-                                  Points, Query_Points,
-                                  Points, Query_Points,
-                                  GT, rad, start_point, is_early_stop,
-                                  is_double_beam, is_beam_search, esr);
+      range_search_wrapper(G,
+                           Points, Query_Points,
+                           Points, Query_Points,
+                           Points, Query_Points,
+                           GT, rad, start_point, is_early_stop,
+                           is_double_beam, is_beam_search, esr);
     }
   }
 }

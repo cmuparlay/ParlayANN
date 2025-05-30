@@ -195,7 +195,8 @@ void search_and_parse(Graph_ G_,
                       indexType start_point = 0,
                       bool verbose = false,
                       long fixed_beam_width = 0,
-                      int rerank_factor = 100) {
+                      int rerank_factor = 100,
+                      double param = 0.0) {
   parlay::sequence<nn_result> results;
   std::vector<long> beams;
   std::vector<long> allr;
@@ -214,6 +215,7 @@ void search_and_parse(Graph_ G_,
   QP.limit = (long) G.size();
   QP.rerank_factor = rerank_factor;
   QP.degree_limit = (long) G.max_degree();
+  QP.param = param;
   beams = {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 24, 26, 28, 30, 32,
     34, 36, 38, 40, 45, 50, 55, 60, 65, 70, 80, 90, 100, 120, 140, 160,
     180, 200, 225, 250, 275, 300, 375, 500, 750, 1000};
