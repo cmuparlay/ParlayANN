@@ -125,9 +125,7 @@ RangeSearch(Graph<indexType> &G,
             QueryParams &QP) {
 
   parlay::sequence<parlay::sequence<indexType>> all_neighbors(Query_Points.size());
-  std::cout << "Early stopping radius: " << QP.early_stopping_radius << std::endl;
-  std::cout << "Early stopping steps: " << QP.early_stop << std::endl;
-  std::cout << "Early stopping done: " << QP.is_early_stop << std::endl;
+  bool use_rerank = (Base_Points.params.num_bytes() != Q_Base_Points.params.num_bytes());
   parlay::parallel_for(0, Query_Points.size(), [&](size_t i) {
     parlay::sequence<indexType> neighbors;
     parlay::sequence<std::pair<indexType, typename Point::distanceType>> neighbors_with_distance;
@@ -138,6 +136,8 @@ RangeSearch(Graph<indexType> &G,
                     QP.early_stop, Q_Query_Points[i].translate_distance(QP.early_stopping_radius),
                     QP.is_early_stop, QP.is_double_beam, QP.is_beam_search,
                     Q_Query_Points[i].translate_distance(QP.radius));
+
+
 
     auto [pairElts, dist_cmps] = filtered_beam_search(G, Q_Query_Points[i], Q_Base_Points, Q_Query_Points[i], Q_Base_Points, starting_points, QP1, false, early_stopping<std::vector<id_dist>>);
     auto [beamElts, visitedElts] = pairElts;
@@ -164,7 +164,7 @@ RangeSearch(Graph<indexType> &G,
           ans.push_back(r.first);
 #else
       for (auto r : in_range)
-        if (Query_Points[i].distance(Base_Points[r]) <= QP.radius)
+        if (!use_rerank || Query_Points[i].distance(Base_Points[r]) <= QP.radius)
           ans.push_back(r);
 #endif
       all_neighbors[i] = ans;
