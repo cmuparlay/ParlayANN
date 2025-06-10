@@ -14,16 +14,64 @@
 #include "types.h"
 #include "graph.h"
 #include "stats.h"
+#include "/usr/local/include/absl/container/flat_hash_set.h"
+
 
 namespace parlayANN {
 
+  template<typename Point, typename PointRange, typename indexType>
+  std::pair<std::vector<indexType>, long>
+greedy_search_2(Point p, Graph<indexType> &G, PointRange &Points,
+                  std::vector<std::pair<indexType, typename Point::distanceType>> &starting_points,
+                  double radius,
+                  parlay::sequence<std::pair<indexType, typename Point::distanceType>> &already_visited) {
+   // first search for a starting point within the radius
+
+  std::vector<indexType> result;
+  //std::unordered_set<indexType> seen;
+  absl::flat_hash_set<indexType> seen;
+  long distance_comparisons = 0;
+
+
+  for (auto [v,d] : starting_points) {
+    if (seen.count(v) > 0 || Points[v].same_as(p)) continue;
+    //distance_comparisons++;
+    if (d > radius ) continue;
+    result.push_back(v);
+    seen.insert(v);
+  }
+
+  // now do a BFS over all vertices with distance less than radius
+  long position = 0;
+  std::vector<indexType> unseen;
+  while (position < result.size()) {
+    indexType next = result[position++];
+    unseen.clear();
+    for (long i = 0; i < G[next].size(); i++) {
+      auto v = G[next][i];
+      if (seen.count(v) > 0 || Points[v].same_as(p))
+        continue;  // skip if already seen
+      unseen.push_back(v);
+      seen.insert(v);
+      Points[v].prefetch();
+    }
+    for (auto v : unseen) {
+      distance_comparisons++;
+      if (Points[v].distance(p) <= radius)
+        result.push_back(v);
+    }
+  }
+
+  return std::pair(result, distance_comparisons);
+}
+
   //a variant specialized for range searching
 template<typename Point, typename PointRange, typename indexType>
-std::pair<parlay::sequence<indexType>, size_t>
+std::pair<std::vector<indexType>, size_t>
 greedy_search(Point p, Graph<indexType> &G, PointRange &Points,
-	      parlay::sequence<std::pair<indexType, typename Point::distanceType>> starting_points,
+	      parlay::sequence<std::pair<indexType, typename Point::distanceType>> &starting_points,
               double radius,
-              parlay::sequence<std::pair<indexType, typename Point::distanceType>> already_visited) {
+              parlay::sequence<std::pair<indexType, typename Point::distanceType>> &already_visited) {
   // compare two (node_id,distance) pairs, first by distance and then id if
   // equal
   using distanceType = typename Point::distanceType;
@@ -97,11 +145,11 @@ greedy_search(Point p, Graph<indexType> &G, PointRange &Points,
     }
   }
 
-  return std::make_pair(parlay::to_sequence(visited), dist_cmps);    
+  return std::make_pair(visited, dist_cmps);    
 }
 
   template<typename Point, typename PointRange, typename QPointRange, typename indexType>
-parlay::sequence<parlay::sequence<indexType>>
+  parlay::sequence<std::vector<indexType>>
 RangeSearch(Graph<indexType> &G,
             PointRange &Query_Points, PointRange &Base_Points,
             QPointRange& Q_Query_Points, QPointRange &Q_Base_Points,
@@ -110,11 +158,11 @@ RangeSearch(Graph<indexType> &G,
             QueryParams &QP) {
 
   parlay::sequence<indexType> starting_points = {starting_point};
-  parlay::sequence<parlay::sequence<indexType>> all_neighbors(Query_Points.size());
+  parlay::sequence<std::vector<indexType>> all_neighbors(Query_Points.size());
   bool use_rerank = (Base_Points.params.num_bytes() != Q_Base_Points.params.num_bytes());
   parlay::parallel_for(0, Query_Points.size(), [&](size_t i) {
-    parlay::sequence<indexType> neighbors;
-    parlay::sequence<std::pair<indexType, typename Point::distanceType>> neighbors_with_distance;
+    std::vector<indexType> neighbors;
+    std::vector<std::pair<indexType, typename Point::distanceType>> neighbors_with_distance;
     using dtype = typename Point::distanceType;
     using id_dist = std::pair<indexType, dtype>;
     QueryParams QP1(QP.beamSize, QP.beamSize, 0.0,
@@ -136,15 +184,15 @@ RangeSearch(Graph<indexType> &G,
       }
     }
     if(neighbors.size() < QP.beamSize || QP.is_beam_search){
-      all_neighbors[i] = neighbors;
+      all_neighbors[i] = std::move(neighbors);
     } else{
       // if using quantization then use slightly larger radius
       double radius = use_rerank ? 1.05 * QP1.radius : QP1.radius;
       auto [in_range, dist_cmps_greedy] =
-        greedy_search(Q_Query_Points[i], G, Q_Base_Points,
-                      neighbors_with_distance, radius, visitedElts);
+        greedy_search_2(Q_Query_Points[i], G, Q_Base_Points,
+                        neighbors_with_distance, radius, visitedElts);
 
-      parlay::sequence<indexType> ans;
+      std::vector<indexType> ans;
 
       //#define EndWithBeam
 #ifdef EndWithBeam
@@ -159,7 +207,7 @@ RangeSearch(Graph<indexType> &G,
         if (!use_rerank || Query_Points[i].distance(Base_Points[r]) <= QP.radius)
           ans.push_back(r);
 #endif
-      all_neighbors[i] = ans;
+      all_neighbors[i] = std::move(ans);
       QueryStats.increment_visited(i, in_range.size());
       QueryStats.increment_dist(i, dist_cmps_greedy);
     }

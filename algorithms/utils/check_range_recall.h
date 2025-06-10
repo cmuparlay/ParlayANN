@@ -63,40 +63,38 @@ void checkRangeRecall(
               << ", QPS = " << QPS << std::endl;
     
   }else{
-  parlay::sequence<parlay::sequence<indexType>> all_rr;
+    //parlay::sequence<parlay::sequence<indexType>> all_rr;
 
-  parlay::internal::timer t;
+
   float query_time;
   stats<indexType> QueryStats(Query_Points.size());
   parlay::sequence<indexType> start_points = {static_cast<indexType>(start_point)};
-  
+  parlay::internal::timer t;  
 
-  all_rr = RangeSearch<Point,PointRange,QPointRange,indexType>(G,
-                              Query_Points, Base_Points,
-                              Q_Query_Points, Q_Base_Points,
-                              QueryStats, start_point, QP);
+  auto all_rr = RangeSearch<Point,PointRange,QPointRange,indexType>(G,
+                                                                    Query_Points, Base_Points,
+                                                                    Q_Query_Points, Q_Base_Points,
+                                                                    QueryStats, start_point, QP);
   
-  //auto [all_rr,timings] = DoubleBeamRangeSearch<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_points, RP, active_indices);
   query_time = t.next_time();
-  
 
   float pointwise_recall = 0.0;
   float reported_results = 0.0;
   float total_results = 0.0;
   float num_nonzero = 0.0;
 
-    //since distances are exact, just have to cross-check number of results
-    size_t n = Query_Points.size();
-    for (indexType i = 0; i < n; i++) {
-      float num_reported_results = all_rr[i].size();
-      float num_actual_results = GT[i].size();
-      reported_results += num_reported_results;
-      total_results += num_actual_results;
-      if(num_actual_results != 0) {pointwise_recall += num_reported_results/num_actual_results; num_nonzero++;}
-    }
+  //since distances are exact, just have to cross-check number of results
+  size_t n = Query_Points.size();
+  for (indexType i = 0; i < n; i++) {
+    float num_reported_results = all_rr[i].size();
+    float num_actual_results = GT[i].size();
+    reported_results += num_reported_results;
+    total_results += num_actual_results;
+    if(num_actual_results != 0) {pointwise_recall += num_reported_results/num_actual_results; num_nonzero++;}
+  }
     
-    pointwise_recall /= num_nonzero;
-    float cumulative_recall = reported_results/total_results;
+  pointwise_recall /= num_nonzero;
+  float cumulative_recall = reported_results/total_results;
   
   float QPS = Query_Points.size() / query_time;
   auto stats_ = {QueryStats.dist_stats(), QueryStats.visited_stats()};
@@ -109,9 +107,6 @@ void checkRangeRecall(
             << ", QPS = " << QPS << std::endl;
   
   }
-  
- 
-  
 }
 
 
