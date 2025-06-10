@@ -1,5 +1,5 @@
 R=/ssd1/data/bigann
-# numactl -i all ./range  -alpha 1.15 -R 64 -L 128 -r 10000 -base_path $R/base.1B.u8bin.crop_nb_1000000 -data_type uint8 -dist_func Euclidian -query_path $R/query.public.10K.u8bin  -gt_path $R/range_gt_1M_10000 -search_mode doublingSearchEarlyStopping -graph_outFile $R/graph1M  -early_stopping_radius 30000
+numactl -i all ./range  -alpha 1.15 -R 64 -L 128 -r 10000 -base_path $R/base.1B.u8bin.crop_nb_1000000 -data_type uint8 -dist_func Euclidian -query_path $R/query.public.10K.u8bin  -gt_path $R/range_gt_1M_10000 -search_mode doublingSearchEarlyStopping -graph_path $R/graph1M  -early_stopping_radius 30000
 
 # numactl -i all ./range  -alpha 1.15 -R 64 -L 128 -r 10000 -base_path $R/base.1B.u8bin.crop_nb_10000000 -data_type uint8 -dist_func Euclidian -query_path $R/query.public.10K.u8bin  -gt_path $R/range_gt_10M_10000 -search_mode doublingSearchEarlyStopping -graph_path $R/graph10M  -early_stopping_radius 30000
 

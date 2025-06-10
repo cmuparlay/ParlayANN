@@ -21,15 +21,15 @@ namespace parlayANN {
 template<typename Point, typename PointRange, typename indexType>
 std::pair<parlay::sequence<indexType>, size_t>
 greedy_search(Point p, Graph<indexType> &G, PointRange &Points,
-	      parlay::sequence<std::pair<indexType, typename Point::distanceType>> starting_points, QueryParams &QP,
-        parlay::sequence<std::pair<indexType, typename Point::distanceType>> already_visited) {
+	      parlay::sequence<std::pair<indexType, typename Point::distanceType>> starting_points,
+              double radius,
+              parlay::sequence<std::pair<indexType, typename Point::distanceType>> already_visited) {
   // compare two (node_id,distance) pairs, first by distance and then id if
   // equal
-  using distanceType = typename Point::distanceType; 
+  using distanceType = typename Point::distanceType;
   auto less = [&](std::pair<indexType, distanceType> a, std::pair<indexType, distanceType> b) {
     return a.second < b.second || (a.second == b.second && a.first < b.first);
   };
-  
 
   //need to use an unordered map for a dynamically sized hash table
   std::unordered_set<indexType> has_been_seen;
@@ -92,27 +92,12 @@ greedy_search(Point p, Graph<indexType> &G, PointRange &Points,
       distanceType dist = Points[a].distance(p);
       dist_cmps++;
       // filter out if not within radius
-      if (dist > 1.08 * QP.radius) continue;
+      if (dist > radius) continue;
       frontier.push(a);
     }
   }
 
   return std::make_pair(parlay::to_sequence(visited), dist_cmps);    
-  }
-
-
-
-  template<typename Point, typename PointRange, typename QPointRange, typename indexType>
-parlay::sequence<parlay::sequence<indexType>>
-RangeSearch(Graph<indexType> &G,
-            PointRange& Query_Points, PointRange &Base_Points,
-            QPointRange& Q_Query_Points, QPointRange &Q_Base_Points,
-            stats<indexType> &QueryStats,
-            indexType starting_point, QueryParams &QP) {
-  parlay::sequence<indexType> start_points = {starting_point};
-  return RangeSearch<Point>(G, Query_Points, Base_Points,
-                            Q_Query_Points, Q_Base_Points,
-                            QueryStats, start_points, QP);
 }
 
   template<typename Point, typename PointRange, typename QPointRange, typename indexType>
@@ -121,9 +106,10 @@ RangeSearch(Graph<indexType> &G,
             PointRange &Query_Points, PointRange &Base_Points,
             QPointRange& Q_Query_Points, QPointRange &Q_Base_Points,
             stats<indexType> &QueryStats,
-            parlay::sequence<indexType> starting_points,
+            indexType starting_point,
             QueryParams &QP) {
 
+  parlay::sequence<indexType> starting_points = {starting_point};
   parlay::sequence<parlay::sequence<indexType>> all_neighbors(Query_Points.size());
   bool use_rerank = (Base_Points.params.num_bytes() != Q_Base_Points.params.num_bytes());
   parlay::parallel_for(0, Query_Points.size(), [&](size_t i) {
@@ -137,9 +123,11 @@ RangeSearch(Graph<indexType> &G,
                     QP.is_early_stop, QP.is_double_beam, QP.is_beam_search,
                     Q_Query_Points[i].translate_distance(QP.radius));
 
-
-
-    auto [pairElts, dist_cmps] = filtered_beam_search(G, Q_Query_Points[i], Q_Base_Points, Q_Query_Points[i], Q_Base_Points, starting_points, QP1, false, early_stopping<std::vector<id_dist>>);
+    auto [pairElts, dist_cmps_beam] =
+      filtered_beam_search(G, Q_Query_Points[i], Q_Base_Points,
+                           Q_Query_Points[i], Q_Base_Points,
+                           starting_points, QP1, false,
+                                                      early_stopping<std::vector<id_dist>>);
     auto [beamElts, visitedElts] = pairElts;
     for (auto b : beamElts) {
       if (Query_Points[i].distance(Base_Points[b.first]) <= QP.radius) {
@@ -150,7 +138,11 @@ RangeSearch(Graph<indexType> &G,
     if(neighbors.size() < QP.beamSize || QP.is_beam_search){
       all_neighbors[i] = neighbors;
     } else{
-      auto [in_range, dist_cmps] = greedy_search(Q_Query_Points[i], G, Q_Base_Points, neighbors_with_distance, QP1, visitedElts);
+      // if using quantization then use slightly larger radius
+      double radius = use_rerank ? 1.05 * QP1.radius : QP1.radius;
+      auto [in_range, dist_cmps_greedy] =
+        greedy_search(Q_Query_Points[i], G, Q_Base_Points,
+                      neighbors_with_distance, radius, visitedElts);
 
       parlay::sequence<indexType> ans;
 
@@ -169,15 +161,12 @@ RangeSearch(Graph<indexType> &G,
 #endif
       all_neighbors[i] = ans;
       QueryStats.increment_visited(i, in_range.size());
-      QueryStats.increment_dist(i, dist_cmps);
+      QueryStats.increment_dist(i, dist_cmps_greedy);
     }
 
     QueryStats.increment_visited(i, visitedElts.size());
-    QueryStats.increment_dist(i, dist_cmps);
+    QueryStats.increment_dist(i, dist_cmps_beam);
   });
-
-  // std::cout << parlay::reduce(second_round) << " elements advanced to round two" << std::endl;
-
   return all_neighbors;
 }
 

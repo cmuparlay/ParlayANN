@@ -81,7 +81,7 @@ struct stats{
     distances = parlay::sequence<indexType>(n, 0);
   }
 
-  parlay::sequence<indexType> statistics(parlay::sequence<indexType> s){
+  static parlay::sequence<indexType> statistics(parlay::sequence<indexType> s){
     parlay::sequence<indexType> stats = parlay::tabulate(s.size(), [&](size_t i) { return s[i];});
     parlay::sort_inplace(stats);
     indexType avg= (int)parlay::reduce(stats) / ((double)s.size());

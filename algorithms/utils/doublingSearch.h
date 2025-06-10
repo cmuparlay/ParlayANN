@@ -53,6 +53,10 @@ DoubleBeamRangeSearch(Graph<indexType> &G,
                                                         starting_points, QP1, false,
                                                         early_stopping<std::vector<id_dist>>);
     auto [beamElts, visitedElts] = pairElts;
+
+    QueryStats.increment_visited(i, visitedElts.size());
+    QueryStats.increment_dist(i, dist_cmps);
+    
     for (auto b : beamElts)
       if (P.distance(Base_Points[b.first]) <= QP.radius)
         neighbors.push_back(b.first);

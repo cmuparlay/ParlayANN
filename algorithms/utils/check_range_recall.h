@@ -56,7 +56,11 @@ void checkRangeRecall(
     auto stats_ = {QueryStats.dist_stats(), QueryStats.visited_stats()};
     std::cout << "For ";
     QP.print();
-    std::cout << ", Pointwise Recall = " << pointwise_recall << ", Cumulative Recall = " << cumulative_recall << ", QPS = " << QPS << std::endl;
+    std::cout << ", Pointwise Recall = " << pointwise_recall
+              << ", Cumulative Recall = " << cumulative_recall
+              << ", Comparisons = " << QueryStats.dist_stats()[0]
+              << ", Visited = " << QueryStats.visited_stats()[0] 
+              << ", QPS = " << QPS << std::endl;
     
   }else{
   parlay::sequence<parlay::sequence<indexType>> all_rr;
@@ -98,7 +102,11 @@ void checkRangeRecall(
   auto stats_ = {QueryStats.dist_stats(), QueryStats.visited_stats()};
   std::cout << "For ";
   QP.print();
-  std::cout << ", Pointwise Recall = " << pointwise_recall << ", Cumulative Recall = " << cumulative_recall << ", QPS = " << QPS << std::endl;
+  std::cout << ", Pointwise Recall = " << pointwise_recall
+            << ", Cumulative Recall = " << cumulative_recall
+            << ", Comparisons = " << QueryStats.dist_stats()[0]
+            << ", Visited = " << QueryStats.visited_stats()[0] 
+            << ", QPS = " << QPS << std::endl;
   
   }
   
