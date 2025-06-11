@@ -21,8 +21,8 @@ namespace parlayANN{
                       const PointInfo& unvisited_frontier,
                       const PointInfo& visited,
                       const QueryParams& QP){
-    bool has_visited_enough = (visited.size() >= QP.early_stop);
-    bool early_stop = (QP.early_stop > 0); 
+    bool has_visited_enough = (visited.size() >= QP.early_stopping_count);
+    bool early_stop = (QP.early_stopping_count > 0); 
     bool has_found_candidate = (frontier[0].second <= QP.radius);
     bool within_early_stop_rad = (unvisited_frontier[0].second <= QP.early_stopping_radius);
     return early_stop && has_visited_enough && !has_found_candidate && !within_early_stop_rad;

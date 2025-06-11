@@ -40,10 +40,10 @@
 namespace parlayANN{
 
 template<typename Point, typename PointRange_,  typename indexType>
-void RNG(Graph<indexType> &G, double rad, double esr, BuildParams &BP,
+void RNG(Graph<indexType> &G, BuildParams &BP,
          PointRange_ &Query_Points,
          RangeGroundTruth<indexType> GT,
-         char* res_file, bool graph_built, PointRange_ &Points, bool is_early_stop, bool is_double_beam, bool is_beam_search) {
+         char* res_file, bool graph_built, PointRange_ &Points) {
   parlay::internal::timer t("ANN");
   using findex = knn_index<PointRange_, PointRange_, indexType>;
   findex I(BP);
@@ -70,7 +70,9 @@ void RNG(Graph<indexType> &G, double rad, double esr, BuildParams &BP,
             << std::endl;
   Graph_ G_(name, params, G.size(), avg_deg, max_deg, idx_time);
   G_.print();
-    if(Query_Points.size() != 0) {
+  double esr = BP.early_stopping_radius;
+  double rad = BP.radius;
+  if(Query_Points.size() != 0) {
     if (BP.quantize != 0) {
       std::cout << "quantizing build and first pass of search to 1 byte" << std::endl;
       if (Point::is_metric()) {
@@ -82,8 +84,8 @@ void RNG(Graph<indexType> &G, double rad, double esr, BuildParams &BP,
         range_search_wrapper<Point>(G,
                                     Points, Query_Points,
                                     Q_Points, Q_Query_Points,
-                                    GT, rad, start_point, is_early_stop,
-                                    is_double_beam, is_beam_search, esr);
+                                    GT, start_point,
+                                    BP.is_early_stop, esr, BP.range_query_type, rad);
       } else {
         using QPoint = Quantized_Mips_Point<8,true,255>;
         using QPR = PointRange<QPoint>;
@@ -92,15 +94,15 @@ void RNG(Graph<indexType> &G, double rad, double esr, BuildParams &BP,
         range_search_wrapper<Point>(G,
                                     Points, Query_Points,
                                     Q_Points, Q_Query_Points,
-                                    GT, rad, start_point, is_early_stop,
-                                    is_double_beam, is_beam_search, esr);
+                                    GT, start_point,
+                                    BP.is_early_stop, esr, BP.range_query_type, rad);
       }
     } else {
       range_search_wrapper<Point>(G,
                                   Points, Query_Points,
                                   Points, Query_Points,
-                                  GT, rad, start_point, is_early_stop,
-                                  is_double_beam, is_beam_search, esr);
+                                  GT, start_point,
+                                  BP.is_early_stop, esr, BP.range_query_type, rad);
     }
   }
 }

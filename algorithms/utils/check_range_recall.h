@@ -21,7 +21,7 @@ void checkRangeRecall(
         RangeGroundTruth<indexType> GT, QueryParams QP,
         long start_point,parlay::sequence<indexType> &active_indices) {
 
-  if(QP.is_double_beam){
+  if(QP.range_query_type == Doubling) {
     
     parlay::internal::timer t;
     float query_time;
@@ -62,9 +62,7 @@ void checkRangeRecall(
               << ", Visited = " << QueryStats.visited_stats()[0] 
               << ", QPS = " << QPS << std::endl;
     
-  }else{
-    //parlay::sequence<parlay::sequence<indexType>> all_rr;
-
+  } else if (QP.range_query_type == Doubling || QP.range_query_type == Beam) {
 
   float query_time;
   stats<indexType> QueryStats(Query_Points.size());
@@ -107,6 +105,9 @@ void checkRangeRecall(
             << ", QPS = " << QPS << std::endl;
   
   }
+  else {
+    std::cout << "Error: No beam search type provided" << std::endl;
+  }
 }
 
 
@@ -114,8 +115,9 @@ template<typename Point, typename PointRange, typename QPointRange, typename ind
 void range_search_wrapper(Graph<indexType> &G,
                           PointRange &Base_Points, PointRange &Query_Points,
                           QPointRange &Q_Base_Points, QPointRange &Q_Query_Points, 
-  RangeGroundTruth<indexType> GT, double rad,
-  indexType start_point=0, bool is_early_stopping = false, bool is_double_beam=false, bool is_beam_search = false, double esr= 0.0){
+                          RangeGroundTruth<indexType> GT, indexType start_point=0,
+                          bool is_early_stopping = false, double esr = 0.0,
+                          rangeQueryType rtype = None, double rad = 0.0) {
 
   std::vector<long> beams;
 
@@ -126,13 +128,11 @@ void range_search_wrapper(Graph<indexType> &G,
   parlay::sequence<indexType> all = parlay::tabulate(Query_Points.size(), [&] (indexType i){return i;});
 
   for(long b: beams){
-    if(is_early_stopping){
+    if (is_early_stopping) 
       es = std::max((long)10, b/4);
-    }
-    //RangeParams RP(rad, b, is_early_stopping, is_double_beam, es, esr);
 
-    QueryParams QP(b, b, 0.0, G.size(), G.max_degree(), es,
-                   esr, is_early_stopping, is_double_beam, is_beam_search, rad);
+    QueryParams QP(b, b, 0.0, G.size(), G.max_degree(),
+                   is_early_stopping, esr, es, rtype, rad);
     
     checkRangeRecall<Point>(G,
                             Base_Points, Query_Points,

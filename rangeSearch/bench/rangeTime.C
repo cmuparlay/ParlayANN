@@ -53,10 +53,8 @@ void timeRange(Graph<indexType> &G,
                RangeGroundTruth<indexType> GT, char* res_file, bool graph_built,
                PointRange &Points)
 {
-  RNG<Point, PointRange, indexType>(G, BP.radius, BP.early_stopping_radius,
-                                    BP, Query_Points, GT, res_file,
-                                    graph_built, Points,
-                                    BP.early_stop, BP.double_beam, BP.beam_search);
+  RNG<Point, PointRange, indexType>(G, BP, Query_Points, GT, res_file,
+                                    graph_built, Points);
   if(outFile != NULL) G.save(outFile);
 }
 
@@ -106,6 +104,7 @@ int main(int argc, char* argv[]) {
   bool self = P.getOption("-self");
   int rerank_factor = P.getOptionIntValue("-rerank_factor", 100);
   bool range = P.getOption("-range");
+  bool early_stop = P.getOption("-early_stop");
   char* sm = P.getOptionValue("-search_mode");
   double esr = P.getOptionDoubleValue("-early_stopping_radius", 0);
   double rad  = P.getOptionDoubleValue("-r", 0.0);
@@ -117,32 +116,30 @@ int main(int argc, char* argv[]) {
   std::string df = std::string(dfc);
   std::string tp = std::string(vectype);
 
-    std::string searchType = std::string(sm);
-  bool is_early_stop = false;
-  bool is_double_beam = false;
-  bool is_beam_search = false;
+  std::string searchType = std::string(sm);
+  rangeQueryType rtype = Beam;
 
-  if(searchType == "earlyStopping"){
-    is_early_stop = true;
+  if (searchType == "doubling") {
+    rtype = Doubling;
+    std::cout << "Using doubling range search" << std::endl;
+  } else if (searchType == "greedy") {
+    rtype = Greedy;
+    std::cout << "Using greedy range search" << std::endl;
   }
-  if(searchType == "greedySearch"){
+  else if (searchType == "beam") {
+    rtype = Beam;
+    std::cout << "Using beam range search" << std::endl;
   }
-  if(searchType == "doublingSearch"){
-    is_double_beam = true;
-  }
-  if(searchType == "doublingSearchEarlyStopping"){
-    is_early_stop = true;
-    is_double_beam = true;
-  }
-  if(searchType == "beamSearch"){
-    is_beam_search = true;
-  }
+  else rtype = None;
 
-  BuildParams BP = BuildParams(R, L, alpha, num_passes, num_clusters, cluster_size, MST_deg, delta, verbose, quantize_build, rad, esr, self, range, single_batch, Q, trim, rerank_factor);
+  BuildParams BP = BuildParams(R, L, alpha, num_passes, num_clusters, cluster_size, MST_deg, delta,
+                               verbose, quantize_build,
+                               self, single_batch,
+                               Q, trim,
+                               rerank_factor,
+                               early_stop, esr,
+                               rtype, rad);
   long maxDeg = BP.max_degree();
-  BP.early_stop = is_early_stop;
-  BP.double_beam = is_double_beam;
-  BP.beam_search = is_beam_search;
 
   if((tp != "uint8") && (tp != "int8") && (tp != "float")){
     std::cout << "Error: vector type not specified correctly, specify int8, uint8, or float" << std::endl;

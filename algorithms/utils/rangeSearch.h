@@ -165,17 +165,16 @@ RangeSearch(Graph<indexType> &G,
     std::vector<std::pair<indexType, typename Point::distanceType>> neighbors_with_distance;
     using dtype = typename Point::distanceType;
     using id_dist = std::pair<indexType, dtype>;
-    QueryParams QP1(QP.beamSize, QP.beamSize, 0.0,
-                    G.size(), G.max_degree(),
-                    QP.early_stop, Q_Query_Points[i].translate_distance(QP.early_stopping_radius),
-                    QP.is_early_stop, QP.is_double_beam, QP.is_beam_search,
-                    Q_Query_Points[i].translate_distance(QP.radius));
+    QueryParams QP1(QP.beamSize, QP.beamSize, 0.0, G.size(), G.max_degree(),
+                    QP.is_early_stop, Q_Query_Points[i].translate_distance(QP.early_stopping_radius),
+                    QP.early_stopping_count,
+                    QP.range_query_type, Q_Query_Points[i].translate_distance(QP.radius));
 
     auto [pairElts, dist_cmps_beam] =
       filtered_beam_search(G, Q_Query_Points[i], Q_Base_Points,
                            Q_Query_Points[i], Q_Base_Points,
                            starting_points, QP1, false,
-                                                      early_stopping<std::vector<id_dist>>);
+                           early_stopping<std::vector<id_dist>>);
     auto [beamElts, visitedElts] = pairElts;
     for (auto b : beamElts) {
       if (Query_Points[i].distance(Base_Points[b.first]) <= QP.radius) {
@@ -183,7 +182,7 @@ RangeSearch(Graph<indexType> &G,
         neighbors_with_distance.push_back(b);
       }
     }
-    if(neighbors.size() < QP.beamSize || QP.is_beam_search){
+    if(neighbors.size() < QP.beamSize || QP.range_query_type == Beam){
       all_neighbors[i] = std::move(neighbors);
     } else{
       // if using quantization then use slightly larger radius

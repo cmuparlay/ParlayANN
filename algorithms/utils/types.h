@@ -150,7 +150,8 @@ struct RangeGroundTruth{
   size_t matches(){return num_matches;}
 };
 
-
+enum rangeQueryType {None, Greedy, Doubling, Beam};
+  
 struct BuildParams{
   long R; //vamana and pynnDescent
   long L; //vamana
@@ -163,32 +164,36 @@ struct BuildParams{
   long MST_deg; //HCNNG
 
   double delta; //pyNNDescent
-  
   bool verbose;
 
   int quantize = 0; // use quantization for build and query (0 = none, 1 = one-level, 2 = two-level)
-  double radius; // for radius search
-  double early_stopping_radius; // for radius search
   bool self;
-  bool range;
   int single_batch; //vamana
   long Q = 0; //beam width to pass onto query (0 indicates none specified)
   double trim = 0.0; // for quantization
   double rerank_factor = 100; // for reranking, k * factor = to rerank
-  bool early_stop = false;
-  bool double_beam = false;
-  bool beam_search = false;
+  bool is_early_stop = false;
+  double early_stopping_radius; // for radius search
+  rangeQueryType range_query_type = None;
+  double radius; // for radius search
   
   std::string alg_type;
+  float batch_factor = 1.0;
 
   BuildParams(long R, long L, double a, int num_passes, long nc, long cs, long mst, double de,
-              bool verbose = false, int quantize = 0, double radius = 0.0,
-              double early_stopping_radius = 0.0,
-              bool self = false, bool range = false, int single_batch = 0,
+              bool verbose = false, int quantize = 0, 
+              bool self = false, int single_batch = 0,
               long Q = 0, double trim = 0.0,
-              int rerank_factor = 100)
+              int rerank_factor = 100,
+              bool is_early_stop = false, double early_stopping_radius = 0.0, 
+              rangeQueryType range_query_type = None, double radius = 0.0) 
     : R(R), L(L), alpha(a), num_passes(num_passes), num_clusters(nc), cluster_size(cs), MST_deg(mst), delta(de),
-      verbose(verbose), quantize(quantize), radius(radius), early_stopping_radius(early_stopping_radius), self(self), range(range), single_batch(single_batch), Q(Q), trim(trim), rerank_factor(rerank_factor) {
+      verbose(verbose), quantize(quantize),
+      self(self), single_batch(single_batch),
+      Q(Q), trim(trim),
+      rerank_factor(rerank_factor),
+      is_early_stop(is_early_stop), early_stopping_radius(early_stopping_radius),
+      range_query_type(range_query_type), radius(radius) {
     if(R != 0 && L != 0 && alpha != 0){alg_type = m_l>0? "HNSW": "Vamana";}
     else if(num_clusters != 0 && cluster_size != 0 && MST_deg != 0){alg_type = "HCNNG";}
     else if(R != 0 && alpha != 0 && num_clusters != 0 && cluster_size != 0 && delta != 0){alg_type = "pyNNDescent";}
@@ -227,22 +232,24 @@ struct QueryParams{
   long limit;
   long degree_limit;
   int rerank_factor = 100;
-  long early_stop;
-  double radius;
-  double early_stopping_radius;
-  bool is_double_beam = false;
   bool is_early_stop = false;
-  bool is_beam_search = false;
+  double early_stopping_radius;
+  double early_stopping_count;
+  rangeQueryType range_query_type = None;
+  double radius;
+
   float pad = 1.0;
+  float batch_factor = 1.0;
 
   QueryParams(long k, long Q, double cut, long limit, long dg, double rerank_factor = 100)
     : k(k), beamSize(Q), cut(cut), limit(limit), degree_limit(dg), rerank_factor(rerank_factor) {}
 
-  QueryParams(long k, long Q, double cut, long limit, long dg, long es,
-              double esr, bool ies, bool idb, bool ibs, double radius)
+  QueryParams(long k, long Q, double cut, long limit, long dg,
+              long es, double esr, long esc,
+              rangeQueryType range_query_type, double radius)
     : k(k), beamSize(Q), cut(cut), limit(limit), degree_limit(dg),
-      early_stop(es), early_stopping_radius(esr),
-      is_double_beam(idb), is_early_stop(ies), is_beam_search(ibs), radius(radius) {}
+      is_early_stop(es), early_stopping_radius(esr), early_stopping_count(esc),
+      range_query_type(range_query_type), radius(radius) {}
 
   QueryParams() {}
 
