@@ -21,10 +21,9 @@ namespace parlayANN {
 
   template<typename Point, typename PointRange, typename indexType>
   std::pair<std::vector<indexType>, long>
-greedy_search_2(Point p, Graph<indexType> &G, PointRange &Points,
-                  std::vector<std::pair<indexType, typename Point::distanceType>> &starting_points,
-                  double radius,
-                  parlay::sequence<std::pair<indexType, typename Point::distanceType>> &already_visited) {
+greedy_search(Point p, Graph<indexType> &G, PointRange &Points,
+              std::vector<std::pair<indexType, typename Point::distanceType>> &starting_points,
+              double radius) {
    // first search for a starting point within the radius
 
   std::vector<indexType> result;
@@ -35,7 +34,6 @@ greedy_search_2(Point p, Graph<indexType> &G, PointRange &Points,
 
   for (auto [v,d] : starting_points) {
     if (seen.count(v) > 0 || Points[v].same_as(p)) continue;
-    //distance_comparisons++;
     if (d > radius ) continue;
     result.push_back(v);
     seen.insert(v);
@@ -68,10 +66,10 @@ greedy_search_2(Point p, Graph<indexType> &G, PointRange &Points,
   //a variant specialized for range searching
 template<typename Point, typename PointRange, typename indexType>
 std::pair<std::vector<indexType>, size_t>
-greedy_search(Point p, Graph<indexType> &G, PointRange &Points,
-	      parlay::sequence<std::pair<indexType, typename Point::distanceType>> &starting_points,
-              double radius,
-              parlay::sequence<std::pair<indexType, typename Point::distanceType>> &already_visited) {
+greedy_search_old(Point p, Graph<indexType> &G, PointRange &Points,
+                  parlay::sequence<std::pair<indexType, typename Point::distanceType>> &starting_points,
+                  double radius,
+                  parlay::sequence<std::pair<indexType, typename Point::distanceType>> &already_visited) {
   // compare two (node_id,distance) pairs, first by distance and then id if
   // equal
   using distanceType = typename Point::distanceType;
@@ -188,8 +186,8 @@ RangeSearch(Graph<indexType> &G,
       // if using quantization then use slightly larger radius
       double radius = use_rerank ? 1.05 * QP1.radius : QP1.radius;
       auto [in_range, dist_cmps_greedy] =
-        greedy_search_2(Q_Query_Points[i], G, Q_Base_Points,
-                        neighbors_with_distance, radius, visitedElts);
+        greedy_search(Q_Query_Points[i], G, Q_Base_Points,
+                      neighbors_with_distance, radius);
 
       std::vector<indexType> ans;
 

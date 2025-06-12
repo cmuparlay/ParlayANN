@@ -137,6 +137,7 @@ filtered_beam_search(const GT &G,
     // of low quality distance to the last point in the frontier (if frontier is full)
     if (use_filtering && frontier_full) {
       constexpr int width = 5;
+      //int width = frontier.size();
       indexType id = frontier.back().first;
       if (filter_threshold_count == 0 || filter_id != id) {
         filter_tail_mean = 0.0;
@@ -190,6 +191,7 @@ filtered_beam_search(const GT &G,
     if (candidates.size() == 0 || 
         (QP.limit >= 2 * beamSize &&
          candidates.size() < beamSize/8 &&
+         //candidates.size() < QP.batch_factor * beamSize &&
          offset + 1 < remain)) {
       offset++;
       continue;

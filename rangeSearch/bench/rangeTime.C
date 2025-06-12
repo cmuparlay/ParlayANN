@@ -104,11 +104,12 @@ int main(int argc, char* argv[]) {
   bool self = P.getOption("-self");
   int rerank_factor = P.getOptionIntValue("-rerank_factor", 100);
   bool range = P.getOption("-range");
-  bool early_stop = P.getOption("-early_stop");
+  bool is_early_stop = P.getOption("-early_stop");
   char* sm = P.getOptionValue("-search_mode");
   double esr = P.getOptionDoubleValue("-early_stopping_radius", 0);
   double rad  = P.getOptionDoubleValue("-r", 0.0);
-  
+  double batch_factor = P.getOptionDoubleValue("-batch_factor", .125);
+    
   // this integer represents the number of random edges to start with for
   // inserting in a single batch per round
   int single_batch = P.getOptionIntValue("-single_batch", 0);
@@ -136,8 +137,8 @@ int main(int argc, char* argv[]) {
                                verbose, quantize_build,
                                self, single_batch,
                                Q, trim,
-                               rerank_factor,
-                               early_stop, esr,
+                               rerank_factor, batch_factor,
+                               is_early_stop, esr,
                                rtype, rad);
   long maxDeg = BP.max_degree();
 

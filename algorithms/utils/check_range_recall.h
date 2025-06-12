@@ -62,7 +62,7 @@ void checkRangeRecall(
               << ", Visited = " << QueryStats.visited_stats()[0] 
               << ", QPS = " << QPS << std::endl;
     
-  } else if (QP.range_query_type == Doubling || QP.range_query_type == Beam) {
+  } else if (QP.range_query_type == Greedy || QP.range_query_type == Beam) {
 
   float query_time;
   stats<indexType> QueryStats(Query_Points.size());
@@ -106,7 +106,7 @@ void checkRangeRecall(
   
   }
   else {
-    std::cout << "Error: No beam search type provided" << std::endl;
+    std::cout << "Error: No beam search type provided, -seach_mode should be one of [doubling, greedy, beam]" << std::endl;
   }
 }
 

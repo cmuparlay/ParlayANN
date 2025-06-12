@@ -172,26 +172,28 @@ struct BuildParams{
   long Q = 0; //beam width to pass onto query (0 indicates none specified)
   double trim = 0.0; // for quantization
   double rerank_factor = 100; // for reranking, k * factor = to rerank
+  double batch_factor = 1.0;
   bool is_early_stop = false;
   double early_stopping_radius; // for radius search
   rangeQueryType range_query_type = None;
   double radius; // for radius search
-  
+
   std::string alg_type;
-  float batch_factor = 1.0;
+
 
   BuildParams(long R, long L, double a, int num_passes, long nc, long cs, long mst, double de,
               bool verbose = false, int quantize = 0, 
               bool self = false, int single_batch = 0,
               long Q = 0, double trim = 0.0,
-              int rerank_factor = 100,
+              int rerank_factor = 100, double batch_factor = 1.0,
               bool is_early_stop = false, double early_stopping_radius = 0.0, 
               rangeQueryType range_query_type = None, double radius = 0.0) 
-    : R(R), L(L), alpha(a), num_passes(num_passes), num_clusters(nc), cluster_size(cs), MST_deg(mst), delta(de),
+    : R(R), L(L), alpha(a), num_passes(num_passes), num_clusters(nc),
+      cluster_size(cs), MST_deg(mst), delta(de),
       verbose(verbose), quantize(quantize),
       self(self), single_batch(single_batch),
       Q(Q), trim(trim),
-      rerank_factor(rerank_factor),
+      rerank_factor(rerank_factor), batch_factor(batch_factor),
       is_early_stop(is_early_stop), early_stopping_radius(early_stopping_radius),
       range_query_type(range_query_type), radius(radius) {
     if(R != 0 && L != 0 && alpha != 0){alg_type = m_l>0? "HNSW": "Vamana";}
