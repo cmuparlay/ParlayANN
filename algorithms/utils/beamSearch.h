@@ -7,6 +7,7 @@
 #include <set>
 #include <unordered_set>
 #include <queue>
+#include "/usr/local/include/absl/container/flat_hash_set.h"
 
 #include "parlay/io.h"
 #include "parlay/parallel.h"
@@ -70,7 +71,13 @@ filtered_beam_search(const GT &G,
     hash_filter[loc] = a;
     return false;
   };
-
+  // absl::flat_hash_set<indexType> seen;
+  // auto has_been_seen = [&](indexType a) -> bool {
+  //                        if (seen.count(a) > 0) return true;
+  //                        seen.insert(a);
+  //                        return false;
+  // };
+  
   // Frontier maintains the closest points found so far and its size
   // is always at most beamSize.  Each entry is a (id,distance) pair.
   // Initialized with starting points and kept sorted by distance.
@@ -136,8 +143,8 @@ filtered_beam_search(const GT &G,
     // if using filtering based on lower quality distances measure, then maintain the average
     // of low quality distance to the last point in the frontier (if frontier is full)
     if (use_filtering && frontier_full) {
-      constexpr int width = 5;
-      //int width = frontier.size();
+      //constexpr int width = 5;
+      int width = frontier.size();
       indexType id = frontier.back().first;
       if (filter_threshold_count == 0 || filter_id != id) {
         filter_tail_mean = 0.0;
@@ -190,8 +197,8 @@ filtered_beam_search(const GT &G,
     // This iproves performance for higher accuracies (e.g. beam sizes of 100+)
     if (candidates.size() == 0 || 
         (QP.limit >= 2 * beamSize &&
-         candidates.size() < beamSize/8 &&
-         //candidates.size() < QP.batch_factor * beamSize &&
+         //candidates.size() < beamSize/8 &&
+         candidates.size() < QP.batch_factor * beamSize &&
          offset + 1 < remain)) {
       offset++;
       continue;

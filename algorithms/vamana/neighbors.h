@@ -82,7 +82,7 @@ void ANN_Quantized(Graph<indexType> &G, long k, BuildParams &BP,
                      QQ_Points, QQ_Query_Points,
                      GT,
                      res_file, k, false, start_point,
-                     verbose, BP.Q, BP.rerank_factor);
+                     verbose, BP.Q, BP.rerank_factor, BP.batch_factor);
   }
 }
 

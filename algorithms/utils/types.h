@@ -234,6 +234,7 @@ struct QueryParams{
   long limit;
   long degree_limit;
   int rerank_factor = 100;
+  float batch_factor = .125;
   bool is_early_stop = false;
   double early_stopping_radius;
   double early_stopping_count;
@@ -241,10 +242,12 @@ struct QueryParams{
   double radius;
 
   float pad = 1.0;
-  float batch_factor = 1.0;
 
-  QueryParams(long k, long Q, double cut, long limit, long dg, double rerank_factor = 100)
-    : k(k), beamSize(Q), cut(cut), limit(limit), degree_limit(dg), rerank_factor(rerank_factor) {}
+  QueryParams(long k, long Q, double cut, long limit, long dg,
+              double rerank_factor = 100,
+              double batch_factor = 1.0)
+    : k(k), beamSize(Q), cut(cut), limit(limit), degree_limit(dg),
+      rerank_factor(rerank_factor), batch_factor(batch_factor) {}
 
   QueryParams(long k, long Q, double cut, long limit, long dg,
               long es, double esr, long esc,
