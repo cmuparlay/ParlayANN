@@ -7,7 +7,7 @@
 #include <set>
 #include <unordered_set>
 #include <queue>
-#include "/usr/local/include/absl/container/flat_hash_set.h"
+//#include "/usr/local/include/absl/container/flat_hash_set.h"
 
 #include "parlay/io.h"
 #include "parlay/parallel.h"
@@ -71,7 +71,7 @@ filtered_beam_search(const GT &G,
     hash_filter[loc] = a;
     return false;
   };
-  // absl::flat_hash_set<indexType> seen;
+  // absl::flat_hash_set<indexType> seen(1 << bits);
   // auto has_been_seen = [&](indexType a) -> bool {
   //                        if (seen.count(a) > 0) return true;
   //                        seen.insert(a);
