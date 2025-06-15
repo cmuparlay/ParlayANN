@@ -24,18 +24,16 @@ namespace parlayANN {
 greedy_search(Point p, Graph<indexType> &G, PointRange &Points,
               std::vector<std::pair<indexType, typename Point::distanceType>> &starting_points,
               double radius) {
-   // first search for a starting point within the radius
-
   std::vector<indexType> result;
-  //std::unordered_set<indexType> seen;
   absl::flat_hash_set<indexType> seen;
+  auto has_been_seen = [&] (indexType a) {
+                         return !seen.insert(a).second; };
+  has_been_seen(p.id());
   long distance_comparisons = 0;
 
   for (auto [v,d] : starting_points) {
-    if (seen.count(v) > 0 || Points[v].same_as(p)) continue;
-    if (d > radius ) continue;
+    if (has_been_seen(v) || d > radius) continue;
     result.push_back(v);
-    seen.insert(v);
   }
 
   // now do a BFS over all vertices with distance less than radius
@@ -46,10 +44,8 @@ greedy_search(Point p, Graph<indexType> &G, PointRange &Points,
     unseen.clear();
     for (long i = 0; i < G[next].size(); i++) {
       auto v = G[next][i];
-      if (seen.count(v) > 0 || Points[v].same_as(p))
-        continue;  // skip if already seen
+      if (has_been_seen(v)) continue;
       unseen.push_back(v);
-      seen.insert(v);
       Points[v].prefetch();
     }
     for (auto v : unseen) {
@@ -62,41 +58,41 @@ greedy_search(Point p, Graph<indexType> &G, PointRange &Points,
   return std::pair(result, distance_comparisons);
 }
 
-    template<typename Point, typename PointRange, typename indexType>
+  // Does a priority-first search up to the radius given
+  template<typename Point, typename PointRange, typename indexType>
   std::pair<std::vector<indexType>, long>
 greedy_search_pq(Point p, Graph<indexType> &G, PointRange &Points,
                  std::vector<std::pair<indexType, typename Point::distanceType>> &starting_points,
                  double radius) {
 
   std::vector<indexType> result;
-  //std::unordered_set<indexType> seen;
-  absl::flat_hash_set<indexType> seen;
+  absl::flat_hash_set<indexType> seen(starting_points.size()*2);
+  auto has_been_seen = [&] (indexType a) { return !seen.insert(a).second; };
+  has_been_seen(p.id());
+
   long distance_comparisons = 0;
   using did = std::pair<typename Point::distanceType, indexType>;
   auto cmp = [] (did a, did b) {return a.first > b.first;};
   std::priority_queue<did, std::vector<did>, decltype(cmp)> pq(cmp);
 
   for (auto [v,d] : starting_points) {
-    if (seen.count(v) > 0 || Points[v].same_as(p)) continue;
+    if (has_been_seen(v)) continue;
     if (d > radius ) continue;
-    seen.insert(v);
     pq.push(std::pair(d,v));
   }
 
-  // now do a BFS over all vertices with distance less than radius
   long position = 0;
   std::vector<indexType> unseen;
   while (pq.top().first <= radius) {
     auto nxt = pq.top().second;
     pq.pop();
+    if (pq.size() > 0 && pq.top().second == nxt) continue;
     result.push_back(nxt);
     unseen.clear();
     for (long i = 0; i < G[nxt].size(); i++) {
       auto v = G[nxt][i];
-      if (seen.count(v) > 0 || Points[v].same_as(p))
-        continue;  // skip if already seen
+      if (has_been_seen(v)) continue;
       unseen.push_back(v);
-      seen.insert(v);
       Points[v].prefetch();
     }
     for (auto v : unseen) {

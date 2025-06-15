@@ -3,11 +3,11 @@
 
 #include <algorithm>
 #include <functional>
+#include <limits>
 #include <random>
 #include <set>
 #include <unordered_set>
 #include <queue>
-//#include "/usr/local/include/absl/container/flat_hash_set.h"
 
 #include "parlay/io.h"
 #include "parlay/parallel.h"
@@ -16,6 +16,7 @@
 #include "types.h"
 #include "graph.h"
 #include "stats.h"
+#include "filtered_hashset.h"
 
 namespace parlayANN {
 
@@ -61,22 +62,7 @@ filtered_beam_search(const GT &G,
     return a.second < b.second || (a.second == b.second && a.first < b.first);
   };
 
-  // used as a hash filter (can give false negative -- i.e. can say
-  // not in table when it is)
-  int bits = std::max<int>(10, std::ceil(std::log2(beamSize * max_degree)) - 1);
-  std::vector<indexType> hash_filter(1 << bits, -1);
-  auto has_been_seen = [&](indexType a) -> bool {
-    int loc = parlay::hash64_2(a) & ((1 << bits) - 1);
-    if (hash_filter[loc] == a) return true;
-    hash_filter[loc] = a;
-    return false;
-  };
-  // absl::flat_hash_set<indexType> seen(1 << bits);
-  // auto has_been_seen = [&](indexType a) -> bool {
-  //                        if (seen.count(a) > 0) return true;
-  //                        seen.insert(a);
-  //                        return false;
-  // };
+  filtered_hashset<indexType> has_been_seen(std::max(100, beamSize * max_degree));
   
   // Frontier maintains the closest points found so far and its size
   // is always at most beamSize.  Each entry is a (id,distance) pair.
