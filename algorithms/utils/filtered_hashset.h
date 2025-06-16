@@ -1,3 +1,6 @@
+#ifndef ALGORITHMS_ANN_HASHSET_H_
+#define ALGORITHMS_ANN_HASHSET_H_
+
 #include <vector>
 #include <cmath>
 
@@ -36,3 +39,47 @@ struct filtered_hashset {
     mask(filter.size() - 1)
   {}
 };
+
+template <typename intT>
+struct hashset {
+  int bits;
+  std::vector<intT> filter;
+  size_t mask;
+  long num_entries = 0;
+  size_t hash(intT const& k) const noexcept {
+    return k * UINT64_C(0xbf58476d1ce4e5b9); }
+    
+  bool operator () (intT a) {
+    int loc = hash(a) & mask;
+    if (filter[loc] == a) return true;
+    if (filter[loc] != -1) {
+      loc = (loc + 1) & mask;
+      while (filter[loc] != -1 && filter[loc] != a)
+        loc = (loc + 1) & mask;
+      if (filter[loc] == a) return true;
+    }
+    if (num_entries > filter.size()/2) {
+      bits = bits + 1;
+      std::vector<intT> new_filter(1ul << bits, -1);
+      mask = new_filter.size() - 1;
+      for (auto x : filter) {
+        int loc = hash(x) & mask;
+        while (new_filter[loc] != -1)
+          loc = (loc + 1) & mask;
+        new_filter[loc] = x;
+      }
+      loc = hash(a) & mask;
+      filter = new_filter;
+    }
+    filter[loc] = a;
+    num_entries++;
+    return false;
+  };
+  hashset(long n) :
+    bits(std::ceil(std::log2(n))),
+    filter(std::vector<intT>((1ul << bits), -1)),
+    mask(filter.size() - 1)
+  {}
+};
+
+#endif // ALGORITHMS_ANN_HASHSET_H_

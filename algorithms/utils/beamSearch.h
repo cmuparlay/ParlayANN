@@ -17,7 +17,6 @@
 #include "graph.h"
 #include "stats.h"
 #include "filtered_hashset.h"
-#include "/usr/local/include/absl/container/flat_hash_set.h"
 
 namespace parlayANN {
 
@@ -49,9 +48,8 @@ priority_first_search(const GT &G,
   int max_degree = QP.degree_limit;
 
   std::vector<id_dist> result;
-  absl::flat_hash_set<indexType> seen(QP.beamSize * max_degree / 2);
-  auto has_been_seen = [&] (indexType a) { return !seen.insert(a).second; };
-
+  hashset<indexType> has_been_seen(2 * (10 + beamSize) * max_degree);
+  
   long distance_comparisons = 0;
   auto grt = [] (id_dist a, id_dist b) {return a.second > b.second;};
   auto less = [] (id_dist a, id_dist b) {return a.second < b.second;};
@@ -125,7 +123,7 @@ filtered_beam_search(const GT &G,
     return a.second < b.second || (a.second == b.second && a.first < b.first);
   };
 
-  filtered_hashset<indexType> has_been_seen(std::max(100, beamSize * max_degree));
+  hashset<indexType> has_been_seen(2 * (10 + beamSize) * max_degree);
   
   // Frontier maintains the closest points found so far and its size
   // is always at most beamSize.  Each entry is a (id,distance) pair.
