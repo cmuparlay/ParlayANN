@@ -56,11 +56,13 @@ void checkRangeRecall(
     auto stats_ = {QueryStats.dist_stats(), QueryStats.visited_stats()};
     std::cout << "For ";
     QP.print();
-    std::cout << ", Pointwise Recall = " << pointwise_recall
-              << ", Cumulative Recall = " << cumulative_recall
-              << ", Comparisons = " << QueryStats.dist_stats()[0]
-              << ", Visited = " << QueryStats.visited_stats()[0] 
-              << ", QPS = " << QPS << std::endl;
+    std::cout << ", Point Recall=" << pointwise_recall
+              << ", Cum Recall=" << cumulative_recall
+              << ", Comparisons=" << QueryStats.dist_stats()[0]
+              << ", Visited=" << QueryStats.visited_stats()[0]
+              << ", QPS=" << QPS
+              << ", ctime=" << (1e9 / (QPS * QueryStats.dist_stats()[0]))
+              << std::endl;
     
   } else if (QP.range_query_type == Greedy || QP.range_query_type == Beam) {
 
@@ -98,12 +100,13 @@ void checkRangeRecall(
   auto stats_ = {QueryStats.dist_stats(), QueryStats.visited_stats()};
   std::cout << "For ";
   QP.print();
-  std::cout << ", Pointwise Recall = " << pointwise_recall
-            << ", Cumulative Recall = " << cumulative_recall
-            << ", Comparisons = " << QueryStats.dist_stats()[0]
-            << ", Visited = " << QueryStats.visited_stats()[0] 
-            << ", QPS = " << QPS << std::endl;
-  
+    std::cout << ", Point Recall=" << pointwise_recall
+              << ", Cum Recall=" << cumulative_recall
+              << ", Comparisons=" << QueryStats.dist_stats()[0]
+              << ", Visited=" << QueryStats.visited_stats()[0]
+              << ", QPS=" << QPS
+              << ", ctime=" << (1e9 / (QPS * QueryStats.dist_stats()[0]))
+              << std::endl;
   }
   else {
     std::cout << "Error: No beam search type provided, -seach_mode should be one of [doubling, greedy, beam]" << std::endl;

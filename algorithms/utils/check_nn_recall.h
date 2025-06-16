@@ -195,7 +195,7 @@ void search_and_parse(Graph_ G_,
                       indexType start_point = 0,
                       bool verbose = false,
                       long fixed_beam_width = 0,
-                      int rerank_factor = 100,
+                      double rerank_factor = 100,
                       double batch_factor = .125) {
   parlay::sequence<nn_result> results;
   std::vector<long> beams;

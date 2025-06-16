@@ -28,7 +28,6 @@ greedy_search(Point p, Graph<indexType> &G, PointRange &Points,
   absl::flat_hash_set<indexType> seen;
   auto has_been_seen = [&] (indexType a) {
                          return !seen.insert(a).second; };
-  has_been_seen(p.id());
   long distance_comparisons = 0;
 
   for (auto [v,d] : starting_points) {
@@ -55,7 +54,7 @@ greedy_search(Point p, Graph<indexType> &G, PointRange &Points,
     }
   }
 
-  return std::pair(result, distance_comparisons);
+  return std::pair(std::move(result), distance_comparisons);
 }
 
   // Does a priority-first search up to the radius given
@@ -68,7 +67,6 @@ greedy_search_pq(Point p, Graph<indexType> &G, PointRange &Points,
   std::vector<indexType> result;
   absl::flat_hash_set<indexType> seen(starting_points.size()*2);
   auto has_been_seen = [&] (indexType a) { return !seen.insert(a).second; };
-  has_been_seen(p.id());
 
   long distance_comparisons = 0;
   using did = std::pair<typename Point::distanceType, indexType>;
@@ -86,7 +84,6 @@ greedy_search_pq(Point p, Graph<indexType> &G, PointRange &Points,
   while (pq.top().first <= radius) {
     auto nxt = pq.top().second;
     pq.pop();
-    if (pq.size() > 0 && pq.top().second == nxt) continue;
     result.push_back(nxt);
     unseen.clear();
     for (long i = 0; i < G[nxt].size(); i++) {
@@ -101,7 +98,7 @@ greedy_search_pq(Point p, Graph<indexType> &G, PointRange &Points,
     }
   }
 
-  return std::pair(result, distance_comparisons);
+  return std::pair(std::move(result), distance_comparisons);
 }
 
   //a variant specialized for range searching

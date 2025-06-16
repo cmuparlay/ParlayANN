@@ -102,14 +102,15 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
       if (BP.quantize == 1) {
         ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, Q_Query_Points,
                       GT, res_file, graph_built, Points, Q_Points, Q_Points);
-      } else if (BP.quantize == 2) {
-        using QQPoint = Euclidean_Bit_Point;
-        using QQPR = PointRange<QQPoint>;
-        QQPR QQ_Points(Points);
-        QQPR QQ_Query_Points(Query_Points, QQ_Points.params);
-        ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, QQ_Query_Points,
-                      GT, res_file, graph_built, Points, Q_Points, QQ_Points);
-      } else if (BP.quantize == 3) {
+      }
+      // } else if (BP.quantize == 2) {
+      //   using QQPoint = Euclidean_Bit_Point;
+      //   using QQPR = PointRange<QQPoint>;
+      //   QQPR QQ_Points(Points);
+      //   QQPR QQ_Query_Points(Query_Points, QQ_Points.params);
+      //   ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, QQ_Query_Points,
+      //                 GT, res_file, graph_built, Points, Q_Points, QQ_Points);
+      else if (BP.quantize == 3) {
         using QQPoint = Euclidean_JL_Sparse_Point<1024>;
         using QQPR = PointRange<QQPoint>;
         QQPR QQ_Points(Points);
@@ -118,52 +119,52 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
                       GT, res_file, graph_built, Points, Q_Points, QQ_Points);
       }
     } else {
-      using QT = int8_t;
-      //using QPoint = Euclidian_Point<uint8_t>;
-      using QPoint = Quantized_Mips_Point<8,true,255>;
-      using QPR = PointRange<QPoint>;
-      QPR Q_Points(Points);
-      QPR Q_Query_Points(Query_Points, Q_Points.params);
-      if (BP.quantize == 1) {
-        ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, Q_Query_Points,
-                      GT, res_file, graph_built, Points, Q_Points, Q_Points);
-      // } else if (BP.quantize == 2) {
-      //   using QQPoint = Mips_Bit_Point;
+      // using QT = int8_t;
+      // //using QPoint = Euclidian_Point<uint8_t>;
+      // using QPoint = Quantized_Mips_Point<8,true,255>;
+      // using QPR = PointRange<QPoint>;
+      // QPR Q_Points(Points);
+      // QPR Q_Query_Points(Query_Points, Q_Points.params);
+      // if (BP.quantize == 1) {
+      //   ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, Q_Query_Points,
+      //                 GT, res_file, graph_built, Points, Q_Points, Q_Points);
+      // // } else if (BP.quantize == 2) {
+      // //   using QQPoint = Mips_Bit_Point;
+      // //   using QQPR = PointRange<QQPoint>;
+      // //   QQPR QQ_Points(Points);
+      // //   QQPR QQ_Query_Points(Query_Points, QQ_Points.params);
+      // //   ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, QQ_Query_Points,
+      // //                 GT, res_file, graph_built, Points, Q_Points, QQ_Points);
+      // } else if (BP.quantize == 3) {
+      //   using QQPoint = Mips_2Bit_Point;
       //   using QQPR = PointRange<QQPoint>;
       //   QQPR QQ_Points(Points);
       //   QQPR QQ_Query_Points(Query_Points, QQ_Points.params);
       //   ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, QQ_Query_Points,
       //                 GT, res_file, graph_built, Points, Q_Points, QQ_Points);
-      } else if (BP.quantize == 3) {
-        using QQPoint = Mips_2Bit_Point;
-        using QQPR = PointRange<QQPoint>;
-        QQPR QQ_Points(Points);
-        QQPR QQ_Query_Points(Query_Points, QQ_Points.params);
-        ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, QQ_Query_Points,
-                      GT, res_file, graph_built, Points, Q_Points, QQ_Points);
-      } else if (BP.quantize == 4) {
-        using QQPoint = Mips_JL_Sparse_Point<512>;
-        //using QQPoint = Mips_JL_Bit_Point<512>;
-        using QQPR = PointRange<QQPoint>;
-        QQPR QQ_Points(Points);
-        QQPR QQ_Query_Points(Query_Points, QQ_Points.params);
-        ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, QQ_Query_Points,
-                      GT, res_file, graph_built, Points, Q_Points, QQ_Points);
-      } else if (BP.quantize == 5) {
-        using QQPoint = Mips_JL_Sparse_Point<1024>;
-        using QQPR = PointRange<QQPoint>;
-        QQPR QQ_Points(Points);
-        QQPR QQ_Query_Points(Query_Points, QQ_Points.params);
-        ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, QQ_Query_Points,
-                      GT, res_file, graph_built, Points, Q_Points, QQ_Points);
-      // } else if (BP.quantize == 6) {
-      //   using QQPoint = Mips_JL_Sparse_Point_Normalized<1024>;
+      // } else if (BP.quantize == 4) {
+      //   using QQPoint = Mips_JL_Sparse_Point<512>;
+      //   //using QQPoint = Mips_JL_Bit_Point<512>;
       //   using QQPR = PointRange<QQPoint>;
       //   QQPR QQ_Points(Points);
       //   QQPR QQ_Query_Points(Query_Points, QQ_Points.params);
       //   ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, QQ_Query_Points,
       //                 GT, res_file, graph_built, Points, Q_Points, QQ_Points);
-      }
+      // } else if (BP.quantize == 5) {
+      //   using QQPoint = Mips_JL_Sparse_Point<1024>;
+      //   using QQPR = PointRange<QQPoint>;
+      //   QQPR QQ_Points(Points);
+      //   QQPR QQ_Query_Points(Query_Points, QQ_Points.params);
+      //   ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, QQ_Query_Points,
+      //                 GT, res_file, graph_built, Points, Q_Points, QQ_Points);
+      // // } else if (BP.quantize == 6) {
+      // //   using QQPoint = Mips_JL_Sparse_Point_Normalized<1024>;
+      // //   using QQPR = PointRange<QQPoint>;
+      // //   QQPR QQ_Points(Points);
+      // //   QQPR QQ_Query_Points(Query_Points, QQ_Points.params);
+      // //   ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, QQ_Query_Points,
+      // //                 GT, res_file, graph_built, Points, Q_Points, QQ_Points);
+      // }
     }
   } else {
     ANN_Quantized(G, k, BP, Query_Points, Query_Points, Query_Points,

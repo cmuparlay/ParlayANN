@@ -185,7 +185,7 @@ struct BuildParams{
               bool verbose = false, int quantize = 0, 
               bool self = false, int single_batch = 0,
               long Q = 0, double trim = 0.0,
-              int rerank_factor = 100, double batch_factor = 1.0,
+              double rerank_factor = 100, double batch_factor = 1.0,
               bool is_early_stop = false, double early_stopping_radius = 0.0, 
               rangeQueryType range_query_type = None, double radius = 0.0) 
     : R(R), L(L), alpha(a), num_passes(num_passes), num_clusters(nc),
@@ -233,8 +233,8 @@ struct QueryParams{
   double cut;
   long limit;
   long degree_limit;
-  int rerank_factor = 100;
-  float batch_factor = .125;
+  double rerank_factor = 100;
+  double batch_factor = .125;
   bool is_early_stop = false;
   double early_stopping_radius;
   double early_stopping_count;

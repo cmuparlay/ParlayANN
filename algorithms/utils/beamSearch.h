@@ -17,6 +17,7 @@
 #include "graph.h"
 #include "stats.h"
 #include "filtered_hashset.h"
+#include "/usr/local/include/absl/container/flat_hash_set.h"
 
 namespace parlayANN {
 
@@ -27,6 +28,68 @@ namespace parlayANN {
                     const PointInfo& visited,
                     const QueryParams& QP) { return false;}
   };
+
+  // main beam search
+template<typename indexType, typename Point, typename PointRange,
+         typename QPoint, typename QPointRange, typename GT, typename ES = EarlyStopping>
+std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>,
+                    parlay::sequence<std::pair<indexType, typename Point::distanceType>>>,
+          size_t>
+priority_first_search(const GT &G,
+                      const Point p,  const PointRange &Points,
+                      const QPoint qp, const QPointRange &Q_Points,
+                      const parlay::sequence<indexType> starting_points,
+                      const QueryParams &QP,
+                      bool use_filtering = false,
+                      ES early_stop = ES{}
+                      ) {
+  using dtype = typename Point::distanceType;
+  using id_dist = std::pair<indexType, dtype>;
+  int beamSize = QP.beamSize;
+  int max_degree = QP.degree_limit;
+
+  std::vector<id_dist> result;
+  absl::flat_hash_set<indexType> seen(QP.beamSize * max_degree / 2);
+  auto has_been_seen = [&] (indexType a) { return !seen.insert(a).second; };
+
+  long distance_comparisons = 0;
+  auto grt = [] (id_dist a, id_dist b) {return a.second > b.second;};
+  auto less = [] (id_dist a, id_dist b) {return a.second < b.second;};
+  std::priority_queue<id_dist, std::vector<id_dist>, decltype(grt)> pq(grt);
+
+  for (auto v : starting_points) {
+    if (has_been_seen(v)) continue;
+    pq.push(std::pair(v, Points[v].distance(p)));
+  }
+
+  long position = 0;
+  std::vector<indexType> unseen;
+  while (pq.size() > 0 && result.size() < beamSize + 10) {
+    auto nxt = pq.top();
+    pq.pop();
+    result.push_back(nxt);
+    unseen.clear();
+    for (long i = 0; i < G[nxt.first].size(); i++) {
+      auto v = G[nxt.first][i];
+      if (has_been_seen(v)) continue;
+      distance_comparisons++;
+      unseen.push_back(v);
+      Points[v].prefetch();
+    }
+    for (auto v : unseen) {
+      auto d = Points[v].distance(p);
+      pq.push(std::pair(v, d));
+    }
+  }
+
+  std::sort(result.begin(), result.end(), less);
+
+  parlay::sequence<id_dist> r;
+  for (int i = 0; i < beamSize; i++) r.push_back(result[i]);
+      
+  return std::pair(std::pair(std::move(r), parlay::sequence<id_dist>()),
+                   distance_comparisons);
+}
 
 // main beam search
 template<typename indexType, typename Point, typename PointRange,
@@ -376,10 +439,18 @@ beam_search_rerank(const Point &p,
 
   bool use_rerank = (Base_Points.params.num_bytes() != Q_Base_Points.params.num_bytes());
   bool use_filtering = (Q_Base_Points.params.num_bytes() != QQ_Base_Points.params.num_bytes());
-  auto [pairElts, dist_cmps] = filtered_beam_search(G,
-                                                    qp, Q_Base_Points,
-                                                    qqp, QQ_Base_Points,
-                                                    starting_points, QPP, use_filtering);
+  std::pair<std::pair<parlay::sequence<id_dist>, parlay::sequence<id_dist>>, size_t> r;
+  if (QP.batch_factor == .125)
+    r = filtered_beam_search(G,
+                             qp, Q_Base_Points,
+                             qqp, QQ_Base_Points,
+                             starting_points, QPP, use_filtering);
+  else
+    r = priority_first_search(G,
+                              qp, Q_Base_Points,
+                              qqp, QQ_Base_Points,
+                              starting_points, QPP, use_filtering);
+  auto [pairElts, dist_cmps] = r;
   auto [beamElts, visitedElts] = pairElts;
   if (beamElts.size() < QP.k) {
     std::cout << "Error: for point id " << p.id() << " beam search returned " << beamElts.size() << " elements, which is less than k = " << QP.k << std::endl;
