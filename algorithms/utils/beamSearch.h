@@ -38,10 +38,9 @@ priority_first_search(const GT &G,
                       const Point p,  const PointRange &Points,
                       const QPoint qp, const QPointRange &Q_Points,
                       const parlay::sequence<indexType> starting_points,
-                      const QueryParams &QP,
-                      bool use_filtering = false,
-                      ES early_stop = ES{}
-                      ) {
+                      const QueryParams &QP) {
+  auto is_match = [] (indexType i) { return (parlay::hash<indexType>()(i) % 2) == 0;};
+  
   using dtype = typename Point::distanceType;
   using id_dist = std::pair<indexType, dtype>;
   int beamSize = QP.beamSize;
@@ -52,7 +51,6 @@ priority_first_search(const GT &G,
   
   long distance_comparisons = 0;
   auto grt = [] (id_dist a, id_dist b) {return a.second > b.second;};
-  auto less = [] (id_dist a, id_dist b) {return a.second < b.second;};
   std::priority_queue<id_dist, std::vector<id_dist>, decltype(grt)> pq(grt);
 
   for (auto v : starting_points) {
@@ -65,7 +63,7 @@ priority_first_search(const GT &G,
   while (pq.size() > 0 && result.size() < beamSize + 10) {
     auto nxt = pq.top();
     pq.pop();
-    result.push_back(nxt);
+    if (is_match(nxt.first)) result.push_back(nxt);
     unseen.clear();
     for (long i = 0; i < G[nxt.first].size(); i++) {
       auto v = G[nxt.first][i];
@@ -80,12 +78,11 @@ priority_first_search(const GT &G,
     }
   }
 
+  auto less = [] (id_dist a, id_dist b) {return a.second < b.second;};
   std::sort(result.begin(), result.end(), less);
-
   parlay::sequence<id_dist> r;
   for (int i = 0; i < beamSize; i++) r.push_back(result[i]);
-      
-  return std::pair(std::pair(std::move(r), parlay::sequence<id_dist>()),
+  return std::pair(std::pair(std::move(r), parlay::to_sequence(result)),
                    distance_comparisons);
 }
 
@@ -515,11 +512,13 @@ beam_search_rerank(const Point &p,
     r = priority_first_search(G,
                               qp, Q_Base_Points,
                               qqp, QQ_Base_Points,
-                              starting_points, QPP, use_filtering);
+                              starting_points, QPP);
   auto [pairElts, dist_cmps] = r;
   auto [beamElts, visitedElts] = pairElts;
   if (beamElts.size() < QP.k) {
-    std::cout << "Error: for point id " << p.id() << " beam search returned " << beamElts.size() << " elements, which is less than k = " << QP.k << std::endl;
+    std::cout << "Error: for point id " << p.id()
+              << " beam search returned " << beamElts.size()
+              << " elements, which is less than k = " << QP.k << std::endl;
     abort();
   }
   
