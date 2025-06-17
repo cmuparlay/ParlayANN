@@ -28,7 +28,7 @@ def runstring(op, outfile):
         if (os.WEXITSTATUS(x) == 0) : raise NameError("  aborted: " + op)
         os.system("echo Failed")
     
-def runtest(dataset_name, outfile, search_mode) :
+def runtest(dataset_name, outfile, search_type, early_stop) :
     ds = data_options[dataset_name]
     op = "./../rangeSearch/vamanaRange/range"
     op += " -base_path " + ds["base"] 
@@ -42,7 +42,9 @@ def runtest(dataset_name, outfile, search_mode) :
     op += " -R " + str(ds["R"] )
     op += " -L " + str(ds["L"] )
     op += " -quantize_mode " + str(ds["quantize_mode"] )
-    op += " -search_mode " + search_mode
+    if early_stop:
+        op += " -early_stop"
+    op += " -search_mode " + search_type
     if os.path.exists(ds["graph"]):
         op += " -graph_path " + ds["graph"]
     else:
