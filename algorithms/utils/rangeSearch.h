@@ -219,11 +219,12 @@ RangeSearch(Graph<indexType> &G,
         neighbors_with_distance.push_back(b);
       }
     }
-    if(neighbors.size() < QP.beamSize || QP.range_query_type == Beam){
+    if (neighbors.size() < QP.beamSize || QP.range_query_type == Beam){
       all_neighbors[i] = std::move(neighbors);
     } else{
       // if using quantization then use slightly larger radius
-      double radius = use_rerank ? 1.05 * QP1.radius : QP1.radius;
+      double pad_factor = (QP1.radius > 0) ? 1.05 : .975;
+      double radius = use_rerank ? pad_factor * QP1.radius : QP1.radius;
       auto [in_range, dist_cmps_greedy] =
         greedy_search(Q_Query_Points[i], G, Q_Base_Points,
                       neighbors_with_distance, radius);
