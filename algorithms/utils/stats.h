@@ -83,7 +83,7 @@ struct stats{
 
   static parlay::sequence<indexType> statistics(parlay::sequence<indexType> s){
     auto sl = parlay::map(s, [] (long x) { return x;});
-    indexType avg = (indexType) parlay::reduce(sl) / s.size();
+    indexType avg = (indexType) (parlay::reduce(sl) / s.size());
     indexType tail = parlay::sort(s)[.99 * ((float)s.size())];
     auto result = {avg, tail};
     return result;
