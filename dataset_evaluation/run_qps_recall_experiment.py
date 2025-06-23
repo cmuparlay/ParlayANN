@@ -67,11 +67,14 @@ if not args.graphs_only:
           if group == "FAISS":
             continue
           if group == "Beam Search":
-            search_mode = "beamSearch"
+            search_type = "beam"
+            early_stop = False
           elif group == "Greedy Search with Early Stopping":
-            search_mode = "earlyStopping"
+            search_type = "greedy"
+            early_stop = True
           elif group == "Doubling Search with Early Stopping":
-            search_mode = "doublingSearchEarlyStopping"
+            search_type = "doubling"
+            early_stop = True
           print("Running test for dataset:", dataset_name, "group:", group)
           # run the test
           with open(outFile, 'a') as f:
@@ -79,7 +82,7 @@ if not args.graphs_only:
               f.write("\n")
               f.write(group + ":" + "\n")
               f.write("\n")
-          runtest(dataset_name, outFile, search_mode)
+          runtest(dataset_name, outFile, search_type, early_stop)
       elif "FAISS" in groups:
         directory = "qps_recall_results/"
         os.makedirs(directory, exist_ok=True)
@@ -129,7 +132,7 @@ def readResultsFile(dataset_name, search_strategy):
         # print(parts)
         if len(parts) >= 3:  # Ensure we have enough components
           recall_value = float(parts[2].split("=")[1].strip())
-          qps_value = float(parts[3].split("=")[1].strip())
+          qps_value = float(parts[5].split("=")[1].strip())
 
           recall_list.append(recall_value)
           qps_list.append(qps_value)
@@ -197,11 +200,13 @@ def plot_qps_recall_graph(result_data, graph_name, paper_ver=False):
           markersize=14,
           label="FAISS") 
       else:
+        print(group)
         algorithm = group
         linestyle = linestyles[algorithm]
         recall_raw = dataset_data[group]
         qps_raw = dataset_data[group + ", QPS"]
         qps, recall = pareto_frontier(qps_raw, recall_raw, True)
+        print(qps, recall)
         xmin = min(min(recall), xmin)
         xmax = max(max(recall), xmax)
         if "alpha" in alginfo:
