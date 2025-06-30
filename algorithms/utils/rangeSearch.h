@@ -186,7 +186,7 @@ greedy_search_old(Point p, Graph<indexType> &G, PointRange &Points,
 }
 
   template<typename Point, typename PointRange, typename QPointRange, typename indexType>
-  parlay::sequence<std::vector<indexType>>
+  std::pair<parlay::sequence<std::vector<indexType>>,std::pair<double,double>> 
 RangeSearch(Graph<indexType> &G,
             PointRange &Query_Points, PointRange &Base_Points,
             QPointRange& Q_Query_Points, QPointRange &Q_Base_Points,
@@ -196,10 +196,17 @@ RangeSearch(Graph<indexType> &G,
 
   parlay::sequence<indexType> starting_points = {starting_point};
   parlay::sequence<std::vector<indexType>> all_neighbors(Query_Points.size());
+  parlay::WorkerSpecific<double> beam_time;
+  parlay::WorkerSpecific<double> other_time;
   bool use_rerank = (Base_Points.params.num_bytes() != Q_Base_Points.params.num_bytes());
   parlay::parallel_for(0, Query_Points.size(), [&](size_t i) {
+    parlay::internal::timer t_search_beam("beam search time");
+    parlay::internal::timer t_search_other("other time");
+    t_search_beam.stop();
+    t_search_other.stop();
     std::vector<indexType> neighbors;
     std::vector<std::pair<indexType, typename Point::distanceType>> neighbors_with_distance;
+    t_search_beam.start();
     using dtype = typename Point::distanceType;
     using id_dist = std::pair<indexType, dtype>;
     QueryParams QP1(QP.beamSize, QP.beamSize, 0.0, G.size(), G.max_degree(),
@@ -212,6 +219,7 @@ RangeSearch(Graph<indexType> &G,
                            Q_Query_Points[i], Q_Base_Points,
                            starting_points, QP1, false,
                            early_stopping<std::vector<id_dist>>);
+    t_search_beam.stop();
     auto [beamElts, visitedElts] = pairElts;
     for (auto b : beamElts) {
       if (Query_Points[i].distance(Base_Points[b.first]) <= QP.radius) {
@@ -223,6 +231,7 @@ RangeSearch(Graph<indexType> &G,
       all_neighbors[i] = std::move(neighbors);
     } else{
       // if using quantization then use slightly larger radius
+      t_search_other.start();
       double pad_factor = (QP1.radius > 0) ? 1.05 : .975;
       double radius = use_rerank ? pad_factor * QP1.radius : QP1.radius;
       auto [in_range, dist_cmps_greedy] =
@@ -247,12 +256,22 @@ RangeSearch(Graph<indexType> &G,
       all_neighbors[i] = std::move(ans);
       QueryStats.increment_visited(i, in_range.size());
       QueryStats.increment_dist(i, dist_cmps_greedy);
+      t_search_other.stop();
     }
+    
 
+    *beam_time += t_search_beam.total_time();
+    *other_time += t_search_other.total_time();
     QueryStats.increment_visited(i, visitedElts.size());
     QueryStats.increment_dist(i, dist_cmps_beam);
+    
   });
-  return all_neighbors;
+
+  double total_time_beam = 0;
+  double total_time_other = 0;
+  for (auto x : beam_time) total_time_beam += x;
+  for (auto y: other_time) total_time_other += y;
+  return std::make_pair(all_neighbors,std::make_pair(total_time_beam,total_time_other));
 }
 
 }
