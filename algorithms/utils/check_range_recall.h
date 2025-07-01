@@ -14,7 +14,7 @@
 namespace parlayANN {
 
 template<typename Point, typename PointRange, typename QPointRange, typename indexType>
-std::tuple<double,double,double> checkRangeRecall(
+void checkRangeRecall(
         Graph<indexType> &G,
         PointRange &Base_Points, PointRange &Query_Points,
         QPointRange &Q_Base_Points, QPointRange &Q_Query_Points,
@@ -55,16 +55,16 @@ std::tuple<double,double,double> checkRangeRecall(
     
     float QPS = Query_Points.size() / query_time;
     auto stats_ = {QueryStats.dist_stats(), QueryStats.visited_stats()};
-    // std::cout << "For ";
-    // QP.print();
-    // std::cout << ", Point Recall=" << pointwise_recall
-    //           << ", Cum Recall=" << cumulative_recall
-    //           << ", Comparisons=" << QueryStats.dist_stats()[0]
-    //           << ", Visited=" << QueryStats.visited_stats()[0]
-    //           << ", QPS=" << QPS
-    //           << ", ctime=" << (1e9 / (QPS * QueryStats.dist_stats()[0]))
-    //           << std::endl;
-    return std::make_tuple(cumulative_recall, beam_search_time, other_time);
+    std::cout << "For ";
+    QP.print();
+    std::cout << ", Point Recall=" << pointwise_recall
+              << ", Cum Recall=" << cumulative_recall
+              << ", Comparisons=" << QueryStats.dist_stats()[0]
+              << ", Visited=" << QueryStats.visited_stats()[0]
+              << ", QPS=" << QPS
+              << ", ctime=" << (1e9 / (QPS * QueryStats.dist_stats()[0]))
+              << ", timings= [" << beam_search_time<< ","<< other_time <<"]"
+              << std::endl;
     
   } else if (QP.range_query_type == Greedy || QP.range_query_type == Beam) {
 
@@ -100,20 +100,19 @@ std::tuple<double,double,double> checkRangeRecall(
   
   float QPS = Query_Points.size() / query_time;
   auto stats_ = {QueryStats.dist_stats(), QueryStats.visited_stats()};
-  // std::cout << "For ";
-  // QP.print();
-  //   std::cout << ", Point Recall=" << pointwise_recall
-  //             << ", Cum Recall=" << cumulative_recall
-  //             << ", Comparisons=" << QueryStats.dist_stats()[0]
-  //             << ", Visited=" << QueryStats.visited_stats()[0]
-  //             << ", QPS=" << QPS
-  //             << ", ctime=" << (1e9 / (QPS * QueryStats.dist_stats()[0]))
-  //             << std::endl;
-  return std::make_tuple(cumulative_recall, beam_search_time, other_time);
+  std::cout << "For ";
+  QP.print();
+    std::cout << ", Point Recall=" << pointwise_recall
+              << ", Cum Recall=" << cumulative_recall
+              << ", Comparisons=" << QueryStats.dist_stats()[0]
+              << ", Visited=" << QueryStats.visited_stats()[0]
+              << ", QPS=" << QPS
+              << ", ctime=" << (1e9 / (QPS * QueryStats.dist_stats()[0]))
+              << ", timings= [" << beam_search_time<< ","<< other_time <<"]"
+              << std::endl;
   }
   else {
     std::cout << "Error: No beam search type provided, -seach_mode should be one of [doubling, greedy, beam]" << std::endl;
-    return std::make_tuple(-1.0,-1.0,-1.0);
   }
 }
 
@@ -147,45 +146,13 @@ void range_search_wrapper(Graph<indexType> &G,
                    is_early_stopping, esr, es, rtype, rad);
 
     
-    
-    std::tuple<double, double, double> stats = checkRangeRecall<Point>(G,
+    checkRangeRecall<Point>(G,
                             Base_Points, Query_Points,
                             Q_Base_Points, Q_Query_Points,
                             GT, QP, start_point, all);
-    cumulative_recall.push_back(std::get<0>(stats));
-    timings.push_back(std::make_pair(std::get<1>(stats),std::get<2>(stats)));
-    beam_size.push_back(b);
 
   }
-  // Case of early stopping 
-  if(is_early_stopping){
-    if(rtype == Greedy){
-      std::cout << "All, Early Stop Greedy Search, Average Precision: " << parlay::to_chars(cumulative_recall) << std::endl; 
-      std::cout << "All, Early Stop Greedy Search, Beams: "<< parlay::to_chars(beam_size) << std::endl;
-      std::cout << "All, Early Stop Greedy Search, Timings: "<< parlay::to_chars(timings)<< std::endl;
-    }else if(rtype == Beam){
-      std::cout << "All, Early Stop Beam Search, Average Precision: " << parlay::to_chars(cumulative_recall) << std::endl; 
-      std::cout << "All, Early Stop Beam Search, Beams: "<< parlay::to_chars(beam_size) << std::endl;
-      std::cout << "All, Early Stop Beam Search, Timings: "<< parlay::to_chars(timings)<< std::endl;
-    }else if(rtype == Doubling)
-      std::cout << "All, Early Stop Doubling Search, Average Precision: " << parlay::to_chars(cumulative_recall) << std::endl; 
-      std::cout << "All, Early Stop Doubling Search, Beams: "<< parlay::to_chars(beam_size) << std::endl;
-      std::cout << "All, Early Stop Doubling Search, Timings: "<< parlay::to_chars(timings)<< std::endl;
-  }else{
-      if(rtype == Greedy){
-      std::cout << "All, Greedy Search, Average Precision: " << parlay::to_chars(cumulative_recall) << std::endl; 
-      std::cout << "All, Greedy Search, Beams: "<< parlay::to_chars(beam_size) << std::endl;
-      std::cout << "All, Greedy Search, Timings: "<< parlay::to_chars(timings)<< std::endl;
-    }else if(rtype == Beam){
-      std::cout << "All, Beam Search, Average Precision: " << parlay::to_chars(cumulative_recall) << std::endl; 
-      std::cout << "All, Beam Search, Beams: "<< parlay::to_chars(beam_size) << std::endl;
-      std::cout << "All, Beam Search, Timings: "<< parlay::to_chars(timings)<< std::endl;
-    }else if(rtype == Doubling)
-      std::cout << "All, Doubling Search, Average Precision: " << parlay::to_chars(cumulative_recall) << std::endl; 
-      std::cout << "All, Doubling Search, Beams: "<< parlay::to_chars(beam_size) << std::endl;
-      std::cout << "All, Doubling Search, Timings: "<< parlay::to_chars(timings)<< std::endl;
-  }
-
+  
 
   
 }
