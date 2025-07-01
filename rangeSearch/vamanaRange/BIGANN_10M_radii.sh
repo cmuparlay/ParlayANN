@@ -22,7 +22,7 @@ for radius in "${RADIUS_VALUES[@]}"; do
       -base_path "${datasets["BIGANN"]}/base.1B.u8bin.crop_nb_10000000" \
       -query_path "${datasets["BIGANN"]}/query.public.10K.u8bin" \
       -gt_path "${datasets["BIGANN"]}/range_gt_10M_10000_${radius}" \
-      -data_type uint8 -dist_func Euclidian -graph_path "${datasets["BIGANN"]}/graph10M"\
+      -data_type uint8 -dist_func Euclidian -graph_path "${datasets["BIGANN"]}/graph_10M"\
        -early_stop true -quantize_mode 1\
       > "radiitest_BIGANN_10M_final_${mode}_${radius}.out"
     

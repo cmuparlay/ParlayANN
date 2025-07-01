@@ -66,20 +66,24 @@ if not args.graphs_only:
       os.system("echo \"\" > " + outFile)
       for group in groups:
         if group == "Greedy Search":
-          search_mode = ""
+          search_mode = "greedy"
+          early_stop = False
         elif group == "Doubling Search":
-          search_mode = "doublingSearch"
+          search_mode = "doubling"
+          early_stop = False
         elif group == "Greedy Search with Early Stopping":
-          search_mode = "earlyStopping"
+          search_mode = "greedy"
+          early_stop = True
         elif group == "Doubling Search with Early Stopping":
-          search_mode = "doublingSearchEarlyStopping"
+          search_mode = "doubling"
+          early_stop = True
         print("Running test for dataset:", dataset_name, "group:", group)
         # run the test
         with open(outFile, 'a') as f:
           f.write("\n")
           f.write(group + ":" + "\n")
           f.write("\n")
-        runtest(dataset_name, outFile, search_mode)
+        runtest(dataset_name, outFile, search_mode, early_stop)
 
 
 
@@ -118,7 +122,7 @@ def readResultsFile(dataset_name, search_strategy):
         # print(parts)
         if len(parts) >= 3:  # Ensure we have enough components
           recall_value = float(parts[2].split("=")[1].strip())
-          qps_value = float(parts[3].split("=")[1].strip())
+          qps_value = float(parts[5].split("=")[1].strip())
 
           recall_list.append(recall_value)
           qps_list.append(qps_value)
