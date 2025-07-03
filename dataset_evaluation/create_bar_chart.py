@@ -1,9 +1,8 @@
 import argparse
 import os
-import re
 import matplotlib.pyplot as plt
 import numpy as np
-from utils import runtest  
+from utils import runtest, string_to_list
 
 # Algorithm config: (search_mode, early_stop, base_color, top_color, label)
 ALGORITHM_CONFIG = {
@@ -16,19 +15,24 @@ ALGORITHM_CONFIG = {
 
 # === Parse beam logs ===
 def parse_beam_logs(result_file):
-    pattern = re.compile(
-        r"For Beam: (\d+), Point Recall=([\d\.e+-]+),.*?timings= \[([\d\.e+-]+),([\d\.e+-]+)\]"
-    )
     beam_data = []
     with open(result_file, 'r') as f:
         for line in f:
-            match = pattern.search(line)
-            if match:
-                beam = int(match.group(1))
-                recall = float(match.group(2))
-                beam_time = float(match.group(3))
-                other_time = float(match.group(4))
-                beam_data.append((beam, recall, beam_time, other_time))
+            if "For Beam:" in line:
+                parts = line.split(", ")
+                beam_value = int(parts[0].split(":")[1].strip())
+                recall_value = float(parts[2].split("=")[1].strip())
+                timing_list = string_to_list(parts[7].split("=")[1].strip())
+                t1=float(timing_list[0])
+                t2=float(timing_list[1])
+                beam_data.append((beam_value, recall_value, t1, t2))
+            # match = pattern.search(line)
+            # if match:
+            #     beam = int(match.group(1))
+            #     recall = float(match.group(2))
+            #     beam_time = float(match.group(3))
+            #     other_time = float(match.group(4))
+            #     beam_data.append((beam, recall, beam_time, other_time))
     return beam_data
 
 # === Find best beam for each recall threshold ===
@@ -88,8 +92,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-dataset", required=True, help="dataset")
     parser.add_argument("-recalls", required=True, help="recall list, e.g. [0.99, 0.995, 0.999]")
-    parser.add_argument("-recall_type", required=True, help="Average Precision or Pointwise Precision")
     parser.add_argument("-graph_name", required=True, help="graph output name")
+    parser.add_argument("-g","--graphs_only", help="graphs only",action="store_true")
 
     args = parser.parse_args()
     recalls = [float(r.strip()) for r in args.recalls.strip("[]").split(",")]
@@ -101,7 +105,10 @@ if __name__ == "__main__":
     for algo in ALGORITHM_CONFIG:
         search_mode, early_stop, _, _, _ = ALGORITHM_CONFIG[algo]
         outfile = os.path.join(output_dir, f"{args.dataset}_{search_mode}_{'es' if early_stop else 'noes'}.txt")
-        runtest(args.dataset, outfile, search_mode, early_stop)
+        if not args.graphs_only:
+            # clear output file
+            os.system("echo \"\" > " + outfile)
+            runtest(args.dataset, outfile, search_mode, early_stop)
         beam_data = parse_beam_logs(outfile)
         selected = find_min_beams(beam_data, recalls)
         all_result_data[algo] = selected

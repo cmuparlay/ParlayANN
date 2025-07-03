@@ -30,6 +30,7 @@ DoubleBeamRangeSearch(Graph<indexType> &G,
   parlay::sequence<parlay::sequence<indexType>> all_neighbors(active_indices.size());
   parlay::WorkerSpecific<double> first_round_time;
   parlay::WorkerSpecific<double> second_round_time;
+  bool use_rerank = (Base_Points.params.num_bytes() != Q_Base_Points.params.num_bytes());
   
   parlay::parallel_for(0, active_indices.size(), [&](size_t i) {
     parlay::sequence<indexType> neighbors;
@@ -37,9 +38,8 @@ DoubleBeamRangeSearch(Graph<indexType> &G,
     parlay::internal::timer t_search_other("after first round");
     t_search_first.stop();
     t_search_other.stop();
-    bool first_run = true;
-    if(first_run) t_search_first.start();
-    else t_search_other.start();
+
+    t_search_first.start();
     auto P = Query_Points[active_indices[i]];
     auto Q_P = Q_Query_Points[active_indices[i]];
     using dtype = typename decltype(Query_Points[0])::distanceType;
@@ -58,12 +58,14 @@ DoubleBeamRangeSearch(Graph<indexType> &G,
     QueryStats.increment_visited(i, visitedElts.size());
     QueryStats.increment_dist(i, dist_cmps);
     
-    for (auto b : beamElts)
-      if (P.distance(Base_Points[b.first]) <= QP.radius)
-        neighbors.push_back(b.first);
-    //for (auto b : beamElts) 
-    //if(b.second <= QP.radius) neighbors.push_back(b.first);
-    
+    // rerank and filter out results not within the radius
+      for (auto b : beamElts){
+        double dist;
+        if (use_rerank) {dist = P.distance(Base_Points[b.first]);}
+        else {dist = b.second;}
+        if (dist <= QP.radius) neighbors.push_back(b.first);
+      }
+
     bool results_smaller_than_beam = false;
     if (neighbors.size() < QP.beamSize)
       results_smaller_than_beam = true;
@@ -73,9 +75,12 @@ DoubleBeamRangeSearch(Graph<indexType> &G,
     size_t initial_beam = QP.beamSize * 2;
     // Initialize starting points
     parlay::sequence<indexType> starting_points_idx;
+
     for (auto s : beamElts) 
       starting_points_idx.push_back(s.first);
-    
+    t_search_first.stop();
+
+    t_search_other.start();
     while(!results_smaller_than_beam){
       parlay::sequence<indexType> neighbors;
 
@@ -87,9 +92,13 @@ DoubleBeamRangeSearch(Graph<indexType> &G,
       for (auto v : beamElts) 
         starting_points_idx.push_back(v.first);
 
-      for (auto b : beamElts)
-        if (Query_Points[i].distance(Base_Points[b.first]) <= QP.radius)
-          neighbors.push_back(b.first);
+      // rerank and filter out results not within the radius
+      for (auto b : beamElts){
+        double dist;
+        if (use_rerank) {dist = P.distance(Base_Points[b.first]);}
+        else {dist = b.second;}
+        if (dist <= QP.radius) neighbors.push_back(b.first);
+      }
 
       if (neighbors.size() < initial_beam)
         results_smaller_than_beam = true;
@@ -101,16 +110,10 @@ DoubleBeamRangeSearch(Graph<indexType> &G,
       initial_beam *= 2;
       neighbors.clear();
 
-      if(first_run){
-        first_run = false;
-        t_search_first.stop();
-        *first_round_time += t_search_first.total_time();
-        
-      }else{
-        t_search_other.stop();
-        *second_round_time += t_search_other.total_time();
-      }
     }
+    t_search_other.stop();
+    *first_round_time += t_search_first.total_time();
+    *second_round_time += t_search_other.total_time();
     
   });
 
