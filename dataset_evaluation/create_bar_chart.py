@@ -26,13 +26,6 @@ def parse_beam_logs(result_file):
                 t1=float(timing_list[0])
                 t2=float(timing_list[1])
                 beam_data.append((beam_value, recall_value, t1, t2))
-            # match = pattern.search(line)
-            # if match:
-            #     beam = int(match.group(1))
-            #     recall = float(match.group(2))
-            #     beam_time = float(match.group(3))
-            #     other_time = float(match.group(4))
-            #     beam_data.append((beam, recall, beam_time, other_time))
     return beam_data
 
 # === Find best beam for each recall threshold ===
@@ -43,8 +36,8 @@ def find_min_beams(beam_data, recall_cuts):
         if candidates:
             best = min(candidates, key=lambda x: x[0])
             selected.append((recall_cut, best[0], best[2], best[3]))
-        else:
-            selected.append((recall_cut, None, 0.0, 0.0))
+        # else:
+        #     selected.append((recall_cut, None, 0.0, 0.0))
     return selected
 
 # === Plot grouped stacked bar chart ===
@@ -76,7 +69,6 @@ def plot_grouped_bar_chart(all_data, recall_cuts, output_file):
 
     ax.set_ylabel("Time (s)")
     ax.set_xlabel("Average Precision")
-    ax.set_title(output_file)
     ax.set_xticks(x)
     ax.set_xticklabels([f"{r:.3f}" for r in recall_cuts])
     ax.set_yscale('symlog')
@@ -84,7 +76,7 @@ def plot_grouped_bar_chart(all_data, recall_cuts, output_file):
     ax.grid(True, linestyle=":")
 
     plt.tight_layout()
-    plt.savefig(output_file + ".pdf")
+    plt.savefig("graphs/bar_charts/" + output_file + ".pdf")
     plt.close()
 
 # === Main ===

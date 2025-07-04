@@ -221,12 +221,17 @@ RangeSearch(Graph<indexType> &G,
                            early_stopping<std::vector<id_dist>>);
     t_search_beam.stop();
     auto [beamElts, visitedElts] = pairElts;
-    // rerank and filter out results not within the radius
-    for (auto b : beamElts){
+    for (auto b : beamElts) {
       double dist;
-      if (use_rerank) {dist = Query_Points[i].distance(Base_Points[b.first]);}
-      else {dist = b.second;}
-      if (dist <= QP.radius) neighbors.push_back(b.first);
+      if (use_rerank) {
+        dist = Query_Points[i].distance(Base_Points[b.first]);
+      } else {
+        dist = b.second;
+      }
+      if (dist <= QP.radius) {
+        neighbors.push_back(b.first);
+        neighbors_with_distance.push_back(b);
+      }
     }
     if (neighbors.size() < QP.beamSize || QP.range_query_type == Beam){
       all_neighbors[i] = std::move(neighbors);
