@@ -16,7 +16,7 @@ ALGORITHM_CONFIG = {
 
 # === Parse beam logs ===
 def parse_beam_logs(result_file):
-    pattern = re.compile(
+    pattern = re.compile(   
         r"For Beam: (\d+), Point Recall=([\d\.e+-]+),.*?timings= \[([\d\.e+-]+),([\d\.e+-]+)\]"
     )
     beam_data = []
