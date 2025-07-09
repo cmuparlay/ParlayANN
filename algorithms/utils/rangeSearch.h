@@ -222,7 +222,13 @@ RangeSearch(Graph<indexType> &G,
     t_search_beam.stop();
     auto [beamElts, visitedElts] = pairElts;
     for (auto b : beamElts) {
-      if (Query_Points[i].distance(Base_Points[b.first]) <= QP.radius) {
+      double dist;
+      if (use_rerank) {
+        dist = Query_Points[i].distance(Base_Points[b.first]);
+      } else {
+        dist = b.second;
+      }
+      if (dist <= QP.radius) {
         neighbors.push_back(b.first);
         neighbors_with_distance.push_back(b);
       }

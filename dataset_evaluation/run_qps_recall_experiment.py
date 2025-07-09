@@ -15,7 +15,7 @@ from matplotlib.patches import Rectangle
 import numpy as np
 import statistics as st
 from dataset_info import mk, dsinfo, data_options
-from utils import runtest, pareto_frontier, export_legend
+from utils import runtest, pareto_frontier, export_legend, string_to_list
 from run_faiss import run_faiss
 
 
@@ -30,11 +30,6 @@ parser.add_argument("-graph_name", help="graphs name")
 args = parser.parse_args()
 print("datasets " + args.datasets)
 print("groups:", args.groups)
-
-
-def string_to_list(s):
-  s = s.strip().strip('[').strip(']').split(',')
-  return [ss.strip() for ss in s]
 
 
 valid_groups = ["Beam Search", "Greedy Search with Early Stopping", "Doubling Search with Early Stopping", "FAISS"]

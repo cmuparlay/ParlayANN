@@ -17,6 +17,10 @@ from dataset_info import mk, dsinfo, data_options
 
 already_ran = set()
 
+def string_to_list(s):
+  s = s.strip().strip('[').strip(']').split(',')
+  return [ss.strip() for ss in s]
+
 def runstring(op, outfile):
     if op in already_ran:
         return
