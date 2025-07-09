@@ -23,8 +23,8 @@ def parse_beam_logs(result_file):
                 beam_value = int(parts[0].split(":")[1].strip())
                 recall_value = float(parts[2].split("=")[1].strip())
                 timing_list = string_to_list(parts[7].split("=")[1].strip())
-                t1=float(timing_list[0])
-                t2=float(timing_list[1])
+                t1 = float(timing_list[0])
+                t2 = float(timing_list[1])
                 beam_data.append((beam_value, recall_value, t1, t2))
     return beam_data
 
@@ -36,12 +36,17 @@ def find_min_beams(beam_data, recall_cuts):
         if candidates:
             best = min(candidates, key=lambda x: x[0])
             selected.append((recall_cut, best[0], best[2], best[3]))
-        # else:
-        #     selected.append((recall_cut, None, 0.0, 0.0))
     return selected
 
+# === Export legend to standalone file ===
+def export_legend(legend, filename="legend.pdf"):
+    fig = legend.figure
+    fig.canvas.draw()
+    bbox = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+    fig.savefig(filename, dpi="figure", bbox_inches=bbox)
+
 # === Plot grouped stacked bar chart ===
-def plot_grouped_bar_chart(all_data, recall_cuts, output_file):
+def plot_grouped_bar_chart(all_data, recall_cuts, output_file, export_legend_flag=True):
     algorithms = list(all_data.keys())
     num_algos = len(algorithms)
     x = np.arange(len(recall_cuts))
@@ -49,23 +54,36 @@ def plot_grouped_bar_chart(all_data, recall_cuts, output_file):
 
     fig, ax = plt.subplots(figsize=(10, 6))
     max_height = 0
+    legend_handles = []
+    legend_labels = []
 
     for i, algo in enumerate(algorithms):
-        search_mode, early_stop, base_color, top_color, _ = ALGORITHM_CONFIG[algo]
         data = all_data[algo]
-        beam_times = [bt for _, _, bt, _ in data]
-        other_times = [ot for _, _, _, ot in data]
-        beams = [b if b is not None else 0 for _, b, _, _ in data]
+        filtered_indices = [j for j, entry in enumerate(data) if entry[1] is not None]
+        if not filtered_indices:
+            continue
 
+        x_filtered = np.array([x[j] for j in filtered_indices])
+        beam_times = [data[j][2] for j in filtered_indices]
+        other_times = [data[j][3] for j in filtered_indices]
+        beams = [data[j][1] for j in filtered_indices]
+
+        search_mode, early_stop, base_color, top_color, label = ALGORITHM_CONFIG[algo]
         offset = width * i - width * (num_algos - 1) / 2
-        bar1 = ax.bar(x + offset, beam_times, width, edgecolor='black', color=base_color)
-        bar2 = ax.bar(x + offset, other_times, width, bottom=beam_times, edgecolor='black', color=top_color)
+
+        bar1 = ax.bar(x_filtered + offset, beam_times, width, edgecolor='black', color=base_color)
+        if top_color:
+            bar2 = ax.bar(x_filtered + offset, other_times, width, bottom=beam_times, edgecolor='black', color=top_color)
+        else:
+            bar2 = ax.bar(x_filtered + offset, other_times, width, bottom=beam_times, edgecolor='black', color=base_color)
 
         for j in range(len(bar1)):
             total = beam_times[j] + other_times[j]
             max_height = max(max_height, total)
-            ax.text(bar2[j].get_x() + bar2[j].get_width() / 2,
-                    total + 0.2, str(beams[j]), ha='center', fontsize=9)
+            ax.text(bar2[j].get_x() + bar2[j].get_width() / 2, total + 0.2, str(beams[j]), ha='center', fontsize=9)
+
+        legend_handles.append(bar2)
+        legend_labels.append(label)
 
     ax.set_ylabel("Time (s)")
     ax.set_xlabel("Average Precision")
@@ -76,8 +94,36 @@ def plot_grouped_bar_chart(all_data, recall_cuts, output_file):
     ax.grid(True, linestyle=":")
 
     plt.tight_layout()
-    plt.savefig("graphs/bar_charts/" + output_file + ".pdf")
+    os.makedirs("graphs/bar_charts", exist_ok=True)
+    plt.savefig("graphs/bar_charts/" + output_file + ".pdf", bbox_inches='tight')
     plt.close()
+
+    # Export legend separately
+    if export_legend_flag:
+        from matplotlib.patches import Patch
+        legend_handles = []
+        legend_labels = []
+
+        # Add bottom parts (beam or early stop)
+        legend_handles.append(Patch(facecolor='tab:blue', edgecolor='black'))
+        legend_labels.append('Beam Search')
+
+        legend_handles.append(Patch(facecolor='tab:gray', edgecolor='black'))
+        legend_labels.append('Early Stopping Beam Search')
+
+        # Add top parts
+        legend_handles.append(Patch(facecolor='tab:orange', edgecolor='black'))
+        legend_labels.append('Greedy Search')
+
+        legend_handles.append(Patch(facecolor='tab:green', edgecolor='black'))
+        legend_labels.append('Doubling Beam Search')
+
+        fig_legend = plt.figure(figsize=(8, 1.5))
+        ax_legend = fig_legend.add_subplot(111)
+        ax_legend.axis('off')
+        legend = ax_legend.legend(legend_handles, legend_labels, loc='center', ncol=4, frameon=False, handlelength=1.5, fontsize=12)
+        export_legend(legend, "graphs/bar_charts/" + output_file + "_legend.pdf")
+        plt.close(fig_legend)
 
 # === Main ===
 if __name__ == "__main__":
@@ -85,7 +131,7 @@ if __name__ == "__main__":
     parser.add_argument("-dataset", required=True, help="dataset")
     parser.add_argument("-recalls", required=True, help="recall list, e.g. [0.99, 0.995, 0.999]")
     parser.add_argument("-graph_name", required=True, help="graph output name")
-    parser.add_argument("-g","--graphs_only", help="graphs only",action="store_true")
+    parser.add_argument("-g", "--graphs_only", help="graphs only", action="store_true")
 
     args = parser.parse_args()
     recalls = [float(r.strip()) for r in args.recalls.strip("[]").split(",")]
@@ -98,7 +144,6 @@ if __name__ == "__main__":
         search_mode, early_stop, _, _, _ = ALGORITHM_CONFIG[algo]
         outfile = os.path.join(output_dir, f"{args.dataset}_{search_mode}_{'es' if early_stop else 'noes'}.txt")
         if not args.graphs_only:
-            # clear output file
             os.system("echo \"\" > " + outfile)
             runtest(args.dataset, outfile, search_mode, early_stop)
         beam_data = parse_beam_logs(outfile)
