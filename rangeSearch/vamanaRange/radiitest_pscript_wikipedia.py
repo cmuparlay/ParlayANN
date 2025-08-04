@@ -29,18 +29,18 @@ for algo, group in df.groupby("Algorithm"):
     group = group.sort_values("MatchesPerQuery")
     plt.plot(group["MatchesPerQuery"], group["QPS"], marker="o", label=readable_label)
     for _, row in group.iterrows():
-        plt.text(row["MatchesPerQuery"], row["QPS"], f"{row['Beam']}", fontsize=8, ha='right')
+        plt.text(row["MatchesPerQuery"], row["QPS"], f"{row['Beam']}", fontsize=15, ha='right')
 
-plt.xlabel("Matches per Query", fontsize=20)
-plt.ylabel("QPS", fontsize=20)
+plt.xlabel("Matches per Query", fontsize=30)
+plt.ylabel("QPS", fontsize=30)
 plt.xscale("symlog", linthresh=0.2)
-plt.tick_params(axis='x', labelsize=20)
-plt.tick_params(axis='y', labelsize=20)
+plt.tick_params(axis='x', labelsize=25)
+plt.tick_params(axis='y', labelsize=25)
 plt.gca().yaxis.set_major_formatter(ScalarFormatter(useMathText=False))
 plt.legend(fontsize=20)
 plt.grid(True)
 plt.tight_layout()
 
-output_file = f"qps_vs_matches_symlog_wikipedia_{recall_val}.png"
+output_file = f"qps_vs_matches_symlog_wikipedia_{recall_val}.pdf"
 plt.savefig(output_file)
 plt.close()
