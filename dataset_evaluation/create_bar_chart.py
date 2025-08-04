@@ -80,7 +80,7 @@ def plot_grouped_bar_chart(all_data, recall_cuts, output_file, export_legend_fla
         for j in range(len(bar1)):
             total = beam_times[j] + other_times[j]
             max_height = max(max_height, total)
-            ax.text(bar2[j].get_x() + bar2[j].get_width() / 2, total + 0.2, str(beams[j]), ha='center', fontsize=9)
+            ax.text(bar2[j].get_x() + bar2[j].get_width() / 2, total + 0.2, str(beams[j]), ha='center', fontsize=14)
 
         legend_handles.append(bar2)
         legend_labels.append(label)
