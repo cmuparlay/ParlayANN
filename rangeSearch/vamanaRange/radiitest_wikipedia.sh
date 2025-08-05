@@ -10,7 +10,8 @@ MATCHES[-11.5]=559
 MATCHES[-12.0]=177
 MATCHES[-12.5]=65
 
-recalls=(0.6 0.65 0.7 0.75 0.8 0.85 0.9 0.95 0.99)
+#recalls=(0.6 0.65 0.7 0.75 0.8 0.85 0.9 0.95 0.99)
+recalls=(0.6 0.65)
 #recalls=(0.2 0.4 0.5)
 
 for recall_cut in "${recalls[@]}"; do

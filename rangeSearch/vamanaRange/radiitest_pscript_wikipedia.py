@@ -44,17 +44,14 @@ plt.grid(True)
 plt.tight_layout()
 plt.savefig(output_file, bbox_inches='tight')
 
-# === Export legend separately ===
-def export_legend(legend, filename="legend.pdf"):
-    fig = legend.figure
-    fig.patch.set_visible(False)
-    ax = fig.axes[0]
+def export_legend(handles, labels, filename="legend.pdf"):
+    fig = plt.figure(figsize=(6, 1))
+    ax = fig.add_subplot(111)
     ax.axis('off')
-    fig.canvas.draw()
-    bbox = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
-    fig.savefig(filename, dpi="figure", bbox_inches=bbox, transparent=True)
+    fig.legend(handles, labels, loc='center', frameon=False, fontsize=20)
+    fig.savefig(filename, bbox_inches='tight', transparent=True)
+    plt.close(fig)
 
-legend = legend = plt.legend(fontsize=20, frameon=False)
-export_legend(legend, filename=f"qps_vs_matches_symlog_wikipedia_{recall_val}_legend.pdf")
+handles, labels = plt.gca().get_legend_handles_labels()
+export_legend(handles, labels, filename=f"qps_vs_matches_symlog_wikipedia_{recall_val}_legend.pdf")
 
-plt.close()
