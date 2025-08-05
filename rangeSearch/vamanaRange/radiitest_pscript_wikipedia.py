@@ -37,10 +37,24 @@ plt.xscale("symlog", linthresh=0.2)
 plt.tick_params(axis='x', labelsize=25)
 plt.tick_params(axis='y', labelsize=25)
 plt.gca().yaxis.set_major_formatter(ScalarFormatter(useMathText=False))
-plt.legend(fontsize=20)
+
+# Save and export legend separately
+output_file = f"qps_vs_matches_symlog_wikipedia_{recall_val}.pdf"
 plt.grid(True)
 plt.tight_layout()
+plt.savefig(output_file, bbox_inches='tight')
 
-output_file = f"qps_vs_matches_symlog_wikipedia_{recall_val}.pdf"
-plt.savefig(output_file)
+# === Export legend separately ===
+def export_legend(legend, filename="legend.pdf"):
+    fig = legend.figure
+    fig.patch.set_visible(False)
+    ax = fig.axes[0]
+    ax.axis('off')
+    fig.canvas.draw()
+    bbox = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+    fig.savefig(filename, dpi="figure", bbox_inches=bbox, transparent=True)
+
+legend = legend = plt.legend(fontsize=20, frameon=False)
+export_legend(legend, filename=f"qps_vs_matches_symlog_wikipedia_{recall_val}_legend.pdf")
+
 plt.close()
