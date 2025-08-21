@@ -19,12 +19,12 @@ for radius in "${RADIUS_VALUES[@]}"; do
       -search_mode "$mode" \
       -alpha 1.0 -R 64 -L 128 \
       -r "$radius" \
-      -base_path "${datasets["WIKI"]}/wikipedia_base.bin.crop_nb_10000000" \
+      -base_path "${datasets["WIKI"]}/wikipedia_base.bin.crop_nb_1000000" \
       -query_path "${datasets["WIKI"]}/wikipedia_query.bin" \
-      -gt_path "${datasets["WIKI"]}/range_gt_10M_radiitest_${radius}" \
+      -gt_path "${datasets["WIKI"]}/range_gt_1M_radiitest_${radius}" \
       -data_type float -dist_func mips -file_type bin \
-      -graph_path "${datasets["WIKI"]}/graph10M" \
-      > "radiitest_wikipedia_10M_noearlystop_${mode}_${radius}.out"
+      -graph_path "${datasets["WIKI"]}/graph1M" \
+      > "radiitest_wikipedia_1M_noearlystop_${mode}_${radius}.out"
 
 
     echo ""

@@ -1,24 +1,36 @@
 #!/bin/bash
 
 declare -A MATCHES
-MATCHES[-9.0]=43439576
-MATCHES[-9.5]=2249656
-MATCHES[-10.0]=130056
-MATCHES[-10.5]=12705
-MATCHES[-11.0]=2200
-MATCHES[-11.5]=559
-MATCHES[-12.0]=177
-MATCHES[-12.5]=65
+#For 10M
+# MATCHES[-9.0]=43439576
+# MATCHES[-9.5]=2249656
+# MATCHES[-10.0]=130056
+# MATCHES[-10.5]=12705
+# MATCHES[-11.0]=2200
+# MATCHES[-11.5]=559
+# MATCHES[-12.0]=177
+# MATCHES[-12.5]=65
+
+#For 1M
+MATCHES[-9.0]=6091822
+MATCHES[-9.5]=378540
+MATCHES[-10.0]=25274
+MATCHES[-10.5]=2847
+MATCHES[-11.0]=532
+MATCHES[-11.5]=141
+MATCHES[-12.0]=51
+MATCHES[-12.5]=20
+
 
 #recalls=(0.6 0.65 0.7 0.75 0.8 0.85 0.9 0.95 0.99)
-recalls=(0.6 0.65)
+recalls=(0.8 0.85 0.9 0.95 0.99 0.995 0.999)
 #recalls=(0.2 0.4 0.5)
 
 for recall_cut in "${recalls[@]}"; do
-  CSV_FILE="qps_vs_matches_recall_wikipedia_${recall_cut}.csv"
+  CSV_FILE="qps_vs_matches_recall_wikipedia_noearlystop_1M_${recall_cut}.csv"
   echo "Radius,NumMatches,QPS,Beam,Algorithm" > "$CSV_FILE"
 
-  for file in radiitest_wikipedia_10M_final_*_*.out; do
+  for file in radiitest_wikipedia_1M_noearlystop_*_*.out; do
     [[ "$file" == *groundtruth* ]] && continue
     [[ "$file" != *doubling* && "$file" != *greedy* ]] && continue
 

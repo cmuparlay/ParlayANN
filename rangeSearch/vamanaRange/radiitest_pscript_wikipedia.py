@@ -34,12 +34,13 @@ for algo, group in df.groupby("Algorithm"):
 plt.xlabel("Matches per Query", fontsize=30)
 plt.ylabel("QPS", fontsize=30)
 plt.xscale("symlog", linthresh=0.2)
+plt.yscale("log")
 plt.tick_params(axis='x', labelsize=25)
 plt.tick_params(axis='y', labelsize=25)
 plt.gca().yaxis.set_major_formatter(ScalarFormatter(useMathText=False))
 
 # Save and export legend separately
-output_file = f"qps_vs_matches_symlog_wikipedia_{recall_val}.pdf"
+output_file = f"qps_vs_matches_symlog_noearlystop_wikipedia_1M_{recall_val}.pdf"
 plt.grid(True)
 plt.tight_layout()
 plt.savefig(output_file, bbox_inches='tight')
@@ -53,5 +54,5 @@ def export_legend(handles, labels, filename="legend.pdf"):
     plt.close(fig)
 
 handles, labels = plt.gca().get_legend_handles_labels()
-export_legend(handles, labels, filename=f"qps_vs_matches_symlog_wikipedia_{recall_val}_legend.pdf")
+export_legend(handles, labels, filename=f"qps_vs_matches_symlog_noearlystop_wikipedia_1M_{recall_val}_legend.pdf")
 
