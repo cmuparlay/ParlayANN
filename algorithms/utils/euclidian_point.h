@@ -42,7 +42,7 @@
 
 namespace parlayANN {
 
-float euclidian_distance_(const uint8_t *p, const uint8_t *q, unsigned d) {
+inline float euclidian_distance_(const uint8_t *p, const uint8_t *q, unsigned d) {
   int result = 0;
   for (int i = 0; i < d; i++) {
     result += ((int32_t)((int16_t)q[i] - (int16_t)p[i])) *
@@ -51,7 +51,7 @@ float euclidian_distance_(const uint8_t *p, const uint8_t *q, unsigned d) {
   return (float)result;
 }
 
-float euclidian_distance(const uint8_t *p, const uint8_t *q, unsigned d) {
+inline float euclidian_distance(const uint8_t *p, const uint8_t *q, unsigned d) {
   int32_t result = 0;
   for (int i = 0; i < d; i++) {
     int32_t qi = (int32_t) p[i];
@@ -61,7 +61,7 @@ float euclidian_distance(const uint8_t *p, const uint8_t *q, unsigned d) {
   return (float)result;
 }
 
-float euclidian_distance(const uint16_t *p, const uint16_t *q, unsigned d) {
+inline float euclidian_distance(const uint16_t *p, const uint16_t *q, unsigned d) {
   int64_t result = 0;
   for (int i = 0; i < d; i++) {
     int32_t qi = (int32_t) p[i];
@@ -71,7 +71,7 @@ float euclidian_distance(const uint16_t *p, const uint16_t *q, unsigned d) {
   return (float) (result >> 8);
 }
 
-float euclidian_distance(const int8_t *p, const int8_t *q, unsigned d) {
+inline float euclidian_distance(const int8_t *p, const int8_t *q, unsigned d) {
   int result = 0;
   for (int i = 0; i < d; i++) {
     result += ((int32_t)((int16_t)q[i] - (int16_t)p[i])) *
@@ -80,7 +80,7 @@ float euclidian_distance(const int8_t *p, const int8_t *q, unsigned d) {
   return (float)result;
 }
 
-float euclidian_distance(const float *p, const float *q, unsigned d) {
+inline float euclidian_distance(const float *p, const float *q, unsigned d) {
   //efanna2e::DistanceL2 distfunc;
   //return distfunc.compare(p, q, d);
   float result = 0.0;
