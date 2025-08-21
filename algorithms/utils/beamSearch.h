@@ -160,7 +160,7 @@ filtered_beam_search(const GT &G,
     // furthest distance in current frontier (if full).
     distanceType cutoff = (frontier_full
                            ? frontier[frontier.size() - 1].second
-                           : (distanceType)std::numeric_limits<int>::max());
+                           : (distanceType)std::numeric_limits<distanceType>::max());
     for (auto a : filtered) {
       distanceType dist = Points[a].distance(p);
       full_dist_cmps++;
