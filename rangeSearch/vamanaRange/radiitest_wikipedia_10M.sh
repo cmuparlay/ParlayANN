@@ -5,7 +5,7 @@ declare -A datasets
 datasets["WIKI"]="/ssd1/data/wikipedia_cohere"
 
 search_modes=("greedy" "doubling")
-RADIUS_VALUES=(-9.0 -9.5 -10.5 -11.0 -11.5 -12.0 -12.5)
+RADIUS_VALUES=(-9.0 -9.5 -10.0 -10.5 -11.0 -11.5 -12.0 -12.5)
 #RADIUS_VALUES=(-10.0)
 
 for radius in "${RADIUS_VALUES[@]}"; do
