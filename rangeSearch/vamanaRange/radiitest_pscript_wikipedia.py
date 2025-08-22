@@ -40,7 +40,7 @@ plt.tick_params(axis='y', labelsize=25)
 plt.gca().yaxis.set_major_formatter(ScalarFormatter(useMathText=False))
 
 # Save and export legend separately
-output_file = f"qps_vs_matches_symlog_noearlystop_wikipedia_1M_{recall_val}.pdf"
+output_file = f"qps_vs_matches_symlog_noearlystop_wikipedia_10M_{recall_val}.pdf"
 plt.grid(True)
 plt.tight_layout()
 plt.savefig(output_file, bbox_inches='tight')
@@ -54,5 +54,5 @@ def export_legend(handles, labels, filename="legend.pdf"):
     plt.close(fig)
 
 handles, labels = plt.gca().get_legend_handles_labels()
-export_legend(handles, labels, filename=f"qps_vs_matches_symlog_noearlystop_wikipedia_1M_{recall_val}_legend.pdf")
+export_legend(handles, labels, filename=f"qps_vs_matches_symlog_noearlystop_wikipedia_10M_{recall_val}_legend.pdf")
 
