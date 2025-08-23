@@ -30,7 +30,7 @@ for recall_cut in "${recalls[@]}"; do
   CSV_FILE="qps_vs_matches_recall_wikipedia_noearlystop_10M_${recall_cut}.csv"
   echo "Radius,NumMatches,QPS,Beam,Algorithm" > "$CSV_FILE"
 
-  for file in radiitest_wikipedia_1M_noearlystop_*_*.out; do
+  for file in radiitest_wikipedia_10M_noearlystop_*_*.out; do
     [[ "$file" == *groundtruth* ]] && continue
     [[ "$file" != *doubling* && "$file" != *greedy* ]] && continue
 

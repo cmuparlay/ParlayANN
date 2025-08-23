@@ -15,8 +15,8 @@ total_queries = 5000
 label_map = {
     "earlyStopping": "Greedy Search with Early Stopping",
     "doublingSearchEarlyStopping": "Doubling Search with Early Stopping",
-    "greedy": "Greedy Search with Early Stopping",
-    "doubling": "Doubling Search with Early Stopping"
+    "greedy": "Greedy Search",
+    "doubling": "Doubling Search"
 }
 
 df = pd.read_csv(csv_file)
@@ -29,7 +29,7 @@ for algo, group in df.groupby("Algorithm"):
     group = group.sort_values("MatchesPerQuery")
     plt.plot(group["MatchesPerQuery"], group["QPS"], marker="o", label=readable_label)
     for _, row in group.iterrows():
-        plt.text(row["MatchesPerQuery"], row["QPS"], f"{row['Beam']}", fontsize=15, ha='right')
+        plt.text(row["MatchesPerQuery"], row["QPS"], f"{row['Beam']}", fontsize=25, ha='right')
 
 plt.xlabel("Matches per Query", fontsize=30)
 plt.ylabel("QPS", fontsize=30)
@@ -49,7 +49,7 @@ def export_legend(handles, labels, filename="legend.pdf"):
     fig = plt.figure(figsize=(6, 1))
     ax = fig.add_subplot(111)
     ax.axis('off')
-    fig.legend(handles, labels, loc='center', frameon=False, fontsize=20)
+    fig.legend(handles, labels, loc='center', frameon=False, fontsize=20, ncols=2)
     fig.savefig(filename, bbox_inches='tight', transparent=True)
     plt.close(fig)
 

@@ -23,7 +23,7 @@ for radius in "${RADIUS_VALUES[@]}"; do
       -query_path "${datasets["WIKI"]}/wikipedia_query.bin" \
       -gt_path "${datasets["WIKI"]}/range_gt_10M_radiitest_${radius}" \
       -data_type float -dist_func mips -file_type bin \
-      -graph_path "${datasets["WIKI"]}/graph10M" \
+      -graph_path "${datasets["WIKI"]}/graph_10M" \
       > "radiitest_wikipedia_10M_noearlystop_${mode}_${radius}.out"
 
 
