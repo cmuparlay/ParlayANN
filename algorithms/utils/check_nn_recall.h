@@ -195,7 +195,8 @@ void search_and_parse(Graph_ G_,
                       indexType start_point = 0,
                       bool verbose = false,
                       long fixed_beam_width = 0,
-                      int rerank_factor = 100) {
+                      double rerank_factor = 100,
+                      double batch_factor = .125) {
   parlay::sequence<nn_result> results;
   std::vector<long> beams;
   std::vector<long> allr;
@@ -210,10 +211,7 @@ void search_and_parse(Graph_ G_,
                        random,
                        start_point, k, QP, verbose);};
 
-  QueryParams QP;
-  QP.limit = (long) G.size();
-  QP.rerank_factor = rerank_factor;
-  QP.degree_limit = (long) G.max_degree();
+  QueryParams QP(k, 0, 1.0, G.size(), G.max_degree(), rerank_factor, batch_factor);
   beams = {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 24, 26, 28, 30, 32,
     34, 36, 38, 40, 45, 50, 55, 60, 65, 70, 80, 90, 100, 120, 140, 160,
     180, 200, 225, 250, 275, 300, 375, 500, 750, 1000};
@@ -247,7 +245,8 @@ void search_and_parse(Graph_ G_,
       //calculate_limits(results[0].avg_visited);
       //parlay::sequence<long> degree_limits = calculate_limits(G.max_degree());
       //degree_limits.push_back(G.max_degree());
-      QP = QueryParams(r, r, 1.35, (long) G.size(), (long) G.max_degree());
+      QP = QueryParams(r, r, 1.35, (long) G.size(), (long) G.max_degree(),
+                       rerank_factor, batch_factor);
       for(long l : limits){
         QP.limit = l;
         QP.beamSize = std::max<long>(l, r);
@@ -256,7 +255,8 @@ void search_and_parse(Graph_ G_,
         results.push_back(check(r, QP));
       }
       // check "best accuracy"
-      QP = QueryParams((long) 100, (long) 1000, (double) 10.0, (long) G.size(), (long) G.max_degree());
+      QP = QueryParams((long) 100, (long) 1000, (double) 10.0, (long) G.size(),
+                       (long) G.max_degree(), rerank_factor, batch_factor);
       results.push_back(check(r, QP));
 
       parlay::sequence<float> buckets =  {.1, .2, .3,  .4,  .5,  .6, .7, .75,  .8, .85,

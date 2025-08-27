@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <limits>
 #include <random>
 #include <set>
 #include <unordered_set>
@@ -15,12 +16,147 @@
 #include "types.h"
 #include "graph.h"
 #include "stats.h"
+#include "filtered_hashset.h"
 
 namespace parlayANN {
 
+  struct EarlyStopping {
+  template<typename PointInfo>
+  bool operator () (const PointInfo& frontier, 
+                    const PointInfo& unvisited_frontier,
+                    const PointInfo& visited,
+                    const QueryParams& QP) { return false;}
+  };
+
+  // main beam search
+template<typename indexType, typename Point, typename PointRange,
+         typename QPoint, typename QPointRange, typename GT, typename ES = EarlyStopping>
+std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>,
+                    parlay::sequence<std::pair<indexType, typename Point::distanceType>>>,
+          size_t>
+priority_first_search(const GT &G,
+                      const Point p,  const PointRange &Points,
+                      const QPoint qp, const QPointRange &Q_Points,
+                      const parlay::sequence<indexType> starting_points,
+                      const QueryParams &QP) {
+  auto is_match = [] (indexType i) { return (parlay::hash<indexType>()(i) % 2) == 0;};
+  
+  using dtype = typename Point::distanceType;
+  using id_dist = std::pair<indexType, dtype>;
+  int beamSize = QP.beamSize;
+  int max_degree = QP.degree_limit;
+
+  std::vector<id_dist> result;
+  hashset<indexType> has_been_seen(2 * (10 + beamSize) * max_degree);
+  
+  long distance_comparisons = 0;
+  auto grt = [] (id_dist a, id_dist b) {return a.second > b.second;};
+  std::priority_queue<id_dist, std::vector<id_dist>, decltype(grt)> pq(grt);
+
+  for (auto v : starting_points) {
+    if (has_been_seen(v)) continue;
+    pq.push(std::pair(v, Points[v].distance(p)));
+  }
+
+  long position = 0;
+  std::vector<indexType> unseen;
+  while (pq.size() > 0 && result.size() < beamSize + 10) {
+    auto nxt = pq.top();
+    pq.pop();
+    if (is_match(nxt.first)) result.push_back(nxt);
+    unseen.clear();
+    for (long i = 0; i < G[nxt.first].size(); i++) {
+      auto v = G[nxt.first][i];
+      if (has_been_seen(v)) continue;
+      distance_comparisons++;
+      unseen.push_back(v);
+      Points[v].prefetch();
+    }
+    for (auto v : unseen) {
+      auto d = Points[v].distance(p);
+      pq.push(std::pair(v, d));
+    }
+  }
+
+  auto less = [] (id_dist a, id_dist b) {return a.second < b.second;};
+  std::sort(result.begin(), result.end(), less);
+  parlay::sequence<id_dist> r;
+  for (int i = 0; i < beamSize; i++) r.push_back(result[i]);
+  return std::pair(std::pair(std::move(r), parlay::to_sequence(result)),
+                   distance_comparisons);
+}
+
+    // main beam search
+template<typename indexType, typename Point, typename PointRange,
+         typename QPoint, typename QPointRange, typename GT, typename ES = EarlyStopping>
+std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>,
+                    parlay::sequence<std::pair<indexType, typename Point::distanceType>>>,
+          size_t>
+priority_first_search_(const GT &G,
+                      const Point p,  const PointRange &Points,
+                      const QPoint qp, const QPointRange &Q_Points,
+                      const parlay::sequence<indexType> starting_points,
+                      const QueryParams &QP,
+                      bool use_filtering = false,
+                      ES early_stop = ES{}
+                      ) {
+  using dtype = typename Point::distanceType;
+  using id_dist = std::pair<indexType, dtype>;
+  int beamSize = QP.beamSize;
+  int max_degree = QP.degree_limit;
+
+  std::vector<id_dist> result;
+  hashset<indexType> has_been_seen(2 * (10 + beamSize) * max_degree);
+  
+  long distance_comparisons = 0;
+  auto grt = [] (id_dist a, id_dist b) {return a.second > b.second;};
+  auto less = [] (id_dist a, id_dist b) {return a.second < b.second;};
+  std::priority_queue<id_dist, std::vector<id_dist>, decltype(grt)> pq1(grt);
+  std::priority_queue<id_dist, std::vector<id_dist>, decltype(grt)> pq2(grt);
+
+  for (auto v : starting_points) {
+    if (has_been_seen(v)) continue;
+    pq1.push(std::pair(v, Points[v].distance(p)));
+  }
+
+  long position = 0;
+  std::vector<indexType> unseen;
+  while (pq1.size() > 0 && result.size() < beamSize + 10) {
+    auto nxt = pq1.top();
+    pq1.pop();
+    result.push_back(nxt);
+    unseen.clear();
+    for (long i = 0; i < G[nxt.first].size(); i++) {
+      auto v = G[nxt.first][i];
+      if (has_been_seen(v)) continue;
+      distance_comparisons++;
+      unseen.push_back(v);
+      Points[v].prefetch();
+    }
+    for (auto v : unseen) {
+      auto d = Q_Points[v].distance(qp);
+      pq2.push(std::pair(v, d));
+    }
+    while (10 + pq2.size() > 4 * pq1.size()) {
+      indexType v = pq2.top().first;
+      auto d = Points[v].distance(p);
+      pq1.push(std::pair(v, d));
+      pq2.pop();
+    }
+  }
+
+  std::sort(result.begin(), result.end(), less);
+
+  parlay::sequence<id_dist> r;
+  for (int i = 0; i < beamSize; i++) r.push_back(result[i]);
+      
+  return std::pair(std::pair(std::move(r), parlay::sequence<id_dist>()),
+                   distance_comparisons);
+}
+
 // main beam search
 template<typename indexType, typename Point, typename PointRange,
-         typename QPoint, typename QPointRange, class GT>
+         typename QPoint, typename QPointRange, typename GT, typename ES = EarlyStopping>
 std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>,
                     parlay::sequence<std::pair<indexType, typename Point::distanceType>>>,
           size_t>
@@ -29,14 +165,19 @@ filtered_beam_search(const GT &G,
                      const QPoint qp, const QPointRange &Q_Points,
                      const parlay::sequence<indexType> starting_points,
                      const QueryParams &QP,
-                     bool use_filtering = false
+                     bool use_filtering = false,
+                     ES early_stop = ES{}
                      ) {
   using dtype = typename Point::distanceType;
   using id_dist = std::pair<indexType, dtype>;
   int beamSize = QP.beamSize;
+  int max_degree = QP.degree_limit;
 
   if (starting_points.size() == 0) {
     std::cout << "beam search expects at least one start point" << std::endl;
+    abort();
+  } else if (starting_points.size() > beamSize) {
+    std::cout << "beam search has more starting points than beam size" << std::endl;
     abort();
   }
 
@@ -47,17 +188,8 @@ filtered_beam_search(const GT &G,
     return a.second < b.second || (a.second == b.second && a.first < b.first);
   };
 
-  // used as a hash filter (can give false negative -- i.e. can say
-  // not in table when it is)
-  int bits = std::max<int>(10, std::ceil(std::log2(beamSize * beamSize)) - 2);
-  std::vector<indexType> hash_filter(1 << bits, -1);
-  auto has_been_seen = [&](indexType a) -> bool {
-    int loc = parlay::hash64_2(a) & ((1 << bits) - 1);
-    if (hash_filter[loc] == a) return true;
-    hash_filter[loc] = a;
-    return false;
-  };
-
+  hashset<indexType> has_been_seen(2 * (10 + beamSize) * max_degree);
+  
   // Frontier maintains the closest points found so far and its size
   // is always at most beamSize.  Each entry is a (id,distance) pair.
   // Initialized with starting points and kept sorted by distance.
@@ -107,8 +239,12 @@ filtered_beam_search(const GT &G,
   // The main loop.  Terminate beam search when the entire frontier
   // has been visited or have reached max_visit.
   while (remain > offset && num_visited < QP.limit) {
+    
     // the next node to visit is the unvisited frontier node that is closest to p
     id_dist current = unvisited_frontier[offset];
+    if (early_stop(frontier, unvisited_frontier, visited, QP))
+      break;
+    
     G[current.first].prefetch();
     // add to visited set
     auto position = std::upper_bound(visited.begin(), visited.end(), current, less);
@@ -119,7 +255,8 @@ filtered_beam_search(const GT &G,
     // if using filtering based on lower quality distances measure, then maintain the average
     // of low quality distance to the last point in the frontier (if frontier is full)
     if (use_filtering && frontier_full) {
-      constexpr int width = 5;
+      //constexpr int width = 5;
+      int width = frontier.size();
       indexType id = frontier.back().first;
       if (filter_threshold_count == 0 || filter_id != id) {
         filter_tail_mean = 0.0;
@@ -172,7 +309,8 @@ filtered_beam_search(const GT &G,
     // This iproves performance for higher accuracies (e.g. beam sizes of 100+)
     if (candidates.size() == 0 || 
         (QP.limit >= 2 * beamSize &&
-         candidates.size() < beamSize/8 &&
+         //candidates.size() < beamSize/8 &&
+         candidates.size() < QP.batch_factor * beamSize &&
          offset + 1 < remain)) {
       offset++;
       continue;
@@ -224,13 +362,23 @@ filtered_beam_search(const GT &G,
                         full_dist_cmps);
 }
 
+  struct EStop {
+    template<typename PointInfo>
+    bool operator () (const PointInfo& frontier, 
+                      const PointInfo& unvisited_frontier,
+                      const PointInfo& visited,
+                      const QueryParams& QP) { return false;}
+  };
+
+  
 // version without filtering
-template<typename Point, typename PointRange, typename indexType>
+  template<typename Point, typename PointRange, typename indexType> // = EarlyStopping>
 std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>,
                     parlay::sequence<std::pair<indexType, typename Point::distanceType>>>, size_t>
 beam_search(const Point p, const Graph<indexType> &G, const PointRange &Points,
-            const parlay::sequence<indexType> starting_points, const QueryParams &QP) {
-  return filtered_beam_search(G, p, Points, p, Points, starting_points, QP, false);
+            const parlay::sequence<indexType> starting_points, const QueryParams &QP
+            ) {
+    return filtered_beam_search(G,p, Points, p, Points, starting_points, QP, false); //early_stop);
 }
 
 // backward compatibility (for hnsw)
@@ -249,71 +397,6 @@ beam_search(const Point p, const Graph<indexType> &G, const PointRange &Points,
             const indexType starting_point, const QueryParams &QP) {
   parlay::sequence<indexType> start_points = {starting_point};
   return beam_search(p, G, Points, start_points, QP);
-}
-
-// a range search that first finds a close point using a beam search,
-// and then uses BFS to find all points within the range
-template<typename indexType, typename Point, typename PointRange, class GT>
-std::pair<std::vector<indexType>, typename Point::distanceType>
-range_search(Point p, GT &G, PointRange &Points,
-             parlay::sequence<indexType> starting_points,
-             typename Point::distanceType radius,
-             typename Point::distanceType radius_2,
-             QueryParams &QP, bool use_existing = false) {
-  // first search for a starting point within the radius
-
-  std::vector<indexType> result;
-  std::unordered_set<indexType> seen;
-  //std::vector<indexType> starting_points;
-  long distance_comparisons = 0;
-
-  // if (use_existing) {
-  //   for (indexType i=0; i<G[p.id()].size(); i++)
-  //     starting_points.push_back(G[p.id()][i]);
-  // } else {
-  //   auto [beam_visited, dist_cmps] = beam_search(p, G, Points, seeds, QP);
-  //   auto [beam, visited] = beam_visited;
-  //   distance_comparisons = dist_cmps;
-  //   for (auto x : beam)
-  //     starting_points.push_back(x.first);
-  // }
-
-  for (auto v : starting_points) {
-    if (seen.count(v) > 0 || Points[v].same_as(p)) continue;
-    distance_comparisons++;
-    if (p.distance(Points[v]) > radius_2 ) continue;
-    result.push_back(v);
-    seen.insert(v);
-  }
-
-  // now do a BFS over all vertices with distance less than radius
-  long position = 0;
-  while (position < result.size()) {
-    indexType next = result[position++];
-    std::vector<indexType> unseen;
-    for (long i = 0; i < G[next].size(); i++) {
-      auto v = G[next][i];
-      if (seen.count(v) > 0 || Points[v].same_as(p))
-        continue;  // skip if already seen
-      unseen.push_back(v);
-      seen.insert(v);
-      Points[v].prefetch();
-    }
-    for (auto v : unseen) {
-      distance_comparisons++;
-      if (Points[v].distance(p) <= radius_2)
-        result.push_back(v);
-    }
-  }
-
-
-  // std::vector<indexType> result1;
-  // for (auto v : result) {
-  //   if (p.distance(Points[v]) > radius ) continue;
-  //   result1.push_back(v);
-  // }
-
-  return std::pair(result, distance_comparisons);
 }
 
 // searches every element in q starting from a randomly selected point
@@ -419,13 +502,23 @@ beam_search_rerank(const Point &p,
 
   bool use_rerank = (Base_Points.params.num_bytes() != Q_Base_Points.params.num_bytes());
   bool use_filtering = (Q_Base_Points.params.num_bytes() != QQ_Base_Points.params.num_bytes());
-  auto [pairElts, dist_cmps] = filtered_beam_search(G,
-                                                    qp, Q_Base_Points,
-                                                    qqp, QQ_Base_Points,
-                                                    starting_points, QPP, use_filtering);
+  std::pair<std::pair<parlay::sequence<id_dist>, parlay::sequence<id_dist>>, size_t> r;
+  if (QP.batch_factor == .125)
+    r = filtered_beam_search(G,
+                             qp, Q_Base_Points,
+                             qqp, QQ_Base_Points,
+                             starting_points, QPP, use_filtering);
+  else
+    r = priority_first_search(G,
+                              qp, Q_Base_Points,
+                              qqp, QQ_Base_Points,
+                              starting_points, QPP);
+  auto [pairElts, dist_cmps] = r;
   auto [beamElts, visitedElts] = pairElts;
   if (beamElts.size() < QP.k) {
-    std::cout << "Error: for point id " << p.id() << " beam search returned " << beamElts.size() << " elements, which is less than k = " << QP.k << std::endl;
+    std::cout << "Error: for point id " << p.id()
+              << " beam search returned " << beamElts.size()
+              << " elements, which is less than k = " << QP.k << std::endl;
     abort();
   }
   
@@ -594,54 +687,7 @@ qsearchAll(const PointRange &Query_Points,
   return all_neighbors;
 }
 
-// template<typename Point, typename PointRange, typename indexType>
-// parlay::sequence<parlay::sequence<indexType>>
-// RangeSearch(PointRange& Query_Points,
-//             Graph<indexType> &G, PointRange &Base_Points, stats<indexType> &QueryStats,
-//             indexType starting_point, RangeParams &QP) {
-//   parlay::sequence<indexType> start_points = {starting_point};
-//   return RangeSearch<Point, PointRange, indexType>(Query_Points, G, Base_Points, QueryStats, start_points, QP);
-// }
 
-// template<typename Point, typename PointRange, typename indexType>
-// parlay::sequence<parlay::sequence<indexType>>
-// RangeSearch(PointRange &Query_Points,
-//             Graph<indexType> &G, PointRange &Base_Points, stats<indexType> &QueryStats,
-//             parlay::sequence<indexType> starting_points,
-//             RangeParams &RP) {
-
-//   parlay::sequence<parlay::sequence<indexType>> all_neighbors(Query_Points.size());
-//   // parlay::sequence<int> second_round(Query_Points.size(), 0);
-//   parlay::parallel_for(0, Query_Points.size(), [&](size_t i) {
-//     parlay::sequence<indexType> neighbors;
-//     QueryParams QP(RP.initial_beam, RP.initial_beam, 0.0, G.size(), G.max_degree());
-//     auto [pairElts, dist_cmps] = beam_search(Query_Points[i], G, Base_Points, starting_points, QP);
-//     auto [beamElts, visitedElts] = pairElts;
-//     for (indexType j = 0; j < beamElts.size(); j++) {
-//       if(beamElts[j].second <= RP.rad) neighbors.push_back(beamElts[j].first);
-//     }
-//     all_neighbors[i] = neighbors;
-//     // if(neighbors.size() < RP.initial_beam){
-//     //   all_neighbors[i] = neighbors;
-//     // } else{
-//     //   auto [in_range, dist_cmps] = range_search(Query_Points[i], G, Base_Points, neighbors, RP);
-//     //   parlay::sequence<indexType> ans;
-//     //   for (auto r : in_range) ans.push_back(r.first);
-//     //   if(in_range.size() > neighbors.size()) std::cout << "Range search found additional candidates" << std::endl;
-//     //   all_neighbors[i] = ans;
-//     //   second_round[i] = 1;
-//     //   QueryStats.increment_visited(i, in_range.size());
-//     //   QueryStats.increment_dist(i, dist_cmps);
-//     // }
-
-//     QueryStats.increment_visited(i, visitedElts.size());
-//     QueryStats.increment_dist(i, dist_cmps);
-//   });
-
-//   // std::cout << parlay::reduce(second_round) << " elements advanced to round two" << std::endl;
-
-//   return all_neighbors;
-// }
 
 } // end namespace
 

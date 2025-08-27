@@ -37,6 +37,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include "NSGDist.h"
 
 namespace parlayANN {
 
@@ -84,6 +85,10 @@ struct Mips_Point {
 
   float distance(const Mips_Point<T>& x) const {
     return mips_distance(this->values, x.values, params.dims);
+  }
+
+  float translate_distance(float r) const {
+    return r;
   }
 
   void prefetch() const {
@@ -288,17 +293,18 @@ private:
 template<int bits, bool trim = false, int range = (1 << bits) - 1>
 struct Quantized_Mips_Point{
   using T = int16_t;
-  using distanceType = int64_t; //float;
+  using distanceType = float; // int64_t; //float;
   using byte = uint8_t;
   
   struct parameters {
     float max_val;
     int dims;
+    float scale;
     int num_bytes() const {return (dims * bits - 1) / 8 + 1;}
     parameters() : max_val(1), dims(0) {}
     parameters(int dims) : max_val(1), dims(dims) {}
     parameters(float max_val, int dims)
-      : max_val(max_val), dims(dims) {}
+      : max_val(max_val), dims(dims), scale((range/2) / max_val) {}
   };
 
   static bool is_metric() {return false;}
@@ -365,6 +371,9 @@ struct Quantized_Mips_Point{
     }
   }
 
+  float translate_distance(float r) const {
+    return r * params.scale * params.scale;
+  }
   
   void prefetch() const {
     int l = (params.num_bytes() - 1)/64 + 1;
@@ -417,7 +426,7 @@ struct Quantized_Mips_Point{
   static void translate_point(byte* byte_values, const Point& p, const parameters& params) {
     for (int j = 0; j < params.dims; j++) {
       float mv = params.max_val;
-      float scale = (range/2) / mv;
+      float scale = params.scale; //(range/2) / mv;
       float pj = p[j];
       // cap if underflow or overflow
       if (pj < -mv) assign(byte_values, j, - range/2); // - 1);
