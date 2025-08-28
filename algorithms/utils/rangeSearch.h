@@ -15,7 +15,6 @@
 #include "graph.h"
 #include "stats.h"
 #include "filtered_hashset.h"
-//#include "/usr/local/include/absl/container/flat_hash_set.h"
 
 namespace parlayANN {
 
@@ -25,7 +24,6 @@ greedy_search(Point p, Graph<indexType> &G, PointRange &Points,
               std::vector<std::pair<indexType, typename Point::distanceType>> &starting_points,
               double radius) {
   std::vector<indexType> result;
-  //absl::flat_hash_set<indexType> seen(2 * starting_points.size() * 64);
   //auto has_been_seen = [&] (indexType a) { return !seen.insert(a).second; };
   hashset<indexType> has_been_seen(2 * starting_points.size() * 64);
   long distance_comparisons = 0;

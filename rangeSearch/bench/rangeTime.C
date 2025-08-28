@@ -85,7 +85,6 @@ int main(int argc, char* argv[]) {
   long cluster_size = P.getOptionIntValue("-cluster_size", 0);
   if(cluster_size<0) P.badArgument();
   double radius  = P.getOptionDoubleValue("-radius", 0.0);
-  double radius_2  = P.getOptionDoubleValue("-radius_2", radius);
   long k = P.getOptionIntValue("-k", 0);
   if (k > 1000 || k < 0) P.badArgument();
   double alpha = P.getOptionDoubleValue("-alpha", 1.0);

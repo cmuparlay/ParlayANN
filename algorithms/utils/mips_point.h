@@ -293,7 +293,7 @@ private:
 template<int bits, bool trim = false, int range = (1 << bits) - 1>
 struct Quantized_Mips_Point{
   using T = int16_t;
-  using distanceType = float; // int64_t; //float;
+  using distanceType = float; 
   using byte = uint8_t;
   
   struct parameters {
