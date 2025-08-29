@@ -269,7 +269,7 @@ struct Mips_JL_Sparse_Point {
     std::vector<int> JL_indices(jl_dims * nz);
     std::mt19937 rng;
     std::uniform_int_distribution<std::mt19937::result_type> dist_s(0,1);
-    std::uniform_int_distribution<std::mt19937::result_type> dist_i(0,source_dims);
+    std::uniform_int_distribution<std::mt19937::result_type> dist_i(0,source_dims - 1);
     for (int i = 0; i < jl_dims * nz; i++) {
       JL_signs[i] = (dist_s(rng) == 0) ? -1 : 1;
       JL_indices[i] = dist_i(rng);
