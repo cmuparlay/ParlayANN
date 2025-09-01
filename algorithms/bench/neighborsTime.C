@@ -115,7 +115,6 @@ int main(int argc, char* argv[]) {
   bool self = P.getOption("-self");
   double rerank_factor = P.getOptionDoubleValue("-rerank_factor", 2);
   bool range = P.getOption("-range");
-  double batch_factor = P.getOptionDoubleValue("-batch_factor", .125);
 
   // this integer represents the number of random edges to start with for
   // inserting in a single batch per round
@@ -124,11 +123,7 @@ int main(int argc, char* argv[]) {
   std::string df = std::string(dfc);
   std::string tp = std::string(vectype);
 
-  BuildParams BP = BuildParams(R, L, alpha, num_passes, num_clusters, cluster_size, MST_deg, delta,
-                               verbose, quantize_build,
-                               self, single_batch,
-                               Q, trim,
-                               rerank_factor, batch_factor);
+  BuildParams BP = BuildParams(R, L, alpha, num_passes, num_clusters, cluster_size, MST_deg, delta, verbose, quantize_build, radius, radius_2, self, range, single_batch, Q, trim, rerank_factor);
   long maxDeg = BP.max_degree();
 
   if((tp != "uint8") && (tp != "int8") && (tp != "float")){
