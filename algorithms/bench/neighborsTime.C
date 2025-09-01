@@ -113,7 +113,7 @@ int main(int argc, char* argv[]) {
   bool normalize = P.getOption("-normalize");
   double trim = P.getOptionDoubleValue("-trim", 0.0); // not used
   bool self = P.getOption("-self");
-  double rerank_factor = P.getOptionDoubleValue("-rerank_factor", 2);
+  int rerank_factor = P.getOptionIntValue("-rerank_factor", 100);
   bool range = P.getOption("-range");
 
   // this integer represents the number of random edges to start with for
