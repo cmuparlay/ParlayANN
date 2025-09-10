@@ -35,10 +35,10 @@ This repository was built for our paper [Scaling Graph-Based ANNS Algorithms to 
 }
 ```
 
-Range search library was built for our paper [Range Retrieval with Graph-Based Indices](https://arxiv.org/abs/2502.13245). If you use this repository for your own work, please cite us:
+The range search algorithms are from our paper [Range Retrieval with Graph-Based Indices](https://arxiv.org/abs/2502.13245). If you use this repository for your own work, please cite us:
 
 ```bibtex
-@misc{manohar2025rangeretrievalgraphbasedindices,
+@misc{manohar2025range,
       title={Range Retrieval with Graph-Based Indices}, 
       author={Magdalen Dobson Manohar and Taekseung Kim and Guy E. Blelloch},
       year={2025},
