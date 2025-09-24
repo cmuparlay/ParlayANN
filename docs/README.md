@@ -34,17 +34,3 @@ This repository was built for our paper [Scaling Graph-Based ANNS Algorithms to 
   series = {PPoPP '24}
 }
 ```
-
-The range search algorithms are from our paper [Range Retrieval with Graph-Based Indices](https://arxiv.org/abs/2502.13245). If you use this repository for your own work, please cite us:
-
-```bibtex
-@misc{manohar2025range,
-      title={Range Retrieval with Graph-Based Indices}, 
-      author={Magdalen Dobson Manohar and Taekseung Kim and Guy E. Blelloch},
-      year={2025},
-      eprint={2502.13245},
-      archivePrefix={arXiv},
-      primaryClass={cs.IR},
-      url={https://arxiv.org/abs/2502.13245}, 
-}
-```

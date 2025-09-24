@@ -31,7 +31,7 @@
 #include "parlay/internal/file_map.h"
 
 #include "types.h"
-#include "NSGDist.h"
+//#include "NSGDist.h"
 // #include "common/time_loop.h"
 
 #include <fcntl.h>
@@ -80,9 +80,9 @@ inline float euclidian_distance(const int8_t *p, const int8_t *q, unsigned d) {
   return (float)result;
 }
 
-float euclidian_distance(const float *p, const float *q, unsigned d) {
-  // efanna2e::DistanceL2 distfunc;
-  // return distfunc.compare(p, q, d);
+inline float euclidian_distance(const float *p, const float *q, unsigned d) {
+  //efanna2e::DistanceL2 distfunc;
+  //return distfunc.compare(p, q, d);
   float result = 0.0;
   for (int i = 0; i < d; i++)
     result += (q[i] - p[i]) * (q[i] - p[i]);
@@ -114,12 +114,6 @@ struct Euclidian_Point {
 
   float distance(const Euclidian_Point& x) const {
     return euclidian_distance(this->values, x.values, params.dims);
-  }
-
-  float translate_distance(double r) const {
-    if constexpr (sizeof(T) == 2)
-                   return r * params.slope * params.slope / 256;
-    else return r * params.slope * params.slope;
   }
 
   void normalize() {

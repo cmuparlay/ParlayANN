@@ -7,9 +7,8 @@
 #include "utils/euclidian_point.h"
 #include "utils/mips_point.h"
 #include "utils/point_range.h"
-#include "../algorithms/bench/parse_command_line.h"
 
-using namespace parlayANN;
+
 
 template<typename PointRange>
 parlay::sequence<parlay::sequence<int>> compute_range_groundtruth(PointRange &B, 
@@ -120,35 +119,35 @@ int main(int argc, char* argv[]) {
   if(tp == "float"){
     std::cout << "Detected float coordinates" << std::endl;
     if(df == "Euclidian"){
-      PointRange<Euclidian_Point<float>> B = PointRange<Euclidian_Point<float>>(bFile);
-      PointRange<Euclidian_Point<float>> Q = PointRange<Euclidian_Point<float>>(qFile);
-      answers = compute_range_groundtruth<PointRange<Euclidian_Point<float>>>(B, Q, r);
+      PointRange<float, Euclidian_Point<float>> B = PointRange<float, Euclidian_Point<float>>(bFile);
+      PointRange<float, Euclidian_Point<float>> Q = PointRange<float, Euclidian_Point<float>>(qFile);
+      answers = compute_range_groundtruth<PointRange<float, Euclidian_Point<float>>>(B, Q, r);
     } else if(df == "mips"){
-      PointRange<Mips_Point<float>> B = PointRange<Mips_Point<float>>(bFile);
-      PointRange<Mips_Point<float>> Q = PointRange<Mips_Point<float>>(qFile);
-      answers = compute_range_groundtruth<PointRange<Mips_Point<float>>>(B, Q, r);
+      PointRange<float, Mips_Point<float>> B = PointRange<float, Mips_Point<float>>(bFile);
+      PointRange<float, Mips_Point<float>> Q = PointRange<float, Mips_Point<float>>(qFile);
+      answers = compute_range_groundtruth<PointRange<float, Mips_Point<float>>>(B, Q, r);
     }
   }else if(tp == "uint8"){
     std::cout << "Detected uint8 coordinates" << std::endl;
     if(df == "Euclidian"){
-      PointRange<Euclidian_Point<uint8_t>> B = PointRange<Euclidian_Point<uint8_t>>(bFile);
-      PointRange<Euclidian_Point<uint8_t>> Q = PointRange<Euclidian_Point<uint8_t>>(qFile);
-      answers = compute_range_groundtruth<PointRange<Euclidian_Point<uint8_t>>>(B, Q, r);
+      PointRange<uint8_t, Euclidian_Point<uint8_t>> B = PointRange<uint8_t, Euclidian_Point<uint8_t>>(bFile);
+      PointRange<uint8_t, Euclidian_Point<uint8_t>> Q = PointRange<uint8_t, Euclidian_Point<uint8_t>>(qFile);
+      answers = compute_range_groundtruth<PointRange<uint8_t, Euclidian_Point<uint8_t>>>(B, Q, r);
     } else if(df == "mips"){
-      PointRange<Mips_Point<uint8_t>> B = PointRange<Mips_Point<uint8_t>>(bFile);
-      PointRange<Mips_Point<uint8_t>> Q = PointRange<Mips_Point<uint8_t>>(qFile);
-      answers = compute_range_groundtruth<PointRange<Mips_Point<uint8_t>>>(B, Q, r);
+      PointRange<uint8_t, Mips_Point<uint8_t>> B = PointRange<uint8_t, Mips_Point<uint8_t>>(bFile);
+      PointRange<uint8_t, Mips_Point<uint8_t>> Q = PointRange<uint8_t, Mips_Point<uint8_t>>(qFile);
+      answers = compute_range_groundtruth<PointRange<uint8_t, Mips_Point<uint8_t>>>(B, Q, r);
     }
   }else if(tp == "int8"){
     std::cout << "Detected int8 coordinates" << std::endl;
     if(df == "Euclidian"){
-      PointRange<Euclidian_Point<int8_t>> B = PointRange<Euclidian_Point<int8_t>>(bFile);
-      PointRange<Euclidian_Point<int8_t>> Q = PointRange<Euclidian_Point<int8_t>>(qFile);
-      answers = compute_range_groundtruth<PointRange<Euclidian_Point<int8_t>>>(B, Q, r);
+      PointRange<int8_t, Euclidian_Point<int8_t>> B = PointRange<int8_t, Euclidian_Point<int8_t>>(bFile);
+      PointRange<int8_t, Euclidian_Point<int8_t>> Q = PointRange<int8_t, Euclidian_Point<int8_t>>(qFile);
+      answers = compute_range_groundtruth<PointRange<int8_t, Euclidian_Point<int8_t>>>(B, Q, r);
     } else if(df == "mips"){
-      PointRange<Mips_Point<int8_t>> B = PointRange<Mips_Point<int8_t>>(bFile);
-      PointRange<Mips_Point<int8_t>> Q = PointRange<Mips_Point<int8_t>>(qFile);
-      answers = compute_range_groundtruth<PointRange<Mips_Point<int8_t>>>(B, Q, r);
+      PointRange<int8_t, Mips_Point<int8_t>> B = PointRange<int8_t, Mips_Point<int8_t>>(bFile);
+      PointRange<int8_t, Mips_Point<int8_t>> Q = PointRange<int8_t, Mips_Point<int8_t>>(qFile);
+      answers = compute_range_groundtruth<PointRange<int8_t, Mips_Point<int8_t>>>(B, Q, r);
     }
   }
   write_rangeres(answers, std::string(gFile));
