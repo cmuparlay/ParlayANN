@@ -57,7 +57,7 @@ void ANN_Quantized(Graph<indexType> &G, long k, BuildParams &BP,
     start_point = 0;
   } else{
     I.build_index(G, Q_Points, QQ_Points, BuildStats);
-    start_point = 0; // I.get_start();
+    start_point = I.get_start();
     idx_time = t.next_time();
   }
   std::cout << "start index = " << start_point << std::endl;
@@ -82,7 +82,30 @@ void ANN_Quantized(Graph<indexType> &G, long k, BuildParams &BP,
                      QQ_Points, QQ_Query_Points,
                      GT,
                      res_file, k, false, start_point,
-                     verbose, BP.Q, BP.rerank_factor, BP.batch_factor);
+                     verbose, BP.Q, BP.rerank_factor);
+  } else if (BP.self) {
+    if (BP.range) {
+      parlay::internal::timer t_range("range search time");
+      double radius = BP.radius;
+      double radius_2 = BP.radius_2;
+      std::cout << "radius = " << radius << " radius_2 = " << radius_2 << std::endl;
+      QueryParams QP;
+      long n = Points.size();
+      parlay::sequence<long> counts(n);
+      parlay::sequence<long> distance_comps(n);
+      parlay::parallel_for(0, G.size(), [&] (long i) {
+        parlay::sequence<indexType> pts;
+        pts.push_back(Points[i].id());
+        auto [r, dc] = range_search(Points[i], G, Points, pts, radius, radius_2, QP, true);
+        counts[i] = r.size();
+        distance_comps[i] = dc;});
+      t_range.total();
+      long range_num_distances = parlay::reduce(distance_comps);
+
+      std::cout << "edges within range: " << parlay::reduce(counts) << std::endl;
+      std::cout << "distance comparisons during build = " << build_num_distances << std::endl;
+      std::cout << "distance comparisons during range = " << range_num_distances << std::endl;
+    }
   }
 }
 
@@ -102,15 +125,14 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
       if (BP.quantize == 1) {
         ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, Q_Query_Points,
                       GT, res_file, graph_built, Points, Q_Points, Q_Points);
-      }
-      // } else if (BP.quantize == 2) {
-      //   using QQPoint = Euclidean_Bit_Point;
-      //   using QQPR = PointRange<QQPoint>;
-      //   QQPR QQ_Points(Points);
-      //   QQPR QQ_Query_Points(Query_Points, QQ_Points.params);
-      //   ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, QQ_Query_Points,
-      //                 GT, res_file, graph_built, Points, Q_Points, QQ_Points);
-      else if (BP.quantize == 3) {
+      } else if (BP.quantize == 2) {
+        using QQPoint = Euclidean_Bit_Point;
+        using QQPR = PointRange<QQPoint>;
+        QQPR QQ_Points(Points);
+        QQPR QQ_Query_Points(Query_Points, QQ_Points.params);
+        ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, QQ_Query_Points,
+                      GT, res_file, graph_built, Points, Q_Points, QQ_Points);
+      } else if (BP.quantize == 3) {
         using QQPoint = Euclidean_JL_Sparse_Point<1024>;
         using QQPR = PointRange<QQPoint>;
         QQPR QQ_Points(Points);
