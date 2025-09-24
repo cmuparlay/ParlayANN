@@ -503,16 +503,16 @@ beam_search_rerank(const Point &p,
   bool use_rerank = (Base_Points.params.num_bytes() != Q_Base_Points.params.num_bytes());
   bool use_filtering = (Q_Base_Points.params.num_bytes() != QQ_Base_Points.params.num_bytes());
   std::pair<std::pair<parlay::sequence<id_dist>, parlay::sequence<id_dist>>, size_t> r;
-  if (QP.batch_factor == .125)
-    r = filtered_beam_search(G,
-                             qp, Q_Base_Points,
-                             qqp, QQ_Base_Points,
-                             starting_points, QPP, use_filtering);
-  else
-    r = priority_first_search(G,
-                              qp, Q_Base_Points,
-                              qqp, QQ_Base_Points,
-                              starting_points, QPP);
+  // if (QP.batch_factor == .125)
+  r = filtered_beam_search(G,
+                            qp, Q_Base_Points,
+                            qqp, QQ_Base_Points,
+                            starting_points, QPP, use_filtering);
+  // else
+  //   r = priority_first_search(G,
+  //                             qp, Q_Base_Points,
+  //                             qqp, QQ_Base_Points,
+  //                             starting_points, QPP);
   auto [pairElts, dist_cmps] = r;
   auto [beamElts, visitedElts] = pairElts;
   if (beamElts.size() < QP.k) {
