@@ -181,7 +181,8 @@ struct BuildParams{
   std::string alg_type;
 
 
-  BuildParams(long R, long L, double a, int num_passes, long nc, long cs, long mst, double de,
+  BuildParams(long R, long L, double a, int num_passes,
+              long nc, long cs, long mst, double de,
               bool verbose = false, int quantize = 0, 
               bool self = false, int single_batch = 0,
               long Q = 0, double trim = 0.0,

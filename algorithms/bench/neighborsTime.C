@@ -115,7 +115,12 @@ int main(int argc, char* argv[]) {
   bool self = P.getOption("-self");
   int rerank_factor = P.getOptionIntValue("-rerank_factor", 100);
   bool range = P.getOption("-range");
-
+  bool is_early_stop = P.getOption("-early_stop");
+  char* sm = P.getOptionValue("-search_mode");
+  double esr = P.getOptionDoubleValue("-early_stopping_radius", 0);
+  double rad  = P.getOptionDoubleValue("-r", 0.0);
+  double batch_factor = P.getOptionDoubleValue("-batch_factor", .125);
+  
   // this integer represents the number of random edges to start with for
   // inserting in a single batch per round
   int single_batch = P.getOptionIntValue("-single_batch", 0);
@@ -123,8 +128,33 @@ int main(int argc, char* argv[]) {
   std::string df = std::string(dfc);
   std::string tp = std::string(vectype);
 
-  BuildParams BP = BuildParams(R, L, alpha, num_passes, num_clusters, cluster_size, MST_deg, delta, verbose, quantize_build, radius, radius_2, self, range, single_batch, Q, trim, rerank_factor);
+  std::string searchType = (sm == nullptr) ? "" : std::string(sm);
+  rangeQueryType rtype = Beam;
+
+  if (searchType == "doubling") {
+    rtype = Doubling;
+    std::cout << "Using doubling range search" << std::endl;
+  } else if (searchType == "greedy") {
+    rtype = Greedy;
+    std::cout << "Using greedy range search" << std::endl;
+  }
+  else if (searchType == "beam") {
+    rtype = Beam;
+    std::cout << "Using beam range search" << std::endl;
+  }
+  else rtype = None;
+  
+  BuildParams BP = BuildParams(R, L, alpha, num_passes,
+                               num_clusters, cluster_size, MST_deg, delta,
+                               verbose, quantize_build,
+                               self, single_batch,
+                               Q, trim,
+                               rerank_factor, batch_factor,
+                               is_early_stop, esr,
+                               rtype, rad);
   long maxDeg = BP.max_degree();
+
+  //BuildParams BP = BuildParams(R, L, alpha, num_passes, num_clusters, cluster_size, MST_deg, delta, verbose, quantize_build, radius, radius_2, self, range, single_batch, Q, trim, rerank_factor);
 
   if((tp != "uint8") && (tp != "int8") && (tp != "float")){
     std::cout << "Error: vector type not specified correctly, specify int8, uint8, or float" << std::endl;
