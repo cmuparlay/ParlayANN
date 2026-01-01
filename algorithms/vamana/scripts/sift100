@@ -1,0 +1,16 @@
+# bash
+BUILD_ARGS="-R 64 -L 128 -alpha 1.15 -num_passes 2 -quantize_bits 8 -verbose"
+QUERY_ARGS="-quantize_bits 8 -verbose"
+TYPE_ARGS="-data_type uint8 -dist_func Euclidian -file_type bin"
+
+PATH=data/sift100
+DATA_FILE=$PATH/base.uint8
+QUERY_FILE=$PATH/query.uint8
+GROUNDTRUTH_FILE=$PATH/groundtruth
+GRAPH_FILE=$PATH/graphs/"graph_64_1.15"
+
+# build
+echo ./neighbors $BUILD_ARGS $TYPE_ARGS -base_path $DATA_FILE -graph_outfile $GRAPH_FILE
+
+# query 
+echo ./neighbors $QUERY_ARGS $TYPE_ARGS -base_path $DATA_FILE -query_path $QUERY_FILE -gt_path $GROUNDTRUTH_FILE -graph_path $GRAPH_FILE

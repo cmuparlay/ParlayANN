@@ -1,7 +1,7 @@
 # bash
 NAME=OpenAIArXiv
 BUILD_ARGS="-R 100 -L 200 -alpha 1.05 -num_passes 2 -quantize_mode 3 -verbose"
-QUERY_ARGS="-quantize_bits 16 -quantize_mode 3 -verbose"
+QUERY_ARGS="-quantize_bits 16 -quantize_mode 3 -verbose -rerank_factor 2"
 TYPE_ARGS="-data_type float -dist_func Euclidian -file_type bin"
 
 PATH=data/$NAME
