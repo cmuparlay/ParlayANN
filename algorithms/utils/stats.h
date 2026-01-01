@@ -30,19 +30,10 @@
 
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
+#include "../../parlaylib/examples/BFS.h"
+#include "../../parlaylib/examples/helper/graph_utils.h"
 
 namespace parlayANN {
-
-// template <typename T>
-// std::pair<double, int> graph_stats(parlay::sequence<Tvec_point<T> *> &v) {
-//   auto od = parlay::delayed_seq<size_t>(
-//       v.size(), [&](size_t i) { return size_of(v[i]->out_nbh); });
-//   size_t j = parlay::max_element(od) - od.begin();
-//   int maxDegree = od[j];
-//   size_t sum1 = parlay::reduce(od);
-//   double avg_deg = sum1 / ((double)v.size());
-//   return std::make_pair(avg_deg, maxDegree);
-// }
 
 inline std::pair<double, int> graph_stats_(Graph<unsigned int> &G) {
   auto od = parlay::delayed_seq<size_t>(
@@ -54,6 +45,39 @@ inline std::pair<double, int> graph_stats_(Graph<unsigned int> &G) {
   return std::make_pair(avg_deg, maxDegree);
 }
 
+  template <typename indexType>
+void print_graph_statistics(Graph<indexType> &G, indexType start) {
+  long n = G.size();
+
+  // convert to right format for transpose
+  auto GG = parlay::tabulate(n, [&] (indexType i) {
+                                  parlay::sequence<indexType> out;
+                                  for (auto x : G[i]) out.push_back(x);
+                                  return out;
+                                });
+  // generate some statistics for the graph
+  auto GTrans = graph_utils<indexType>::transpose(GG);
+  auto inDegrees = parlay::map(GTrans, parlay::size_of());
+  auto lowInDegrees = parlay::filter(parlay::iota(n), [&] (long i) {return inDegrees[i] < 4;});
+  auto maxInDegree = *parlay::max_element(inDegrees);
+  auto outDegrees = parlay::map(GG, parlay::size_of());
+  auto maxOutDegree = *parlay::max_element(outDegrees);
+  // for (auto u : lowDegrees) 
+  //   for (auto v : G[u])
+  //     G[v].append_neighbor(u);
+
+  auto layers = BFS(start, G);
+  auto visited = flatten(layers);
+  
+  std::cout << "Graph statistics:" << std::endl;
+  //std::cout << "  average degree = " << float(parlay::reduce(GG, parlay::size_of()))/n << std::endl;
+  //std::cout << "  max out-degree = " << *minDegreeLoc << std::endl;
+  std::cout << "  max in-degree = " << maxInDegree << std::endl;
+  std::cout << "  number with low (< 4) in-degree = " << lowInDegrees.size() << std::endl;
+  std::cout << "  unreachable from source = " << (n - visited.size()) << "/" << n << std::endl;
+  std::cout << "  radius from source = " << layers.size() << std::endl;
+  }
+  
 template<typename indexType>
 struct stats{
 

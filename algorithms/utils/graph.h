@@ -20,7 +20,11 @@
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+//#define Flexible
 #pragma once
+#ifdef Flexible
+#include "simpleGraph.h"
+#else
 
 #include <algorithm>
 #include <fcntl.h>
@@ -251,3 +255,4 @@ private:
 };
 
 } // end namespace
+#endif // flexible

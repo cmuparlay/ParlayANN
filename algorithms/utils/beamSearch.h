@@ -16,7 +16,7 @@
 #include "types.h"
 #include "graph.h"
 #include "stats.h"
-#include "filtered_hashset.h"
+#include "hashset.h"
 
 namespace parlayANN {
 
@@ -27,132 +27,6 @@ namespace parlayANN {
                     const PointInfo& visited,
                     const QueryParams& QP) { return false;}
   };
-
-  // main beam search
-template<typename indexType, typename Point, typename PointRange,
-         typename QPoint, typename QPointRange, typename GT, typename ES = EarlyStopping>
-std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>,
-                    parlay::sequence<std::pair<indexType, typename Point::distanceType>>>,
-          size_t>
-priority_first_search(const GT &G,
-                      const Point p,  const PointRange &Points,
-                      const QPoint qp, const QPointRange &Q_Points,
-                      const parlay::sequence<indexType> starting_points,
-                      const QueryParams &QP) {
-  auto is_match = [] (indexType i) { return (parlay::hash<indexType>()(i) % 2) == 0;};
-  
-  using dtype = typename Point::distanceType;
-  using id_dist = std::pair<indexType, dtype>;
-  int beamSize = QP.beamSize;
-  int max_degree = QP.degree_limit;
-
-  std::vector<id_dist> result;
-  hashset<indexType> has_been_seen(2 * (10 + beamSize) * max_degree);
-  
-  long distance_comparisons = 0;
-  auto grt = [] (id_dist a, id_dist b) {return a.second > b.second;};
-  std::priority_queue<id_dist, std::vector<id_dist>, decltype(grt)> pq(grt);
-
-  for (auto v : starting_points) {
-    if (has_been_seen(v)) continue;
-    pq.push(std::pair(v, Points[v].distance(p)));
-  }
-
-  long position = 0;
-  std::vector<indexType> unseen;
-  while (pq.size() > 0 && result.size() < beamSize + 10) {
-    auto nxt = pq.top();
-    pq.pop();
-    if (is_match(nxt.first)) result.push_back(nxt);
-    unseen.clear();
-    for (long i = 0; i < G[nxt.first].size(); i++) {
-      auto v = G[nxt.first][i];
-      if (has_been_seen(v)) continue;
-      distance_comparisons++;
-      unseen.push_back(v);
-      Points[v].prefetch();
-    }
-    for (auto v : unseen) {
-      auto d = Points[v].distance(p);
-      pq.push(std::pair(v, d));
-    }
-  }
-
-  auto less = [] (id_dist a, id_dist b) {return a.second < b.second;};
-  std::sort(result.begin(), result.end(), less);
-  parlay::sequence<id_dist> r;
-  for (int i = 0; i < beamSize; i++) r.push_back(result[i]);
-  return std::pair(std::pair(std::move(r), parlay::to_sequence(result)),
-                   distance_comparisons);
-}
-
-    // main beam search
-template<typename indexType, typename Point, typename PointRange,
-         typename QPoint, typename QPointRange, typename GT, typename ES = EarlyStopping>
-std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>,
-                    parlay::sequence<std::pair<indexType, typename Point::distanceType>>>,
-          size_t>
-priority_first_search_(const GT &G,
-                      const Point p,  const PointRange &Points,
-                      const QPoint qp, const QPointRange &Q_Points,
-                      const parlay::sequence<indexType> starting_points,
-                      const QueryParams &QP,
-                      bool use_filtering = false,
-                      ES early_stop = ES{}
-                      ) {
-  using dtype = typename Point::distanceType;
-  using id_dist = std::pair<indexType, dtype>;
-  int beamSize = QP.beamSize;
-  int max_degree = QP.degree_limit;
-
-  std::vector<id_dist> result;
-  hashset<indexType> has_been_seen(2 * (10 + beamSize) * max_degree);
-  
-  long distance_comparisons = 0;
-  auto grt = [] (id_dist a, id_dist b) {return a.second > b.second;};
-  auto less = [] (id_dist a, id_dist b) {return a.second < b.second;};
-  std::priority_queue<id_dist, std::vector<id_dist>, decltype(grt)> pq1(grt);
-  std::priority_queue<id_dist, std::vector<id_dist>, decltype(grt)> pq2(grt);
-
-  for (auto v : starting_points) {
-    if (has_been_seen(v)) continue;
-    pq1.push(std::pair(v, Points[v].distance(p)));
-  }
-
-  long position = 0;
-  std::vector<indexType> unseen;
-  while (pq1.size() > 0 && result.size() < beamSize + 10) {
-    auto nxt = pq1.top();
-    pq1.pop();
-    result.push_back(nxt);
-    unseen.clear();
-    for (long i = 0; i < G[nxt.first].size(); i++) {
-      auto v = G[nxt.first][i];
-      if (has_been_seen(v)) continue;
-      distance_comparisons++;
-      unseen.push_back(v);
-      Points[v].prefetch();
-    }
-    for (auto v : unseen) {
-      auto d = Q_Points[v].distance(qp);
-      pq2.push(std::pair(v, d));
-    }
-    while (10 + pq2.size() > 4 * pq1.size()) {
-      indexType v = pq2.top().first;
-      auto d = Points[v].distance(p);
-      pq1.push(std::pair(v, d));
-      pq2.pop();
-    }
-  }
-
-  std::sort(result.begin(), result.end(), less);
-
-  parlay::sequence<id_dist> r;
-  for (int i = 0; i < beamSize; i++) r.push_back(result[i]);
-      
-  return std::pair(std::pair(std::move(r), parlay::sequence<id_dist>()),
-                   distance_comparisons);
-}
 
 // main beam search
 template<typename indexType, typename Point, typename PointRange,
@@ -188,7 +62,7 @@ filtered_beam_search(const GT &G,
     return a.second < b.second || (a.second == b.second && a.first < b.first);
   };
 
-  hashset<indexType> has_been_seen(2 * (10 + beamSize) * max_degree);
+  hashset<indexType> has_been_seen(4 * (10 + beamSize) * max_degree);
   
   // Frontier maintains the closest points found so far and its size
   // is always at most beamSize.  Each entry is a (id,distance) pair.
@@ -252,17 +126,21 @@ filtered_beam_search(const GT &G,
     num_visited++;
     bool frontier_full = frontier.size() == beamSize;
 
-    // if using filtering based on lower quality distances measure, then maintain the average
-    // of low quality distance to the last point in the frontier (if frontier is full)
+    // if using filtering based on lower quality distances measure,
+    // then maintain the average of low quality distances.  The
+    // average is both across rounds and within a window of the
+    // frontier in each round.
     if (use_filtering && frontier_full) {
-      //constexpr int width = 5;
-      int width = frontier.size();
       indexType id = frontier.back().first;
+      // if frontier is the same as last time, then skip
       if (filter_threshold_count == 0 || filter_id != id) {
+        // currently using full frontier as the window
+        int window_start = 0;
+        int window_end = frontier.size();
         filter_tail_mean = 0.0;
-        for (int i = frontier.size() - width; i < frontier.size(); i ++) 
+        for (int i = window_start; i < window_end; i ++) 
           filter_tail_mean += Q_Points[frontier[i].first].distance(qp);
-        filter_tail_mean /= width;
+        filter_tail_mean /= (window_end - window_start);
         filter_id = id;
       }
       filter_threshold_sum += filter_tail_mean;
@@ -358,7 +236,7 @@ filtered_beam_search(const GT &G,
   }
 
   return std::make_pair(std::make_pair(parlay::to_sequence(frontier),
-                                       parlay::to_sequence(visited)),
+                                       parlay::to_sequence(frontier)),
                         full_dist_cmps);
 }
 
@@ -503,16 +381,10 @@ beam_search_rerank(const Point &p,
   bool use_rerank = (Base_Points.params.num_bytes() != Q_Base_Points.params.num_bytes());
   bool use_filtering = (Q_Base_Points.params.num_bytes() != QQ_Base_Points.params.num_bytes());
   std::pair<std::pair<parlay::sequence<id_dist>, parlay::sequence<id_dist>>, size_t> r;
-  // if (QP.batch_factor == .125)
   r = filtered_beam_search(G,
                             qp, Q_Base_Points,
                             qqp, QQ_Base_Points,
                             starting_points, QPP, use_filtering);
-  // else
-  //   r = priority_first_search(G,
-  //                             qp, Q_Base_Points,
-  //                             qqp, QQ_Base_Points,
-  //                             starting_points, QPP);
   auto [pairElts, dist_cmps] = r;
   auto [beamElts, visitedElts] = pairElts;
   if (beamElts.size() < QP.k) {

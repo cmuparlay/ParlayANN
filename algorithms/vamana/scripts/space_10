@@ -1,5 +1,17 @@
 # bash
+NAME=space_10
+BUILD_ARGS="-R 64 -L 128 -alpha 1.1 -num_passes 2 -verbose"
+QUERY_ARGS="-verbose"
+TYPE_ARGS="-data_type int8 -dist_func Euclidian -file_type bin"
 
-numactl -i all ./neighbors -R 64 -L 128 -alpha 1.13 -data_type int8 -file_type bin -dist_func Euclidian -base_path data/MSSPACEV1B/spacev1b_base.i8bin.crop_nb_10000000 -query_path data/MSSPACEV1B/query.i8bin -gt_path data/MSSPACEV1B/msspacev-10M
+PATH=data/$NAME
+DATA_FILE=$PATH/base.i8bin
+QUERY_FILE=$PATH/query.i8bin
+GROUNDTRUTH_FILE=$PATH/groundtruth
+GRAPH_FILE=$PATH/graphs/graph_64_1.1
 
+# build
+echo ./neighbors $BUILD_ARGS $TYPE_ARGS -base_path $DATA_FILE -graph_outfile $GRAPH_FILE
 
+# query 
+echo ./neighbors $QUERY_ARGS $TYPE_ARGS -base_path $DATA_FILE -query_path $QUERY_FILE -gt_path $GROUNDTRUTH_FILE -graph_path $GRAPH_FILE
