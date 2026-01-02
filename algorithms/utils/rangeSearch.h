@@ -204,7 +204,7 @@ RangeSearch(Graph<indexType> &G,
     t_search_beam.start();
     using dtype = typename Point::distanceType;
     using id_dist = std::pair<indexType, dtype>;
-    QueryParams QP1(QP.beamSize, QP.beamSize, 0.0, G.size(), G.max_degree(),
+    QueryParams QP1(QP.beamSize, QP.beamSize, G.size(), G.max_degree(),
                     QP.is_early_stop, Q_Query_Points[i].translate_distance(QP.early_stopping_radius),
                     QP.early_stopping_count,
                     QP.range_query_type, Q_Query_Points[i].translate_distance(QP.radius));
@@ -244,7 +244,7 @@ RangeSearch(Graph<indexType> &G,
       //#define EndWithBeam
 #ifdef EndWithBeam
       int beamSize = in_range.size() * 1.1;
-      QueryParams QP2(beamSize, beamSize, 0.0, G.size(), G.max_degree());
+      QueryParams QP2(beamSize, beamSize, G.size(), G.max_degree());
       auto [pairElts, dist_cmps2] = beam_search(Q_Query_Points[i], G, Q_Base_Points, in_range, QP2);
       for (auto r : pairElts.first) 
         if (Query_Points[i].distance(Base_Points[r.first]) <= QP.radius)

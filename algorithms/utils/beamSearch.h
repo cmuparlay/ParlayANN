@@ -187,7 +187,6 @@ filtered_beam_search(const GT &G,
     // This iproves performance for higher accuracies (e.g. beam sizes of 100+)
     if (candidates.size() == 0 || 
         (QP.limit >= 2 * beamSize &&
-         //candidates.size() < beamSize/8 &&
          candidates.size() < QP.batch_factor * beamSize &&
          offset + 1 < remain)) {
       offset++;
@@ -211,16 +210,6 @@ filtered_beam_search(const GT &G,
     // trim to at most beam size
     new_frontier_size = std::min<size_t>(beamSize, new_frontier_size);
 
-    // if a k is given (i.e. k != 0) then trim off entries that have a
-    // distance greater than cut * current-kth-smallest-distance.
-    // Only used during query and not during build.
-    if (QP.k > 0 && new_frontier_size > QP.k && Points[0].is_metric())
-      new_frontier_size = std::max<indexType>(
-        (std::upper_bound(new_frontier.begin(),
-                          new_frontier.begin() + new_frontier_size,
-                          std::pair{0, QP.cut * new_frontier[QP.k].second}, less) -
-         new_frontier.begin()), frontier.size());
-
     // copy new_frontier back to the frontier
     frontier.clear();
     for (indexType i = 0; i < new_frontier_size; i++)
@@ -228,7 +217,7 @@ filtered_beam_search(const GT &G,
 
     // get the unvisited frontier
     remain = (std::set_difference(frontier.begin(),
-                                  frontier.begin() + std::min<long>(frontier.size(), QP.beamSize),
+                                  frontier.begin() + std::min<long>(frontier.size(), beamSize),
                                   visited.begin(),
                                   visited.end(),
                                   unvisited_frontier.begin(), less) -

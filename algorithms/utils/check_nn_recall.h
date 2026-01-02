@@ -123,7 +123,7 @@ nn_result checkRecall(const Graph<indexType> &G,
 
   auto stats_ = {QueryStats.dist_stats(), QueryStats.visited_stats()};
   parlay::sequence<indexType> stats = parlay::flatten(stats_);
-  nn_result N(recall, stats, QPS, k, QP.beamSize, QP.cut, Query_Points.size(), QP.limit, QP.degree_limit, k);
+  nn_result N(recall, stats, QPS, k, QP.beamSize, Query_Points.size(), QP.limit, QP.degree_limit, k);
   return N;
 }
 
@@ -149,12 +149,12 @@ void write_to_csv(std::string csv_filename, parlay::sequence<float> buckets,
       << "Tail Visited"
       << "k"
       << "Q"
-      << "cut" << endrow;
+      << endrow;
   for (int i = 0; i < results.size(); i++) {
     nn_result N = results[i];
     csv << N.num_queries << buckets[i] << N.recall << N.QPS << N.avg_cmps
         << N.tail_cmps << N.avg_visited << N.tail_visited << N.k << N.beamQ
-        << N.cut << endrow;
+        << endrow;
   }
   csv << endrow;
   csv << endrow;
@@ -200,7 +200,6 @@ void search_and_parse(Graph_ G_,
   parlay::sequence<nn_result> results;
   std::vector<long> beams;
   std::vector<long> allr;
-  std::vector<double> cuts;
 
   auto check = [&] (const long k, const QueryParams QP) {
     return checkRecall(G,
@@ -211,17 +210,15 @@ void search_and_parse(Graph_ G_,
                        random,
                        start_point, k, QP, verbose);};
 
-  QueryParams QP(k, 0, 1.0, G.size(), G.max_degree(), rerank_factor, batch_factor);
+  QueryParams QP(k, 0, G.size(), G.max_degree(), rerank_factor, batch_factor);
   beams = {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 24, 26, 28, 30, 32,
     34, 36, 38, 40, 45, 50, 55, 60, 65, 70, 80, 90, 100, 120, 140, 160,
     180, 200, 225, 250, 275, 300, 375, 500, 750, 1000};
   if(k==0) allr = {10};
   else allr = {k};
-  cuts = {1.35};
 
   if (fixed_beam_width != 0) {
     QP.k = allr[0];
-    QP.cut = cuts[0];
     QP.beamSize = fixed_beam_width;
     for (int i = 0; i < 5; i++)
       check(QP.k, QP);
@@ -229,23 +226,20 @@ void search_and_parse(Graph_ G_,
     for (long r : allr) {
       results.clear();
       QP.k = r;
-      for (float cut : cuts){
-        QP.cut = cut;
-        for (float Q : beams){
-          QP.beamSize = Q;
-          if (Q >= r){
-            results.push_back(check(r, QP));
-          }
+      for (float Q : beams){
+        QP.beamSize = Q;
+        if (Q >= r){
+          results.push_back(check(r, QP));
         }
       }
 
       // check "limited accuracy"
-      // {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 28, 30, 35}; //
-      parlay::sequence<long> limits = {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 28, 30, 35};
+      parlay::sequence<long> limits = {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+                                       22, 23, 24, 25, 26, 28, 30, 35};
       //calculate_limits(results[0].avg_visited);
       //parlay::sequence<long> degree_limits = calculate_limits(G.max_degree());
       //degree_limits.push_back(G.max_degree());
-      QP = QueryParams(r, r, 1.35, (long) G.size(), (long) G.max_degree(),
+      QP = QueryParams(r, r, (long) G.size(), (long) G.max_degree(),
                        rerank_factor, batch_factor);
       for(long l : limits){
         QP.limit = l;
@@ -255,7 +249,7 @@ void search_and_parse(Graph_ G_,
         results.push_back(check(r, QP));
       }
       // check "best accuracy"
-      QP = QueryParams((long) 100, (long) 1000, (double) 10.0, (long) G.size(),
+      QP = QueryParams((long) 100, (long) 1000, (long) G.size(),
                        (long) G.max_degree(), rerank_factor, batch_factor);
       results.push_back(check(r, QP));
 

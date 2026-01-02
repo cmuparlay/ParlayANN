@@ -62,7 +62,6 @@ struct range_result {
 
   int k;
   int beamQ;
-  float cut;
   double slack;
 
   range_result(int nq, int nnq, double r, double r2,
@@ -75,7 +74,6 @@ struct range_result {
         QPS(qps),
         k(K),
         beamQ(Q),
-        cut(c),
         slack(s) {
     if (stats.size() != 4) abort();
 
@@ -86,7 +84,7 @@ struct range_result {
   }
 
   void print() {
-    std::cout << "k = " << k << ", Q = " << beamQ << ", cut = " << cut
+    std::cout << "k = " << k << ", Q = " << beamQ
               << ", slack = " << slack << ", throughput = " << QPS << "/second"
               << std::endl;
     std::cout << std::endl;
@@ -114,7 +112,6 @@ struct nn_result {
 
   int k;
   int beamQ;
-  float cut;
   int limit;
   int degree_limit;
   int gtn;
@@ -122,12 +119,11 @@ struct nn_result {
   long num_queries;
 
   nn_result(double r, parlay::sequence<uint> stats, float qps, int K, int Q,
-            float c, long q, int limit, int degree_limit, int gtn)
+            long q, int limit, int degree_limit, int gtn)
       : recall(r),
         QPS(qps),
         k(K),
         beamQ(Q),
-        cut(c),
         limit(limit),
         degree_limit(degree_limit),
         gtn(gtn),
@@ -142,14 +138,14 @@ struct nn_result {
 
   void print() {
     std::cout << "For " << gtn << "@" << gtn << " recall = " << recall
-              << ", QPS = " << QPS << ", Q = " << beamQ << ", cut = " << cut;
+              << ", QPS = " << QPS << ", Q = " << beamQ;
     std::cout << ", visited limit = " << limit << ", degree limit: " << degree_limit;
     std::cout << ", average visited = " << avg_visited << ", average cmps = " << avg_cmps << std::endl;
   }
 
   void print_verbose() {
     std::cout << "Over " << num_queries << " queries" << std::endl;
-    std::cout << "k = " << k << ", Q = " << beamQ << ", cut = " << cut
+    std::cout << "k = " << k << ", Q = " << beamQ 
               << ", throughput = " << QPS << "/second" << std::endl;
     std::cout << "Recall: " << recall << std::endl;
     std::cout << "Average dist cmps: " << avg_cmps

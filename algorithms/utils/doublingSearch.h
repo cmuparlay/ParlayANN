@@ -44,7 +44,7 @@ DoubleBeamRangeSearch(Graph<indexType> &G,
     auto Q_P = Q_Query_Points[active_indices[i]];
     using dtype = typename decltype(Query_Points[0])::distanceType;
     using id_dist = std::pair<indexType, dtype>;
-    QueryParams QP1(QP.beamSize, QP.beamSize, 0.0,
+    QueryParams QP1(QP.beamSize, QP.beamSize,
                     G.size(), G.max_degree(),
                     QP.is_early_stop, Q_P.translate_distance(QP.early_stopping_radius),
                     QP.early_stopping_count,

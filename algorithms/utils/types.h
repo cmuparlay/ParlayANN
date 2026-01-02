@@ -231,7 +231,6 @@ struct BuildParams{
 struct QueryParams{
   long k;
   long beamSize;
-  double cut;
   long limit;
   long degree_limit;
   double rerank_factor = 100;
@@ -244,16 +243,16 @@ struct QueryParams{
 
   float pad = 1.0;
 
-  QueryParams(long k, long Q, double cut, long limit, long dg,
+  QueryParams(long k, long Q, long limit, long dg,
               double rerank_factor = 100,
               double batch_factor = 1.0)
-    : k(k), beamSize(Q), cut(cut), limit(limit), degree_limit(dg),
+    : k(k), beamSize(Q), limit(limit), degree_limit(dg),
       rerank_factor(rerank_factor), batch_factor(batch_factor) {}
 
-  QueryParams(long k, long Q, double cut, long limit, long dg,
+  QueryParams(long k, long Q, long limit, long dg,
               long es, double esr, long esc,
               rangeQueryType range_query_type, double radius)
-    : k(k), beamSize(Q), cut(cut), limit(limit), degree_limit(dg),
+    : k(k), beamSize(Q), limit(limit), degree_limit(dg),
       is_early_stop(es), early_stopping_radius(esr), early_stopping_count(esc),
       range_query_type(range_query_type), radius(radius) {}
 

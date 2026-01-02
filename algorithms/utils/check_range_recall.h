@@ -142,7 +142,7 @@ void range_search_wrapper(Graph<indexType> &G,
     if (is_early_stopping) 
       es = std::max((long)10, b/4);
 
-    QueryParams QP(b, b, 0.0, G.size(), G.max_degree(),
+    QueryParams QP(b, b, G.size(), G.max_degree(),
                    is_early_stopping, esr, es, rtype, rad);
 
     

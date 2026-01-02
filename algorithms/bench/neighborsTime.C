@@ -95,8 +95,6 @@ int main(int argc, char* argv[]) {
   if(num_clusters<0) P.badArgument();
   long cluster_size = P.getOptionIntValue("-cluster_size", 0);
   if(cluster_size<0) P.badArgument();
-  double radius  = P.getOptionDoubleValue("-radius", 0.0);
-  double radius_2  = P.getOptionDoubleValue("-radius_2", radius);
   long k = P.getOptionIntValue("-k", 0);
   if (k > 1000 || k < 0) P.badArgument();
   double alpha = P.getOptionDoubleValue("-alpha", 1.0);
@@ -113,12 +111,12 @@ int main(int argc, char* argv[]) {
   bool normalize = P.getOption("-normalize");
   double trim = P.getOptionDoubleValue("-trim", 0.0); // not used
   bool self = P.getOption("-self");
-  int rerank_factor = P.getOptionIntValue("-rerank_factor", 100);
+  int rerank_factor = P.getOptionIntValue("-rerank_factor", 10);
   bool range = P.getOption("-range");
   bool is_early_stop = P.getOption("-early_stop");
   char* sm = P.getOptionValue("-search_mode");
   double esr = P.getOptionDoubleValue("-early_stopping_radius", 0);
-  double rad  = P.getOptionDoubleValue("-r", 0.0);
+  double radius  = P.getOptionDoubleValue("-r", 0.0);
   double batch_factor = P.getOptionDoubleValue("-batch_factor", .125);
   
   // this integer represents the number of random edges to start with for
@@ -151,10 +149,8 @@ int main(int argc, char* argv[]) {
                                Q, trim,
                                rerank_factor, batch_factor,
                                is_early_stop, esr,
-                               rtype, rad);
+                               rtype, radius);
   long maxDeg = BP.max_degree();
-
-  //BuildParams BP = BuildParams(R, L, alpha, num_passes, num_clusters, cluster_size, MST_deg, delta, verbose, quantize_build, radius, radius_2, self, range, single_batch, Q, trim, rerank_factor);
 
   if((tp != "uint8") && (tp != "int8") && (tp != "float")){
     std::cout << "Error: vector type not specified correctly, specify int8, uint8, or float" << std::endl;
