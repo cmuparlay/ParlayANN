@@ -28,8 +28,10 @@
 
 #include "graph.h"
 
+#include "parlay/io.h"
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
+#include "../../parlaylib/include/parlay/io.h"
 #include "../../parlaylib/examples/BFS.h"
 #include "../../parlaylib/examples/helper/graph_utils.h"
 
@@ -67,6 +69,7 @@ void print_graph_statistics(Graph<indexType> &G, indexType start) {
   //     G[v].append_neighbor(u);
 
   auto layers = BFS(start, G);
+  auto sizes = parlay::map(layers, parlay::size_of());
   auto visited = flatten(layers);
   
   std::cout << "Graph statistics:" << std::endl;
@@ -76,6 +79,7 @@ void print_graph_statistics(Graph<indexType> &G, indexType start) {
   std::cout << "  number with low (< 4) in-degree = " << lowInDegrees.size() << std::endl;
   std::cout << "  unreachable from source = " << (n - visited.size()) << "/" << n << std::endl;
   std::cout << "  radius from source = " << layers.size() << std::endl;
+  std::cout << "  BFS level sizes = " << parlay::to_chars(sizes) << std::endl;
   }
   
 template<typename indexType>

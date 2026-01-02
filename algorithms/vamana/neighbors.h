@@ -93,7 +93,7 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
          bool graph_built, PointRange_ &Points) {
   if (BP.quantize != 0) {
     std::cout << "quantizing build and first pass of search to 1 byte" << std::endl;
-    if (Point::is_metric()) {
+    if constexpr (Point::is_metric) {
       using QT = uint8_t;
       using QPoint = Euclidian_Point<QT>;
       using QPR = PointRange<QPoint>;

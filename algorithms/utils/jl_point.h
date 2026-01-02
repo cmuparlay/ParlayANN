@@ -38,7 +38,7 @@ struct Mips_JL_Point {
       : JL_vects(JL_vects), dims(dims), mips_params(.3, d) {}
   };
 
-  static bool is_metric() {return false;}
+  static constexpr bool is_metric = false;
   
   T operator [] (long j) const {return pt[j];}
 

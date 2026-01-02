@@ -109,7 +109,7 @@ struct Euclidian_Point {
   };
 
   static distanceType d_min() {return 0;}
-  static bool is_metric() {return true;}
+  static constexpr bool is_metric = true;
   T operator[](long i) const {return *(values + i);}
 
   float distance(const Euclidian_Point& x) const {
