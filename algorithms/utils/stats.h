@@ -31,9 +31,10 @@
 #include "parlay/io.h"
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
-#include "../../parlaylib/include/parlay/io.h"
 #include "../../parlaylib/examples/BFS.h"
+#include "graph_reorder.h"
 #include "../../parlaylib/examples/helper/graph_utils.h"
+#include "parlay/internal/get_time.h"
 
 namespace parlayANN {
 
@@ -54,7 +55,7 @@ void print_graph_statistics(Graph<indexType> &G, indexType start) {
   // convert to right format for transpose
   auto GG = parlay::tabulate(n, [&] (indexType i) {
                                   parlay::sequence<indexType> out;
-                                  for (auto x : G[i]) out.push_back(x);
+                                  for (int x : G[i]) out.push_back(x);
                                   return out;
                                 });
   // generate some statistics for the graph
@@ -67,6 +68,40 @@ void print_graph_statistics(Graph<indexType> &G, indexType start) {
   // for (auto u : lowDegrees) 
   //   for (auto v : G[u])
   //     G[v].append_neighbor(u);
+
+  using etype = std::pair<int,int>;
+
+  int psize = 20;
+  auto Gprefix = parlay::map(GG, [&] (auto& ngh) {
+                                   if (ngh.size() > psize)
+                                     return parlay::tabulate(psize, [&] (int i) {return ngh[i];});
+                                   else return ngh;});
+    
+  auto E = parlay::flatten(parlay::tabulate(G.size(), [&] (int u) {
+                   return parlay::map_maybe(Gprefix[u], [=] (int v) {
+                                                    if (u < v)
+                                                      return std::optional<etype>(etype(u,v));
+                                                    else return std::optional<etype>();});}));
+
+  parlay::internal::timer t;
+  auto result = graph_reorder(E, n);
+  t.next("reorder time");
+  //auto result = parlay::iota<int>(n);
+
+  //auto ldiff = [] (int u, int v) {return std::log2(std::abs(u -v));};
+  auto ldiff = [] (int u, int v) {
+                 float diff = std::abs(u - v);
+                 if (diff < 128) return 1;
+                 if (diff < 16384) return 2;
+                 else return 3;
+               };
+  auto vcost = [&] (int i) {
+                 auto nghn = parlay::sort(parlay::map(GG[i], [&] (int v) {return result[v];}));
+                 return ldiff(result[i],nghn[0]) +
+                   parlay::reduce(parlay::tabulate(nghn.size()-1, [&] (int i) {return ldiff(nghn[i+1], nghn[i]);}));};
+  float total_cost = parlay::reduce(parlay::tabulate(n, vcost));
+  
+  std::cout << "Bytes per edge: " << total_cost/parlay::reduce(parlay::map(GG, parlay::size_of())) << std::endl;
 
   auto layers = BFS(start, G);
   auto sizes = parlay::map(layers, parlay::size_of());

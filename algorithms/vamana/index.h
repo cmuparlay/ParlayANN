@@ -246,18 +246,20 @@ struct knn_index {
 
       parlay::parallel_for(floor, ceiling, [&](size_t i) {
         size_t index = shuffled_inserts[i];
-        int sp = BP.single_batch ? i : start_point;
-        QueryParams QP((long) 0, BP.L, (double) 0.0, (long) Points.size(), (long) G.max_degree());
-        auto [visited, bs_distance_comps] =
-          //beam_search<Point, PointRange, indexType>(Points[index], G, Points, sp, QP);
-          beam_search_rerank__<Point, QPoint, PR, QPR, indexType>(Points[index],
-                                                                 QPoints[index],
-                                                                 G,
-                                                                 Points,
-                                                                 QPoints,
-                                                                 sp,
-                                                                 QP);
-        BuildStats.increment_dist(index, bs_distance_comps);
+        indexType sp = BP.single_batch ? i : start_point;
+        parlay::sequence<indexType> starting_points = {sp};
+        QueryParams QP(0, BP.L, (long) Points.size(), (long) G.max_degree());
+        bool use_filtering = (Points.params.num_bytes() != QPoints.params.num_bytes());
+        auto r = filtered_beam_search(G,
+                                      Points[index],
+                                      Points,
+                                      QPoints[index],
+                                      QPoints,
+                                      starting_points,
+                                      QP,
+                                      use_filtering);
+        auto visited = r.first.second;
+        BuildStats.increment_dist(index, r.second);
         BuildStats.increment_visited(index, visited.size());
 
         long rp_distance_comps;

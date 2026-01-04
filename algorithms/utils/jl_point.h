@@ -123,7 +123,7 @@ struct Mips_JL_Bit_Point {
     }
   };
   
-  static bool is_metric() {return false;}
+  static constexpr bool is_metric  = false;
   
   int8_t operator [] (long j) const {
     Data* pbits = (Data*) values;
@@ -212,7 +212,7 @@ struct Mips_JL_Sparse_Point {
     }
   };
   
-  static bool is_metric() {return false;}
+  static constexpr bool is_metric = false;
   
   int8_t operator [] (long j) const {
     Data* pbits = (Data*) values;
@@ -305,7 +305,7 @@ struct Mips_JL_Sparse_Point_Normalized {
     }
   };
   
-  static bool is_metric() {return false;}
+  static constexpr bool is_metric = false;
   
   int8_t operator [] (long j) const {
     Data* pbits = (Data*) values;

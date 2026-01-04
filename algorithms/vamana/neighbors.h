@@ -119,6 +119,7 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
                       GT, res_file, graph_built, Points, Q_Points, QQ_Points);
       }
     } else {
+      std::cout << "hello" << std::endl;
       using QT = int8_t;
       //using QPoint = Euclidian_Point<uint8_t>;
       using QPoint = Quantized_Mips_Point<8,true,255>;

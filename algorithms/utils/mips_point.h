@@ -307,7 +307,7 @@ struct Quantized_Mips_Point{
       : max_val(max_val), dims(dims), scale((range/2) / max_val) {}
   };
 
-  static bool is_metric() {return false;}
+  static constexpr bool is_metric = false;
   
   int operator [] (long i) const {
     if constexpr (bits <= 4) {
@@ -536,7 +536,7 @@ struct Mips_2Bit_Point {
     }
   };
 
-  static bool is_metric() {return false;}
+  static constexpr bool is_metric = false;
   
   int operator [] (long i) const {
     abort();
@@ -652,7 +652,7 @@ struct Mips_Bit_Point {
     }
   };
   
-  static bool is_metric() {return false;}
+  static constexpr bool is_metric = false;
   
   int8_t operator [] (long j) const {
     Data* pbits = (Data*) values;
@@ -745,7 +745,7 @@ struct Mips_4Bit_Point {
     }
   };
 
-  static bool is_metric() {return false;}
+  static constexpr bool is_metric = false;
   
   int operator [] (long i) const {
     abort();

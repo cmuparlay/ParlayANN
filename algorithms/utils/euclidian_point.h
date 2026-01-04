@@ -267,7 +267,7 @@ struct Euclidean_JL_Sparse_Point {
     }
   };
   
-  static bool is_metric() {return false;}
+  static constexpr bool is_metric = false;
   
   int8_t operator [] (long j) const {
     Data* pbits = (Data*) values;
@@ -351,7 +351,7 @@ struct Euclidean_Bit_Point {
     }
   };
   
-  static bool is_metric() {return false;}
+  static constexpr bool is_metric = false;
   
   int8_t operator [] (long j) const {
     Data* pbits = (Data*) values;
