@@ -245,7 +245,7 @@ struct QueryParams{
 
   QueryParams(long k, long Q, long limit, long dg,
               double rerank_factor = 100,
-              double batch_factor = 1.0)
+              double batch_factor = .125)
     : k(k), beamSize(Q), limit(limit), degree_limit(dg),
       rerank_factor(rerank_factor), batch_factor(batch_factor) {}
 

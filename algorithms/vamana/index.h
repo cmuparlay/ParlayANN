@@ -248,7 +248,8 @@ struct knn_index {
         size_t index = shuffled_inserts[i];
         indexType sp = BP.single_batch ? i : start_point;
         parlay::sequence<indexType> starting_points = {sp};
-        QueryParams QP(0, BP.L, (long) Points.size(), (long) G.max_degree());
+        QueryParams QP(0, BP.L, (long) Points.size(), (long) G.max_degree(),
+                       BP.rerank_factor, BP.batch_factor);
         bool use_filtering = (Points.params.num_bytes() != QPoints.params.num_bytes());
         auto r = filtered_beam_search(G,
                                       Points[index],
