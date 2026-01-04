@@ -34,7 +34,7 @@ template<typename indexType, typename Point, typename PointRange,
 std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>,
                     parlay::sequence<std::pair<indexType, typename Point::distanceType>>>,
           size_t>
-filtered_beam_search__(const GT &G,
+filtered_beam_search(const GT &G,
                      const Point p,  const PointRange &Points,
                      const QPoint qp, const QPointRange &Q_Points,
                      const parlay::sequence<indexType> starting_points,
@@ -62,7 +62,7 @@ filtered_beam_search__(const GT &G,
     return a.second < b.second || (a.second == b.second && a.first < b.first);
   };
 
-  hashset<indexType> has_been_seen(4 * (10 + beamSize) * max_degree);
+  hashset<indexType> has_been_seen(1.5 * (10 + beamSize) * max_degree);
   
   // Frontier maintains the closest points found so far and its size
   // is always at most beamSize.  Each entry is a (id,distance) pair.
@@ -165,10 +165,10 @@ filtered_beam_search__(const GT &G,
     
     // If candidates insufficently full then skip rest of step until sufficiently full.
     // This iproves performance for higher accuracies (e.g. beam sizes of 100+)
-    if (candidates.size() == 0 || 
+    if (offset + 1 < remain &&
+        (candidates.size() == 0 || 
         (QP.limit >= 2 * beamSize &&
-         candidates.size() < QP.batch_factor * beamSize &&
-         offset + 1 < remain)) {
+         candidates.size() < QP.batch_factor * beamSize))) {
       offset++;
       continue;
     }
@@ -227,7 +227,7 @@ template<typename indexType, typename Point, typename PointRange,
 std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>,
                     parlay::sequence<std::pair<indexType, typename Point::distanceType>>>,
           size_t>
-filtered_beam_search(const GT &G,
+filtered_beam_search__(const GT &G,
                       const Point p,  const PointRange &Points,
                       const QPoint qp, const QPointRange &Q_Points,
                       const parlay::sequence<indexType> starting_points,
@@ -255,7 +255,7 @@ filtered_beam_search(const GT &G,
     return a.second < b.second || (a.second == b.second && a.first < b.first);
   };
 
-  long set_size = 4 * (10 + beamSize) * max_degree;
+  long set_size = 1.5 * (10 + beamSize) * max_degree;
   if (set_size > 1000000)
     std::cout << "oops: " << set_size << ", " << beamSize << ", " << max_degree << std::endl;
   hashset<indexType> has_been_seen(set_size);
