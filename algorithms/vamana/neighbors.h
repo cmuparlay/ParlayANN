@@ -60,7 +60,8 @@ void ANN_Quantized(Graph<indexType> &G, long k, BuildParams &BP,
     start_point = 0; // I.get_start();
     idx_time = t.next_time();
   }
-  print_graph_statistics(G, start_point);
+  if (BP.graph_stats)
+    print_graph_statistics(G, start_point);
     
   std::string name = "Vamana";
   std::string params =

@@ -108,6 +108,7 @@ int main(int argc, char* argv[]) {
   int quantize = P.getOptionIntValue("-quantize_bits", 0);
   int quantize_build = P.getOptionIntValue("-quantize_mode", 0);
   bool verbose = P.getOption("-verbose");
+  bool graph_stats = P.getOption("-graph_stats");
   bool normalize = P.getOption("-normalize");
   double trim = P.getOptionDoubleValue("-trim", 0.0); // not used
   bool self = P.getOption("-self");
@@ -149,7 +150,7 @@ int main(int argc, char* argv[]) {
                                Q, trim,
                                rerank_factor, batch_factor,
                                is_early_stop, esr,
-                               rtype, radius);
+                               rtype, radius, graph_stats);
   long maxDeg = BP.max_degree();
 
   if((tp != "uint8") && (tp != "int8") && (tp != "float")){

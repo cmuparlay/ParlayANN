@@ -164,7 +164,8 @@ struct BuildParams{
   long MST_deg; //HCNNG
 
   double delta; //pyNNDescent
-  bool verbose;
+  bool verbose = false;
+  bool graph_stats = false;
 
   int quantize = 0; // use quantization for build and query (0 = none, 1 = one-level, 2 = two-level)
   bool self;
@@ -188,10 +189,11 @@ struct BuildParams{
               long Q = 0, double trim = 0.0,
               double rerank_factor = 100, double batch_factor = 1.0,
               bool is_early_stop = false, double early_stopping_radius = 0.0, 
-              rangeQueryType range_query_type = None, double radius = 0.0) 
+              rangeQueryType range_query_type = None, double radius = 0.0,
+              bool graph_stats = false) 
     : R(R), L(L), alpha(a), num_passes(num_passes), num_clusters(nc),
       cluster_size(cs), MST_deg(mst), delta(de),
-      verbose(verbose), quantize(quantize),
+      verbose(verbose), graph_stats(graph_stats), quantize(quantize),
       self(self), single_batch(single_batch),
       Q(Q), trim(trim),
       rerank_factor(rerank_factor), batch_factor(batch_factor),

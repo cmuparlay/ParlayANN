@@ -34,7 +34,7 @@ template<typename indexType, typename Point, typename PointRange,
 std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>,
                     parlay::sequence<std::pair<indexType, typename Point::distanceType>>>,
           size_t>
-filtered_beam_search__(const GT &G,
+filtered_beam_search(const GT &G,
                      const Point p,  const PointRange &Points,
                      const QPoint qp, const QPointRange &Q_Points,
                      const parlay::sequence<indexType> starting_points,
@@ -221,13 +221,14 @@ filtered_beam_search__(const GT &G,
                         full_dist_cmps);
 }
 
-  // main beam search
+  // alternative experimental version
+  // about equal performance
 template<typename indexType, typename Point, typename PointRange,
          typename QPoint, typename QPointRange, typename GT, typename ES = EarlyStopping>
 std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>,
                     parlay::sequence<std::pair<indexType, typename Point::distanceType>>>,
           size_t>
-filtered_beam_search(const GT &G,
+filtered_beam_search_new(const GT &G,
                       const Point p,  const PointRange &Points,
                       const QPoint qp, const QPointRange &Q_Points,
                       const parlay::sequence<indexType> starting_points,
@@ -256,8 +257,6 @@ filtered_beam_search(const GT &G,
   };
 
   long set_size = 1.5 * (10 + beamSize) * max_degree;
-  if (set_size > 1000000)
-    std::cout << "oops: " << set_size << ", " << beamSize << ", " << max_degree << std::endl;
   hashset<indexType> has_been_seen(set_size);
   
   // Frontier maintains the closest points found so far and its size
@@ -385,7 +384,7 @@ filtered_beam_search(const GT &G,
         
     new_frontier.resize(merge_size);
     std::merge(frontier.begin()+offset, frontier.end(), candidates.begin(),
-                   candidates.end(), new_frontier.begin(), less);
+               candidates.end(), new_frontier.begin(), less);
     if (merge_size > beamSize) 
       new_frontier.resize(beamSize);
     candidates.clear();
