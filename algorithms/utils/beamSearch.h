@@ -28,7 +28,8 @@ namespace parlayANN {
                     const QueryParams& QP) { return false;}
   };
 
-// main beam search
+  
+  // main beam search
 template<typename indexType, typename Point, typename PointRange,
          typename QPoint, typename QPointRange, typename GT, typename ES = EarlyStopping>
 std::pair<std::pair<parlay::sequence<std::pair<indexType, typename Point::distanceType>>,
@@ -62,7 +63,7 @@ filtered_beam_search(const GT &G,
     return a.second < b.second || (a.second == b.second && a.first < b.first);
   };
 
-  hashset<indexType> has_been_seen(1.5 * (10 + beamSize) * max_degree);
+  hashset<indexType> has_been_seen(2 * (10 + beamSize) * max_degree);
   
   // Frontier maintains the closest points found so far and its size
   // is always at most beamSize.  Each entry is a (id,distance) pair.
@@ -101,9 +102,11 @@ filtered_beam_search(const GT &G,
   std::vector<indexType> pruned;
   pruned.reserve(G.max_degree());
 
-  float filter_threshold = 0.0;
-  int filter_threshold_cnt = 0;
-  float round_sum = 0.0;
+  dtype filter_threshold_sum = 0.0;
+  int filter_threshold_count = 0;
+  dtype filter_threshold;
+  indexType filter_id;
+  indexType filter_tail_mean = 0;
 
   // offset into the unvisited_frontier vector (unvisited_frontier[offset] is the next to visit)
   int offset = 0;
@@ -124,6 +127,24 @@ filtered_beam_search(const GT &G,
     num_visited++;
     bool frontier_full = frontier.size() == beamSize;
 
+    // if using filtering based on lower quality distances measure, then maintain the average
+    // of low quality distance to the last point in the frontier (if frontier is full)
+    if (use_filtering && frontier_full) {
+      //constexpr int width = 5;
+      int width = frontier.size();
+      indexType id = frontier.back().first;
+      if (filter_threshold_count == 0 || filter_id != id) {
+        filter_tail_mean = 0.0;
+        for (int i = frontier.size() - width; i < frontier.size(); i ++) 
+          filter_tail_mean += Q_Points[frontier[i].first].distance(qp);
+        filter_tail_mean /= width;
+        filter_id = id;
+      }
+      filter_threshold_sum += filter_tail_mean;
+      filter_threshold_count++;
+      filter_threshold = filter_threshold_sum / filter_threshold_count;
+    }
+
     // keep neighbors that have not been visited (using approximate
     // hash). Note that if a visited node is accidentally kept due to
     // approximate hash it will be removed below by the union.
@@ -141,7 +162,7 @@ filtered_beam_search(const GT &G,
     // filter using low-quality distance
     if (use_filtering && frontier_full) {
       for (auto a : pruned) {
-        if (Q_Points[a].distance(qp) >= filter_threshold) continue;
+        if (frontier_full && Q_Points[a].distance(qp) >= filter_threshold) continue;
         filtered.push_back(a);
         Points[a].prefetch();
       }
@@ -152,39 +173,24 @@ filtered_beam_search(const GT &G,
     distanceType cutoff = (frontier_full
                            ? frontier[frontier.size() - 1].second
                            : (distanceType)std::numeric_limits<distanceType>::max());
-
     for (auto a : filtered) {
       distanceType dist = Points[a].distance(p);
       full_dist_cmps++;
       // skip if frontier not full and distance too large
       if (dist >= cutoff) continue;
       candidates.push_back(std::pair{a, dist});
-      if (use_filtering)
-        round_sum += Q_Points[a].distance(qp);
     }
-    
     // If candidates insufficently full then skip rest of step until sufficiently full.
     // This iproves performance for higher accuracies (e.g. beam sizes of 100+)
-    if (offset + 1 < remain &&
-        (candidates.size() == 0 || 
+    if (candidates.size() == 0 || 
         (QP.limit >= 2 * beamSize &&
-         candidates.size() < QP.batch_factor * beamSize))) {
+         //candidates.size() < beamSize/8 &&
+         candidates.size() < QP.batch_factor * beamSize &&
+         offset + 1 < remain)) {
       offset++;
       continue;
     }
     offset = 0;
-
-    if (use_filtering) {
-      float round_average = round_sum/candidates.size();
-      // We use a rolling average to keep the filter_threshold smooth
-      // and always a bit bigger than distances we have seen recently
-      // so we don't filter out too many points.
-      if (filter_threshold_cnt == 0)
-        filter_threshold = round_average;
-      else filter_threshold = (filter_threshold * .85 + round_average * .15);
-      round_sum = 0;
-      filter_threshold_cnt++;
-    }
 
     // sort the candidates by distance from p,
     // and remove any duplicates (to be robust for neighbor lists with duplicates)
@@ -209,7 +215,7 @@ filtered_beam_search(const GT &G,
 
     // get the unvisited frontier
     remain = (std::set_difference(frontier.begin(),
-                                  frontier.begin() + std::min<long>(frontier.size(), beamSize),
+                                  frontier.begin() + std::min<long>(frontier.size(), QP.beamSize),
                                   visited.begin(),
                                   visited.end(),
                                   unvisited_frontier.begin(), less) -
@@ -217,7 +223,7 @@ filtered_beam_search(const GT &G,
   }
 
   return std::make_pair(std::make_pair(parlay::to_sequence(frontier),
-                                       parlay::to_sequence(frontier)),
+                                       parlay::to_sequence(visited)),
                         full_dist_cmps);
 }
 
