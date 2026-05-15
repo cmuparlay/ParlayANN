@@ -217,10 +217,14 @@ struct pyNN_index{
                 indexType nbr = gt_neighbors[i * gt_k + j];
                 if (nbr != qi) true_nn.insert(nbr);
             }
-            for (auto& [nbr_id, dist] : old_neighbors[qi]) {
-                if (true_nn.count(nbr_id)) total_found++;
+            size_t check_k = std::min((size_t)gt_k, old_neighbors[qi].size());
+            std::set<indexType> seen;
+            for (size_t j = 0; j < check_k; j++) {
+                auto& [nbr_id, dist] = old_neighbors[qi][j];
+                if (seen.insert(nbr_id).second && true_nn.count(nbr_id))
+                    total_found++;
             }
-            total_possible += std::min((size_t)K, true_nn.size());
+            total_possible += true_nn.size();
         }
         if (total_possible == 0) return 0.0;
         return (double)total_found / total_possible;
