@@ -120,11 +120,21 @@ int main(int argc, char* argv[]) {
   double radius  = P.getOptionDoubleValue("-r", 0.0);
   double batch_factor = P.getOptionDoubleValue("-batch_factor", .125);
   char* knn_gt_path = P.getOptionValue("-knn_gt_path");
+  bool stream_quantize = P.getOption("-stream_quantize");
 
   // this integer represents the number of random edges to start with for
   // inserting in a single batch per round
   int single_batch = P.getOptionIntValue("-single_batch", 0);
-    
+
+  if (stream_quantize && quantize == 0) {
+    std::cout << "Error: -stream_quantize requires -quantize_bits to be set" << std::endl;
+    abort();
+  }
+  if (stream_quantize && normalize) {
+    std::cout << "Error: -stream_quantize is incompatible with -normalize" << std::endl;
+    abort();
+  }
+
   std::string df = std::string(dfc);
   std::string tp = std::string(vectype);
 
@@ -171,7 +181,9 @@ int main(int argc, char* argv[]) {
   
   if(tp == "float"){
     if(df == "Euclidian"){
-      PointRange<Euclidian_Point<float>> Points(iFile);
+      PointRange<Euclidian_Point<float>> Points = stream_quantize
+          ? PointRange<Euclidian_Point<float>>::mmap_file(iFile)
+          : PointRange<Euclidian_Point<float>>(iFile);
       PointRange<Euclidian_Point<float>> Query_Points(qFile);
       if (normalize) {
         std::cout << "normalizing data" << std::endl;
@@ -204,7 +216,9 @@ int main(int argc, char* argv[]) {
         timeNeighbors<Point, PR, uint>(G, Query_Points, k, BP, oFile, GT, rFile, graph_built, Points);
       }
     } else if(df == "mips"){
-      PointRange<Mips_Point<float>> Points(iFile);
+      PointRange<Mips_Point<float>> Points = stream_quantize
+          ? PointRange<Mips_Point<float>>::mmap_file(iFile)
+          : PointRange<Mips_Point<float>>(iFile);
       PointRange<Mips_Point<float>> Query_Points(qFile);
       if (normalize) {
         std::cout << "normalizing data" << std::endl;

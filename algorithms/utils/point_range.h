@@ -116,10 +116,55 @@ struct PointRange{
       }
   }
 
+  // mmap the file and point directly into it — no aligned copy.
+  // MADV_SEQUENTIAL lets the kernel read-ahead and evict behind, so the
+  // file-backed RSS stays bounded even for TB-scale files.
+  static PointRange mmap_file(const char* filename) {
+    PointRange pr;
+    if (filename == nullptr) return pr;
+    int fd = open(filename, O_RDONLY);
+    if (fd == -1) {
+      std::cout << "Data file " << filename << " not found" << std::endl;
+      std::abort();
+    }
+    struct stat sb;
+    if (fstat(fd, &sb) == -1) {
+      std::cout << "Error getting file size for " << filename << std::endl;
+      close(fd);
+      std::abort();
+    }
+    size_t file_size = sb.st_size;
+    char* file_data = (char*)mmap(nullptr, file_size, PROT_READ,
+                                  MAP_PRIVATE, fd, 0);
+    close(fd);
+    if (file_data == MAP_FAILED) {
+      std::cout << "Error mmapping file " << filename << std::endl;
+      std::abort();
+    }
+    madvise(file_data, file_size, MADV_SEQUENTIAL);
+
+    unsigned int num_points = *(unsigned int*)file_data;
+    unsigned int d = *(unsigned int*)(file_data + sizeof(unsigned int));
+    std::cout << "Data (mmap, stream_quantize): detected " << num_points
+              << " points with dimension " << d << std::endl;
+
+    pr.n = num_points;
+    pr.params = parameters(d);
+    int num_bytes = pr.params.num_bytes();
+    pr.aligned_bytes = num_bytes;
+
+    byte* data_start = (byte*)(file_data + 2 * sizeof(unsigned int));
+    pr.values = std::shared_ptr<byte[]>(data_start,
+        [file_data, file_size](byte*) {
+          munmap((void*)file_data, file_size);
+        });
+    return pr;
+  }
+
   size_t size() const { return n; }
 
   unsigned int get_dims() const { return params.dims; }
-  
+
   Point operator [] (long i) const {
     if (i > n) {
       std::cout << "ERROR: point index out of range: " << i << " from range " << n << ", " << std::endl;
