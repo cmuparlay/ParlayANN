@@ -119,7 +119,8 @@ int main(int argc, char* argv[]) {
   double esr = P.getOptionDoubleValue("-early_stopping_radius", 0);
   double radius  = P.getOptionDoubleValue("-r", 0.0);
   double batch_factor = P.getOptionDoubleValue("-batch_factor", .125);
-  
+  char* knn_gt_path = P.getOptionValue("-knn_gt_path");
+
   // this integer represents the number of random edges to start with for
   // inserting in a single batch per round
   int single_batch = P.getOptionIntValue("-single_batch", 0);
@@ -151,6 +152,7 @@ int main(int argc, char* argv[]) {
                                rerank_factor, batch_factor,
                                is_early_stop, esr,
                                rtype, radius, graph_stats);
+  BP.knn_gt_path = knn_gt_path;
   long maxDeg = BP.max_degree();
 
   if((tp != "uint8") && (tp != "int8") && (tp != "float")){

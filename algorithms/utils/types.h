@@ -179,6 +179,8 @@ struct BuildParams{
   rangeQueryType range_query_type = None;
   double radius; // for radius search
 
+  char* knn_gt_path = nullptr;
+
   std::string alg_type;
 
 

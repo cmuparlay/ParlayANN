@@ -30,6 +30,7 @@
 #include <queue>
 #include <math.h>
 #include "clusterPynn.h"
+#include "../utils/types.h"
 
 namespace parlayANN {
 
@@ -46,6 +47,12 @@ struct pyNN_index{
 	double delta;
 
     static constexpr auto less = [] (edge a, edge b) {return a.second < b.second;};
+
+    parlay::sequence<indexType> query_indices;
+    parlay::sequence<indexType> gt_neighbors;
+    long gt_k = 0;
+    bool measure_recall = false;
+    parlay::internal::timer build_timer;
 
     pyNN_index(long md, double Delta) : K(md), delta(Delta) {}
 
@@ -175,6 +182,57 @@ struct pyNN_index{
         return sorted_graph;
     }
 
+    // Reads KNNGT format: [n:i32, k:i32, n*u32 sample_ids, n*k*i32 neighbor_ids, n*k*f32 dists]
+    void setup_recall_measurement(char* knn_gt_path, size_t n) {
+        if (knn_gt_path == nullptr) return;
+        auto [fileptr, length] = mmapStringFromFile(knn_gt_path);
+        int num_queries = *((int*)fileptr);
+        int k = *((int*)(fileptr + 4));
+        if (num_queries == 0) return;
+
+        uint32_t* sample_ids = (uint32_t*)(fileptr + 8);
+        int32_t* neighbor_ids = (int32_t*)(sample_ids + num_queries);
+
+        query_indices = parlay::tabulate(num_queries, [&](size_t i) {
+            return (indexType)sample_ids[i];
+        });
+        gt_neighbors = parlay::tabulate((size_t)num_queries * k, [&](size_t i) {
+            return (indexType)neighbor_ids[i];
+        });
+        gt_k = k;
+        measure_recall = true;
+        std::cout << "k-NN graph recall measurement enabled: "
+                  << num_queries << " query points, "
+                  << k << " neighbors per query" << std::endl;
+    }
+
+    double compute_knn_recall() {
+        size_t total_found = 0;
+        size_t total_possible = 0;
+        for (size_t i = 0; i < query_indices.size(); i++) {
+            indexType qi = query_indices[i];
+            if (qi >= old_neighbors.size() || old_neighbors[qi].size() == 0) continue;
+            std::set<indexType> true_nn;
+            for (long j = 0; j < gt_k; j++) {
+                indexType nbr = gt_neighbors[i * gt_k + j];
+                if (nbr != qi) true_nn.insert(nbr);
+            }
+            for (auto& [nbr_id, dist] : old_neighbors[qi]) {
+                if (true_nn.count(nbr_id)) total_found++;
+            }
+            total_possible += std::min((size_t)K, true_nn.size());
+        }
+        if (total_possible == 0) return 0.0;
+        return (double)total_found / total_possible;
+    }
+
+    void report_recall(const std::string& stage) {
+        if (!measure_recall) return;
+        double recall = compute_knn_recall();
+        double elapsed = build_timer.total_time();
+        std::cout << "KNN_RECALL " << stage << " " << elapsed << " " << recall << std::endl;
+    }
+
     int nn_descent_wrapper(PR &Points){
 		size_t n = Points.size();
 		parlay::sequence<int> changed = parlay::tabulate(n, [&] (size_t i) {return 1;});
@@ -186,7 +244,8 @@ struct pyNN_index{
 			changed = new_changed;
 			rounds++;
             std::cout << parlay::reduce(new_changed) << " elements changed" << std::endl;
-			std::cout << "Round " << rounds << " of " <<  max_rounds << " completed" << std::endl; 
+			std::cout << "Round " << rounds << " of " <<  max_rounds << " completed" << std::endl;
+            report_recall("round_" + std::to_string(rounds));
 		}
 
 		std::cout << "descent converged in " << rounds << " rounds";
@@ -239,10 +298,14 @@ struct pyNN_index{
     }
 
 
-    void build_index(GraphI &G, PR &Points, long cluster_size, long num_clusters, double alpha){
+    void build_index(GraphI &G, PR &Points, long cluster_size, long num_clusters, double alpha,
+                     char* knn_gt_path = nullptr){
+		setup_recall_measurement(knn_gt_path, Points.size());
+		build_timer.start();
 		clusterPID<Point, PointRange, indexType> C;
         old_neighbors = parlay::sequence<parlay::sequence<pid>>(G.size());
 		C.multiple_clustertrees(Points, cluster_size, num_clusters, K, old_neighbors);
+		report_recall("init");
 		nn_descent_wrapper(Points);
 		undirect_and_prune(G, Points, alpha);
 	}

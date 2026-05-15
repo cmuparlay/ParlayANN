@@ -100,8 +100,14 @@ nn_result checkRecall(const Graph<indexType> &G,
           results_with_ties.push_back(GT.coordinates(i,l));
         }
       }
+      std::set<int> gt_set(results_with_ties.begin(), results_with_ties.end());
       std::set<int> reported_nbhs;
-      for (indexType l = 0; l < k; l++) reported_nbhs.insert((all_ngh[i])[l]);
+      for (indexType l = 0; l < std::min((size_t)(k+1), all_ngh[i].size()); l++) {
+        indexType cand = (all_ngh[i])[l];
+        if (qp.distance(Base_Points[cand]) == 0 && gt_set.find(cand) == gt_set.end())
+          continue;
+        reported_nbhs.insert(cand);
+      }
       for (indexType l = 0; l < results_with_ties.size(); l++) {
         if (reported_nbhs.find(results_with_ties[l]) != reported_nbhs.end()) {
           numCorrect += 1;
@@ -211,9 +217,7 @@ void search_and_parse(Graph_ G_,
                        start_point, k, QP, verbose);};
 
   QueryParams QP(k, 0, G.size(), G.max_degree(), rerank_factor, batch_factor);
-  beams = {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 24, 26, 28, 30, 32,
-    34, 36, 38, 40, 45, 50, 55, 60, 65, 70, 80, 90, 100, 120, 140, 160,
-    180, 200, 225, 250, 275, 300, 375, 500, 750, 1000};
+  beams = {12, 14, 20, 28, 38, 50, 70, 100, 140, 200, 275, 375, 500, 750, 1000};
   if(k==0) allr = {10};
   else allr = {k};
 
@@ -225,29 +229,14 @@ void search_and_parse(Graph_ G_,
   } else {
     for (long r : allr) {
       results.clear();
-      QP.k = r;
-      for (float Q : beams){
+      QP.k = r+1;
+      for (float Q : beams) {
         QP.beamSize = Q;
         if (Q >= r){
           results.push_back(check(r, QP));
         }
       }
 
-      // check "limited accuracy"
-      parlay::sequence<long> limits = {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
-                                       22, 23, 24, 25, 26, 28, 30, 35};
-      //calculate_limits(results[0].avg_visited);
-      //parlay::sequence<long> degree_limits = calculate_limits(G.max_degree());
-      //degree_limits.push_back(G.max_degree());
-      QP = QueryParams(r, r, (long) G.size(), (long) G.max_degree(),
-                       rerank_factor, batch_factor);
-      for(long l : limits){
-        QP.limit = l;
-        QP.beamSize = std::max<long>(l, r);
-        //for(long dl : degree_limits){
-        QP.degree_limit = std::min<int>(G.max_degree(), 5 * l);
-        results.push_back(check(r, QP));
-      }
       // check "best accuracy"
       QP = QueryParams((long) 100, (long) 1000, (long) G.size(),
                        (long) G.max_degree(), rerank_factor, batch_factor);

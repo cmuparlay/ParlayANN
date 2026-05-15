@@ -24,40 +24,96 @@
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
 #include "parlay/random.h"
-#include "../utils/NSGDist.h"  
+#include "../utils/NSGDist.h"
 #include "../utils/types.h"
 #include "pynn_index.h"
-#include "../utils/beamSearch.h"  
+#include "../utils/beamSearch.h"
 #include "../utils/stats.h"
 #include "../utils/parse_results.h"
 #include "../utils/check_nn_recall.h"
+#include "../utils/point_range.h"
+#include "../utils/euclidian_point.h"
+#include "../utils/mips_point.h"
+#include "../utils/jl_point.h"
 
 namespace parlayANN {
 
-template<typename Point, typename PointRange, typename indexType>
-void ANN(Graph<indexType> &G, long k, BuildParams &BP,
-         PointRange &Query_Points,
-         groundTruth<indexType> GT, char *res_file,
-         bool graph_built, PointRange &Points) {
-  parlay::internal::timer t("ANN"); 
-  {
-    using findex = pyNN_index<Point, PointRange, indexType>;
-    double idx_time;
-    long K = BP.R;
-    if(!graph_built){
-      findex I(K, BP.delta);
-      I.build_index(G, Points, BP.cluster_size, BP.num_clusters, BP.alpha);
-      idx_time = t.next_time();
-    }else {idx_time=0;}
+template<typename PointRange, typename QPointRange, typename QQPointRange, typename indexType>
+void ANN_Quantized(Graph<indexType> &G, long k, BuildParams &BP,
+                   PointRange &Query_Points, QPointRange &Q_Query_Points, QQPointRange &QQ_Query_Points,
+                   groundTruth<indexType> GT, char *res_file,
+                   bool graph_built,
+                   PointRange &Points, QPointRange &Q_Points, QQPointRange &QQ_Points) {
+  parlay::internal::timer t("ANN");
+  using findex = pyNN_index<typename QPointRange::Point, QPointRange, indexType>;
+  double idx_time;
+  long K = BP.R;
+  if(!graph_built){
+    findex I(K, BP.delta);
+    I.build_index(G, Q_Points, BP.cluster_size, BP.num_clusters, BP.alpha, BP.knn_gt_path);
+    idx_time = t.next_time();
+  } else {idx_time=0;}
 
-    std::string name = "pyNNDescent";
-    std::string params = "K = " + std::to_string(K);
-    auto [avg_deg, max_deg] = graph_stats_(G);
-    Graph_ G_(name, params, G.size(), avg_deg, max_deg, idx_time);
-    G_.print();
-    if(Query_Points.size() != 0)
-      search_and_parse(G_, G, Points, Query_Points, GT, res_file, k, BP.verbose);
-  };
+  std::string name = "pyNNDescent";
+  std::string params = "K = " + std::to_string(K);
+  auto [avg_deg, max_deg] = graph_stats_(G);
+  Graph_ G_(name, params, G.size(), avg_deg, max_deg, idx_time);
+  G_.print();
+  if(Query_Points.size() != 0)
+    search_and_parse(G_, G,
+                     Points, Query_Points,
+                     Q_Points, Q_Query_Points,
+                     QQ_Points, QQ_Query_Points,
+                     GT,
+                     res_file, k, false, (indexType) 0,
+                     BP.verbose, BP.Q, BP.rerank_factor, BP.batch_factor);
+}
+
+template<typename Point, typename PointRange_, typename indexType>
+void ANN(Graph<indexType> &G, long k, BuildParams &BP,
+         PointRange_ &Query_Points,
+         groundTruth<indexType> GT, char *res_file,
+         bool graph_built, PointRange_ &Points) {
+  if (BP.quantize != 0) {
+    std::cout << "quantizing build and first pass of search to 1 byte" << std::endl;
+    if constexpr (Point::is_metric) {
+      using QT = uint8_t;
+      using QPoint = Euclidian_Point<QT>;
+      using QPR = PointRange<QPoint>;
+      QPR Q_Points(Points);
+      QPR Q_Query_Points(Query_Points, Q_Points.params);
+      if (BP.quantize == 1) {
+        ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, Q_Query_Points,
+                      GT, res_file, graph_built, Points, Q_Points, Q_Points);
+      } else if (BP.quantize == 3) {
+        using QQPoint = Euclidean_JL_Sparse_Point<1024>;
+        using QQPR = PointRange<QQPoint>;
+        QQPR QQ_Points(Points);
+        QQPR QQ_Query_Points(Query_Points, QQ_Points.params);
+        ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, QQ_Query_Points,
+                      GT, res_file, graph_built, Points, Q_Points, QQ_Points);
+      }
+    } else {
+      using QPoint = Quantized_Mips_Point<8,true,255>;
+      using QPR = PointRange<QPoint>;
+      QPR Q_Points(Points);
+      QPR Q_Query_Points(Query_Points, Q_Points.params);
+      if (BP.quantize == 1) {
+        ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, Q_Query_Points,
+                      GT, res_file, graph_built, Points, Q_Points, Q_Points);
+      } else if (BP.quantize == 5) {
+        using QQPoint = Mips_JL_Sparse_Point<1024>;
+        using QQPR = PointRange<QQPoint>;
+        QQPR QQ_Points(Points);
+        QQPR QQ_Query_Points(Query_Points, QQ_Points.params);
+        ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, QQ_Query_Points,
+                      GT, res_file, graph_built, Points, Q_Points, QQ_Points);
+      }
+    }
+  } else {
+    ANN_Quantized(G, k, BP, Query_Points, Query_Points, Query_Points,
+                  GT, res_file, graph_built, Points, Points, Points);
+  }
 }
 
 } // end namespace
