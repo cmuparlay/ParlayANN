@@ -82,6 +82,29 @@ struct groundTruth{
     dists = parlay::make_slice(dummy_ds.begin(), dummy_ds.end());
   }
 
+  // Build a new groundTruth containing only the rows in `indices` from `gt`.
+  // Heap-allocates owning storage; matches the existing mmap-backed slice
+  // pattern (never freed) so the struct stays trivially copyable.
+  template <class Seq>
+  groundTruth(const groundTruth& gt, const Seq& indices)
+      : coords(parlay::make_slice<T*, T*>(nullptr, nullptr)),
+        dists(parlay::make_slice<float*, float*>(nullptr, nullptr)) {
+    n = indices.size();
+    dim = gt.dim;
+    if (n == 0 || dim == 0) return;
+    T* new_coords = new T[n * dim];
+    float* new_dists = new float[n * dim];
+    parlay::parallel_for(0, n, [&](size_t i) {
+      size_t src = indices[i];
+      for (long j = 0; j < dim; j++) {
+        new_coords[i * dim + j] = gt.coordinates(src, j);
+        new_dists[i * dim + j] = gt.distances(src, j);
+      }
+    });
+    coords = parlay::make_slice(new_coords, new_coords + n * dim);
+    dists = parlay::make_slice(new_dists, new_dists + n * dim);
+  }
+
   //saves in binary format
   //assumes gt is not so big that it needs block saving
   void save(char* save_path) {

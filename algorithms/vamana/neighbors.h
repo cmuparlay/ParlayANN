@@ -55,6 +55,11 @@ void ANN_Quantized(Graph<indexType> &G, long k, BuildParams &BP,
   if(graph_built){
     idx_time = 0;
     start_point = 0;
+    if (getenv("VAMANA_REFINE")) {
+      std::cout << "Refining pre-loaded graph with Vamana build passes..." << std::endl;
+      I.build_index(G, Q_Points, QQ_Points, BuildStats);
+      idx_time = t.next_time();
+    }
   } else{
     I.build_index(G, Q_Points, QQ_Points, BuildStats);
     start_point = 0; // I.get_start();

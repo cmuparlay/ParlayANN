@@ -2,7 +2,11 @@
 #define ALGORITHMS_CHECK_NN_RECALL_H_
 
 #include <algorithm>
+#include <cmath>
+#include <numeric>
+#include <random>
 #include <set>
+#include <vector>
 
 #include "beamSearch.h"
 #include "csvfile.h"
@@ -38,25 +42,28 @@ nn_result checkRecall(const Graph<indexType> &G,
 
   parlay::sequence<parlay::sequence<indexType>> all_ngh;
 
+  constexpr int kNumTrials = 3;
+  float qps_trials[kNumTrials];
   parlay::internal::timer t;
-  float query_time;
   stats<indexType> QueryStats(Query_Points.size());
-  QueryStats.clear();
-  // to help clear the cache between runs
-  auto volatile xx = parlay::random_permutation<long>(5000000);
-  t.next_time();
-  if (random) {
-    all_ngh = qsearchAll<PointRange, QPointRange, QQPointRange, indexType>(Query_Points, Q_Query_Points, QQ_Query_Points,
-                                                                           G,
-                                                                           Base_Points, Q_Base_Points, QQ_Base_Points,
-                                                                           QueryStats, start_point, QP, /*random=*/true);
-  } else {
-    all_ngh = qsearchAll<PointRange, QPointRange, QQPointRange, indexType>(Query_Points, Q_Query_Points, QQ_Query_Points,
-                                                                           G,
-                                                                           Base_Points, Q_Base_Points, QQ_Base_Points,
-                                                                           QueryStats, start_point, QP);
+
+  for (int trial = 0; trial < kNumTrials; trial++) {
+    QueryStats.clear();
+    t.next_time();
+    if (random) {
+      all_ngh = qsearchAll<PointRange, QPointRange, QQPointRange, indexType>(Query_Points, Q_Query_Points, QQ_Query_Points,
+                                                                             G,
+                                                                             Base_Points, Q_Base_Points, QQ_Base_Points,
+                                                                             QueryStats, start_point, QP, /*random=*/true);
+    } else {
+      all_ngh = qsearchAll<PointRange, QPointRange, QQPointRange, indexType>(Query_Points, Q_Query_Points, QQ_Query_Points,
+                                                                             G,
+                                                                             Base_Points, Q_Base_Points, QQ_Base_Points,
+                                                                             QueryStats, start_point, QP);
+    }
+    float query_time = t.next_time();
+    qps_trials[trial] = Query_Points.size() / query_time;
   }
-  query_time = t.next_time();
   
   float recall = 0.0;
   //TODO deprecate this after further testing
@@ -116,7 +123,7 @@ nn_result checkRecall(const Graph<indexType> &G,
     }
     recall = static_cast<float>(numCorrect) / static_cast<float>(k * n);
   }
-  float QPS = Query_Points.size() / query_time;
+  float QPS = std::cbrt(qps_trials[0] * qps_trials[1] * qps_trials[2]);
   if (verbose)
     std::cout << "search: Q=" << QP.beamSize << ", k=" << QP.k
               << ", limit=" << QP.limit
@@ -203,26 +210,82 @@ void search_and_parse(Graph_ G_,
                       long fixed_beam_width = 0,
                       double rerank_factor = 100,
                       double batch_factor = .125) {
+  constexpr size_t kMaxQuerySubsample = 2000;
+  PointRange sub_qp;
+  QPointRange sub_qqp;
+  QQPointRange sub_qqqp;
+  parlay::sequence<indexType> sub_gt_coords;
+  parlay::sequence<float> sub_gt_dists;
+  auto* qp = &Query_Points;
+  auto* qqp = &Q_Query_Points;
+  auto* qqqp = &QQ_Query_Points;
+
+  if (Query_Points.size() > kMaxQuerySubsample && GT.size() > 0) {
+    size_t nq = Query_Points.size();
+    std::cout << "Subsampling queries: " << nq << " -> "
+              << kMaxQuerySubsample << std::endl;
+
+    std::mt19937 rng(42);
+    std::vector<size_t> perm(nq);
+    std::iota(perm.begin(), perm.end(), size_t{0});
+    std::shuffle(perm.begin(), perm.end(), rng);
+    perm.resize(kMaxQuerySubsample);
+    std::sort(perm.begin(), perm.end());
+    auto sample = parlay::tabulate(kMaxQuerySubsample,
+        [&](size_t i) { return perm[i]; });
+
+    sub_qp = Query_Points.subsample(sample);
+    qp = &sub_qp;
+    sub_qqp = Q_Query_Points.subsample(sample);
+    qqp = &sub_qqp;
+    sub_qqqp = QQ_Query_Points.subsample(sample);
+    qqqp = &sub_qqqp;
+
+    long dim = GT.dimension();
+    sub_gt_coords.resize(kMaxQuerySubsample * dim);
+    sub_gt_dists.resize(kMaxQuerySubsample * dim);
+    parlay::parallel_for(0, kMaxQuerySubsample, [&](size_t i) {
+      for (long j = 0; j < dim; j++) {
+        sub_gt_coords[i * dim + j] = GT.coordinates(sample[i], j);
+        sub_gt_dists[i * dim + j] = GT.distances(sample[i], j);
+      }
+    });
+    GT.n = kMaxQuerySubsample;
+    GT.coords = parlay::make_slice(sub_gt_coords.begin(),
+                                   sub_gt_coords.end());
+    GT.dists = parlay::make_slice(sub_gt_dists.begin(),
+                                  sub_gt_dists.end());
+  }
+
   parlay::sequence<nn_result> results;
   std::vector<long> beams;
   std::vector<long> allr;
 
   auto check = [&] (const long k, const QueryParams QP) {
     return checkRecall(G,
-                       Base_Points, Query_Points,
-                       Q_Base_Points, Q_Query_Points,
-                       QQ_Base_Points, QQ_Query_Points,
+                       Base_Points, *qp,
+                       Q_Base_Points, *qqp,
+                       QQ_Base_Points, *qqqp,
                        GT,
                        random,
                        start_point, k, QP, verbose);};
 
   QueryParams QP(k, 0, G.size(), G.max_degree(), rerank_factor, batch_factor);
-  beams = {12, 14, 20, 28, 38, 50, 70, 100, 140, 200, 275, 375, 500, 750, 1000};
-//  beams = {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 24, 26, 28, 30, 32,
-//    34, 36, 38, 40, 45, 50, 55, 60, 65, 70, 80, 90, 100, 120, 140, 160,
-//    180, 200, 225, 250, 275, 300, 375, 500, 750, 1000};
+  beams = {12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 24, 26, 28, 30, 32,
+    34, 36, 38, 40, 45, 50, 55, 60, 65, 70, 80, 90, 100, 120, 140, 160,
+    180, 200, 225, 250, 275, 300, 375, 500, 750, 1000};
   if(k==0) allr = {10};
   else allr = {k};
+
+  // Warmup: run queries untimed to bring graph into page cache and stabilize TLB
+  {
+    QP.k = allr[0] + 1;
+    QP.beamSize = 100;
+    if (verbose) std::cout << "warmup pass (Q=100)..." << std::flush;
+    check(allr[0], QP);
+    check(allr[0], QP);
+    if (verbose) std::cout << " done" << std::endl;
+  }
 
   if (fixed_beam_width != 0) {
     QP.k = allr[0];

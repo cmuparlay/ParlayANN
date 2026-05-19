@@ -28,6 +28,7 @@
 
 #include "parlay/parallel.h"
 #include "parlay/primitives.h"
+#include "parlay/random.h"
 #include "parlay/internal/file_map.h"
 #include "types.h"
 
@@ -177,6 +178,23 @@ struct PointRange{
     return values.get() + i * aligned_bytes;
   }
   
+  PointRange subsample(const parlay::sequence<size_t>& indices) const {
+    PointRange result;
+    result.n = indices.size();
+    result.params = params;
+    result.aligned_bytes = aligned_bytes;
+    long total_bytes = result.n * aligned_bytes;
+    byte* ptr = (byte*) aligned_alloc(1l << 21, total_bytes);
+    madvise(ptr, total_bytes, MADV_HUGEPAGE);
+    result.values = std::shared_ptr<byte[]>(ptr, std::free);
+    parlay::parallel_for(0, (long)result.n, [&](long i) {
+      std::memcpy(ptr + i * aligned_bytes,
+                  values.get() + indices[i] * aligned_bytes,
+                  aligned_bytes);
+    });
+    return result;
+  }
+
   parameters params;
 
 private:
@@ -184,5 +202,21 @@ private:
   long aligned_bytes;
   size_t n;
 };
+
+// If Query_Points has more than `target` queries, replace Query_Points and GT
+// in place with a random subset of size `target` (deterministic across runs;
+// uses parlay::random_permutation's default seed). No-op if target == 0 or
+// the query set is already small enough.
+template <class PR, class GT>
+void subsample_queries_and_gt(PR& Query_Points, GT& gt, size_t target) {
+  size_t orig = Query_Points.size();
+  if (target == 0 || orig <= target) return;
+  auto perm = parlay::random_permutation<size_t>(orig);
+  parlay::sequence<size_t> indices(target);
+  parlay::parallel_for(0, target, [&](size_t i) { indices[i] = perm[i]; });
+  std::cout << "Subsampling queries: " << orig << " -> " << target << std::endl;
+  Query_Points = Query_Points.subsample(indices);
+  gt = GT(gt, indices);
+}
 
 } // end namespace

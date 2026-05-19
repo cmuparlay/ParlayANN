@@ -153,6 +153,18 @@ struct knn_index {
     set_start();
     parlay::sequence<indexType> inserts = parlay::tabulate(Points.size(), [&] (size_t i){
       return static_cast<indexType>(i);});
+    // Hacky: if VAMANA_REFINE_FRACTION is set, refine only that fraction of
+    // points (random sample). Used for cheap-refine experiments on a
+    // pre-loaded graph. Intended for use with VAMANA_REFINE=1.
+    const char* env_frac = getenv("VAMANA_REFINE_FRACTION");
+    if (env_frac && atof(env_frac) > 0.0 && atof(env_frac) < 1.0) {
+      double frac = atof(env_frac);
+      size_t target = static_cast<size_t>(Points.size() * frac);
+      auto perm = parlay::random_permutation<indexType>(static_cast<indexType>(Points.size()));
+      inserts = parlay::tabulate(target, [&](size_t i) { return perm[i]; });
+      std::cout << "VAMANA_REFINE_FRACTION=" << frac
+                << ": refining " << target << " of " << Points.size() << " points" << std::endl;
+    }
     if (BP.single_batch != 0) {
       int degree = BP.single_batch;
       std::cout << "Using single batch per round with " << degree << " random start edges" << std::endl;

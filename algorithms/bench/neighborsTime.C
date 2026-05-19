@@ -121,6 +121,7 @@ int main(int argc, char* argv[]) {
   double batch_factor = P.getOptionDoubleValue("-batch_factor", .125);
   char* knn_gt_path = P.getOptionValue("-knn_gt_path");
   bool stream_quantize = P.getOption("-stream_quantize");
+  size_t num_queries = (size_t) P.getOptionLongValue("-num_queries", 3000);
 
   // this integer represents the number of random edges to start with for
   // inserting in a single batch per round
@@ -185,6 +186,7 @@ int main(int argc, char* argv[]) {
           ? PointRange<Euclidian_Point<float>>::mmap_file(iFile)
           : PointRange<Euclidian_Point<float>>(iFile);
       PointRange<Euclidian_Point<float>> Query_Points(qFile);
+      subsample_queries_and_gt(Query_Points, GT, num_queries);
       if (normalize) {
         std::cout << "normalizing data" << std::endl;
         for (int i=0; i < Points.size(); i++) 
@@ -220,6 +222,7 @@ int main(int argc, char* argv[]) {
           ? PointRange<Mips_Point<float>>::mmap_file(iFile)
           : PointRange<Mips_Point<float>>(iFile);
       PointRange<Mips_Point<float>> Query_Points(qFile);
+      subsample_queries_and_gt(Query_Points, GT, num_queries);
       if (normalize) {
         std::cout << "normalizing data" << std::endl;
         for (int i=0; i < Points.size(); i++) 
@@ -256,7 +259,8 @@ int main(int argc, char* argv[]) {
     if(df == "Euclidian"){
       PointRange<Euclidian_Point<uint8_t>> Points(iFile);
       PointRange<Euclidian_Point<uint8_t>> Query_Points(qFile);
-      Graph<unsigned int> G; 
+      subsample_queries_and_gt(Query_Points, GT, num_queries);
+      Graph<unsigned int> G;
       if(gFile == NULL) G = Graph<unsigned int>(maxDeg, Points.size());
       else G = Graph<unsigned int>(gFile);
       timeNeighbors<Euclidian_Point<uint8_t>, PointRange<Euclidian_Point<uint8_t>>, uint>(G, Query_Points, k, BP, 
@@ -264,7 +268,8 @@ int main(int argc, char* argv[]) {
     } else if(df == "mips"){
       PointRange<Mips_Point<uint8_t>> Points(iFile);
       PointRange<Mips_Point<uint8_t>> Query_Points(qFile);
-      Graph<unsigned int> G; 
+      subsample_queries_and_gt(Query_Points, GT, num_queries);
+      Graph<unsigned int> G;
       if(gFile == NULL) G = Graph<unsigned int>(maxDeg, Points.size());
       else G = Graph<unsigned int>(gFile);
       timeNeighbors<Mips_Point<uint8_t>, PointRange<Mips_Point<uint8_t>>, uint>(G, Query_Points, k, BP, 
@@ -274,7 +279,8 @@ int main(int argc, char* argv[]) {
     if(df == "Euclidian"){
       PointRange<Euclidian_Point<int8_t>> Points(iFile);
       PointRange<Euclidian_Point<int8_t>> Query_Points(qFile);
-      Graph<unsigned int> G; 
+      subsample_queries_and_gt(Query_Points, GT, num_queries);
+      Graph<unsigned int> G;
       if(gFile == NULL) G = Graph<unsigned int>(maxDeg, Points.size());
       else G = Graph<unsigned int>(gFile);
       timeNeighbors<Euclidian_Point<int8_t>, PointRange<Euclidian_Point<int8_t>>, uint>(G, Query_Points, k, BP,
@@ -282,7 +288,8 @@ int main(int argc, char* argv[]) {
     } else if(df == "mips"){
       PointRange<Mips_Point<int8_t>> Points(iFile);
       PointRange<Mips_Point<int8_t>> Query_Points(qFile);
-      Graph<unsigned int> G; 
+      subsample_queries_and_gt(Query_Points, GT, num_queries);
+      Graph<unsigned int> G;
       if(gFile == NULL) G = Graph<unsigned int>(maxDeg, Points.size());
       else G = Graph<unsigned int>(gFile);
       timeNeighbors<Mips_Point<int8_t>, PointRange<Mips_Point<int8_t>>, uint>(G, Query_Points, k, BP,
