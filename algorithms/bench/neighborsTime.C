@@ -30,6 +30,7 @@
 #include "../utils/euclidian_point.h"
 #include "../utils/point_range.h"
 #include "../utils/mips_point.h"
+#include "../utils/tq8_point.h"
 #include "../utils/graph.h"
 
 #include <fcntl.h>
@@ -67,6 +68,33 @@ void timeNeighbors(Graph<indexType> &G,
     }
 
 
+}
+
+// Bypasses ANN()'s outer/Q/QQ cascade so the caller can pass three independent
+// PointRange tiers (used by the `-tq8` branches to put TQ8 in the Q_Points
+// slot with a JL-bit QQ_Points filter and the original float as the outer
+// re-rank tier).
+template<typename PointRange, typename QPointRange, typename QQPointRange,
+         typename indexType>
+void timeNeighbors_Q(Graph<indexType> &G,
+                     PointRange &Query_Points,
+                     QPointRange &Q_Query_Points,
+                     QQPointRange &QQ_Query_Points,
+                     long k, BuildParams &BP, char* outFile,
+                     groundTruth<indexType> GT, char* res_file, bool graph_built,
+                     PointRange &Points, QPointRange &Q_Points, QQPointRange &QQ_Points)
+{
+    time_loop(1, 0,
+      [&] () {},
+      [&] () {
+        ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, QQ_Query_Points,
+                      GT, res_file, graph_built, Points, Q_Points, QQ_Points);
+      },
+      [&] () {});
+
+    if(outFile != NULL) {
+      G.save(outFile);
+    }
 }
 
 int main(int argc, char* argv[]) {
@@ -121,6 +149,7 @@ int main(int argc, char* argv[]) {
   double batch_factor = P.getOptionDoubleValue("-batch_factor", .125);
   char* knn_gt_path = P.getOptionValue("-knn_gt_path");
   bool stream_quantize = P.getOption("-stream_quantize");
+  bool tq8 = P.getOption("-tq8");
   size_t num_queries = (size_t) P.getOptionLongValue("-num_queries", 3000);
 
   // this integer represents the number of random edges to start with for
@@ -194,10 +223,34 @@ int main(int argc, char* argv[]) {
         for (int i=0; i < Query_Points.size(); i++) 
           Query_Points[i].normalize();
       }
-      Graph<unsigned int> G; 
+      Graph<unsigned int> G;
       if(gFile == NULL) G = Graph<unsigned int>(maxDeg, Points.size());
       else G = Graph<unsigned int>(gFile);
-      if (quantize == 8) {
+      if (tq8) {
+        // TQ8 lives in the Q_Points tier; the original float `Points` stays as
+        // the outer for re-rank, and -quantize_mode selects the QQ_Points
+        // (innermost beam-filter) layer. quantize_mode 3 layers JL Sparse 1024
+        // on top; any other value reuses TQ8 for QQ_Points (single-tier TQ8).
+        std::cout << "quantizing Q_Points with TQ8 (randomized 8-bit)" << std::endl;
+        using QPoint = TQ8_Point;
+        using QPR = PointRange<QPoint>;
+        QPR Q_Points(Points);
+        QPR Q_Query_Points(Query_Points, Q_Points.params);
+        if (quantize_build == 3) {
+          std::cout << "QQ_Points = Euclidean_JL_Sparse_Point<1024>" << std::endl;
+          using QQPoint = Euclidean_JL_Sparse_Point<1024>;
+          using QQPR = PointRange<QQPoint>;
+          QQPR QQ_Points(Points);
+          QQPR QQ_Query_Points(Query_Points, QQ_Points.params);
+          timeNeighbors_Q(G, Query_Points, Q_Query_Points, QQ_Query_Points,
+                          k, BP, oFile, GT, rFile, graph_built,
+                          Points, Q_Points, QQ_Points);
+        } else {
+          timeNeighbors_Q(G, Query_Points, Q_Query_Points, Q_Query_Points,
+                          k, BP, oFile, GT, rFile, graph_built,
+                          Points, Q_Points, Q_Points);
+        }
+      } else if (quantize == 8) {
         std::cout << "quantizing data to 1 byte" << std::endl;
         using QT = uint8_t;
         using QPoint = Euclidian_Point<QT>;
@@ -230,10 +283,32 @@ int main(int argc, char* argv[]) {
         for (int i=0; i < Query_Points.size(); i++) 
           Query_Points[i].normalize();
       }
-      Graph<unsigned int> G; 
+      Graph<unsigned int> G;
       if(gFile == NULL) G = Graph<unsigned int>(maxDeg, Points.size());
       else G = Graph<unsigned int>(gFile);
-      if (quantize == 8) {
+      if (tq8) {
+        // See the Euclidean -tq8 branch above for the tier layout.
+        // quantize_mode 5 layers Mips_JL_Sparse_Point<1024> on top of TQ8.
+        std::cout << "quantizing Q_Points with TQ8-MIPS (randomized 8-bit)" << std::endl;
+        using QPoint = TQ8_Mips_Point;
+        using QPR = PointRange<QPoint>;
+        QPR Q_Points(Points);
+        QPR Q_Query_Points(Query_Points, Q_Points.params);
+        if (quantize_build == 5) {
+          std::cout << "QQ_Points = Mips_JL_Sparse_Point<1024>" << std::endl;
+          using QQPoint = Mips_JL_Sparse_Point<1024>;
+          using QQPR = PointRange<QQPoint>;
+          QQPR QQ_Points(Points);
+          QQPR QQ_Query_Points(Query_Points, QQ_Points.params);
+          timeNeighbors_Q(G, Query_Points, Q_Query_Points, QQ_Query_Points,
+                          k, BP, oFile, GT, rFile, graph_built,
+                          Points, Q_Points, QQ_Points);
+        } else {
+          timeNeighbors_Q(G, Query_Points, Q_Query_Points, Q_Query_Points,
+                          k, BP, oFile, GT, rFile, graph_built,
+                          Points, Q_Points, Q_Points);
+        }
+      } else if (quantize == 8) {
         std::cout << "quantizing data to 1 byte" << std::endl;
         using QT = int8_t;
         using Point = Quantized_Mips_Point<8>;
