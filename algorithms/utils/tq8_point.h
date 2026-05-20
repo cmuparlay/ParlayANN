@@ -11,11 +11,14 @@
 //      orthogonal-mixer rotation used by the reference implementation.
 //   4. Adaptive int8 quantization: code[i] = round(127 * v[i] / max_j |v[j]|).
 //
-// Per-point storage is `[float scale][float sqr_norm][int8 code[padded_dim]]`,
-// where `scale = ||x|| / sqrt(sum code[i]^2)` and `sqr_norm = ||x||^2`. The
-// dot product of two original vectors is approximated by
-// `scale_x * scale_y * <code_x, code_y>`, and the squared Euclidean distance
-// by `sqr_norm_x + sqr_norm_y - 2 * scale_x * scale_y * <code_x, code_y>`.
+// Per-point storage is
+// `[float scale][float sqr_norm][int32 sum_code][int8 code[padded_dim]]`,
+// where `scale = ||x|| / sqrt(sum code[i]^2)`, `sqr_norm = ||x||^2`, and
+// `sum_code = sum_j code[j]` (needed by the AVX-512 VNNI dot-product path,
+// see int8_dot below). The dot product of two original vectors is
+// approximated by `scale_x * scale_y * <code_x, code_y>`, and the squared
+// Euclidean distance by
+// `sqr_norm_x + sqr_norm_y - 2 * scale_x * scale_y * <code_x, code_y>`.
 //
 // Two metric variants are provided by templating on `IsMips`:
 //   `TQ8_Point`       — Euclidean: distance(x,y) = ||x-y||²
@@ -85,10 +88,37 @@ inline void fwht_inplace(float* data, int n) {
   }
 }
 
-// Sum a[i] * b[i] over [0, D) into int32. D should be a multiple of 32 in the
-// common path; a scalar tail handles any remainder.
-inline int32_t int8_dot(const int8_t* a, const int8_t* b, int D) {
-#if defined(__AVX2__)
+// Sum a[i] * b[i] over [0, D) into int32. `sum_b` is sum_i b[i], precomputed
+// at quantization time; it is only used by the AVX-512 VNNI path. D should
+// be a multiple of 64 in the common (AVX-512) path, or 32 in the AVX2 path;
+// a scalar tail handles any remainder.
+//
+// AVX-512 VNNI uses VPDPBUSD, which takes a `uint8 x int8` dot product. Both
+// of our operands are signed int8 in [-127, 127], so we use the identity
+//   sum_i a_i * b_i = sum_i (a_i + 128) * b_i - 128 * sum_i b_i
+//                   = dpbusd(a XOR 0x80, b) - 128 * sum_b.
+// XORing the high bit of each byte is equivalent to adding 128 modulo 256,
+// which reinterprets signed [-128,127] as unsigned [0,255].
+inline int32_t int8_dot(const int8_t* a, const int8_t* b, int D, int32_t sum_b) {
+#if defined(__AVX512VNNI__) && defined(__AVX512F__)
+  __m512i acc = _mm512_setzero_si512();
+  const __m512i sign_flip = _mm512_set1_epi8(static_cast<char>(0x80));
+  int i = 0;
+  for (; i + 64 <= D; i += 64) {
+    __m512i av = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(a + i));
+    __m512i bv = _mm512_loadu_si512(reinterpret_cast<const __m512i*>(b + i));
+    __m512i au = _mm512_xor_si512(av, sign_flip);  // a + 128 (mod 256)
+    acc = _mm512_dpbusd_epi32(acc, au, bv);
+  }
+  // total accumulates sum_i (a_i + 128) * b_i over [0, D). The tail handles
+  // any remaining bytes the SIMD loop did not cover (only possible when
+  // D < 64, since padded_dim is a power of two).
+  int32_t total = _mm512_reduce_add_epi32(acc);
+  for (; i < D; ++i)
+    total += (static_cast<int32_t>(a[i]) + 128) * static_cast<int32_t>(b[i]);
+  return total - 128 * sum_b;
+#elif defined(__AVX2__)
+  (void)sum_b;
   __m256i acc = _mm256_setzero_si256();
   int i = 0;
   for (; i + 32 <= D; i += 32) {
@@ -110,6 +140,7 @@ inline int32_t int8_dot(const int8_t* a, const int8_t* b, int D) {
   for (; i < D; ++i) total += static_cast<int32_t>(a[i]) * static_cast<int32_t>(b[i]);
   return total;
 #else
+  (void)sum_b;
   int32_t total = 0;
   for (int i = 0; i < D; ++i)
     total += static_cast<int32_t>(a[i]) * static_cast<int32_t>(b[i]);
@@ -125,7 +156,10 @@ struct TQ8_Point_T {
   using distanceType = float;
   using byte = uint8_t;
 
-  static constexpr int header_bytes = 8;  // float scale + float sqr_norm
+  // float scale + float sqr_norm + int32 sum_code. sum_code is the per-point
+  // sum of the int8 code bytes; the AVX-512 VNNI dot product needs it for
+  // the dpbusd sign-flip correction (see tq8_internal::int8_dot).
+  static constexpr int header_bytes = 12;
   static constexpr uint64_t kSignsSeed = 42;
 
   struct parameters {
@@ -167,13 +201,15 @@ struct TQ8_Point_T {
 
   float scale() const { return load_float(values); }
   float sqr_norm() const { return load_float(values + 4); }
+  int32_t sum_code() const { return load_int32(values + 8); }
   const int8_t* code() const {
     return reinterpret_cast<const int8_t*>(values + header_bytes);
   }
 
   float distance(const TQ8_Point_T& x) const {
     const int D = params.padded_dim;
-    const int32_t dot = tq8_internal::int8_dot(code(), x.code(), D);
+    const int32_t dot =
+        tq8_internal::int8_dot(code(), x.code(), D, x.sum_code());
     const float s = scale() * x.scale();
     const float dp = s * static_cast<float>(dot);  // estimate of <x, y>
     if constexpr (IsMips) {
@@ -226,6 +262,7 @@ struct TQ8_Point_T {
     if (sqr_norm == 0.0f) {
       store_float(out, 0.0f);
       store_float(out + 4, 0.0f);
+      store_int32(out + 8, 0);
       std::memset(code_out, 0, D);
       return;
     }
@@ -239,6 +276,7 @@ struct TQ8_Point_T {
     for (int j = 0; j < D; ++j) max_abs = std::max(max_abs, std::abs(buf[j]));
 
     int64_t int8_sqr_norm = 0;
+    int32_t sum_code_v = 0;
     if (max_abs == 0.0f) {
       std::memset(code_out, 0, D);
     } else {
@@ -249,6 +287,7 @@ struct TQ8_Point_T {
         if (v > 127) v = 127;
         code_out[j] = static_cast<int8_t>(v);
         int8_sqr_norm += static_cast<int64_t>(v) * v;
+        sum_code_v += v;
       }
     }
 
@@ -258,6 +297,7 @@ struct TQ8_Point_T {
             : std::sqrt(sqr_norm / static_cast<float>(int8_sqr_norm));
     store_float(out, scale);
     store_float(out + 4, sqr_norm);
+    store_int32(out + 8, sum_code_v);
   }
 
   template <typename PR>
@@ -278,6 +318,14 @@ struct TQ8_Point_T {
   }
   static void store_float(byte* p, float f) {
     std::memcpy(p, &f, sizeof(float));
+  }
+  static int32_t load_int32(const byte* p) {
+    int32_t v;
+    std::memcpy(&v, p, sizeof(int32_t));
+    return v;
+  }
+  static void store_int32(byte* p, int32_t v) {
+    std::memcpy(p, &v, sizeof(int32_t));
   }
 };
 
