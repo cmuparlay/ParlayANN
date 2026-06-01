@@ -178,9 +178,9 @@ struct BuildParams{
   double early_stopping_radius; // for radius search
   rangeQueryType range_query_type = None;
   double radius; // for radius search
+  int prefix_size = 0;
 
   std::string alg_type;
-
 
   BuildParams(long R, long L, double a, int num_passes,
               long nc, long cs, long mst, double de,
@@ -190,7 +190,7 @@ struct BuildParams{
               double rerank_factor = 100, double batch_factor = 1.0,
               bool is_early_stop = false, double early_stopping_radius = 0.0, 
               rangeQueryType range_query_type = None, double radius = 0.0,
-              bool graph_stats = false) 
+              bool graph_stats = false, int prefix_size = 0) 
     : R(R), L(L), alpha(a), num_passes(num_passes), num_clusters(nc),
       cluster_size(cs), MST_deg(mst), delta(de),
       verbose(verbose), graph_stats(graph_stats), quantize(quantize),
@@ -198,7 +198,7 @@ struct BuildParams{
       Q(Q), trim(trim),
       rerank_factor(rerank_factor), batch_factor(batch_factor),
       is_early_stop(is_early_stop), early_stopping_radius(early_stopping_radius),
-      range_query_type(range_query_type), radius(radius) {
+      range_query_type(range_query_type), radius(radius), prefix_size(prefix_size) {
     if(R != 0 && L != 0 && alpha != 0){alg_type = m_l>0? "HNSW": "Vamana";}
     else if(num_clusters != 0 && cluster_size != 0 && MST_deg != 0){alg_type = "HCNNG";}
     else if(R != 0 && alpha != 0 && num_clusters != 0 && cluster_size != 0 && delta != 0){alg_type = "pyNNDescent";}

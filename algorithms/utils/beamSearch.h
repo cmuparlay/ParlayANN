@@ -546,7 +546,9 @@ beam_search_rerank(const Point &p,
   auto QPP = QP;
 
   bool use_rerank = (Base_Points.params.num_bytes() != Q_Base_Points.params.num_bytes());
-  bool use_filtering = (Q_Base_Points.params.num_bytes() != QQ_Base_Points.params.num_bytes());
+  bool use_filtering = (Q_Base_Points.params.num_bytes() != QQ_Base_Points.params.num_bytes() ||
+                        Q_Base_Points.params.dims != QQ_Base_Points.params.dims
+                        );
   std::pair<std::pair<parlay::sequence<id_dist>, parlay::sequence<id_dist>>, size_t> r;
   r = filtered_beam_search(G,
                             qp, Q_Base_Points,

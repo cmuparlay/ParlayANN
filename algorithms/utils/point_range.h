@@ -69,7 +69,7 @@ struct PointRange{
   PointRange (PR& pr) : PointRange(pr, Point::generate_parameters(pr)) { }
 
   template <typename PR>
-  PointRange (PR& pr, int dims) : PointRange(pr, Point::generate_parameters(dims)) { }
+  PointRange (PR& pr, int dims) : PointRange(pr, Point::generate_parameters(pr, dims)) { }
 
   PointRange(char* filename) : values(std::shared_ptr<byte[]>(nullptr, std::free)){
       if(filename == NULL) {

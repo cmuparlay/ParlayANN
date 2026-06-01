@@ -96,9 +96,10 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
     std::cout << "quantizing build and first pass of search to 1 byte" << std::endl;
     if constexpr (Point::is_metric) {
       using QT = uint8_t;
-      using QPoint = Euclidian_Point<QT>;
+      using QPoint = Euclidian_Point_Reduced<QT>;
       using QPR = PointRange<QPoint>;
-      QPR Q_Points(Points);  // quantized to one byte
+      int dims = (BP.prefix_size == 0) ? Points.get_dims() : BP.prefix_size;
+      QPR Q_Points(Points, dims);  // quantized to one byte
       QPR Q_Query_Points(Query_Points, Q_Points.params);
       if (BP.quantize == 1) {
          ANN_Quantized(G, k, BP, Query_Points, Q_Query_Points, Q_Query_Points,
@@ -120,9 +121,7 @@ void ANN(Graph<indexType> &G, long k, BuildParams &BP,
                       GT, res_file, graph_built, Points, Q_Points, QQ_Points);
       }
     } else {
-      std::cout << "hello" << std::endl;
       using QT = int8_t;
-      //using QPoint = Euclidian_Point<uint8_t>;
       using QPoint = Quantized_Mips_Point<8,true,255>;
       using QPR = PointRange<QPoint>;
       QPR Q_Points(Points);

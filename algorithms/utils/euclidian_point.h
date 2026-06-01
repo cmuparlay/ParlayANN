@@ -113,7 +113,8 @@ struct Euclidian_Point {
   T operator[](long i) const {return *(values + i);}
 
   float distance(const Euclidian_Point& x) const {
-    return euclidian_distance(this->values, x.values, params.dims);
+    int dims = params.dims;
+    return euclidian_distance(this->values, x.values, dims);
   }
 
   float translate_distance(double r) const {
@@ -247,6 +248,169 @@ private:
   long id_;
 };
 
+  template<typename T_, long range=(1l << sizeof(T_)*8) - 1>
+struct Euclidian_Point_Reduced {
+  using distanceType = float;
+  using T = T_;
+  using byte = uint8_t;
+
+  struct parameters {
+    float slope;
+    int32_t offset;
+    int dims;
+    int num_bytes() const {return dims * sizeof(T);}
+    parameters() : slope(0), offset(0), dims(0) {}
+    parameters(int dims) : slope(1.0), offset(0), dims(dims) {}
+    parameters(float min_val, float max_val, int dims)
+      : slope(range / (max_val - min_val)),
+        offset((int32_t) round(min_val * slope)),
+        dims(dims) {
+      std::cout << "Euclidean Reduced Dims" << std::endl;
+    }
+  };
+
+  static distanceType d_min() {return 0;}
+  static constexpr bool is_metric = true;
+  T operator[](long i) const {return *(values + i);}
+
+  float distance(const Euclidian_Point_Reduced& x) const {
+    int dims = params.dims;
+    return euclidian_distance(this->values, x.values, dims);
+  }
+
+  float translate_distance(double r) const {
+    if constexpr (sizeof(T) == 2)
+                   return r * params.slope * params.slope / 256;
+    else return r * params.slope * params.slope;
+  }
+
+  void normalize() {
+    double norm = 0.0;
+    for (int j = 0; j < params.dims; j++)
+      norm += values[j] * values[j];
+    norm = std::sqrt(norm);
+    if (norm == 0) norm = 1.0;
+    for (int j = 0; j < params.dims; j++)
+      values[j] = values[j] / norm;
+  }
+
+  void prefetch() const {
+    int l = (params.dims * sizeof(T) - 1)/64 + 1;
+    for (int i=0; i < l; i++)
+      __builtin_prefetch((char*) values + i* 64);
+  }
+
+  long id() const {return id_;}
+
+  Euclidian_Point_Reduced() : values(nullptr), id_(-1), params(0) {}
+
+  Euclidian_Point_Reduced(byte* values, long id, parameters params)
+    : values((T*) values), id_(id), params(params) { }
+
+  // template <typename Point>
+  // Euclidian_Point(const Point& p, const parameters& params) : id_(-1), params(params) {
+  //   float slope = params.slope;
+  //   int32_t offset = params.offset;
+  //   float min_val = std::floor(offset / slope);
+  //   float max_val = std::ceil((range + offset) / slope);
+  //   values = new T[params.dims];
+  //   if (slope == 1 && offset == 0) {
+  //     for (int j = 0; j < params.dims; j++)
+  //       values[j] = (T) p[j];
+  //   } else {
+  //     for (int j = 0; j < params.dims; j++) {
+  //       auto x = p[j];
+  //       if (x < min_val || x > max_val) {
+  //         std::cout << x << " is out of range: [" << min_val << "," << max_val << "]" << std::endl;
+  //         abort();
+  //       }
+  //       int64_t r = (int64_t) (std::round(x * slope)) - offset;
+  //       if (r < 0 || r > range) {
+  //         std::cout << "out of range: " << r << ", " << range << ", " << x << ", " << std::round(x * slope) - offset << ", " << slope << ", " << offset << std::endl;
+  //         abort();
+  //       }
+  //       values[j] = (T) r;
+  //     }
+  //   }
+  // }
+
+  bool operator==(const Euclidian_Point_Reduced& q) const {
+    for (int i = 0; i < params.dims; i++) {
+      if (values[i] != q.values[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  bool same_as(const Euclidian_Point_Reduced& q) const {
+    return values == q.values;
+  }
+
+  template <typename Point>
+  static void translate_point(byte* byte_values, const Point& p, const parameters& params) {
+    T* values = (T*) byte_values;
+    float slope = params.slope;
+    int32_t offset = params.offset;
+    //int sdims = 1536;
+    if (slope == 1.0 && offset == 00) 
+      for (int j = 0; j < params.dims; j++)
+        values[j] = p[j];
+    else {
+      //float min_val = std::floor(offset / slope);
+      //float max_val = std::ceil((range + offset) / slope);
+      for (int j = 0; j < params.dims; j++) {
+        //for (int j = 0; j < params.dims; j++) {
+        auto x = p[j];
+        // if (x < min_val || x > max_val) {
+        //   std::cout << x << " is out of range: [" << min_val << "," << max_val << "]" << std::endl;
+        //   abort();
+        // }
+        int64_t r = (int64_t) (std::round(x * slope)) - offset;
+        if (r < 0) r = 0;
+        if (r > range) r = range;
+        // if (r < 0 || r > range) {
+        //   std::cout << "out of range: " << r << ", " << range << ", " << x << ", " << std::round(x * slope) - offset << ", " << slope << ", " << offset << std::endl;
+        //   abort();
+        // }
+        values[j] = (T) r;
+      }
+    }
+  }
+
+  template <typename PR>
+  static parameters generate_parameters(const PR& pr, int dimensions = 0) {
+    long n = pr.size();
+    int dims = (dimensions == 0) ? pr.dimension() : std::min<int>(dimensions, pr.dimension());
+    using MT = float; // typename PR::Point::T;
+    parlay::sequence<MT> mins(n, 0.0);
+    parlay::sequence<MT> maxs(n, 0.0);
+    parlay::sequence<bool> ni(n, true);
+    parlay::parallel_for(0, n, [&] (long i) {
+      for (int j = 0; j < dims; j++) {
+        ni[i] = ni[i] && (pr[i][j] >= 0) && (pr[i][j] - (long) pr[i][j]) == 0;
+        mins[i]= std::min<MT>(mins[i], pr[i][j]);
+        maxs[i]= std::max<MT>(maxs[i], pr[i][j]);}});
+    float min_val = *parlay::min_element(mins);
+    float max_val = *parlay::max_element(maxs);
+    bool all_ints = *parlay::min_element(ni);
+    if (all_ints) {
+      if (sizeof(T) == 1 && max_val < 256) max_val = 255;
+      else if (sizeof(T) == 2 && max_val < 65536) max_val = 65536;
+      min_val = 0;
+    }
+    std::cout << "scalar reduced dimension quantization: min value = " << min_val
+              << ", max value = " << max_val << std::endl;
+    return parameters(min_val, max_val, dims);
+  }
+
+  parameters params;
+
+private:
+  T* values;
+  long id_;
+  };
+  
 template <int jl_dims>
 struct Euclidean_JL_Sparse_Point {
   using distanceType = float;
@@ -257,6 +421,7 @@ struct Euclidean_JL_Sparse_Point {
   struct parameters {
     std::vector<int> JL_indices;
     int source_dims;
+    const int dims = jl_dims;
     int num_bytes() const {return sizeof(Data);}
     parameters() : source_dims(0) {}
     parameters(int dims) : source_dims(dims) {}
