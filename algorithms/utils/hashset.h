@@ -19,30 +19,37 @@ namespace parlayANN {
   
     bool operator () (const K k) {
       int loc = hash(k) & mask;
-      if (entries.size() == 0) return {};
+      if (entries[loc] == k)
+        return true;
+      if (entries[loc] == empty) {
+        insert_at(k, loc);
+        return false;
+      }
+      loc = (loc + 1) & mask;
       while (entries[loc] != empty && entries[loc] != k)
         loc = (loc + 1) & mask;
-      return (entries[loc] == k);
+      if (entries[loc] == k)
+        return true;
+      insert_at(k, loc);
+      return false;
     }
 
-    void insert_fits(const K k) {
-      int loc = hash(k) & mask;
-      while (entries[loc] != empty && entries[loc] != k)
-        loc = (loc + 1) & mask;
+    void insert_at(const K k, const int loc) {
       entries[loc] = k;
-    }
-  
-    void insert(const K k) {
+      num_entries++;
       if (num_entries >= entries.size()/2) {
         bits = bits + 1;
         std::vector<K> new_entries(1ul << bits, empty);
         mask = new_entries.size() - 1;
         swap(entries, new_entries);
         for (auto k : new_entries)
-          if (k != empty) insert_fits(k);
+          if (k != empty) {
+            int rloc = hash(k) & mask;
+            while (entries[rloc] != empty)
+              rloc = (rloc + 1) & mask;
+            entries[rloc] = k;
+          }
       }
-      insert_fits(k);
-      num_entries++;
     }
   
     hashset(long n) :
